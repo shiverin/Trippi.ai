@@ -1,10 +1,10 @@
 # MCP Integration
 
-TREK includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that lets AI
+TRIPPI includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that lets AI
 assistants — such as Claude Desktop, Cursor, or any MCP-compatible client — read and modify your trip data through a
 structured API.
 
-> **Note:** MCP is an addon that must be enabled by your TREK administrator before it becomes available.
+> **Note:** MCP is an addon that must be enabled by your TRIPPI administrator before it becomes available.
 
 ## Table of Contents
 
@@ -39,11 +39,11 @@ management required — just provide the server URL:
 ```json
 {
   "mcpServers": {
-    "trek": {
+    "trippi": {
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://your-trek-instance.com/mcp"
+        "https://your-trippi-instance.com/mcp"
       ]
     }
   }
@@ -56,15 +56,15 @@ management required — just provide the server URL:
 1. The client fetches `/.well-known/oauth-protected-resource` (RFC 9728) to discover the authorization server and bind the `/mcp` endpoint.
 2. The client fetches `/.well-known/oauth-authorization-server` for the full AS metadata.
 3. The client registers itself via [Dynamic Client Registration (RFC 7591)](https://www.rfc-editor.org/rfc/rfc7591).
-4. Your browser opens TREK's consent screen, where you choose which scopes (permissions) to grant.
+4. Your browser opens TRIPPI's consent screen, where you choose which scopes (permissions) to grant.
 5. The client receives a short-lived access token audience-bound to `/mcp` (RFC 8707) and a rotating refresh token — no re-authorization needed.
 
-> **Requirement:** The `APP_URL` environment variable must be set to your TREK instance's public URL for OAuth
+> **Requirement:** The `APP_URL` environment variable must be set to your TRIPPI instance's public URL for OAuth
 > discovery to work correctly.
 
 **For more control over scopes or to use confidential client mode**, pre-create an OAuth client in
 **Settings > Integrations > MCP > OAuth Clients** before connecting. Clients created there have a client secret
-(`trekcs_` prefix) and fixed scopes that you define up front.
+(`trippics_` prefix) and fixed scopes that you define up front.
 
 #### Option B: Static API Token (deprecated)
 
@@ -77,13 +77,13 @@ management required — just provide the server URL:
 ```json
 {
   "mcpServers": {
-    "trek": {
+    "trippi": {
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://your-trek-instance.com/mcp",
+        "https://your-trippi-instance.com/mcp",
         "--header",
-        "Authorization: Bearer trek_your_token_here"
+        "Authorization: Bearer trippi_your_token_here"
       ]
     }
   }
@@ -99,13 +99,13 @@ Each user can create up to **10 static tokens**.
 
 ## Authentication
 
-TREK's MCP server supports three authentication methods. OAuth 2.1 is the recommended path for all external clients.
+TRIPPI's MCP server supports three authentication methods. OAuth 2.1 is the recommended path for all external clients.
 
 | Method | Token prefix | Access level | TTL | Notes |
 |--------|-------------|-------------|-----|-------|
-| **OAuth 2.1** | `trekoa_` | Scoped (per-consent) | 1 hour | Recommended. Automatically refreshed via 30-day rolling refresh tokens (`trekrf_` prefix). Replay-detected rotation — replayed tokens cascade-revoke the entire chain. |
-| **Static API token** | `trek_` | Full access | No expiry | **Deprecated.** Triggers deprecation warnings in AI clients. Will be removed in a future release. |
-| **Web session JWT** | — | Full access | Session-based | Used internally by the TREK web UI. Not intended for external clients. |
+| **OAuth 2.1** | `trippioa_` | Scoped (per-consent) | 1 hour | Recommended. Automatically refreshed via 30-day rolling refresh tokens (`trippirf_` prefix). Replay-detected rotation — replayed tokens cascade-revoke the entire chain. |
+| **Static API token** | `trippi_` | Full access | No expiry | **Deprecated.** Triggers deprecation warnings in AI clients. Will be removed in a future release. |
+| **Web session JWT** | — | Full access | Session-based | Used internally by the TRIPPI web UI. Not intended for external clients. |
 
 All methods require the `Authorization: Bearer <token>` header (strict scheme enforcement — `Bearer` required).
 
@@ -113,7 +113,7 @@ All methods require the `Authorization: Bearer <token>` header (strict scheme en
 
 ## OAuth Scopes
 
-When connecting via OAuth 2.1, you grant specific scopes during the consent step. TREK registers only the MCP tools
+When connecting via OAuth 2.1, you grant specific scopes during the consent step. TRIPPI registers only the MCP tools
 that match your granted scopes for that session.
 
 | Scope | Permission | Group |
@@ -164,7 +164,7 @@ that match your granted scopes for that session.
 | **Per-user scoping**                    | Each MCP session is scoped to the authenticated user. You can only access trips you own or are a member of.                                      |
 | **No image uploads**                    | Cover images cannot be set through MCP. Use the web UI to upload trip covers.                                                                    |
 | **Reservations are created as pending** | When the AI creates a reservation, it starts with `pending` status. You must confirm it manually or ask the AI to set the status to `confirmed`. |
-| **Demo mode restrictions**              | If TREK is running in demo mode, all write operations through MCP are blocked.                                                                   |
+| **Demo mode restrictions**              | If TRIPPI is running in demo mode, all write operations through MCP are blocked.                                                                   |
 | **Rate limiting**                       | 300 requests per minute per user (configurable via `MCP_RATE_LIMIT`). Exceeding this returns a `429` error.                                     |
 | **Per-client rate limiting**            | Rate limits are tracked per user-client pair, so each OAuth client has its own independent rate limit window.                                    |
 | **Session limits**                      | Maximum 20 concurrent MCP sessions per user (configurable via `MCP_MAX_SESSION_PER_USER`). Sessions expire after 1 hour of inactivity.          |
@@ -179,32 +179,32 @@ that match your granted scopes for that session.
 
 ## Resources (read-only)
 
-Resources provide read-only access to your TREK data. MCP clients can read these to understand the current state before
+Resources provide read-only access to your TRIPPI data. MCP clients can read these to understand the current state before
 making changes.
 
 ### Core Resources
 
 | Resource              | URI                                             | Description                                                                           |
 |-----------------------|-------------------------------------------------|---------------------------------------------------------------------------------------|
-| Trips                 | `trek://trips`                                  | All trips you own or are a member of                                                  |
-| Trip Detail           | `trek://trips/{tripId}`                         | Single trip with metadata and member count                                            |
-| Days                  | `trek://trips/{tripId}/days`                    | Days of a trip with their assigned places                                             |
-| Places                | `trek://trips/{tripId}/places`                  | All places/POIs saved in a trip. Supports `?assignment=all\|unassigned\|assigned`     |
-| Budget                | `trek://trips/{tripId}/budget`                  | Budget and expense items                                                              |
-| Budget Per-Person     | `trek://trips/{tripId}/budget/per-person`       | Per-person totals and split breakdown                                                 |
-| Budget Settlement     | `trek://trips/{tripId}/budget/settlement`       | Suggested transactions to settle who owes whom                                        |
-| Packing               | `trek://trips/{tripId}/packing`                 | Packing checklist                                                                     |
-| Packing Bags          | `trek://trips/{tripId}/packing/bags`            | Packing bags with their assigned members                                              |
-| Reservations          | `trek://trips/{tripId}/reservations`            | Flights, hotels, restaurants, etc.                                                    |
-| Day Notes             | `trek://trips/{tripId}/days/{dayId}/notes`      | Notes for a specific day                                                              |
-| Accommodations        | `trek://trips/{tripId}/accommodations`          | Hotels/rentals with check-in/out details                                              |
-| Members               | `trek://trips/{tripId}/members`                 | Owner and collaborators                                                               |
-| Collab Notes          | `trek://trips/{tripId}/collab-notes`            | Shared collaborative notes                                                            |
-| To-Dos                | `trek://trips/{tripId}/todos`                   | To-do items ordered by position                                                       |
-| Categories            | `trek://categories`                             | Available place categories (for use when creating places)                             |
-| Bucket List           | `trek://bucket-list`                            | Your personal travel bucket list                                                      |
-| Visited Countries     | `trek://visited-countries`                      | Countries marked as visited in Atlas                                                  |
-| Notifications         | `trek://notifications/in-app`                   | Your in-app notifications (most recent 50, unread first)                              |
+| Trips                 | `trippi://trips`                                  | All trips you own or are a member of                                                  |
+| Trip Detail           | `trippi://trips/{tripId}`                         | Single trip with metadata and member count                                            |
+| Days                  | `trippi://trips/{tripId}/days`                    | Days of a trip with their assigned places                                             |
+| Places                | `trippi://trips/{tripId}/places`                  | All places/POIs saved in a trip. Supports `?assignment=all\|unassigned\|assigned`     |
+| Budget                | `trippi://trips/{tripId}/budget`                  | Budget and expense items                                                              |
+| Budget Per-Person     | `trippi://trips/{tripId}/budget/per-person`       | Per-person totals and split breakdown                                                 |
+| Budget Settlement     | `trippi://trips/{tripId}/budget/settlement`       | Suggested transactions to settle who owes whom                                        |
+| Packing               | `trippi://trips/{tripId}/packing`                 | Packing checklist                                                                     |
+| Packing Bags          | `trippi://trips/{tripId}/packing/bags`            | Packing bags with their assigned members                                              |
+| Reservations          | `trippi://trips/{tripId}/reservations`            | Flights, hotels, restaurants, etc.                                                    |
+| Day Notes             | `trippi://trips/{tripId}/days/{dayId}/notes`      | Notes for a specific day                                                              |
+| Accommodations        | `trippi://trips/{tripId}/accommodations`          | Hotels/rentals with check-in/out details                                              |
+| Members               | `trippi://trips/{tripId}/members`                 | Owner and collaborators                                                               |
+| Collab Notes          | `trippi://trips/{tripId}/collab-notes`            | Shared collaborative notes                                                            |
+| To-Dos                | `trippi://trips/{tripId}/todos`                   | To-do items ordered by position                                                       |
+| Categories            | `trippi://categories`                             | Available place categories (for use when creating places)                             |
+| Bucket List           | `trippi://bucket-list`                            | Your personal travel bucket list                                                      |
+| Visited Countries     | `trippi://visited-countries`                      | Countries marked as visited in Atlas                                                  |
+| Notifications         | `trippi://notifications/in-app`                   | Your in-app notifications (most recent 50, unread first)                              |
 
 ### Addon-Gated Resources
 
@@ -212,23 +212,23 @@ These resources are only available when the corresponding addon is enabled by an
 
 | Resource              | URI                                             | Addon    | Description                                                         |
 |-----------------------|-------------------------------------------------|----------|---------------------------------------------------------------------|
-| Atlas Stats           | `trek://atlas/stats`                            | Atlas    | Visited country counts and continent breakdown                      |
-| Atlas Regions         | `trek://atlas/regions`                          | Atlas    | Manually visited sub-country regions                                |
-| Collab Polls          | `trek://trips/{tripId}/collab/polls`            | Collab   | All polls for a trip with vote counts per option                    |
-| Collab Messages       | `trek://trips/{tripId}/collab/messages`         | Collab   | Most recent 100 chat messages for a trip                            |
-| Vacay Plan            | `trek://vacay/plan`                             | Vacay    | Full snapshot of your active vacation plan (members, years, config) |
-| Vacay Entries         | `trek://vacay/entries/{year}`                   | Vacay    | All vacation day entries for the active plan and a specific year    |
-| Vacay Holidays        | `trek://vacay/holidays/{year}`                  | Vacay    | Public holidays for the plan's configured region and year           |
-| Journeys              | `trek://journeys`                               | Journey  | All journeys owned or contributed to by the current user            |
-| Journey Detail        | `trek://journeys/{journeyId}`                   | Journey  | Single journey with entries, contributors, and linked trips         |
-| Journey Entries       | `trek://journeys/{journeyId}/entries`           | Journey  | All entries in a journey (date, text, mood, linked trip)            |
-| Journey Contributors  | `trek://journeys/{journeyId}/contributors`      | Journey  | Contributors (owner and collaborators) of a journey                 |
+| Atlas Stats           | `trippi://atlas/stats`                            | Atlas    | Visited country counts and continent breakdown                      |
+| Atlas Regions         | `trippi://atlas/regions`                          | Atlas    | Manually visited sub-country regions                                |
+| Collab Polls          | `trippi://trips/{tripId}/collab/polls`            | Collab   | All polls for a trip with vote counts per option                    |
+| Collab Messages       | `trippi://trips/{tripId}/collab/messages`         | Collab   | Most recent 100 chat messages for a trip                            |
+| Vacay Plan            | `trippi://vacay/plan`                             | Vacay    | Full snapshot of your active vacation plan (members, years, config) |
+| Vacay Entries         | `trippi://vacay/entries/{year}`                   | Vacay    | All vacation day entries for the active plan and a specific year    |
+| Vacay Holidays        | `trippi://vacay/holidays/{year}`                  | Vacay    | Public holidays for the plan's configured region and year           |
+| Journeys              | `trippi://journeys`                               | Journey  | All journeys owned or contributed to by the current user            |
+| Journey Detail        | `trippi://journeys/{journeyId}`                   | Journey  | Single journey with entries, contributors, and linked trips         |
+| Journey Entries       | `trippi://journeys/{journeyId}/entries`           | Journey  | All entries in a journey (date, text, mood, linked trip)            |
+| Journey Contributors  | `trippi://journeys/{journeyId}/contributors`      | Journey  | Contributors (owner and collaborators) of a journey                 |
 
 ---
 
 ## Tools (read-write)
 
-TREK exposes tools organized by feature area. Use `get_trip_summary` as a starting point — it returns everything about a
+TRIPPI exposes tools organized by feature area. Use `get_trip_summary` as a starting point — it returns everything about a
 trip in a single call.
 
 ### Trip Summary
@@ -534,7 +534,7 @@ MCP prompts are pre-built context loaders your AI client can invoke to get a str
 | `trip-summary`       | Load a formatted summary of a trip (dates, members, days, budget, packing, reservations) before planning or modifying it. |
 | `packing-list`       | Get a formatted packing checklist for a trip, grouped by category.              |
 | `budget-overview`    | Get a formatted budget summary with totals by category and per-person cost.     |
-| `token_auth_notice`  | Static token deprecation notice and migration guide. Only available in sessions authenticated with a legacy `trek_` token. |
+| `token_auth_notice`  | Static token deprecation notice and migration guide. Only available in sessions authenticated with a legacy `trippi_` token. |
 
 ---
 
@@ -549,13 +549,13 @@ I'd like to plan a week-long trip to Kyoto, Japan, arriving April 5 2027
 and leaving April 11 2027. It's cherry blossom season so please keep that
 in mind when picking spots.
 
-Before writing anything to TREK, do some research: look up what's worth
+Before writing anything to TRIPPI, do some research: look up what's worth
 visiting, figure out a logical day-by-day flow (group nearby spots together
 to avoid unnecessary travel), find a well-reviewed hotel in a central
 neighbourhood, and think about what kind of food and restaurant experiences
 are worth including.
 
-Once you have a solid plan, write the whole thing to TREK:
+Once you have a solid plan, write the whole thing to TRIPPI:
 - Create the trip
 - Add all the places you've researched with their real coordinates
 - Build out the daily itinerary with sensible visiting times
@@ -572,6 +572,6 @@ Currency: CHF. Use get_trip_summary at the end and give me a quick recap
 of everything that was added.
 ```
 
-PDF of the generated trip: [./docs/TREK-Generated-by-MCP.pdf](./docs/TREK-Generated-by-MCP.pdf)
+PDF of the generated trip: [./docs/TRIPPI-Generated-by-MCP.pdf](./docs/TRIPPI-Generated-by-MCP.pdf)
 
 ![trip](./docs/screenshot-trip-mcp.png)

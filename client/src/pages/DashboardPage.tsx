@@ -94,13 +94,13 @@ export default function DashboardPage(): React.ReactElement {
 
   return (
     <>
-      {/* Navbar lives outside .trek-dash so it keeps the app-wide font + button
+      {/* Navbar lives outside .trippi-dash so it keeps the app-wide font + button
           styling instead of inheriting the dashboard scope's font and the
-          `.trek-dash button` reset (which shifted the bell icon + menu items). */}
+          `.trippi-dash button` reset (which shifted the bell icon + menu items). */}
       <Navbar />
-      <div className="trek-dash trek-dash-shell">
+      <div className="trippi-dash trippi-dash-shell">
       {demoMode && <DemoBanner />}
-      <div className="trek-dash-scroll">
+      <div className="trippi-dash-scroll">
         <MobileTopBar />
         <main className="page">
           <div className="page-main">
@@ -518,13 +518,13 @@ function CurrencyTool(): React.ReactElement {
   // so a (docker) upgrade no longer resets the widget (#1311).
   useEffect(() => {
     if (!isLoaded) return
-    const lf = localStorage.getItem('trek_fx_from')
-    const lt = localStorage.getItem('trek_fx_to')
+    const lf = localStorage.getItem('trippi_fx_from')
+    const lt = localStorage.getItem('trippi_fx_to')
     if (!lf && !lt) return
     if (lf) updateSetting('dashboard_fx_from', lf).catch(() => {})
     if (lt) updateSetting('dashboard_fx_to', lt).catch(() => {})
-    localStorage.removeItem('trek_fx_from')
-    localStorage.removeItem('trek_fx_to')
+    localStorage.removeItem('trippi_fx_from')
+    localStorage.removeItem('trippi_fx_to')
   }, [isLoaded, updateSetting])
 
   const currencies = rates ? Object.keys(rates).sort() : FX_FALLBACK
@@ -598,13 +598,13 @@ function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
   // so a (docker) upgrade no longer resets the widget (#1311).
   useEffect(() => {
     if (!isLoaded) return
-    const raw = localStorage.getItem('trek_dashboard_tz')
+    const raw = localStorage.getItem('trippi_dashboard_tz')
     if (!raw) return
     try {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed)) updateSetting('dashboard_timezones', parsed).catch(() => {})
     } catch { /* ignore malformed storage */ }
-    localStorage.removeItem('trek_dashboard_tz')
+    localStorage.removeItem('trippi_dashboard_tz')
   }, [isLoaded, updateSetting])
 
   const allZones = React.useMemo<string[]>(() => {

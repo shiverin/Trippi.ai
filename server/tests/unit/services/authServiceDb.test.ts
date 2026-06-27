@@ -350,7 +350,7 @@ describe('isOidcOnlyMode', () => {
   it('AUTH-DB-021: returns true when OIDC_ONLY=true AND OIDC_ISSUER AND OIDC_CLIENT_ID are set', () => {
     vi.stubEnv('OIDC_ONLY', 'true');
     vi.stubEnv('OIDC_ISSUER', 'https://sso.example.com');
-    vi.stubEnv('OIDC_CLIENT_ID', 'trek-client');
+    vi.stubEnv('OIDC_CLIENT_ID', 'trippi-client');
     expect(isOidcOnlyMode()).toBe(true);
     vi.unstubAllEnvs();
   });
@@ -378,7 +378,7 @@ describe('resolveAuthToggles', () => {
   it('AUTH-DB-022b: legacy — OIDC_ONLY=true with OIDC configured disables password_login and password_registration', () => {
     vi.stubEnv('OIDC_ONLY', 'true');
     vi.stubEnv('OIDC_ISSUER', 'https://sso.example.com');
-    vi.stubEnv('OIDC_CLIENT_ID', 'trek-client');
+    vi.stubEnv('OIDC_CLIENT_ID', 'trippi-client');
     const t = resolveAuthToggles();
     expect(t.password_login).toBe(false);
     expect(t.password_registration).toBe(false);
@@ -703,7 +703,7 @@ describe('MCP token service', () => {
     const { user } = createUser(testDb);
     const result = createMcpToken(user.id, 'My Token');
     expect(result.token).toBeDefined();
-    expect((result.token as any).raw_token).toMatch(/^trek_/);
+    expect((result.token as any).raw_token).toMatch(/^trippi_/);
   });
 
   it('AUTH-DB-044: createMcpToken returns 400 when user has 10 tokens already', () => {
@@ -711,7 +711,7 @@ describe('MCP token service', () => {
     for (let i = 0; i < 10; i++) {
       testDb.prepare(
         'INSERT INTO mcp_tokens (user_id, name, token_hash, token_prefix) VALUES (?, ?, ?, ?)'
-      ).run(user.id, `Token ${i}`, `hash${i}`, `trek_prefix${i}`);
+      ).run(user.id, `Token ${i}`, `hash${i}`, `trippi_prefix${i}`);
     }
     const result = createMcpToken(user.id, 'One More');
     expect(result.status).toBe(400);

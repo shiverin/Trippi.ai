@@ -446,7 +446,7 @@ describe('authStore', () => {
 
       await useAuthStore.getState().logout();
 
-      const snapshot = JSON.parse(localStorage.getItem('trek_auth_snapshot') ?? '{}');
+      const snapshot = JSON.parse(localStorage.getItem('trippi_auth_snapshot') ?? '{}');
       expect(snapshot?.state?.isAuthenticated).toBe(false);
       expect(snapshot?.state?.user).toBeNull();
     });
@@ -464,7 +464,7 @@ describe('authStore', () => {
 
       await useAuthStore.getState().loadUser();
 
-      const snapshot = JSON.parse(localStorage.getItem('trek_auth_snapshot') ?? '{}');
+      const snapshot = JSON.parse(localStorage.getItem('trippi_auth_snapshot') ?? '{}');
       expect(snapshot?.state?.isAuthenticated).toBe(false);
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
     });
@@ -483,7 +483,7 @@ describe('authStore', () => {
       await useAuthStore.getState().loadUser();
 
       // Persist middleware writes the state; isAuthenticated must stay true
-      const snapshot = JSON.parse(localStorage.getItem('trek_auth_snapshot') ?? '{}');
+      const snapshot = JSON.parse(localStorage.getItem('trippi_auth_snapshot') ?? '{}');
       expect(snapshot?.state?.isAuthenticated).toBe(true);
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
     });

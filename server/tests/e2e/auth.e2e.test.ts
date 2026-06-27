@@ -2,7 +2,7 @@
  * Auth e2e — exercises the migrated /api/auth endpoints through the real
  * JwtAuthGuard/OptionalJwtGuard AND the real cookie service against a temp
  * SQLite db. Only the authService (credential/MFA logic) + audit/notifications
- * are mocked; this proves the httpOnly trek_session cookie is set on login and
+ * are mocked; this proves the httpOnly trippi_session cookie is set on login and
  * cleared on logout, that /me requires a session, and that /app-config is
  * optional-auth.
  */
@@ -41,7 +41,7 @@ const { authSvc } = vi.hoisted(() => ({
 vi.mock('../../src/services/authService', () => authSvc);
 
 import { AuthModule } from '../../src/nest/auth/auth.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('Auth e2e (real auth guard + real cookie service + temp SQLite)', () => {
   let server: Server;
@@ -51,7 +51,7 @@ describe('Auth e2e (real auth guard + real cookie service + temp SQLite)', () =>
     const moduleRef = await Test.createTestingModule({ imports: [AuthModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }
@@ -89,13 +89,13 @@ describe('Auth e2e (real auth guard + real cookie service + temp SQLite)', () =>
     expect(res.body).toEqual({ user: { id: 1, email: 'u@example.test' } });
   });
 
-  it('POST /login sets the httpOnly trek_session cookie', async () => {
+  it('POST /login sets the httpOnly trippi_session cookie', async () => {
     authSvc.loginUser.mockReturnValue({ token: 'jwt.token.value', user: { id: 1 } });
     const res = await request(server).post('/api/auth/login').send({ email: 'u@example.test', password: 'pw' });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ token: 'jwt.token.value', user: { id: 1 } });
     const setCookie = res.headers['set-cookie'] as unknown as string[];
-    expect(setCookie.some((c) => c.startsWith('trek_session=') && /HttpOnly/i.test(c))).toBe(true);
+    expect(setCookie.some((c) => c.startsWith('trippi_session=') && /HttpOnly/i.test(c))).toBe(true);
   }, 10000);
 
   it('POST /login with remember_me sets a persistent cookie (Max-Age present)', async () => {
@@ -103,7 +103,7 @@ describe('Auth e2e (real auth guard + real cookie service + temp SQLite)', () =>
     const res = await request(server).post('/api/auth/login').send({ email: 'u@example.test', password: 'pw', remember_me: true });
     expect(res.status).toBe(200);
     const setCookie = res.headers['set-cookie'] as unknown as string[];
-    const cookie = setCookie.find((c) => c.startsWith('trek_session='))!;
+    const cookie = setCookie.find((c) => c.startsWith('trippi_session='))!;
     expect(cookie).toMatch(/Max-Age=\d+/i);
     // 30d default — well above the 24h (86400s) non-remember window.
     const maxAge = Number(/Max-Age=(\d+)/i.exec(cookie)?.[1]);
@@ -115,7 +115,7 @@ describe('Auth e2e (real auth guard + real cookie service + temp SQLite)', () =>
     const res = await request(server).post('/api/auth/login').send({ email: 'u@example.test', password: 'pw' });
     expect(res.status).toBe(200);
     const setCookie = res.headers['set-cookie'] as unknown as string[];
-    const cookie = setCookie.find((c) => c.startsWith('trek_session='))!;
+    const cookie = setCookie.find((c) => c.startsWith('trippi_session='))!;
     expect(cookie).not.toMatch(/Max-Age/i);
     expect(cookie).not.toMatch(/Expires/i);
   }, 10000);
@@ -125,6 +125,6 @@ describe('Auth e2e (real auth guard + real cookie service + temp SQLite)', () =>
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ success: true });
     const setCookie = res.headers['set-cookie'] as unknown as string[];
-    expect(setCookie.some((c) => c.startsWith('trek_session='))).toBe(true);
+    expect(setCookie.some((c) => c.startsWith('trippi_session='))).toBe(true);
   });
 });

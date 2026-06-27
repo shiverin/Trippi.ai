@@ -205,7 +205,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Sdíleno přes',
   'journey.public.madeWith': 'Vytvořeno pomocí',
   'journey.pdf.journeyBook': 'Cestovní kniha',
-  'journey.pdf.madeWith': 'Vytvořeno pomocí TREK',
+  'journey.pdf.madeWith': 'Vytvořeno pomocí TRIPPI',
   'journey.pdf.day': 'Den',
   'journey.pdf.theEnd': 'Konec',
   'journey.pdf.saveAsPdf': 'Uložit jako PDF',

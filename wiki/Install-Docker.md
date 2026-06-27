@@ -6,13 +6,13 @@ Single-container Docker run — suitable for testing or simple personal installs
 
 ```bash
 docker run -d \
-  --name trek \
+  --name trippi \
   -p 3000:3000 \
   -v ./data:/app/data \
   -v ./uploads:/app/uploads \
   -e ENCRYPTION_KEY=<your-32-byte-hex-key> \
   --restart unless-stopped \
-  mauriceboe/trek:latest
+  mauriceboe/trippi:latest
 ```
 
 `ENCRYPTION_KEY` is strongly recommended but not strictly required. If omitted, a key is auto-generated on first start and persisted to `data/.encryption_key`. Setting it explicitly means you can recreate the container from scratch (e.g. on a new host) without losing access to stored encrypted data (API keys, SMTP credentials, OIDC secrets, MFA secrets).
@@ -29,7 +29,7 @@ Pass additional `-e` flags for timezone and CORS/email link support:
 
 ```bash
   -e TZ=Europe/Berlin \
-  -e ALLOWED_ORIGINS=https://trek.example.com \
+  -e ALLOWED_ORIGINS=https://trippi.example.com \
 ```
 
 See [Environment-Variables](Environment-Variables) for the full list.
@@ -38,17 +38,17 @@ See [Environment-Variables](Environment-Variables) for the full list.
 
 | Tag | Example | Behavior |
 |---|---|---|
-| `latest` | `mauriceboe/trek:latest` | Always the newest release across all major versions |
-| Major version | `mauriceboe/trek:3` | Latest release pinned to that major version |
-| Full version | `mauriceboe/trek:3.0.15` | Exact release; never changes |
+| `latest` | `mauriceboe/trippi:latest` | Always the newest release across all major versions |
+| Major version | `mauriceboe/trippi:3` | Latest release pinned to that major version |
+| Full version | `mauriceboe/trippi:3.0.15` | Exact release; never changes |
 
-Replace `mauriceboe/trek:latest` in the run command with your chosen tag to pin to a major version or exact release.
+Replace `mauriceboe/trippi:latest` in the run command with your chosen tag to pin to a major version or exact release.
 
 ## Volume Reference
 
 | Volume | Container path | What lives there |
 |---|---|---|
-| `./data` | `/app/data` | `travel.db` (SQLite database), `logs/trek.log`, `.jwt_secret`, `.encryption_key` |
+| `./data` | `/app/data` | `travel.db` (SQLite database), `logs/trippi.log`, `.jwt_secret`, `.encryption_key` |
 | `./uploads` | `/app/uploads` | Uploaded files (photos, documents, covers, avatars) |
 
 Both volumes must survive container replacement — they are your persistent state. Never remove them before pulling a new image.
@@ -59,16 +59,16 @@ The run command above uses bind mounts (`./data`, `./uploads`). You can use Dock
 
 ```bash
 docker run -d \
-  --name trek \
+  --name trippi \
   -p 3000:3000 \
-  -v trek_data:/app/data \
-  -v trek_uploads:/app/uploads \
+  -v trippi_data:/app/data \
+  -v trippi_uploads:/app/uploads \
   -e ENCRYPTION_KEY=<your-32-byte-hex-key> \
   --restart unless-stopped \
-  mauriceboe/trek:latest
+  mauriceboe/trippi:latest
 ```
 
-Docker creates `trek_data` and `trek_uploads` automatically on first run. Named volumes are easier to manage with `docker volume` commands and work better in some NAS or container-management environments.
+Docker creates `trippi_data` and `trippi_uploads` automatically on first run. Named volumes are easier to manage with `docker volume` commands and work better in some NAS or container-management environments.
 
 ## Health Check
 
@@ -87,8 +87,8 @@ curl -s http://localhost:3000/api/health
 ## Verify the Container Is Running
 
 ```bash
-docker ps --filter name=trek
-docker logs trek
+docker ps --filter name=trippi
+docker logs trippi
 ```
 
 ## Limitations of `docker run`
@@ -97,7 +97,7 @@ A bare `docker run` command has no built-in secret management and is harder to r
 
 ## Next Steps
 
-- [Reverse-Proxy](Reverse-Proxy) — HTTPS is required for PWA install and the `trek_session` cookie `secure` flag
+- [Reverse-Proxy](Reverse-Proxy) — HTTPS is required for PWA install and the `trippi_session` cookie `secure` flag
 - [Install-Docker-Compose](Install-Docker-Compose) — recommended for production
 - [Environment-Variables](Environment-Variables) — full list of configurable variables
 - [Updating](Updating) — how to pull a new image without losing data

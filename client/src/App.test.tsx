@@ -298,12 +298,12 @@ describe('Version cache-busting', () => {
     seedAuth()
     renderApp('/')
     await waitFor(() =>
-      expect(localStorage.getItem('trek_app_version')).toBe('2.9.10')
+      expect(localStorage.getItem('trippi_app_version')).toBe('2.9.10')
     )
   })
 
   it('FE-COMP-APP-025: calls window.location.reload() when version changes', async () => {
-    localStorage.setItem('trek_app_version', '2.9.9')
+    localStorage.setItem('trippi_app_version', '2.9.9')
     const reload = vi.fn()
     Object.defineProperty(window, 'location', {
       writable: true,

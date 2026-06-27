@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Response } from 'express';
 import { streamPhoto, getPhotoInfo } from '../../services/memories/photoResolverService';
-import { canAccessTrekPhoto } from '../../services/memories/helpersService';
+import { canAccessTrippiPhoto } from '../../services/memories/helpersService';
 
 /**
  * Thin Nest wrapper around the existing photo resolver/helper services. Access
@@ -11,7 +11,7 @@ import { canAccessTrekPhoto } from '../../services/memories/helpersService';
 @Injectable()
 export class PhotosService {
   canAccess(userId: number, photoId: number): boolean {
-    return canAccessTrekPhoto(userId, photoId);
+    return canAccessTrippiPhoto(userId, photoId);
   }
 
   stream(res: Response, userId: number, photoId: number, kind: 'thumbnail' | 'original') {

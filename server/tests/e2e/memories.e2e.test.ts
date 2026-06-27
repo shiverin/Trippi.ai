@@ -62,7 +62,7 @@ vi.mock('../../src/services/memories/helpersService', async () => {
 });
 
 import { MemoriesModule } from '../../src/nest/memories/memories.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 const BASE = '/api/integrations/memories';
 const UNIFIED = `${BASE}/unified`;
@@ -77,7 +77,7 @@ describe('Memories e2e (real auth guard + temp SQLite)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [MemoriesModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

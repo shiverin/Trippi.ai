@@ -1,4 +1,4 @@
-# TREK Screen Inventory
+# TRIPPI Screen Inventory
 
 Source: `client/src/App.tsx`
 

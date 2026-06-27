@@ -89,7 +89,7 @@ export class FilesController {
   ) {
     const trip = this.requireTrip(tripId, user);
     if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(user.email)) {
-      throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TREK for full functionality.' }, 403);
+      throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' }, 403);
     }
     if (!this.files.can('file_upload', trip, user)) {
       throw new HttpException({ error: 'No permission to upload files' }, 403);

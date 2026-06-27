@@ -271,7 +271,7 @@ describe('DashboardPage', () => {
       await user.click(viewToggle);
 
       // localStorage should be updated to 'list'
-      expect(localStorage.getItem('trek_dashboard_view')).toBe('list');
+      expect(localStorage.getItem('trippi_dashboard_view')).toBe('list');
     });
   });
 
@@ -886,15 +886,15 @@ describe('DashboardPage', () => {
     });
 
     it('migrates the pre-3.1.3 localStorage prefs into settings and clears the legacy keys', async () => {
-      localStorage.setItem('trek_fx_from', 'CAD');
-      localStorage.setItem('trek_fx_to', 'CHF');
-      localStorage.setItem('trek_dashboard_tz', JSON.stringify(['America/New_York']));
+      localStorage.setItem('trippi_fx_from', 'CAD');
+      localStorage.setItem('trippi_fx_to', 'CHF');
+      localStorage.setItem('trippi_dashboard_tz', JSON.stringify(['America/New_York']));
       seedStore(useSettingsStore, { settings: buildSettings(), isLoaded: true });
       render(<DashboardPage />);
       // The one-time migration runs on mount (settings already loaded) and removes the keys.
       await waitFor(() => {
-        expect(localStorage.getItem('trek_fx_from')).toBeNull();
-        expect(localStorage.getItem('trek_dashboard_tz')).toBeNull();
+        expect(localStorage.getItem('trippi_fx_from')).toBeNull();
+        expect(localStorage.getItem('trippi_dashboard_tz')).toBeNull();
       });
       const s = useSettingsStore.getState().settings;
       expect(s.dashboard_fx_from).toBe('CAD');

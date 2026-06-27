@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { OidcService } from './oidc.service';
 import { cookieOptions } from '../../services/cookie';
 
-const OIDC_STATE_COOKIE = 'trek_oidc_state';
+const OIDC_STATE_COOKIE = 'trippi_oidc_state';
 
 /**
  * /api/auth/oidc — OIDC SSO login flow (Authorization Code + PKCE).

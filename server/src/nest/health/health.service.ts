@@ -3,7 +3,7 @@ import { DatabaseService } from '../database/database.service';
 
 /**
  * Smoke service proving NestJS DI works under the chosen runtime AND that the
- * injected DatabaseService talks to TREK's existing SQLite connection.
+ * injected DatabaseService talks to TRIPPI's existing SQLite connection.
  */
 @Injectable()
 export class HealthService {

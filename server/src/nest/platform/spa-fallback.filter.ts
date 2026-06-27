@@ -13,9 +13,9 @@ import { PUBLIC_DIR } from './platform.routes';
  *
  * Behaviour matches the legacy catch-all exactly: in production, an unmatched GET
  * returns index.html; everything else (non-GET, or dev where there is no built
- * client) keeps the standard TREK `{ error }` 404 envelope. The `@Catch(NotFoundException)`
- * is more specific than the global TrekExceptionFilter, so Nest routes 404s here
- * while every other error still flows through TrekExceptionFilter.
+ * client) keeps the standard TRIPPI `{ error }` 404 envelope. The `@Catch(NotFoundException)`
+ * is more specific than the global TrippiExceptionFilter, so Nest routes 404s here
+ * while every other error still flows through TrippiExceptionFilter.
  */
 @Catch(NotFoundException)
 export class SpaFallbackFilter implements ExceptionFilter {
@@ -30,8 +30,8 @@ export class SpaFallbackFilter implements ExceptionFilter {
       return;
     }
 
-    // Non-production, or a non-GET miss: keep the standard TREK 404 envelope
-    // (identical to what TrekExceptionFilter produces for a NotFoundException).
+    // Non-production, or a non-GET miss: keep the standard TRIPPI 404 envelope
+    // (identical to what TrippiExceptionFilter produces for a NotFoundException).
     res.status(404).json({ error: exception.message || 'Not Found' });
   }
 }

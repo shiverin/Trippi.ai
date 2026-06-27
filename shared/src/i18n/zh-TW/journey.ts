@@ -204,7 +204,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': '分享自',
   'journey.public.madeWith': '由',
   'journey.pdf.journeyBook': '旅程手冊',
-  'journey.pdf.madeWith': '由 TREK 製作',
+  'journey.pdf.madeWith': '由 TRIPPI 製作',
   'journey.pdf.day': '第',
   'journey.pdf.theEnd': '終',
   'journey.pdf.saveAsPdf': '儲存為 PDF',

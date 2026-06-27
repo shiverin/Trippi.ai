@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { AirtrailAddonGuard } from './airtrail-addon.guard';
-import { airtrailImportSchema, type AirtrailImport, type AirtrailImportResult } from '@trek/shared';
+import { airtrailImportSchema, type AirtrailImport, type AirtrailImportResult } from '@trippi/shared';
 import { verifyTripAccess } from '../../services/tripAccess';
 import { checkPermission } from '../../services/permissions';
 import { importAirtrailFlights } from '../../services/airtrail/airtrailImport';

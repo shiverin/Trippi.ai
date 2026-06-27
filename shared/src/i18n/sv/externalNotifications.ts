@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const en: NotificationLocale = {
   email: {
-    footer: 'Du har fått detta eftersom du har aktiverat aviseringar i TREK.',
+    footer: 'Du har fått detta eftersom du har aktiverat aviseringar i TRIPPI.',
     manage: 'Hantera egenskaper under Inställningar',
     madeWith: 'Gjorde med',
-    openTrek: 'Öppna TREK',
+    openTrippi: 'Öppna TRIPPI',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const en: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Vacay sammanslagnings inbjudan',
-      body: `${p.actor} bjöd in dig att slå samman semesterplaner. Öppna TREK för att acceptera eller avvisa.`,
+      body: `${p.actor} bjöd in dig att slå samman semesterplaner. Öppna TRIPPI för att acceptera eller avvisa.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} foton delade`,
@@ -41,8 +41,8 @@ const en: NotificationLocale = {
       body: `${p.actor} tilldelade dig till "${p.category}" packning kategori i "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Ny TREK version tillgänglig',
-      body: `TREK ${p.version} är nu tillgänglig. Gå till adminpanelen för att uppdatera.`,
+      title: 'Ny TRIPPI version tillgänglig',
+      body: `TRIPPI ${p.version} är nu tillgänglig. Gå till adminpanelen för att uppdatera.`,
     }),
     synology_session_cleared: () => ({
       title: 'Synology session rensad',
@@ -52,7 +52,7 @@ const en: NotificationLocale = {
   passwordReset: {
     subject: 'Återställ ditt lösenord',
     greeting: 'Hej',
-    body: 'Vi har fått en begäran om att återställa lösenordet till ditt TREK konto. Klicka på knappen nedan för att ange ett nytt lösenord.',
+    body: 'Vi har fått en begäran om att återställa lösenordet till ditt TRIPPI konto. Klicka på knappen nedan för att ange ett nytt lösenord.',
     ctaIntro: 'Återställ lösenord',
     expiry: 'Den här länken upphör att gälla om 60 minuter.',
     ignore:

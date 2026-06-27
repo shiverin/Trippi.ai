@@ -2,8 +2,8 @@ import { ArgumentMetadata, HttpException, Injectable, PipeTransform } from '@nes
 import type { ZodType } from 'zod';
 
 /**
- * Validates an incoming @Body()/@Query() against a Zod schema (from @trek/shared)
- * and returns the parsed, typed value. On failure it throws TREK's error envelope
+ * Validates an incoming @Body()/@Query() against a Zod schema (from @trippi/shared)
+ * and returns the parsed, typed value. On failure it throws TRIPPI's error envelope
  * `{ error: string }` with status 400 — the same shape the legacy routes produce,
  * so the client's error handling is unaffected.
  *

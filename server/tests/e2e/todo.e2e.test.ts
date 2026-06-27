@@ -35,7 +35,7 @@ const { svc } = vi.hoisted(() => ({
 vi.mock('../../src/services/todoService', () => svc);
 
 import { TodoModule } from '../../src/nest/todo/todo.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('To-do e2e (real auth guard + temp SQLite)', () => {
   let server: Server;
@@ -45,7 +45,7 @@ describe('To-do e2e (real auth guard + temp SQLite)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [TodoModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

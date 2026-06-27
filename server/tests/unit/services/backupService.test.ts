@@ -239,7 +239,7 @@ describe('BACKUP-034 isValidBackupFilename', () => {
   });
 
   it('accepts filename with hyphens and underscores', () => {
-    expect(isValidBackupFilename('backup-my_trek-2026.zip')).toBe(true);
+    expect(isValidBackupFilename('backup-my_trippi-2026.zip')).toBe(true);
   });
 
   it('accepts auto-backup filename', () => {
@@ -475,7 +475,7 @@ describe('BACKUP-036 createBackup', () => {
       '**/*',
       expect.objectContaining({
         cwd: expect.stringContaining('uploads'),
-        ignore: ['photos/google/**', 'photos/trek/**'],
+        ignore: ['photos/google/**', 'photos/trippi/**'],
       }),
       { prefix: 'uploads' },
     );

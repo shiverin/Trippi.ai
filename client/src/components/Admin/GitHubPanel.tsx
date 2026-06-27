@@ -3,7 +3,7 @@ import { Tag, Calendar, ExternalLink, ChevronDown, ChevronUp, Loader2, Heart, Co
 import { getLocaleForLanguage, useTranslation } from '../../i18n'
 import apiClient from '../../api/client'
 
-const REPO = 'mauriceboe/TREK'
+const REPO = 'mauriceboe/TRIPPI'
 const PER_PAGE = 10
 
 interface GithubRelease {
@@ -187,7 +187,7 @@ export default function GitHubPanel({ isPrerelease = false }: { isPrerelease?: b
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <a
-          href="https://github.com/mauriceboe/TREK/issues/new?template=bug_report.yml"
+          href="https://github.com/mauriceboe/TRIPPI/issues/new?template=bug_report.yml"
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-xl border overflow-hidden flex items-center gap-4 px-5 py-4 transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] bg-surface-card border-edge no-underline"
@@ -204,7 +204,7 @@ export default function GitHubPanel({ isPrerelease = false }: { isPrerelease?: b
           <ExternalLink size={14} className="ml-auto flex-shrink-0 text-content-faint" />
         </a>
         <a
-          href="https://github.com/mauriceboe/TREK/discussions/new?category=feature-requests"
+          href="https://github.com/mauriceboe/TRIPPI/discussions/new?category=feature-requests"
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-xl border overflow-hidden flex items-center gap-4 px-5 py-4 transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] bg-surface-card border-edge no-underline"
@@ -221,7 +221,7 @@ export default function GitHubPanel({ isPrerelease = false }: { isPrerelease?: b
           <ExternalLink size={14} className="ml-auto flex-shrink-0 text-content-faint" />
         </a>
         <a
-          href="https://github.com/mauriceboe/TREK/wiki"
+          href="https://github.com/mauriceboe/TRIPPI/wiki"
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-xl border overflow-hidden flex items-center gap-4 px-5 py-4 transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] bg-surface-card border-edge no-underline"

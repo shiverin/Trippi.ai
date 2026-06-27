@@ -1,6 +1,6 @@
-// Shared types for the TREK travel planner.
+// Shared types for the TRIPPI travel planner.
 //
-// Domain entity/response types are now sourced from @trek/shared — the single
+// Domain entity/response types are now sourced from @trippi/shared — the single
 // source of truth shared with the server. The Zod schemas there are built to
 // match the REAL server response shapes (see shared/src/<domain>/*.schema.ts,
 // each documented against the producing service). Re-exported here so the rest
@@ -25,7 +25,7 @@ import type {
   Accommodation,
   Tag,
   Category,
-} from '@trek/shared'
+} from '@trippi/shared'
 
 export type {
   Trip,

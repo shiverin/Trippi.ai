@@ -6,7 +6,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
-// Local demo schema (real domains import their schema from @trek/shared).
+// Local demo schema (real domains import their schema from @trippi/shared).
 const echoSchema = z.object({ name: z.string().min(1) });
 
 /**

@@ -13,14 +13,14 @@
 
 ## 1. Fork & Clone the Repository
 
-Go to the [TREK repository](https://github.com/mauriceboe/TREK) and click **Fork** to create your own copy.
+Go to the [TRIPPI repository](https://github.com/mauriceboe/TRIPPI) and click **Fork** to create your own copy.
 
 Then clone your fork locally:
 
 ```bash
 # Clone your fork, checking out the dev branch
-git clone -b dev git@github.com:your-username/TREK.git
-cd TREK
+git clone -b dev git@github.com:your-username/TRIPPI.git
+cd TRIPPI
 ```
 
 ---
@@ -30,15 +30,15 @@ cd TREK
 Add the original repository as `upstream` so you can pull in future updates:
 
 ```bash
-git remote add upstream git@github.com:mauriceboe/TREK.git
+git remote add upstream git@github.com:mauriceboe/TRIPPI.git
 ```
 
 You should now have two remotes:
 
 | Remote     | URL                                          | Purpose                        |
 |------------|----------------------------------------------|--------------------------------|
-| `origin`   | `git@github.com:your-username/TREK.git`      | Your fork — push changes here  |
-| `upstream` | `git@github.com:mauriceboe/TREK.git`         | Main repo — pull updates from here |
+| `origin`   | `git@github.com:your-username/TRIPPI.git`      | Your fork — push changes here  |
+| `upstream` | `git@github.com:mauriceboe/TRIPPI.git`         | Main repo — pull updates from here |
 
 ---
 
@@ -127,7 +127,7 @@ These commands run across all workspaces at once and are the recommended way to 
 
 ### Shared (`/shared`)
 
-The `@trek/shared` package is the single source of truth for code shared between the client and server. It holds the **Zod schemas that define the API contracts** (request/response shapes, common primitives, pagination) and the **i18n translation layer** (per-language keys and types). Both workspaces import from it, so schema and translation changes propagate to both sides from one place.
+The `@trippi/shared` package is the single source of truth for code shared between the client and server. It holds the **Zod schemas that define the API contracts** (request/response shapes, common primitives, pagination) and the **i18n translation layer** (per-language keys and types). Both workspaces import from it, so schema and translation changes propagate to both sides from one place.
 
 > **Tip:** run `npm run i18n:parity` (or `i18n:parity:strict`) in this package to verify every locale exposes the same translation keys — the CI parity gate runs the strict variant.
 
@@ -192,7 +192,7 @@ git push origin fix/my-changes
 git push origin dev
 ```
 
-Then open a Pull Request from your fork to `mauriceboe/TREK` targeting the `dev` branch. If your PR only modifies files under `wiki/`, it is exempt from branch enforcement and may target any branch.
+Then open a Pull Request from your fork to `mauriceboe/TRIPPI` targeting the `dev` branch. If your PR only modifies files under `wiki/`, it is exempt from branch enforcement and may target any branch.
 
 ---
 

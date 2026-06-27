@@ -25,7 +25,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../../src/db/database', () => dbMock);
 vi.mock('../../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
 }));
@@ -119,7 +119,7 @@ describe('createOAuthClient', () => {
     expect(result.error).toBeUndefined();
     expect(result.client).toBeDefined();
     expect(typeof result.client!.client_secret).toBe('string');
-    expect((result.client!.client_secret as string).startsWith('trekcs_')).toBe(true);
+    expect((result.client!.client_secret as string).startsWith('trippics_')).toBe(true);
   });
 
   it('client_id is a UUID', () => {
@@ -270,14 +270,14 @@ describe('deleteOAuthClient', () => {
 // ---------------------------------------------------------------------------
 
 describe('rotateOAuthClientSecret', () => {
-  it('rotates secret and returns new client_secret starting with trekcs_', () => {
+  it('rotates secret and returns new client_secret starting with trippics_', () => {
     const { user } = createUser(testDb);
     const created = makeClient(user.id);
     const oldSecret = created.client!.client_secret as string;
     const result = rotateOAuthClientSecret(user.id, created.client!.id as string);
     expect(result.error).toBeUndefined();
     expect(result.client_secret).toBeDefined();
-    expect((result.client_secret as string).startsWith('trekcs_')).toBe(true);
+    expect((result.client_secret as string).startsWith('trippics_')).toBe(true);
     expect(result.client_secret).not.toBe(oldSecret);
   });
 
@@ -359,8 +359,8 @@ describe('issueTokens + getUserByAccessToken', () => {
     const clientId = created.client!.client_id as string;
 
     const tokens = issueTokens(clientId, user.id, ['trips:read']);
-    expect(tokens.access_token.startsWith('trekoa_')).toBe(true);
-    expect(tokens.refresh_token.startsWith('trekrf_')).toBe(true);
+    expect(tokens.access_token.startsWith('trippioa_')).toBe(true);
+    expect(tokens.refresh_token.startsWith('trippirf_')).toBe(true);
     expect(tokens.token_type).toBe('Bearer');
     expect(typeof tokens.expires_in).toBe('number');
   });
@@ -379,7 +379,7 @@ describe('issueTokens + getUserByAccessToken', () => {
   });
 
   it('getUserByAccessToken returns null for unknown token', () => {
-    expect(getUserByAccessToken('trekoa_unknown')).toBeNull();
+    expect(getUserByAccessToken('trippioa_unknown')).toBeNull();
   });
 
   it('getUserByAccessToken returns null for revoked token', () => {
@@ -408,7 +408,7 @@ describe('refreshTokens', () => {
     const result = refreshTokens(refresh_token, clientId, rawSecret);
     expect(result.error).toBeUndefined();
     expect(result.tokens).toBeDefined();
-    expect(result.tokens!.access_token.startsWith('trekoa_')).toBe(true);
+    expect(result.tokens!.access_token.startsWith('trippioa_')).toBe(true);
   });
 
   it('old tokens are revoked after refresh (rotation)', () => {
@@ -428,7 +428,7 @@ describe('refreshTokens', () => {
     const clientId = created.client!.client_id as string;
     const rawSecret = created.client!.client_secret as string;
 
-    const result = refreshTokens('trekrf_unknown', clientId, rawSecret);
+    const result = refreshTokens('trippirf_unknown', clientId, rawSecret);
     expect(result.error).toBe('invalid_grant');
     expect(result.status).toBe(400);
   });

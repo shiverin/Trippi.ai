@@ -318,7 +318,7 @@ export default function JourneyDetailPage() {
                     const locations = [...new Set(entries.map(e => e.location_name).filter(Boolean))]
 
                     return (
-                      <div key={date} className="flex flex-col gap-3 trek-stagger">
+                      <div key={date} className="flex flex-col gap-3 trippi-stagger">
                         <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-y md:border border-zinc-200 dark:border-zinc-700 rounded-none md:rounded-xl -mx-4 md:mx-0 px-4 py-3.5 flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[13px] font-bold text-white" style={{ background: DAY_COLORS[dayIdx % DAY_COLORS.length] }}>

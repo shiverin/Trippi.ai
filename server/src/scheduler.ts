@@ -274,7 +274,7 @@ function startTodoReminders(): void {
   }, { timezone: tz });
 }
 
-// Version check: daily at 9 AM — notify admins if a new TREK release is available
+// Version check: daily at 9 AM — notify admins if a new TRIPPI release is available
 let versionCheckTask: ScheduledTask | null = null;
 
 function startVersionCheck(): void {
@@ -292,7 +292,7 @@ function startVersionCheck(): void {
 }
 
 // Idempotency key cleanup: nightly at 3 AM — delete keys past their TTL.
-// The TTL must exceed any realistic offline window: the TREK client replays
+// The TTL must exceed any realistic offline window: the TRIPPI client replays
 // queued mutations with their X-Idempotency-Key when it reconnects, so a key
 // GC'd before the device comes back online would let the replay create a
 // duplicate. 24h was far too short for a multi-day offline trip; default 30d,
@@ -337,24 +337,24 @@ function startIdempotencyCleanup(): void {
   }, { timezone: tz });
 }
 
-// Trek photo cache cleanup: every 2 hours — evict disk files and DB rows past their 1h TTL
-let trekPhotoCacheTask: ScheduledTask | null = null;
+// Trippi photo cache cleanup: every 2 hours — evict disk files and DB rows past their 1h TTL
+let trippiPhotoCacheTask: ScheduledTask | null = null;
 
-function startTrekPhotoCacheCleanup(): void {
-  if (trekPhotoCacheTask) { trekPhotoCacheTask.stop(); trekPhotoCacheTask = null; }
+function startTrippiPhotoCacheCleanup(): void {
+  if (trippiPhotoCacheTask) { trippiPhotoCacheTask.stop(); trippiPhotoCacheTask = null; }
 
   // Run once immediately on startup to evict any entries left over from a previous run
   try {
-    const { sweepExpired } = require('./services/memories/trekPhotoCache');
+    const { sweepExpired } = require('./services/memories/trippiPhotoCache');
     sweepExpired();
   } catch { /* cache dir may not exist yet — harmless */ }
 
-  trekPhotoCacheTask = cron.schedule('0 */2 * * *', () => {
+  trippiPhotoCacheTask = cron.schedule('0 */2 * * *', () => {
     try {
-      const { sweepExpired } = require('./services/memories/trekPhotoCache');
+      const { sweepExpired } = require('./services/memories/trippiPhotoCache');
       sweepExpired();
     } catch (err: unknown) {
-      logError(`Trek photo cache cleanup: ${err instanceof Error ? err.message : err}`);
+      logError(`Trippi photo cache cleanup: ${err instanceof Error ? err.message : err}`);
     }
   });
 }
@@ -414,9 +414,9 @@ function stop(): void {
   if (reminderTask) { reminderTask.stop(); reminderTask = null; }
   if (versionCheckTask) { versionCheckTask.stop(); versionCheckTask = null; }
   if (idempotencyCleanupTask) { idempotencyCleanupTask.stop(); idempotencyCleanupTask = null; }
-  if (trekPhotoCacheTask) { trekPhotoCacheTask.stop(); trekPhotoCacheTask = null; }
+  if (trippiPhotoCacheTask) { trippiPhotoCacheTask.stop(); trippiPhotoCacheTask = null; }
   if (placePhotoCacheTask) { placePhotoCacheTask.stop(); placePhotoCacheTask = null; }
   if (airtrailSyncTask) { airtrailSyncTask.stop(); airtrailSyncTask = null; }
 }
 
-export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, purgeExpiredIdempotencyKeys, startTrekPhotoCacheCleanup, startPlacePhotoCacheCleanup, startAirTrailSync, loadSettings, saveSettings, VALID_INTERVALS };
+export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, purgeExpiredIdempotencyKeys, startTrippiPhotoCacheCleanup, startPlacePhotoCacheCleanup, startAirTrailSync, loadSettings, saveSettings, VALID_INTERVALS };

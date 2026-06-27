@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { HttpException } from '@nestjs/common';
 import { MulterError } from 'multer';
-import { TrekExceptionFilter } from '../../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../../src/nest/common/trippi-exception.filter';
 
 function mockHost() {
   const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
@@ -9,8 +9,8 @@ function mockHost() {
   return { res, host };
 }
 
-describe('TrekExceptionFilter', () => {
-  const filter = new TrekExceptionFilter();
+describe('TrippiExceptionFilter', () => {
+  const filter = new TrippiExceptionFilter();
 
   it('passes through { error, code } bodies (auth guards) unchanged', () => {
     const { res, host } = mockHost();

@@ -15,7 +15,7 @@ import type { User } from '../../types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { BookingImportService } from './booking-import.service';
-import type { BookingImportPreviewItem, BookingImportPreviewResponse, BookingImportConfirmResponse } from '@trek/shared';
+import type { BookingImportPreviewItem, BookingImportPreviewResponse, BookingImportConfirmResponse } from '@trippi/shared';
 
 const ACCEPTED_EXTS = new Set(['.eml', '.pdf', '.pkpass', '.html', '.htm', '.txt']);
 const MAX_FILE_BYTES = 10 * 1024 * 1024;

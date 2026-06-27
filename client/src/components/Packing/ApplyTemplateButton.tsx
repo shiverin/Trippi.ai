@@ -69,7 +69,7 @@ export default function ApplyTemplateButton({ tripId, style, className }: ApplyT
       </button>
       {open && (
         <div
-          className="trek-menu-enter"
+          className="trippi-menu-enter"
           style={{
             position: 'absolute', right: 0, top: '100%', marginTop: 6, zIndex: 50,
             background: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: 10,

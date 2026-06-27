@@ -6,9 +6,9 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 
-// Overridable for tests (mirrors the TREK_DB_FILE seam) so the suite never touches
+// Overridable for tests (mirrors the TRIPPI_DB_FILE seam) so the suite never touches
 // the real uploads tree.
-const GOOGLE_PHOTO_DIR = process.env.TREK_PLACE_PHOTO_DIR || path.join(__dirname, '../../uploads/photos/google');
+const GOOGLE_PHOTO_DIR = process.env.TRIPPI_PLACE_PHOTO_DIR || path.join(__dirname, '../../uploads/photos/google');
 const ERROR_TTL = 5 * 60 * 1000;
 
 // Marker photos are displayed tiny — cap stored images so an oversized source

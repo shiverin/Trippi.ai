@@ -1,6 +1,6 @@
-# @trek/shared
+# @trippi/shared
 
-Single source of truth for TREK's API contracts, expressed as [Zod](https://zod.dev) schemas
+Single source of truth for TRIPPI's API contracts, expressed as [Zod](https://zod.dev) schemas
 and consumed by **both** the server (request validation + inferred DTO types) and the client
 (typed requests/responses).
 
@@ -18,7 +18,7 @@ importing it — adding it changes nothing for users.
 
 ## Consumption (dev)
 
-Both apps resolve `@trek/shared` to this package's TypeScript source:
+Both apps resolve `@trippi/shared` to this package's TypeScript source:
 
 - **Server** (`tsx`): via `paths` in `server/tsconfig.json`.
 - **Client** (`vite`): via `resolve.alias` in `client/vite.config.ts` (+ `paths` for the type-checker).
@@ -28,5 +28,5 @@ Both apps resolve `@trek/shared` to this package's TypeScript source:
 
 ## Not yet here
 
-The canonical **error envelope** is finalised in card **F5** (it must match TREK's current
+The canonical **error envelope** is finalised in card **F5** (it must match TRIPPI's current
 Express error responses byte-for-byte), so it is deliberately not invented in F1.

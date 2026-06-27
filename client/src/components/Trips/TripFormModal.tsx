@@ -10,7 +10,7 @@ import { useTranslation } from '../../i18n'
 import { CustomDatePicker } from '../shared/CustomDateTimePicker'
 import { normalizeImageFile } from '../../utils/convertHeic'
 import type { Trip } from '../../types'
-import type { TripCreateRequest } from '@trek/shared'
+import type { TripCreateRequest } from '@trippi/shared'
 
 interface TripFormModalProps {
   isOpen: boolean

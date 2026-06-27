@@ -339,7 +339,7 @@ export const useAuthStore = create<AuthState>()(
   },
   }),
   {
-    name: 'trek_auth_snapshot',
+    name: 'trippi_auth_snapshot',
     // Only persist the minimal user snapshot needed to avoid redirecting to
     // login when the PWA reopens offline. The JWT remains in the httpOnly
     // cookie and is still validated by the server on every request.

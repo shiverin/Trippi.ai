@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// OAuth 2.1 scope definitions for TREK MCP
+// OAuth 2.1 scope definitions for TRIPPI MCP
 // ---------------------------------------------------------------------------
 
 export const SCOPES = {
@@ -74,7 +74,7 @@ export const SCOPE_INFO: Record<Scope, ScopeInfo> = {
 
 // ---------------------------------------------------------------------------
 // Scope enforcement helpers
-// null scopes = static trek_ token = full access
+// null scopes = static trippi_ token = full access
 // ---------------------------------------------------------------------------
 
 /** trips:read OR trips:write OR trips:delete OR trips:share all grant read access to trips */

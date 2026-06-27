@@ -30,7 +30,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../../src/db/database', () => dbMock);
 vi.mock('../../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
 }));
@@ -108,7 +108,7 @@ afterAll(() => {
 
 /** Build a fresh McpServer with prompts registered for the given userId. */
 function buildServer(userId: number, opts: { isStaticToken?: boolean } = {}): McpServer {
-  const server = new McpServer({ name: 'trek-test', version: '1.0.0' });
+  const server = new McpServer({ name: 'trippi-test', version: '1.0.0' });
   registerMcpPrompts(server, userId, opts.isStaticToken ?? false);
   return server;
 }

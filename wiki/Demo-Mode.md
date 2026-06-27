@@ -1,12 +1,12 @@
 # Demo Mode
 
-Demo mode lets you run a public "try before you install" instance of TREK. A shared demo account is available for visitors, write operations are blocked for that account, and the database resets automatically every hour so the instance stays in a known state.
+Demo mode lets you run a public "try before you install" instance of TRIPPI. A shared demo account is available for visitors, write operations are blocked for that account, and the database resets automatically every hour so the instance stays in a known state.
 
 <!-- TODO: screenshot: demo mode banner or try-demo button on login page -->
 
 ## Enabling demo mode
 
-Set `DEMO_MODE=true` in your environment and restart TREK. See [Environment-Variables](Environment-Variables) for how to set environment variables.
+Set `DEMO_MODE=true` in your environment and restart TRIPPI. See [Environment-Variables](Environment-Variables) for how to set environment variables.
 
 When demo mode is active, the login page shows a one-click **"Try the demo"** button. Clicking it logs the visitor in as the demo user immediately — no credentials need to be entered and no registration is required.
 
@@ -14,10 +14,10 @@ When demo mode is active, the login page shows a one-click **"Try the demo"** bu
 
 | Field | Value |
 |---|---|
-| Email | `demo@trek.app` |
+| Email | `demo@trippi.app` |
 | Password | `demo12345` |
 
-**Admin account:** an admin account is also seeded on first start. By default it uses username `admin`, email `admin@trek.app`, and password `admin12345`. You can override these at seed time with the `DEMO_ADMIN_USER`, `DEMO_ADMIN_EMAIL`, and `DEMO_ADMIN_PASS` environment variables (they only take effect when `DEMO_MODE=true`, on the first start before the database is seeded). See [Environment-Variables](Environment-Variables).
+**Admin account:** an admin account is also seeded on first start. By default it uses username `admin`, email `admin@trippi.app`, and password `admin12345`. You can override these at seed time with the `DEMO_ADMIN_USER`, `DEMO_ADMIN_EMAIL`, and `DEMO_ADMIN_PASS` environment variables (they only take effect when `DEMO_MODE=true`, on the first start before the database is seeded). See [Environment-Variables](Environment-Variables).
 
 ## What the demo user can and cannot do
 
@@ -35,7 +35,7 @@ The admin account is unaffected and retains full access.
 
 ## Hourly reset
 
-TREK schedules an automatic hourly reset of the demo database. At each reset:
+TRIPPI schedules an automatic hourly reset of the demo database. At each reset:
 
 1. The current `travel.db` is replaced with the saved baseline (`travel-baseline.db`).
 2. The admin account's credentials (`password_hash`, API keys, avatar) are re-applied on top of the restored baseline, so admin API keys and password changes survive the reset.
@@ -50,7 +50,7 @@ The baseline is the snapshot the hourly reset restores to. The admin can update 
 
 This is available in the admin panel. The baseline captures the current state of the database — including trip data, settings, and encrypted API keys — so demo features (maps, photos, weather) continue to work after each reset.
 
-On first start with demo mode active, TREK seeds three example trips (Tokyo & Kyoto, Barcelona Long Weekend, New York City) owned by the admin and shared with the demo user, then saves the initial baseline automatically.
+On first start with demo mode active, TRIPPI seeds three example trips (Tokyo & Kyoto, Barcelona Long Weekend, New York City) owned by the admin and shared with the demo user, then saves the initial baseline automatically.
 
 ## Limitations
 

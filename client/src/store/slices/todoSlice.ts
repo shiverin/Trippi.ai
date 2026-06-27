@@ -2,7 +2,7 @@ import { todoApi } from '../../api/client'
 import type { StoreApi } from 'zustand'
 import type { TripStoreState } from '../tripStore'
 import type { TodoItem } from '../../types'
-import type { TodoCreateItemRequest, TodoUpdateItemRequest } from '@trek/shared'
+import type { TodoCreateItemRequest, TodoUpdateItemRequest } from '@trippi/shared'
 import { getApiErrorMessage } from '../../types'
 import { notify } from '../notify'
 

@@ -470,7 +470,7 @@ export function createMcpToken(
   userId: number,
   overrides: Partial<{ name: string; rawToken: string }> = {}
 ): TestMcpToken {
-  const rawToken = overrides.rawToken ?? `trek_test_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const rawToken = overrides.rawToken ?? `trippi_test_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const tokenHash = createHash('sha256').update(rawToken).digest('hex');
   const tokenPrefix = rawToken.slice(0, 12);
   const result = db.prepare(
@@ -558,21 +558,21 @@ export function addTripPhoto(
   provider: string,
   opts: { shared?: boolean; albumLinkId?: number } = {}
 ): TestTripPhoto {
-  // Insert into trek_photos first (central registry)
+  // Insert into trippi_photos first (central registry)
   db.prepare(
-    'INSERT OR IGNORE INTO trek_photos (provider, asset_id, owner_id) VALUES (?, ?, ?)'
+    'INSERT OR IGNORE INTO trippi_photos (provider, asset_id, owner_id) VALUES (?, ?, ?)'
   ).run(provider, assetId, userId);
-  const trekPhoto = db.prepare(
-    'SELECT id FROM trek_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?'
+  const trippiPhoto = db.prepare(
+    'SELECT id FROM trippi_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?'
   ).get(provider, assetId, userId) as { id: number };
 
   const result = db.prepare(
     'INSERT OR IGNORE INTO trip_photos (trip_id, user_id, photo_id, shared, album_link_id) VALUES (?, ?, ?, ?, ?)'
-  ).run(tripId, userId, trekPhoto.id, opts.shared ? 1 : 0, opts.albumLinkId ?? null);
+  ).run(tripId, userId, trippiPhoto.id, opts.shared ? 1 : 0, opts.albumLinkId ?? null);
   return db.prepare(`
     SELECT tp.id, tp.trip_id, tp.user_id, tkp.asset_id, tkp.provider, tp.shared, tp.album_link_id
     FROM trip_photos tp
-    JOIN trek_photos tkp ON tkp.id = tp.photo_id
+    JOIN trippi_photos tkp ON tkp.id = tp.photo_id
     WHERE tp.id = ?
   `).get(result.lastInsertRowid) as TestTripPhoto;
 }

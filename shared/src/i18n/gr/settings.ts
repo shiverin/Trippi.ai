@@ -96,7 +96,7 @@ const settings: TranslationStrings = {
   'settings.webhookUrl.testSuccess': 'Η δοκιμή webhook στάλθηκε επιτυχώς',
   'settings.webhookUrl.testFailed': 'Η δοκιμή webhook απέτυχε',
   'settings.ntfyUrl.topicLabel': 'Θέμα Ntfy',
-  'settings.ntfyUrl.topicPlaceholder': 'my-trek-alerts',
+  'settings.ntfyUrl.topicPlaceholder': 'my-trippi-alerts',
   'settings.ntfyUrl.serverLabel': 'URL Ntfy Server (προαιρετικό)',
   'settings.ntfyUrl.serverPlaceholder': 'https://ntfy.sh',
   'settings.ntfyUrl.hint':
@@ -208,9 +208,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Προτείνετε ένα νέο χαρακτηριστικό',
   'settings.about.wikiHint': 'Τεκμηρίωση & οδηγοί',
   'settings.about.supporters.badge': 'Μηνιαίοι Υποστηρικτές',
-  'settings.about.supporters.title': 'Συνταξιδιώτες για το TREK',
+  'settings.about.supporters.title': 'Συνταξιδιώτες για το TRIPPI',
   'settings.about.supporters.subtitle':
-    'Καθώς εσείς σχεδιάζετε την επόμενή σας διαδρομή, αυτοί οι άνθρωποι βοηθούν να σχεδιαστεί το μέλλον του TREK. Η μηνιαία τους συνεισφορά πηγαίνει απευθείας στην ανάπτυξη και σε πραγματικές ώρες εργασίας — ώστε το TREK να παραμένει Open Source.',
+    'Καθώς εσείς σχεδιάζετε την επόμενή σας διαδρομή, αυτοί οι άνθρωποι βοηθούν να σχεδιαστεί το μέλλον του TRIPPI. Η μηνιαία τους συνεισφορά πηγαίνει απευθείας στην ανάπτυξη και σε πραγματικές ώρες εργασίας — ώστε το TRIPPI να παραμένει Open Source.',
   'settings.about.supporters.since': 'υποστηρικτής από {date}',
   'settings.about.supporters.tierEmpty': 'Γίνετε ο πρώτος',
   'settings.about.supporter.tier.noReturnTicket': 'Χωρίς Εισιτήριο Επιστροφής',
@@ -219,7 +219,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Οικονομικός Ταξιδιώτης',
   'settings.about.supporter.tier.hostelBunkmate': 'Συγκάτοικος Hostel',
   'settings.about.description':
-    'Το TREK είναι ένας self-hosted ταξιδιωτικός σχεδιαστής που σας βοηθά να οργανώσετε τα ταξίδια σας από την πρώτη ιδέα μέχρι την τελευταία ανάμνηση. Σχεδιασμός ημερών, προϋπολογισμός, λίστες πακεταρίσματος, φωτογραφίες και πολλά άλλα — όλα σε ένα μέρος, στον δικό σας server.',
+    'Το TRIPPI είναι ένας self-hosted ταξιδιωτικός σχεδιαστής που σας βοηθά να οργανώσετε τα ταξίδια σας από την πρώτη ιδέα μέχρι την τελευταία ανάμνηση. Σχεδιασμός ημερών, προϋπολογισμός, λίστες πακεταρίσματος, φωτογραφίες και πολλά άλλα — όλα σε ένα μέρος, στον δικό σας server.',
   'settings.about.madeWith': 'Φτιαγμένο με',
   'settings.about.madeBy': 'από τον Maurice και μια αναπτυσσόμενη κοινότητα open-source.',
   'settings.username': 'Όνομα χρήστη',
@@ -327,7 +327,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': 'Ενεργοποιήστε το μόνο για μια αξιόπιστη εγκατάσταση στο δικό σας δίκτυο.',
   'settings.airtrail.writeBack': 'Εγγραφή αλλαγών πίσω στο AirTrail',
   'settings.airtrail.writeBackHint':
-    'Απενεργοποιημένο από προεπιλογή: το AirTrail είναι η πηγή αλήθειας και το TREK μόνο διαβάζει από αυτό. Ενεργοποιήστε το για να στέλνετε πίσω στο AirTrail τις αλλαγές που κάνετε στο TREK.',
+    'Απενεργοποιημένο από προεπιλογή: το AirTrail είναι η πηγή αλήθειας και το TRIPPI μόνο διαβάζει από αυτό. Ενεργοποιήστε το για να στέλνετε πίσω στο AirTrail τις αλλαγές που κάνετε στο TRIPPI.',
   'settings.airtrail.connected': 'Συνδέθηκε',
   'settings.airtrail.notConnected': 'Δεν συνδέθηκε',
   'settings.airtrail.toast.saved': 'Η σύνδεση με το AirTrail αποθηκεύτηκε',

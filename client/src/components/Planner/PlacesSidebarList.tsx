@@ -8,7 +8,7 @@ export function PlacesList(S: SidebarState) {
     isMobile, onPlaceClick, openContextMenu, onAssignToDay, toggleSelected, setDayPickerPlace, registerPlaceRow,
   } = S
   return (
-    <div className="trek-stagger" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }} ref={scrollContainerRef} onScroll={(e) => onScrollTopChange?.((e.currentTarget as HTMLElement).scrollTop)}>
+    <div className="trippi-stagger" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }} ref={scrollContainerRef} onScroll={(e) => onScrollTopChange?.((e.currentTarget as HTMLElement).scrollTop)}>
       {filtered.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 16px', gap: 8 }}>
           <span className="text-content-faint" style={{ fontSize: 13 }}>

@@ -308,14 +308,14 @@ describe('AccountTab – MFA', () => {
     await user.type(screen.getByPlaceholderText('6-digit code'), '123456');
     await user.click(screen.getByRole('button', { name: 'Enable 2FA' }));
     await screen.findByText(/AAAA-1111/);
-    const stored = JSON.parse(sessionStorage.getItem('trek_mfa_backup_codes_pending') || '[]');
+    const stored = JSON.parse(sessionStorage.getItem('trippi_mfa_backup_codes_pending') || '[]');
     expect(stored).toContain('AAAA-1111');
     expect(stored).toContain('BBBB-2222');
   });
 
   it('FE-COMP-ACCOUNT-029: dismissing backup codes via OK removes them', async () => {
     const user = userEvent.setup();
-    sessionStorage.setItem('trek_mfa_backup_codes_pending', JSON.stringify(['CODE1', 'CODE2']));
+    sessionStorage.setItem('trippi_mfa_backup_codes_pending', JSON.stringify(['CODE1', 'CODE2']));
     seedStore(useAuthStore, { user: buildUser({ username: 'testuser', email: 'test@example.com', mfa_enabled: true }) });
     render(<AccountTab />);
     // codes are joined by \n in a <pre>; use regex
@@ -326,7 +326,7 @@ describe('AccountTab – MFA', () => {
 
   it('FE-COMP-ACCOUNT-030: copy backup codes calls clipboard.writeText', async () => {
     const user = userEvent.setup();
-    sessionStorage.setItem('trek_mfa_backup_codes_pending', JSON.stringify(['AAAA-1111', 'BBBB-2222']));
+    sessionStorage.setItem('trippi_mfa_backup_codes_pending', JSON.stringify(['AAAA-1111', 'BBBB-2222']));
     seedStore(useAuthStore, { user: buildUser({ username: 'testuser', email: 'test@example.com', mfa_enabled: true }) });
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {

@@ -36,7 +36,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../src/db/database', () => dbMock);
 vi.mock('../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
   SESSION_DURATION: '24h',
@@ -374,7 +374,7 @@ describe('Notification test endpoints', () => {
     const res = await request(app)
       .post('/api/notifications/test-ntfy')
       .set('Cookie', authCookie(user.id))
-      .send({ topic: 'trek-integration-test-topic' });
+      .send({ topic: 'trippi-integration-test-topic' });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success');

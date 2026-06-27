@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "trek.fullname" . }}-data
+  name: {{ include "trippi.fullname" . }}-data
   labels:
-    app: {{ include "trek.name" . }}
+    app: {{ include "trippi.name" . }}
   {{- with .Values.persistence.data.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -22,9 +22,9 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "trek.fullname" . }}-uploads
+  name: {{ include "trippi.fullname" . }}-uploads
   labels:
-    app: {{ include "trek.name" . }}
+    app: {{ include "trippi.name" . }}
   {{- with .Values.persistence.uploads.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}

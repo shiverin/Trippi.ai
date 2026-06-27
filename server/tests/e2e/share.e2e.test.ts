@@ -36,7 +36,7 @@ const { shareSvc } = vi.hoisted(() => ({
 vi.mock('../../src/services/shareService', () => shareSvc);
 
 import { ShareModule } from '../../src/nest/share/share.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('Share-link e2e (real auth guard + temp SQLite)', () => {
   let server: Server;
@@ -46,7 +46,7 @@ describe('Share-link e2e (real auth guard + temp SQLite)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [ShareModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }
@@ -111,7 +111,7 @@ describe('Share-link e2e (real auth guard + temp SQLite)', () => {
   });
 
   describe('public place-photo proxy (/api/shared/:token/place-photo/:placeId/bytes)', () => {
-    const photoFile = path.join(os.tmpdir(), 'trek-share-photo.e2e.jpg');
+    const photoFile = path.join(os.tmpdir(), 'trippi-share-photo.e2e.jpg');
     const photoBytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]); // JPEG-ish header
 
     beforeAll(() => fs.writeFileSync(photoFile, photoBytes));

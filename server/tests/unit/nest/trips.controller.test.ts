@@ -257,7 +257,7 @@ describe('TripsController (parity with the legacy /api/trips route)', () => {
       isDemoEmail.mockReturnValueOnce(true);
       try {
         expect(thrown(() => new TripsController(svc()).cover(user, '9', file))).toEqual({
-          status: 403, body: { error: 'Uploads are disabled in demo mode. Self-host TREK for full functionality.' },
+          status: 403, body: { error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' },
         });
       } finally {
         if (prev === undefined) delete process.env.DEMO_MODE;

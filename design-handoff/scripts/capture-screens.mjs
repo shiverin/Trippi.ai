@@ -11,8 +11,8 @@ const clientDir = path.join(repoRoot, 'client')
 const screensDir = path.join(handoffDir, 'screens')
 const tokensDir = path.join(handoffDir, 'tokens')
 
-const baseURL = process.env.TREK_CAPTURE_BASE_URL || 'http://localhost:5173'
-const email = 'e2e@trek.local'
+const baseURL = process.env.TRIPPI_CAPTURE_BASE_URL || 'http://127.0.0.1:5173'
+const email = 'e2e@trippi.local'
 const seedPassword = 'E2eTest12345!'
 const changedPassword = 'E2eChanged12345!'
 

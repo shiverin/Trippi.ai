@@ -1,6 +1,6 @@
 # Admin — Addons
 
-The **Addons** tab lets you enable or disable optional features for the entire TREK instance. Toggling an addon affects all users immediately — disabling one hides its UI elements and blocks its API routes instance-wide.
+The **Addons** tab lets you enable or disable optional features for the entire TRIPPI instance. Toggling an addon affects all users immediately — disabling one hides its UI elements and blocks its API routes instance-wide.
 
 <!-- TODO: screenshot: addon toggle switches in admin panel -->
 
@@ -18,7 +18,7 @@ Addons are grouped into three categories, shown as labeled sections.
 
 Trip addons add per-trip feature panels. They appear in every trip where the addon is enabled.
 
-The default trip addons are: **Lists**, **Budget**, **Documents**, **Collab**, and **Naver List Import** (all enabled by default). The exact list is determined by what is registered in your TREK database.
+The default trip addons are: **Lists**, **Budget**, **Documents**, **Collab**, and **Naver List Import** (all enabled by default). The exact list is determined by what is registered in your TRIPPI database.
 
 **Sub-toggles on trip addons:**
 
@@ -45,7 +45,7 @@ Global addons add features that are not tied to a single trip. The default globa
 
 ### Integration addons
 
-Integration addons connect TREK to external services. Enabling an integration addon typically requires additional configuration (API keys, URLs) in the **Settings** tab.
+Integration addons connect TRIPPI to external services. Enabling an integration addon typically requires additional configuration (API keys, URLs) in the **Settings** tab.
 
 - The **MCP** addon requires `APP_URL` to be set in your environment. When enabled, the **MCP Access** tab appears in the Admin Panel. **Disabled by default.** See [MCP-Overview](MCP-Overview) for full details.
 

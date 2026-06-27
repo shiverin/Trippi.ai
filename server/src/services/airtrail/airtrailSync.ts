@@ -39,12 +39,12 @@ function detach(tripId: number, reservationId: number): void {
   broadcastUpdated(tripId, reservationId);
 }
 
-// ── AirTrail → TREK (poll) ───────────────────────────────────────────────────
+// ── AirTrail → TRIPPI (poll) ───────────────────────────────────────────────────
 
 /**
  * Reconcile one owner's linked reservations against their current AirTrail
  * flights: apply field changes (detected by snapshot hash, since AirTrail has no
- * updated_at) and, when a flight is gone from AirTrail, keep the TREK row but
+ * updated_at) and, when a flight is gone from AirTrail, keep the TRIPPI row but
  * stop syncing it. Only already-imported flights are touched — new AirTrail
  * flights are never auto-added to a trip. Returns how many rows changed.
  */
@@ -135,7 +135,7 @@ export async function runAirtrailSyncForUser(userId: number): Promise<{ changed:
   }
 }
 
-// ── TREK → AirTrail (push) ───────────────────────────────────────────────────
+// ── TRIPPI → AirTrail (push) ───────────────────────────────────────────────────
 
 function splitLocal(dt: string | null | undefined): { date: string | null; time: string | null } {
   if (!dt) return { date: null, time: null };
@@ -147,7 +147,7 @@ function splitLocal(dt: string | null | undefined): { date: string | null; time:
 /**
  * Build the POST /flight/save body. AirTrail's save fully overwrites the flight,
  * so we start from the flight as AirTrail currently has it (`existing`, the raw
- * GET object) and overwrite ONLY the fields TREK manages. Everything else —
+ * GET object) and overwrite ONLY the fields TRIPPI manages. Everything else —
  * terminal, gate, scheduled/actual times, customFields, track, and any field
  * AirTrail may add later — passes through untouched. We deliberately do NOT model
  * those fields; spreading the raw object keeps us decoupled from AirTrail's schema
@@ -184,7 +184,7 @@ export function buildSavePayload(reservation: any, existing: AirtrailFlightRaw):
     seats.push({ userId: '<USER_ID>', guestName: null, seat: null, seatNumber: null, seatClass: null });
   }
 
-  // Push the seat the user set in TREK onto their own AirTrail seat (the one with
+  // Push the seat the user set in TRIPPI onto their own AirTrail seat (the one with
   // a userId), leaving any co-passenger seats untouched.
   const seatNumber = typeof meta.seat === 'string' && meta.seat.trim() ? meta.seat.trim() : null;
   if (seatNumber) {
@@ -193,7 +193,7 @@ export function buildSavePayload(reservation: any, existing: AirtrailFlightRaw):
   }
 
   // Spread the existing flight first to preserve every AirTrail-owned field, then
-  // overwrite only what TREK manages. `from`/`to`/`airline`/`aircraft` come back
+  // overwrite only what TRIPPI manages. `from`/`to`/`airline`/`aircraft` come back
   // from GET as objects but the save shape wants codes — those are exactly the
   // keys we override, so the spread never ships an object where a code is wanted.
   return {
@@ -207,16 +207,16 @@ export function buildSavePayload(reservation: any, existing: AirtrailFlightRaw):
     departureTime: dep.time,
     arrival: arr.date,
     arrivalTime: arr.time,
-    // Import reads the SCHEDULED time, so a TREK edit must write back there too —
+    // Import reads the SCHEDULED time, so a TRIPPI edit must write back there too —
     // otherwise the next pull (scheduled-wins) would revert it. AirTrail rebuilds the
     // instant from a full-ISO date carrier + the HH:MM time, so pass a date carrier.
     departureScheduled: dep.date ? `${dep.date}T00:00:00.000Z` : null,
     departureScheduledTime: dep.time,
     arrivalScheduled: arr.date ? `${arr.date}T00:00:00.000Z` : null,
     arrivalScheduledTime: arr.time,
-    // These are AirTrail-owned details TREK doesn't surface in its edit UI — a TREK
+    // These are AirTrail-owned details TRIPPI doesn't surface in its edit UI — a TRIPPI
     // edit can leave them out of `metadata`. Preserve AirTrail's current value when
-    // TREK has none rather than nulling it out (#1240). Use airline_code (not the
+    // TRIPPI has none rather than nulling it out (#1240). Use airline_code (not the
     // display name in metadata.airline, #1334); both it and entityCode mirror the
     // import/hash code-selection so a writeback stays a no-op for the hash.
     airline: meta.airline_code ?? entityCode(existing.airline) ?? null,

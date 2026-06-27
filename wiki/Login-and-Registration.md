@@ -4,7 +4,7 @@
 
 ## Signing in
 
-Navigate to `/login` and enter your email and password. On success, the server sets a `trek_session` cookie — httpOnly, sameSite=`lax`, and secure in production — that persists your session for 24 hours across page reloads and browser restarts. You do not need to sign in again until the session expires or you explicitly log out.
+Navigate to `/login` and enter your email and password. On success, the server sets a `trippi_session` cookie — httpOnly, sameSite=`lax`, and secure in production — that persists your session for 24 hours across page reloads and browser restarts. You do not need to sign in again until the session expires or you explicitly log out.
 
 > **Note:** The `secure` flag on the cookie can be overridden by setting `COOKIE_SECURE=false` in the server environment (useful for plain-HTTP dev setups), or force-enabled with `FORCE_HTTPS=true`.
 
@@ -52,7 +52,7 @@ If the token is invalid, expired, or exhausted, an error is shown.
 
 ## First user
 
-On a fresh TREK instance with no existing accounts, the registration form opens immediately. The first account created is automatically assigned the **admin** role.
+On a fresh TRIPPI instance with no existing accounts, the registration form opens immediately. The first account created is automatically assigned the **admin** role.
 
 ## Rate limiting
 
@@ -64,7 +64,7 @@ Forgot-password requests are rate-limited to **3 attempts per 15-minute window**
 
 ## Demo mode
 
-When the server is started with `DEMO_MODE=true`, a **"Try demo"** button appears below the login form. Clicking it signs you in as the demo user without entering credentials. The demo credentials (`demo@trek.app` / `demo12345`) are also displayed in the app config for reference, but the one-click button is the intended entry point.
+When the server is started with `DEMO_MODE=true`, a **"Try demo"** button appears below the login form. Clicking it signs you in as the demo user without entering credentials. The demo credentials (`demo@trippi.app` / `demo12345`) are also displayed in the app config for reference, but the one-click button is the intended entry point.
 
 ## SSO
 

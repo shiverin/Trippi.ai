@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>TREK Large Test KML</name>
+    <name>TRIPPI Large Test KML</name>
     <description>Generated fixture with 150 points and 20 paths across folders</description>
 
     <Style id="point-style"><IconStyle><scale>1.0</scale></IconStyle></Style>

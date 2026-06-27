@@ -94,11 +94,11 @@ function timingSafeEqualHex(a: string, b: string): boolean {
 }
 
 function generateAccessToken(): string {
-  return 'trekoa_' + randomBytes(32).toString('hex');
+  return 'trippioa_' + randomBytes(32).toString('hex');
 }
 
 function generateRefreshToken(): string {
-  return 'trekrf_' + randomBytes(32).toString('hex');
+  return 'trippirf_' + randomBytes(32).toString('hex');
 }
 
 // ---------------------------------------------------------------------------
@@ -163,7 +163,7 @@ export function createOAuthClient(
   const id          = randomUUID();
   const clientId    = randomUUID();
   // Public clients have no usable secret; store an opaque random value to satisfy NOT NULL.
-  const rawSecret   = isPublic ? null : 'trekcs_' + randomBytes(24).toString('hex');
+  const rawSecret   = isPublic ? null : 'trippics_' + randomBytes(24).toString('hex');
   const secretHash  = rawSecret ? hashToken(rawSecret) : randomBytes(32).toString('hex');
 
   db.prepare(
@@ -203,7 +203,7 @@ export function rotateOAuthClientSecret(
   if (!row) return { error: 'Client not found', status: 404 };
   if (row.is_public) return { error: 'Public clients do not use a client secret', status: 400 };
 
-  const rawSecret  = 'trekcs_' + randomBytes(24).toString('hex');
+  const rawSecret  = 'trippics_' + randomBytes(24).toString('hex');
   const secretHash = hashToken(rawSecret);
 
   db.prepare('UPDATE oauth_clients SET client_secret_hash = ? WHERE id = ?').run(secretHash, clientRowId);
@@ -614,7 +614,7 @@ export function validateAuthorizeRequest(
     return { valid: false, error: 'invalid_redirect_uri', error_description: 'redirect_uri does not match any registered URI' };
   }
 
-  // RFC 8707 resource indicator: if provided, must identify the TREK
+  // RFC 8707 resource indicator: if provided, must identify the TRIPPI
   // MCP endpoint exactly. If the client didn't supply `resource`, we
   // bind the token to the MCP endpoint by default — previously this
   // left `audience = null`, and the audience-bind check on MCP requests
@@ -624,7 +624,7 @@ export function validateAuthorizeRequest(
     ? params.resource.replace(/\/+$/, '')
     : mcpResource;
   if (resource !== mcpResource) {
-    return { valid: false, error: 'invalid_target', error_description: 'Requested resource must be the TREK MCP endpoint' };
+    return { valid: false, error: 'invalid_target', error_description: 'Requested resource must be the TRIPPI MCP endpoint' };
   }
 
   const requestedScopes = (params.scope || '').split(' ').filter(Boolean);

@@ -27,7 +27,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Accesso in corso…',
   'login.signIn': 'Accedi',
   'login.createAdmin': 'Crea Account Amministratore',
-  'login.createAdminHint': 'Imposta il primo account amministratore per TREK.',
+  'login.createAdminHint': 'Imposta il primo account amministratore per TRIPPI.',
   'login.setNewPassword': 'Imposta nuova password',
   'login.setNewPasswordHint': 'Devi cambiare la password prima di continuare.',
   'login.createAccount': 'Crea Account',

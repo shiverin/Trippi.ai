@@ -1,6 +1,6 @@
 # Backups
 
-TREK stores all data in a single SQLite database (`travel.db`) plus an `uploads/` directory of attachments, cover photos, and avatars. The Backup panel lets you create, download, restore, and schedule backups of both.
+TRIPPI stores all data in a single SQLite database (`travel.db`) plus an `uploads/` directory of attachments, cover photos, and avatars. The Backup panel lets you create, download, restore, and schedule backups of both.
 
 ## Where to find it
 
@@ -34,10 +34,10 @@ You can restore from:
 - **A stored backup** — click **Restore** next to any backup in the list.
 - **An uploaded ZIP** — click **Upload & Restore** and select a backup file from your computer (maximum upload size: 500 MB by default, configurable with the `BACKUP_UPLOAD_LIMIT_MB` environment variable — see [Environment-Variables](Environment-Variables)).
 
-Before restoring, TREK runs integrity checks on the uploaded database:
+Before restoring, TRIPPI runs integrity checks on the uploaded database:
 
 1. **SQLite `PRAGMA integrity_check`** — verifies the database file is not corrupt.
-2. **Required tables present** — confirms the file contains `users`, `trips`, `trip_members`, `places`, and `days`. Files missing any of these are rejected as not being a valid TREK backup.
+2. **Required tables present** — confirms the file contains `users`, `trips`, `trip_members`, `places`, and `days`. Files missing any of these are rejected as not being a valid TRIPPI backup.
 
 > **Warning:** Restoring replaces all current data. Back up your current state first if you want to keep it.
 
@@ -64,7 +64,7 @@ Auto-backup files are named `auto-backup-<timestamp>.zip` (manual backups use `b
 
 After each auto-backup run, **all** backup files (manual and auto) older than `keep_days` are pruned. Set `keep_days` to `0` to disable pruning entirely.
 
-## Before updating TREK
+## Before updating TRIPPI
 
 Always create a manual backup before updating. See [Updating](Updating).
 

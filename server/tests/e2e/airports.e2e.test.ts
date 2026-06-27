@@ -29,7 +29,7 @@ vi.mock('../../src/services/airportService', async (importActual) => {
 });
 
 import { AirportsModule } from '../../src/nest/airports/airports.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 const BER = {
   iata: 'BER', icao: 'EDDB', name: 'Berlin Brandenburg', city: 'Berlin',
@@ -44,7 +44,7 @@ describe('Airports e2e (real auth guard + temp SQLite)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AirportsModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

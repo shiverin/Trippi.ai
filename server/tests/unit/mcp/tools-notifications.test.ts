@@ -3,7 +3,7 @@
  * list_notifications, get_unread_notification_count, mark_notification_read,
  * mark_notification_unread, mark_all_notifications_read, delete_notification,
  * delete_all_notifications.
- * Also covers the resource trek://notifications/in-app.
+ * Also covers the resource trippi://notifications/in-app.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
 
@@ -28,7 +28,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../../src/db/database', () => dbMock);
 vi.mock('../../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
 }));
@@ -256,15 +256,15 @@ describe('Tool: mark_all_notifications_read', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Resource: trek://notifications/in-app
+// Resource: trippi://notifications/in-app
 // ---------------------------------------------------------------------------
 
-describe('Resource: trek://notifications/in-app', () => {
+describe('Resource: trippi://notifications/in-app', () => {
   it('returns notifications list', async () => {
     const { user } = createUser(testDb);
     createNotification(testDb, user.id, { title_key: 'notif.test' });
     await withResourceHarness(user.id, async (h) => {
-      const result = await h.client.readResource({ uri: 'trek://notifications/in-app' });
+      const result = await h.client.readResource({ uri: 'trippi://notifications/in-app' });
       const data = parseResourceResult(result) as any;
       expect(data.notifications).toBeDefined();
       expect(Array.isArray(data.notifications)).toBe(true);
@@ -275,7 +275,7 @@ describe('Resource: trek://notifications/in-app', () => {
   it('returns empty notifications for user with none', async () => {
     const { user } = createUser(testDb);
     await withResourceHarness(user.id, async (h) => {
-      const result = await h.client.readResource({ uri: 'trek://notifications/in-app' });
+      const result = await h.client.readResource({ uri: 'trippi://notifications/in-app' });
       const data = parseResourceResult(result) as any;
       expect(data.notifications).toEqual([]);
     });

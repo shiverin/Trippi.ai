@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Assegnazione bagagli',
   'notif.packing_tagged.text': '{actor} ti ha assegnato a {category} in {trip}',
   'notif.version_available.title': 'Nuova versione disponibile',
-  'notif.version_available.text': 'TREK {version} è ora disponibile',
+  'notif.version_available.text': 'TRIPPI {version} è ora disponibile',
   'notif.action.view_trip': 'Vedi viaggio',
   'notif.action.view_collab': 'Vedi messaggi',
   'notif.action.view_packing': 'Vedi bagagli',

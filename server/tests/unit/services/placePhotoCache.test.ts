@@ -2,7 +2,7 @@
  * Unit tests for placePhotoCache — PPC-001 through PPC-010.
  * Covers the downscale guard in put(), removeIfUnreferenced(), and sweepOrphans().
  * Uses a real in-memory SQLite DB and a throwaway temp upload dir
- * (TREK_PLACE_PHOTO_DIR) so the real uploads tree is never touched.
+ * (TRIPPI_PLACE_PHOTO_DIR) so the real uploads tree is never touched.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import path from 'node:path';
@@ -15,7 +15,7 @@ import Database from 'better-sqlite3';
 // Throwaway upload dir — set before importing the module under test (it reads the
 // env at load time and mkdirs the dir).
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'ppc-'));
-process.env.TREK_PLACE_PHOTO_DIR = TMP_DIR;
+process.env.TRIPPI_PLACE_PHOTO_DIR = TMP_DIR;
 
 // Minimal real DB with just the two tables placePhotoCache touches.
 const testDb = new Database(':memory:');

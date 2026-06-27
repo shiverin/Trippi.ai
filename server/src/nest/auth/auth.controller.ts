@@ -133,7 +133,7 @@ export class AuthController {
   @UseInterceptors(FileInterceptor('avatar', AVATAR_UPLOAD))
   async avatar(@CurrentUser() user: User, @UploadedFile() file: Express.Multer.File | undefined) {
     if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(user.email)) {
-      throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TREK for full functionality.' }, 403);
+      throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' }, 403);
     }
     if (!file) {
       throw new HttpException({ error: 'No image uploaded' }, 400);

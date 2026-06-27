@@ -21,19 +21,19 @@ Type in the search box at the top of the form. After 2 or more characters, with 
 
 When a key is present, the autocomplete uses the Google Places API, which can return ratings, opening hours, photos, and phone numbers from Google's database.
 
-> **API key restrictions:** TREK calls the Google Places API from the server, not the browser. If you apply **HTTP referrers** restrictions to your key in Google Cloud Console, you must also set `APP_URL` in your environment — TREK sends it as the `Referer` header on every outbound Google API request. Without it, Google will reject all server-side calls with `REQUEST_DENIED`. For server-side deployments, **IP address** restrictions are simpler and require no extra configuration. See [Troubleshooting](Troubleshooting) if photos are missing after adding a key.
+> **API key restrictions:** TRIPPI calls the Google Places API from the server, not the browser. If you apply **HTTP referrers** restrictions to your key in Google Cloud Console, you must also set `APP_URL` in your environment — TRIPPI sends it as the `Referer` header on every outbound Google API request. Without it, Google will reject all server-side calls with `REQUEST_DENIED`. For server-side deployments, **IP address** restrictions are simpler and require no extra configuration. See [Troubleshooting](Troubleshooting) if photos are missing after adding a key.
 
 ### Without a Google Maps API key
 
-TREK falls back to OpenStreetMap (Nominatim) automatically — no API key needed. A notice appears above the search box explaining that OpenStreetMap is in use and that photos, ratings, and opening hours are unavailable. Results include name, address, and coordinates.
+TRIPPI falls back to OpenStreetMap (Nominatim) automatically — no API key needed. A notice appears above the search box explaining that OpenStreetMap is in use and that photos, ratings, and opening hours are unavailable. Results include name, address, and coordinates.
 
 ## Pasting a Google Maps URL
 
-Paste a `maps.app.goo.gl/…`, `goo.gl/maps/…`, or `maps.google.*/…` URL directly into the search box and press the search button. TREK resolves it server-side and populates the name, address, and coordinates.
+Paste a `maps.app.goo.gl/…`, `goo.gl/maps/…`, or `maps.google.*/…` URL directly into the search box and press the search button. TRIPPI resolves it server-side and populates the name, address, and coordinates.
 
 ## Entering coordinates manually
 
-Type or paste a `lat, lng` pair (e.g. `48.8566, 2.3522`) into the **Latitude** field. TREK detects the comma-separated pair and fills both coordinate fields at once.
+Type or paste a `lat, lng` pair (e.g. `48.8566, 2.3522`) into the **Latitude** field. TRIPPI detects the comma-separated pair and fills both coordinate fields at once.
 
 ## Place fields
 

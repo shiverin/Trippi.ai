@@ -42,11 +42,11 @@ afterEach(() => {
 
 describe('resolveWebauthnConfig', () => {
   it('WAC-001: derives the RP ID and single origin from a real APP_URL domain', () => {
-    appUrlRef.value = 'https://trek.example.org';
+    appUrlRef.value = 'https://trippi.example.org';
     const cfg = resolveWebauthnConfig();
     expect(cfg).not.toBeNull();
-    expect(cfg!.rpID).toBe('trek.example.org');
-    expect(cfg!.origins).toEqual(['https://trek.example.org']);
+    expect(cfg!.rpID).toBe('trippi.example.org');
+    expect(cfg!.origins).toEqual(['https://trippi.example.org']);
     expect(isPasskeyConfigured()).toBe(true);
   });
 
@@ -95,9 +95,9 @@ describe('resolveWebauthnConfig', () => {
   });
 
   it('WAC-008: a configured RP ID with no origins falls back to the APP_URL origin', () => {
-    appUrlRef.value = 'https://trek.example.org';
-    settingsStore.set('webauthn_rp_id', 'trek.example.org');
+    appUrlRef.value = 'https://trippi.example.org';
+    settingsStore.set('webauthn_rp_id', 'trippi.example.org');
     const cfg = resolveWebauthnConfig();
-    expect(cfg!.origins).toEqual(['https://trek.example.org']);
+    expect(cfg!.origins).toEqual(['https://trippi.example.org']);
   });
 });

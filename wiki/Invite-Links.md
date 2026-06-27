@@ -1,6 +1,6 @@
 # Invite Links
 
-Invite new users to register on your TREK instance, even when open registration is disabled. Invite links work by embedding a short-lived token in the registration URL.
+Invite new users to register on your TRIPPI instance, even when open registration is disabled. Invite links work by embedding a short-lived token in the registration URL.
 
 <!-- TODO: screenshot: invite link management form -->
 
@@ -8,7 +8,7 @@ Invite new users to register on your TREK instance, even when open registration 
 
 ## What invite links do
 
-An invite link lets a person register a new TREK account without requiring the site to have open registration enabled. Visiting `/register?invite=<token>` pre-validates the token and switches the page to the Register form. The token's use count is incremented on successful registration, and the link stops working once the use limit is reached.
+An invite link lets a person register a new TRIPPI account without requiring the site to have open registration enabled. Visiting `/register?invite=<token>` pre-validates the token and switches the page to the Register form. The token's use count is incremented on successful registration, and the link stops working once the use limit is reached.
 
 ## Creating invite links
 

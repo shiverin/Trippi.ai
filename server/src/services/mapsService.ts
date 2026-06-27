@@ -73,14 +73,14 @@ interface GooglePlaceDetails extends GooglePlaceResult {
 // and throttled harder (see #1309). When the instance URL is configured we append it;
 // getAppUrl()'s bare http://localhost fallback isn't a useful identifier, so we drop it.
 export function buildUserAgent(instanceUrl: string | undefined): string {
-  const base = 'TREK Travel Planner (https://github.com/mauriceboe/TREK)';
+  const base = 'TRIPPI Travel Planner (https://github.com/mauriceboe/TRIPPI)';
   if (instanceUrl && !instanceUrl.startsWith('http://localhost')) return `${base}; ${instanceUrl}`;
   return base;
 }
 // Computed once at load — getAppUrl() reads only env vars, which don't change at runtime.
 const UA = buildUserAgent(getAppUrl());
 
-// TREK's internal language codes mostly coincide with valid BCP-47 codes, but a
+// TRIPPI's internal language codes mostly coincide with valid BCP-47 codes, but a
 // couple don't: 'br' is Brazilian Portuguese here (BCP-47 'pt-BR'; bare 'br' is
 // Breton) and 'gr' is Greek (BCP-47 'el'). Outbound geo APIs (Google Places,
 // Nominatim) expect BCP-47, so normalise before sending — otherwise names and
@@ -299,7 +299,7 @@ const DEFAULT_OVERPASS_MIRRORS = [
   'https://overpass.private.coffee/api/interpreter',
 ];
 
-// Operators behind locked-down egress — or running their own Overpass — can point TREK
+// Operators behind locked-down egress — or running their own Overpass — can point TRIPPI
 // at one or more custom endpoints via OVERPASS_URL (comma-separated). When set it
 // REPLACES the public mirrors, so a firewalled cluster never reaches out to them and a
 // self-hosted instance is used exclusively (see #1309). Non-http(s) entries are dropped.
@@ -1095,7 +1095,7 @@ export async function resolveGoogleMapsUrl(url: string): Promise<{ lat: number; 
   if (!coords) {
     try {
       const pageRes = await followRedirects(resolvedUrl, {
-        headers: { 'User-Agent': 'TREK-Travel-Planner/1.0' },
+        headers: { 'User-Agent': 'TRIPPI-Travel-Planner/1.0' },
       });
       coords = extractCoords(await pageRes.text());
     } catch (err) {
@@ -1119,7 +1119,7 @@ export async function resolveGoogleMapsUrl(url: string): Promise<{ lat: number; 
   // Reverse geocode to get address
   const nominatimRes = await fetch(
     `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-    { headers: { 'User-Agent': 'TREK-Travel-Planner/1.0' }, signal: AbortSignal.timeout(8000) }
+    { headers: { 'User-Agent': 'TRIPPI-Travel-Planner/1.0' }, signal: AbortSignal.timeout(8000) }
   );
   const nominatim = await nominatimRes.json() as { display_name?: string; name?: string; address?: Record<string, string> };
 

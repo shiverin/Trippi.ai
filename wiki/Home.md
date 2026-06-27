@@ -1,6 +1,6 @@
-# TREK Wiki
+# TRIPPI Wiki
 
-TREK is a self-hosted, real-time collaborative travel planner licensed under AGPL-3.0.
+TRIPPI is a self-hosted, real-time collaborative travel planner licensed under AGPL-3.0.
 
 ![Dashboard](assets/DashboardWidgets.png)
 
@@ -38,14 +38,14 @@ TREK is a self-hosted, real-time collaborative travel planner licensed under AGP
 - **Atlas** — interactive world map, bucket list, travel stats, continent breakdown
 - **Journey** — magazine-style travel journal with entries, photos (via Immich/Synology Photos), maps, and moods
 - **Naver List Import** — import places from shared Naver Maps lists
-- **MCP** — expose TREK to AI assistants via the Model Context Protocol (OAuth 2.1)
+- **MCP** — expose TRIPPI to AI assistants via the Model Context Protocol (OAuth 2.1)
 
 > Dashboard widgets (currency converter and timezone clock) are per-user preferences, not an admin-toggleable addon — see [Dashboard-Widgets](Dashboard-Widgets).
 
 ### AI / MCP Integration
 - **MCP Server** — built-in Model Context Protocol server with OAuth 2.1 authentication
 - **150+ Tools** — create trips, plan itineraries, manage budgets, send messages, and more
-- **30 Resources** — read-only `trek://` URIs for trips, days, places, budget, packing, journeys, and more
+- **30 Resources** — read-only `trippi://` URIs for trips, days, places, budget, packing, journeys, and more
 - **27 OAuth Scopes** — granular permissions across 13 permission groups
 - **Pre-built Prompts** — `trip-summary`, `packing-list`, and `budget-overview` context loaders
 
@@ -54,7 +54,7 @@ TREK is a self-hosted, real-time collaborative travel planner licensed under AGP
 - Addon management, API key storage, scheduled auto-backups
 - System notices for onboarding and announcements
 
-> **Admin:** Most configuration lives in the Admin Panel. On first boot TREK seeds an admin account automatically — credentials come from `ADMIN_EMAIL` / `ADMIN_PASSWORD` if set, otherwise a random password is printed to the container log.
+> **Admin:** Most configuration lives in the Admin Panel. On first boot TRIPPI seeds an admin account automatically — credentials come from `ADMIN_EMAIL` / `ADMIN_PASSWORD` if set, otherwise a random password is printed to the container log.
 
 ## Get Started
 

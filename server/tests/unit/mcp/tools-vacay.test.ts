@@ -6,7 +6,7 @@
  * get_vacay_stats, update_vacay_stats,
  * add_holiday_calendar, update_holiday_calendar, delete_holiday_calendar,
  * list_holiday_countries, list_holidays.
- * Resources: trek://vacay/plan, trek://vacay/entries/{year}.
+ * Resources: trippi://vacay/plan, trippi://vacay/entries/{year}.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
 
@@ -31,7 +31,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../../src/db/database', () => dbMock);
 vi.mock('../../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
 }));
@@ -461,22 +461,22 @@ describe('Tool: list_holidays', () => {
 // Resources
 // ---------------------------------------------------------------------------
 
-describe('Resource: trek://vacay/plan', () => {
+describe('Resource: trippi://vacay/plan', () => {
   it('returns plan data', async () => {
     const { user } = createUser(testDb);
     await withResourceHarness(user.id, async (h) => {
-      const result = await h.client.readResource({ uri: 'trek://vacay/plan' });
+      const result = await h.client.readResource({ uri: 'trippi://vacay/plan' });
       const data = parseResourceResult(result) as any;
       expect(data).toBeDefined();
     });
   });
 });
 
-describe('Resource: trek://vacay/entries/{year}', () => {
+describe('Resource: trippi://vacay/entries/{year}', () => {
   it('returns entries for a year', async () => {
     const { user } = createUser(testDb);
     await withResourceHarness(user.id, async (h) => {
-      const result = await h.client.readResource({ uri: 'trek://vacay/entries/2025' });
+      const result = await h.client.readResource({ uri: 'trippi://vacay/entries/2025' });
       const data = parseResourceResult(result) as any;
       expect(data).toBeDefined();
       expect(Array.isArray(data.entries)).toBe(true);

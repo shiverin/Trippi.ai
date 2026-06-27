@@ -1,6 +1,6 @@
 {
   "source": "runtime getComputedStyle(document.documentElement)",
-  "capturedAt": "2026-06-27T16:22:19.893Z",
+  "capturedAt": "2026-06-27T16:55:24.269Z",
   "fontFamily": "Poppins, -apple-system, \"system-ui\", \"SF Pro Text\", \"Segoe UI\", system-ui, sans-serif",
   "light": {
     "--font-system": "'Poppins', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif",

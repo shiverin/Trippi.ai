@@ -259,7 +259,7 @@ export function resetRateLimits(app: INestApplication): void {
 
 /** Fixed config mock — use with vi.mock('../../src/config', () => TEST_CONFIG) */
 export const TEST_CONFIG = {
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
   SESSION_DURATION: '24h',

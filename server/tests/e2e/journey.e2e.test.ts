@@ -39,7 +39,7 @@ const { sharesvc } = vi.hoisted(() => ({ sharesvc: { getPublicJourney: vi.fn() }
 vi.mock('../../src/services/journeyShareService', () => sharesvc);
 
 import { JourneyModule } from '../../src/nest/journey/journey.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('Journey e2e (real auth guard + temp SQLite)', () => {
   let server: Server;
@@ -49,7 +49,7 @@ describe('Journey e2e (real auth guard + temp SQLite)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [JourneyModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

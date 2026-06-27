@@ -206,7 +206,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': '共有元',
   'journey.public.madeWith': '作成：',
   'journey.pdf.journeyBook': '日記ブック',
-  'journey.pdf.madeWith': 'Made with TREK',
+  'journey.pdf.madeWith': 'Made with TRIPPI',
   'journey.pdf.day': '日目',
   'journey.pdf.theEnd': 'おわり',
   'journey.pdf.saveAsPdf': 'PDFとして保存',

@@ -376,7 +376,7 @@ export interface JourneyEntry {
   updated_at: number;
 }
 
-export interface TrekPhoto {
+export interface TrippiPhoto {
   id: number;
   provider: string;
   asset_id?: string | null;
@@ -397,7 +397,7 @@ export interface JourneyPhoto {
   sort_order: number;
   shared: number;
   created_at: number;
-  // Joined from trek_photos for API responses
+  // Joined from trippi_photos for API responses
   provider?: string;
   asset_id?: string | null;
   owner_id?: number | null;
@@ -415,7 +415,7 @@ export interface GalleryPhoto {
   shared: number;
   sort_order: number;
   created_at: number;
-  // Joined from trek_photos for API responses
+  // Joined from trippi_photos for API responses
   provider?: string;
   asset_id?: string | null;
   owner_id?: number | null;

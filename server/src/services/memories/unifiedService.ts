@@ -8,7 +8,7 @@ import {
   mapDbError,
   Selection,
 } from './helpersService';
-import { getOrCreateTrekPhoto, deleteTrekPhotoIfOrphan } from './photoResolverService';
+import { getOrCreateTrippiPhoto, deleteTrippiPhotoIfOrphan } from './photoResolverService';
 import { encrypt_api_key } from '../apiKeyCrypto';
 
 
@@ -50,7 +50,7 @@ export function listTripPhotos(tripId: string, userId: number): ServiceResult<an
       SELECT tp.photo_id, tkp.asset_id, tkp.provider, tp.user_id, tp.shared, tp.added_at,
              u.username, u.avatar
       FROM trip_photos tp
-      JOIN trek_photos tkp ON tkp.id = tp.photo_id
+      JOIN trippi_photos tkp ON tkp.id = tp.photo_id
       JOIN users u ON tp.user_id = u.id
       WHERE tp.trip_id = ?
         AND (tp.user_id = ? OR tp.shared = 1)
@@ -111,7 +111,7 @@ function _addTripPhoto(tripId: string, userId: number, provider: string, assetId
     return providerResult as ServiceResult<boolean>;
   }
   try {
-    const photoId = getOrCreateTrekPhoto(provider, assetId, userId, passphrase);
+    const photoId = getOrCreateTrippiPhoto(provider, assetId, userId, passphrase);
     const result = db.prepare(
       'INSERT OR IGNORE INTO trip_photos (trip_id, user_id, photo_id, shared, album_link_id) VALUES (?, ?, ?, ?, ?)'
     ).run(tripId, userId, photoId, shared ? 1 : 0, albumLinkId || null);
@@ -212,7 +212,7 @@ export function removeTripPhoto(
         AND photo_id = ?
     `).run(tripId, userId, photoId);
 
-    deleteTrekPhotoIfOrphan(photoId);
+    deleteTrippiPhotoIfOrphan(photoId);
     broadcast(tripId, 'memories:updated', { userId }, sid);
 
     return success(true);
@@ -281,7 +281,7 @@ export function removeAlbumLink(tripId: string, linkId: string, userId: number):
     })();
 
     for (const { photo_id } of linkedPhotos) {
-      deleteTrekPhotoIfOrphan(photo_id);
+      deleteTrippiPhotoIfOrphan(photo_id);
     }
 
     return success(true);

@@ -12,7 +12,7 @@ export function Skeleton({
 }): React.ReactElement {
   return (
     <div
-      className={`trek-skeleton ${className ?? ''}`.trim()}
+      className={`trippi-skeleton ${className ?? ''}`.trim()}
       style={{
         width,
         height: height ?? 14,
@@ -31,7 +31,7 @@ export function SpotlightSkeleton(): React.ReactElement {
       className="relative rounded-3xl overflow-hidden mb-8 bg-surface-tertiary"
       style={{ minHeight: 340 }}
     >
-      <div className="trek-skeleton absolute inset-0" style={{ borderRadius: 24 }} />
+      <div className="trippi-skeleton absolute inset-0" style={{ borderRadius: 24 }} />
       <div className="relative p-6 flex flex-col justify-end" style={{ minHeight: 340 }}>
         <Skeleton width={160} height={40} radius={8} style={{ marginBottom: 8 }} />
         <Skeleton width={220} height={16} radius={4} />

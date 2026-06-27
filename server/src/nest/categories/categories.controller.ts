@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
-import type { Category, CategoryListResponse } from '@trek/shared';
+import type { Category, CategoryListResponse } from '@trippi/shared';
 import type { User } from '../../types';
 import { CategoriesService } from './categories.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';

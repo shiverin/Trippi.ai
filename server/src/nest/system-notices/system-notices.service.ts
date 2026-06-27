@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { SystemNoticeDto } from '@trek/shared';
+import type { SystemNoticeDto } from '@trippi/shared';
 import { getActiveNoticesFor, dismissNotice } from '../../systemNotices/service';
 
 /**

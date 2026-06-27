@@ -26,7 +26,7 @@ describe('Navbar', () => {
     expect(document.body).toBeInTheDocument();
   });
 
-  it('FE-COMP-NAVBAR-002: shows TREK logo/brand', () => {
+  it('FE-COMP-NAVBAR-002: shows TRIPPI logo/brand', () => {
     render(<Navbar />);
     // The Navbar shows the app icon — check for presence of the nav element
     expect(document.querySelector('nav') || document.body).toBeTruthy();

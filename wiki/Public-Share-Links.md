@@ -1,6 +1,6 @@
 # Public Share Links
 
-Share a read-only view of your trip with people who do not have a TREK account. The viewer opens in a browser without logging in.
+Share a read-only view of your trip with people who do not have a TRIPPI account. The viewer opens in a browser without logging in.
 
 <!-- TODO: screenshot: share link creation form with permission toggles -->
 
@@ -18,7 +18,7 @@ The share URL takes the form:
 <your-instance>/shared/<token>
 ```
 
-Copy this URL and send it to anyone you want to share the trip with. No TREK account is required to view it.
+Copy this URL and send it to anyone you want to share the trip with. No TRIPPI account is required to view it.
 
 ## Permission toggles
 

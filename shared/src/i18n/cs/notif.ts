@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Přiřazení balení',
   'notif.packing_tagged.text': '{actor} vás přiřadil k {category} v {trip}',
   'notif.version_available.title': 'Nová verze dostupná',
-  'notif.version_available.text': 'TREK {version} je nyní dostupný',
+  'notif.version_available.text': 'TRIPPI {version} je nyní dostupný',
   'notif.action.view_trip': 'Zobrazit výlet',
   'notif.action.view_collab': 'Zobrazit zprávy',
   'notif.action.view_packing': 'Zobrazit balení',

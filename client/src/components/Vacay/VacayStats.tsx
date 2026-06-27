@@ -84,7 +84,7 @@ function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardP
       </div>
       <div className="h-1.5 rounded-full overflow-hidden bg-surface-secondary">
         <div
-          className="trek-bar-fill h-full rounded-full transition-[width] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]"
+          className="trippi-bar-fill h-full rounded-full transition-[width] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]"
           style={{ width: `${pct}%`, backgroundColor: s.person_color }}
         />
       </div>

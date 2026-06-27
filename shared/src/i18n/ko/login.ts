@@ -26,7 +26,7 @@ const login: TranslationStrings = {
   'login.signingIn': '로그인 중…',
   'login.signIn': '로그인',
   'login.createAdmin': '관리자 계정 만들기',
-  'login.createAdminHint': 'TREK의 첫 번째 관리자 계정을 설정하세요.',
+  'login.createAdminHint': 'TRIPPI의 첫 번째 관리자 계정을 설정하세요.',
   'login.setNewPassword': '새 비밀번호 설정',
   'login.setNewPasswordHint': '계속하기 전에 비밀번호를 변경해야 합니다.',
   'login.createAccount': '계정 만들기',

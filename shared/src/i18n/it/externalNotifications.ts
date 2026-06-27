@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const it: NotificationLocale = {
   email: {
-    footer: 'Hai ricevuto questa email perché hai le notifiche abilitate in TREK.',
+    footer: 'Hai ricevuto questa email perché hai le notifiche abilitate in TRIPPI.',
     manage: 'Gestisci le preferenze nelle impostazioni',
     madeWith: 'Made with',
-    openTrek: 'Apri TREK',
+    openTrippi: 'Apri TRIPPI',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const it: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Invito Vacay Fusion',
-      body: `${p.actor} ti ha invitato a fondere i piani vacanza. Apri TREK per accettare o rifiutare.`,
+      body: `${p.actor} ti ha invitato a fondere i piani vacanza. Apri TRIPPI per accettare o rifiutare.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} foto condivise`,
@@ -41,8 +41,8 @@ const it: NotificationLocale = {
       body: `${p.actor} ti ha assegnato alla categoria "${p.category}" in "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Nuova versione TREK disponibile',
-      body: `TREK ${p.version} è ora disponibile. Visita il pannello di amministrazione per aggiornare.`,
+      title: 'Nuova versione TRIPPI disponibile',
+      body: `TRIPPI ${p.version} è ora disponibile. Visita il pannello di amministrazione per aggiornare.`,
     }),
     synology_session_cleared: () => ({
       title: 'Sessione Synology rimossa',
@@ -52,7 +52,7 @@ const it: NotificationLocale = {
   passwordReset: {
     subject: 'Reimposta la tua password',
     greeting: 'Ciao',
-    body: 'Abbiamo ricevuto una richiesta di reimpostazione della password per il tuo account TREK. Clicca il pulsante qui sotto per impostare una nuova password.',
+    body: 'Abbiamo ricevuto una richiesta di reimpostazione della password per il tuo account TRIPPI. Clicca il pulsante qui sotto per impostare una nuova password.',
     ctaIntro: 'Reimposta password',
     expiry: 'Questo link scade tra 60 minuti.',
     ignore: 'Se non hai richiesto questa operazione, ignora questa email — la tua password non cambierà.',

@@ -132,9 +132,9 @@ const settings: TranslationStrings = {
   'settings.oauth.activeSessions': 'Actieve OAuth-sessies',
   'settings.oauth.sessionScopes': 'Rechten',
   'settings.oauth.sessionExpires': 'Verloopt',
-  'settings.oauth.revoke': 'Intrekken',
-  'settings.oauth.revokeSession': 'Sessie intrekken',
-  'settings.oauth.revokeSessionMessage': 'Dit trekt onmiddellijk de toegang voor deze OAuth-sessie in.',
+  'settings.oauth.revoke': 'Intrippiken',
+  'settings.oauth.revokeSession': 'Sessie intrippiken',
+  'settings.oauth.revokeSessionMessage': 'Dit trippit onmiddellijk de toegang voor deze OAuth-sessie in.',
   'settings.oauth.modal.createTitle': 'OAuth-client registreren',
   'settings.oauth.modal.presets': 'Snelle instellingen',
   'settings.oauth.modal.clientName': 'Toepassingsnaam',
@@ -161,7 +161,7 @@ const settings: TranslationStrings = {
   'settings.oauth.toast.rotateError': 'Clientgeheim kon niet worden vernieuwd',
   'settings.oauth.modal.machineClient': 'Machineclient (zonder browserinlog)',
   'settings.oauth.modal.machineClientHint':
-    "Gebruikt de client_credentials grant — geen redirect-URI's nodig. Het token wordt direct verstrekt via client_id + client_secret en handelt namens jou binnen de geselecteerde scopes.",
+    "Gebruikt de client_credentials grant — geen redirect-URI's nodig. Het token wordt direct verstrippit via client_id + client_secret en handelt namens jou binnen de geselecteerde scopes.",
   'settings.oauth.modal.machineClientUsage':
     'Token ophalen: POST /oauth/token met grant_type=client_credentials, client_id en client_secret. Geen browser, geen vernieuwingstoken.',
   'settings.oauth.badge.machine': 'machine',
@@ -173,9 +173,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Stel een nieuwe functie voor',
   'settings.about.wikiHint': 'Documentatie en handleidingen',
   'settings.about.supporters.badge': 'Maandelijkse Steuners',
-  'settings.about.supporters.title': 'Reisgezelschap voor TREK',
+  'settings.about.supporters.title': 'Reisgezelschap voor TRIPPI',
   'settings.about.supporters.subtitle':
-    'Terwijl jij je volgende route plant, plannen deze mensen mee aan de toekomst van TREK. Hun maandelijkse bijdrage gaat rechtstreeks naar ontwikkeling en echte uren — zodat TREK Open Source blijft.',
+    'Terwijl jij je volgende route plant, plannen deze mensen mee aan de toekomst van TRIPPI. Hun maandelijkse bijdrage gaat rechtstreeks naar ontwikkeling en echte uren — zodat TRIPPI Open Source blijft.',
   'settings.about.supporters.since': 'steuner sinds {date}',
   'settings.about.supporters.tierEmpty': 'Wees de eerste',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -184,7 +184,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    "TREK is een zelf-gehoste reisplanner die je helpt je reizen te organiseren van het eerste idee tot de laatste herinnering. Dagplanning, budget, paklijsten, foto's en nog veel meer — alles op één plek, op je eigen server.",
+    "TRIPPI is een zelf-gehoste reisplanner die je helpt je reizen te organiseren van het eerste idee tot de laatste herinnering. Dagplanning, budget, paklijsten, foto's en nog veel meer — alles op één plek, op je eigen server.",
   'settings.about.madeWith': 'Gemaakt met',
   'settings.about.madeBy': 'door Maurice en een groeiende open-source community.',
   'settings.username': 'Gebruikersnaam',
@@ -264,7 +264,7 @@ const settings: TranslationStrings = {
   'settings.webhookUrl.testSuccess': 'Test-webhook succesvol verzonden',
   'settings.webhookUrl.testFailed': 'Test-webhook mislukt',
   'settings.ntfyUrl.topicLabel': 'Ntfy-onderwerp',
-  'settings.ntfyUrl.topicPlaceholder': 'my-trek-alerts',
+  'settings.ntfyUrl.topicPlaceholder': 'my-trippi-alerts',
   'settings.ntfyUrl.serverLabel': 'Ntfy-server-URL (optioneel)',
   'settings.ntfyUrl.serverPlaceholder': 'https://ntfy.sh',
   'settings.ntfyUrl.hint':
@@ -318,7 +318,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': 'Schakel dit alleen in voor een vertrouwde instantie op je eigen netwerk.',
   'settings.airtrail.writeBack': 'Wijzigingen terugschrijven naar AirTrail',
   'settings.airtrail.writeBackHint':
-    'Standaard uit: AirTrail is de bron van waarheid en TREK leest er alleen uit. Schakel in om in TREK gemaakte wijzigingen terug te sturen naar AirTrail.',
+    'Standaard uit: AirTrail is de bron van waarheid en TRIPPI leest er alleen uit. Schakel in om in TRIPPI gemaakte wijzigingen terug te sturen naar AirTrail.',
   'settings.airtrail.connected': 'Verbonden',
   'settings.airtrail.notConnected': 'Niet verbonden',
   'settings.airtrail.toast.saved': 'AirTrail-verbinding opgeslagen',

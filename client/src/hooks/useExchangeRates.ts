@@ -15,7 +15,7 @@ function readCache(base: string): { rates: Record<string, number>; ts: number } 
   const m = mem.get(base)
   if (m) return m
   try {
-    const raw = localStorage.getItem('trek_fx_' + base)
+    const raw = localStorage.getItem('trippi_fx_' + base)
     if (raw) {
       const parsed = JSON.parse(raw) as { rates: Record<string, number>; ts: number }
       if (parsed?.rates) { mem.set(base, parsed); return parsed }
@@ -44,7 +44,7 @@ export function useExchangeRates(base: string) {
         }
         const entry = { rates, ts: Date.now() }
         mem.set(upper, entry)
-        try { localStorage.setItem('trek_fx_' + upper, JSON.stringify(entry)) } catch { /* ignore */ }
+        try { localStorage.setItem('trippi_fx_' + upper, JSON.stringify(entry)) } catch { /* ignore */ }
         setRates(rates)
       })
       .catch(() => { /* offline → keep cached/identity */ })

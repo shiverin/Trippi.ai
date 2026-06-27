@@ -41,7 +41,7 @@ const { svc } = vi.hoisted(() => ({
 vi.mock('../../src/services/packingService', () => svc);
 
 import { PackingModule } from '../../src/nest/packing/packing.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('Packing e2e (real auth guard + temp SQLite)', () => {
   let server: Server;
@@ -51,7 +51,7 @@ describe('Packing e2e (real auth guard + temp SQLite)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [PackingModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

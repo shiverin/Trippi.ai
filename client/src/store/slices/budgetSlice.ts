@@ -3,7 +3,7 @@ import { budgetRepo } from '../../repo/budgetRepo'
 import type { StoreApi } from 'zustand'
 import type { TripStoreState } from '../tripStore'
 import type { BudgetItem, BudgetItemMember } from '../../types'
-import type { BudgetCreateItemRequest, BudgetUpdateItemRequest } from '@trek/shared'
+import type { BudgetCreateItemRequest, BudgetUpdateItemRequest } from '@trippi/shared'
 import { getApiErrorMessage } from '../../types'
 import { notify } from '../notify'
 

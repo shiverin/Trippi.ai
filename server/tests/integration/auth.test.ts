@@ -44,7 +44,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../src/db/database', () => dbMock);
 vi.mock('../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
   SESSION_DURATION: '24h',
@@ -87,7 +87,7 @@ afterAll(async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Login', () => {
-  it('AUTH-001 — successful login returns 200, user object, and trek_session cookie', async () => {
+  it('AUTH-001 — successful login returns 200, user object, and trippi_session cookie', async () => {
     const { user, password } = createUser(testDb);
     const res = await request(app).post('/api/auth/login').send({ email: user.email, password });
     expect(res.status).toBe(200);
@@ -97,7 +97,7 @@ describe('Login', () => {
     const cookies: string[] = Array.isArray(res.headers['set-cookie'])
       ? res.headers['set-cookie']
       : [res.headers['set-cookie']];
-    expect(cookies.some((c: string) => c.includes('trek_session'))).toBe(true);
+    expect(cookies.some((c: string) => c.includes('trippi_session'))).toBe(true);
   });
 
   it('AUTH-002 — wrong password returns 401 with generic message', async () => {
@@ -120,7 +120,7 @@ describe('Login', () => {
     const cookies: string[] = Array.isArray(res.headers['set-cookie'])
       ? res.headers['set-cookie']
       : (res.headers['set-cookie'] ? [res.headers['set-cookie']] : []);
-    const sessionCookie = cookies.find((c: string) => c.includes('trek_session'));
+    const sessionCookie = cookies.find((c: string) => c.includes('trippi_session'));
     expect(sessionCookie).toBeDefined();
     expect(sessionCookie).toMatch(/expires=Thu, 01 Jan 1970|Max-Age=0/i);
   });
@@ -142,7 +142,7 @@ describe('Registration', () => {
     const cookies: string[] = Array.isArray(res.headers['set-cookie'])
       ? res.headers['set-cookie']
       : [res.headers['set-cookie']];
-    expect(cookies.some((c: string) => c.includes('trek_session'))).toBe(true);
+    expect(cookies.some((c: string) => c.includes('trippi_session'))).toBe(true);
   });
 
   it('AUTH-006 — registration with weak password is rejected', async () => {
@@ -342,13 +342,13 @@ describe('Demo login', () => {
 
   it('AUTH-022 — POST /api/auth/demo-login with DEMO_MODE and demo user returns 200 + cookie', async () => {
     testDb.prepare(
-      "INSERT INTO users (username, email, password_hash, role) VALUES ('demo', 'demo@trek.app', 'x', 'user')"
+      "INSERT INTO users (username, email, password_hash, role) VALUES ('demo', 'demo@trippi.app', 'x', 'user')"
     ).run();
     process.env.DEMO_MODE = 'true';
     try {
       const res = await request(app).post('/api/auth/demo-login');
       expect(res.status).toBe(200);
-      expect(res.body.user.email).toBe('demo@trek.app');
+      expect(res.body.user.email).toBe('demo@trippi.app');
     } finally {
       delete process.env.DEMO_MODE;
     }
@@ -414,7 +414,7 @@ describe('MFA', () => {
     const cookies: string[] = Array.isArray(verifyRes.headers['set-cookie'])
       ? verifyRes.headers['set-cookie']
       : [verifyRes.headers['set-cookie']];
-    expect(cookies.some((c: string) => c.includes('trek_session'))).toBe(true);
+    expect(cookies.some((c: string) => c.includes('trippi_session'))).toBe(true);
   });
 
   it('AUTH-017 — verify-login with invalid TOTP code returns 401', async () => {
@@ -646,9 +646,9 @@ describe('Account deletion', () => {
       "INSERT INTO trip_files (trip_id, filename, original_name, uploaded_by) VALUES (?, 'f.pdf', 'file.pdf', ?)"
     ).run(otherTrip.id, target.id);
 
-    // trek_photos.owner_id (SET NULL): target owns a photo in the central registry
-    const trekPhotoRow = testDb.prepare(
-      "INSERT INTO trek_photos (provider, asset_id, owner_id) VALUES ('immich', 'asset-auth-test', ?)"
+    // trippi_photos.owner_id (SET NULL): target owns a photo in the central registry
+    const trippiPhotoRow = testDb.prepare(
+      "INSERT INTO trippi_photos (provider, asset_id, owner_id) VALUES ('immich', 'asset-auth-test', ?)"
     ).run(target.id);
 
     // trip_photos.user_id (CASCADE): target added a photo to otherUser's trip
@@ -762,8 +762,8 @@ describe('Account deletion', () => {
     expect(testDb.prepare('SELECT id FROM journey_entries WHERE journey_id = ?').get(ownedJourney.id)).toBeUndefined();
     // uploaded file survives but uploaded_by is now NULL
     expect((testDb.prepare('SELECT uploaded_by FROM trip_files WHERE id = ?').get(fileRow.lastInsertRowid) as any).uploaded_by).toBeNull();
-    // trek_photos row survives but owner_id is now NULL
-    expect((testDb.prepare('SELECT owner_id FROM trek_photos WHERE id = ?').get(trekPhotoRow.lastInsertRowid) as any).owner_id).toBeNull();
+    // trippi_photos row survives but owner_id is now NULL
+    expect((testDb.prepare('SELECT owner_id FROM trippi_photos WHERE id = ?').get(trippiPhotoRow.lastInsertRowid) as any).owner_id).toBeNull();
     // trip_photos row for target is cascade-deleted
     expect(testDb.prepare("SELECT id FROM trip_photos WHERE trip_id = ? AND user_id = ?").get(otherTrip.id, target.id)).toBeUndefined();
     // owned trip is cascade-deleted

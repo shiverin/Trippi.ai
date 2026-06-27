@@ -43,7 +43,7 @@ describe('AboutTab', () => {
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute(
       'href',
-      'https://github.com/mauriceboe/TREK/issues/new?template=bug_report.yml',
+      'https://github.com/mauriceboe/TRIPPI/issues/new?template=bug_report.yml',
     );
   });
 

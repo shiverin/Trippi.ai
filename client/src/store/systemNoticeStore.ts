@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import axios, { parseInDev } from '../api/client';
-import { systemNoticeDtoSchema, type SystemNoticeDto } from '@trek/shared';
+import { systemNoticeDtoSchema, type SystemNoticeDto } from '@trippi/shared';
 
-// The notice contract lives in @trek/shared (single source of truth, shared
+// The notice contract lives in @trippi/shared (single source of truth, shared
 // with the server). Keep the historical name as an alias so the existing
 // SystemNoticeBanner/Modal consumers don't need to change their imports.
 export type SystemNoticeDTO = SystemNoticeDto;

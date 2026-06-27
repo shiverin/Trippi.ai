@@ -151,13 +151,13 @@ describe('ModalRenderer', () => {
   it('FE-SN-MODAL-007: body params are interpolated before rendering', async () => {
     const notice = makeNotice({
       bodyKey: 'Hello {name}, welcome to {app}',
-      bodyParams: { name: 'Alice', app: 'TREK' },
+      bodyParams: { name: 'Alice', app: 'TRIPPI' },
     });
     render(<ModalRenderer notices={[notice]} />);
 
     await flushGraceDelay();
 
-    expect(screen.getByText('Hello Alice, welcome to TREK')).toBeTruthy();
+    expect(screen.getByText('Hello Alice, welcome to TRIPPI')).toBeTruthy();
   });
 
   it('FE-SN-MODAL-008: empty notices renders nothing', () => {

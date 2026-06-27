@@ -36,7 +36,7 @@ const admin: TranslationStrings = {
     'Juga digunakan sebagai server default untuk notifikasi ntfy pengguna. Kosongkan untuk menggunakan ntfy.sh. Pengguna dapat menggantinya di pengaturan mereka sendiri.',
   'admin.notifications.adminNtfyPanel.serverPlaceholder': 'https://ntfy.sh',
   'admin.notifications.adminNtfyPanel.topicLabel': 'Topik Admin',
-  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trek-admin-alerts',
+  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trippi-admin-alerts',
   'admin.notifications.adminNtfyPanel.tokenLabel': 'Token Akses (opsional)',
   'admin.notifications.adminNtfyPanel.tokenCleared': 'Token akses admin dihapus',
   'admin.notifications.adminNtfyPanel.saved': 'Pengaturan Ntfy admin tersimpan',
@@ -202,7 +202,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': 'Gagal menyimpan',
   'admin.tabs.addons': 'Addon',
   'admin.addons.title': 'Addon',
-  'admin.addons.subtitle': 'Aktifkan atau nonaktifkan fitur untuk menyesuaikan pengalaman TREK kamu.',
+  'admin.addons.subtitle': 'Aktifkan atau nonaktifkan fitur untuk menyesuaikan pengalaman TRIPPI kamu.',
   'admin.addons.catalog.packing.name': 'Daftar',
   'admin.addons.catalog.packing.description': 'Daftar packing dan tugas to-do untuk perjalananmu',
   'admin.addons.catalog.budget.name': 'Anggaran',
@@ -235,7 +235,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Data Cuaca',
   'admin.weather.badge': 'Sejak 24 Maret 2026',
   'admin.weather.description':
-    'TREK menggunakan Open-Meteo sebagai sumber data cuaca. Open-Meteo adalah layanan cuaca gratis dan open-source — tidak perlu kunci API.',
+    'TRIPPI menggunakan Open-Meteo sebagai sumber data cuaca. Open-Meteo adalah layanan cuaca gratis dan open-source — tidak perlu kunci API.',
   'admin.weather.forecast': 'Prakiraan 16 hari',
   'admin.weather.forecastDesc': 'Sebelumnya 5 hari (OpenWeatherMap)',
   'admin.weather.climate': 'Data iklim historis',
@@ -293,14 +293,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Memuat...',
   'admin.github.error': 'Gagal memuat rilis',
   'admin.github.by': 'oleh',
-  'admin.github.support': 'Bantu saya terus mengembangkan TREK',
+  'admin.github.support': 'Bantu saya terus mengembangkan TRIPPI',
   'admin.update.available': 'Pembaruan tersedia',
-  'admin.update.text': 'TREK {version} tersedia. Kamu menggunakan {current}.',
+  'admin.update.text': 'TRIPPI {version} tersedia. Kamu menggunakan {current}.',
   'admin.update.button': 'Lihat di GitHub',
   'admin.update.install': 'Pasang Pembaruan',
   'admin.update.confirmTitle': 'Pasang Pembaruan?',
   'admin.update.confirmText':
-    'TREK akan diperbarui dari {current} ke {version}. Server akan restart otomatis setelahnya.',
+    'TRIPPI akan diperbarui dari {current} ke {version}. Server akan restart otomatis setelahnya.',
   'admin.update.dataInfo':
     'Semua datamu (perjalanan, pengguna, kunci API, unggahan, Vacay, Atlas, anggaran) akan dipertahankan.',
   'admin.update.warning': 'Aplikasi akan tidak tersedia sebentar selama restart.',
@@ -312,9 +312,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Pergi ke Backup',
   'admin.update.howTo': 'Cara Memperbarui',
   'admin.update.dockerText':
-    'Instans TREK kamu berjalan di Docker. Untuk memperbarui ke {version}, jalankan perintah berikut di servermu:',
+    'Instans TRIPPI kamu berjalan di Docker. Untuk memperbarui ke {version}, jalankan perintah berikut di servermu:',
   'admin.update.nonDockerText':
-    'Instans TREK ini tidak berjalan di Docker. Untuk memperbarui ke {version}, jalankan ulang metode instalasi atau pembaruan yang kamu gunakan — misalnya, pada Proxmox Community Scripts jalankan pembaruan dari konsol LXC:',
+    'Instans TRIPPI ini tidak berjalan di Docker. Untuk memperbarui ke {version}, jalankan ulang metode instalasi atau pembaruan yang kamu gunakan — misalnya, pada Proxmox Community Scripts jalankan pembaruan dari konsol LXC:',
   'admin.update.wikiLink': 'Buka panduan pembaruan',
   'admin.update.reloadHint': 'Muat ulang halaman dalam beberapa detik.',
   'admin.tabs.permissions': 'Izin',
@@ -329,10 +329,10 @@ const admin: TranslationStrings = {
     'Belum ada domain WebAuthn yang terdeteksi untuk deployment ini. Atur APP_URL atau Relying Party ID di bawah — passkey tetap tersembunyi sampai itu dilakukan.',
   'admin.passkey.rpId': 'Relying Party ID (domain)',
   'admin.passkey.rpIdHint':
-    'Domain murni tempat passkey diikat, mis. trek.example.org. Kosongkan untuk mengambilnya dari APP_URL. Mengubahnya nanti akan membatalkan passkey yang sudah ada.',
+    'Domain murni tempat passkey diikat, mis. trippi.example.org. Kosongkan untuk mengambilnya dari APP_URL. Mengubahnya nanti akan membatalkan passkey yang sudah ada.',
   'admin.passkey.origins': 'Origin yang diizinkan',
   'admin.passkey.originsHint':
-    'Origin lengkap dipisahkan koma, mis. https://trek.example.org. Kosongkan untuk menggunakan APP_URL.',
+    'Origin lengkap dipisahkan koma, mis. https://trippi.example.org. Kosongkan untuk menggunakan APP_URL.',
   'admin.passkey.reset': 'Reset passkey',
   'admin.passkey.resetHint':
     'Hapus semua passkey pengguna ini (mis. saat perangkat hilang). Mereka tetap bisa masuk dengan kata sandi mereka.',

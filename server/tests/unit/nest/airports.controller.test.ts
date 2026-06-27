@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { HttpException } from '@nestjs/common';
 import { AirportsController } from '../../../src/nest/airports/airports.controller';
 import type { AirportsService } from '../../../src/nest/airports/airports.service';
-import type { Airport } from '@trek/shared';
+import type { Airport } from '@trippi/shared';
 
 function makeController(svc: Partial<AirportsService>) {
   return new AirportsController(svc as AirportsService);

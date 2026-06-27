@@ -36,7 +36,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../src/db/database', () => dbMock);
 vi.mock('../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
   SESSION_DURATION: '24h',
@@ -199,14 +199,14 @@ describe('Immich album links', () => {
 
     // Insert photos synced from the album
     for (const assetId of ['asset-001', 'asset-002']) {
-      testDb.prepare('INSERT OR IGNORE INTO trek_photos (provider, asset_id, owner_id) VALUES (?, ?, ?)').run('immich', assetId, user.id);
-      const tkp = testDb.prepare('SELECT id FROM trek_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?').get('immich', assetId, user.id) as any;
+      testDb.prepare('INSERT OR IGNORE INTO trippi_photos (provider, asset_id, owner_id) VALUES (?, ?, ?)').run('immich', assetId, user.id);
+      const tkp = testDb.prepare('SELECT id FROM trippi_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?').get('immich', assetId, user.id) as any;
       testDb.prepare('INSERT INTO trip_photos (trip_id, user_id, photo_id, shared, album_link_id) VALUES (?, ?, ?, 1, ?)').run(trip.id, user.id, tkp.id, linkResult.id);
     }
 
     // Insert an individually-added photo (no album_link_id)
-    testDb.prepare('INSERT OR IGNORE INTO trek_photos (provider, asset_id, owner_id) VALUES (?, ?, ?)').run('immich', 'asset-manual', user.id);
-    const tkpManual = testDb.prepare('SELECT id FROM trek_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?').get('immich', 'asset-manual', user.id) as any;
+    testDb.prepare('INSERT OR IGNORE INTO trippi_photos (provider, asset_id, owner_id) VALUES (?, ?, ?)').run('immich', 'asset-manual', user.id);
+    const tkpManual = testDb.prepare('SELECT id FROM trippi_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?').get('immich', 'asset-manual', user.id) as any;
     testDb.prepare('INSERT INTO trip_photos (trip_id, user_id, photo_id, shared) VALUES (?, ?, ?, 1)').run(trip.id, user.id, tkpManual.id);
 
     const res = await request(app)
@@ -219,7 +219,7 @@ describe('Immich album links', () => {
     // Album-linked photos should be gone
     const remainingPhotos = testDb.prepare(`
       SELECT tp.*, tkp.asset_id FROM trip_photos tp
-      JOIN trek_photos tkp ON tkp.id = tp.photo_id
+      JOIN trippi_photos tkp ON tkp.id = tp.photo_id
       WHERE tp.trip_id = ?
     `).all(trip.id) as any[];
     expect(remainingPhotos.length).toBe(1);
@@ -237,8 +237,8 @@ describe('Immich album links', () => {
 
     const linkResult = testDb.prepare('INSERT INTO trip_album_links (trip_id, user_id, album_id, album_name, provider) VALUES (?, ?, ?, ?, ?) RETURNING *')
       .get(trip.id, owner.id, 'album-secret', 'Secret Album', 'immich') as any;
-    testDb.prepare('INSERT OR IGNORE INTO trek_photos (provider, asset_id, owner_id) VALUES (?, ?, ?)').run('immich', 'asset-owned', owner.id);
-    const tkpOwned = testDb.prepare('SELECT id FROM trek_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?').get('immich', 'asset-owned', owner.id) as any;
+    testDb.prepare('INSERT OR IGNORE INTO trippi_photos (provider, asset_id, owner_id) VALUES (?, ?, ?)').run('immich', 'asset-owned', owner.id);
+    const tkpOwned = testDb.prepare('SELECT id FROM trippi_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?').get('immich', 'asset-owned', owner.id) as any;
     testDb.prepare('INSERT INTO trip_photos (trip_id, user_id, photo_id, shared, album_link_id) VALUES (?, ?, ?, 1, ?)').run(trip.id, owner.id, tkpOwned.id, linkResult.id);
 
     // Non-member tries to delete owner's album link — should be denied
@@ -253,7 +253,7 @@ describe('Immich album links', () => {
     expect(link).toBeDefined();
     const photo = testDb.prepare(`
       SELECT tp.* FROM trip_photos tp
-      JOIN trek_photos tkp ON tkp.id = tp.photo_id
+      JOIN trippi_photos tkp ON tkp.id = tp.photo_id
       WHERE tkp.asset_id = ?
     `).get('asset-owned');
     expect(photo).toBeDefined();

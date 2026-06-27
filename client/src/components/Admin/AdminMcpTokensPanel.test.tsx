@@ -10,7 +10,7 @@ import AdminMcpTokensPanel from './AdminMcpTokensPanel';
 const TOKEN_1 = {
   id: 1,
   name: 'CI Token',
-  token_prefix: 'trek_abc',
+  token_prefix: 'trippi_abc',
   created_at: '2025-01-15T00:00:00Z',
   last_used_at: null,
   user_id: 10,
@@ -20,7 +20,7 @@ const TOKEN_1 = {
 const TOKEN_2 = {
   id: 2,
   name: 'Ops Token',
-  token_prefix: 'trek_xyz',
+  token_prefix: 'trippi_xyz',
   created_at: '2025-03-01T00:00:00Z',
   last_used_at: '2025-04-01T00:00:00Z',
   user_id: 11,
@@ -64,8 +64,8 @@ describe('AdminMcpTokensPanel', () => {
     expect(screen.getByText('alice')).toBeInTheDocument();
     expect(screen.getByText('bob')).toBeInTheDocument();
     // token_prefix is rendered as `{token.token_prefix}...` — two adjacent text nodes
-    expect(screen.getByText(/trek_abc/)).toBeInTheDocument();
-    expect(screen.getByText(/trek_xyz/)).toBeInTheDocument();
+    expect(screen.getByText(/trippi_abc/)).toBeInTheDocument();
+    expect(screen.getByText(/trippi_xyz/)).toBeInTheDocument();
   });
 
   it('FE-ADMIN-MCP-004: "Never" shown when last_used_at is null', async () => {

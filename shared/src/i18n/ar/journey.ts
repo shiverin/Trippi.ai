@@ -222,7 +222,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Shared via', // en-fallback
   'journey.public.madeWith': 'Made with', // en-fallback
   'journey.pdf.journeyBook': 'Journey Book', // en-fallback
-  'journey.pdf.madeWith': 'Made with TREK', // en-fallback
+  'journey.pdf.madeWith': 'Made with TRIPPI', // en-fallback
   'journey.pdf.day': 'Day', // en-fallback
   'journey.pdf.theEnd': 'The End', // en-fallback
   'journey.pdf.saveAsPdf': 'Save as PDF', // en-fallback

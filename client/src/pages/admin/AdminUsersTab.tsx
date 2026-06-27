@@ -57,7 +57,7 @@ export default function AdminUsersTab({ admin, t, locale }: AdminUsersTabProps):
                   <th className="px-5 py-3 text-right">{t('admin.table.actions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 trek-stagger">
+              <tbody className="divide-y divide-slate-100 trippi-stagger">
                 {users.map(u => (
                   <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${u.id === currentUser?.id ? 'bg-slate-50/60' : ''}`}>
                     <td className="px-5 py-3">

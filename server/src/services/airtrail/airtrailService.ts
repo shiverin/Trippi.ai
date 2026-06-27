@@ -1,4 +1,4 @@
-import type { AirtrailFlight } from '@trek/shared';
+import type { AirtrailFlight } from '@trippi/shared';
 import { db } from '../../db/database';
 import { maybe_encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
 import { checkSsrf } from '../../utils/ssrfGuard';
@@ -23,7 +23,7 @@ function readRow(userId: number): UserConnRow | undefined {
     .get(userId) as UserConnRow | undefined;
 }
 
-/** Has this user opted in to TREK writing their flight edits back to AirTrail? (#1240) */
+/** Has this user opted in to TRIPPI writing their flight edits back to AirTrail? (#1240) */
 export function isAirtrailWriteEnabled(userId: number): boolean {
   const row = db.prepare('SELECT airtrail_write_enabled FROM users WHERE id = ?').get(userId) as
     | { airtrail_write_enabled?: number | null }

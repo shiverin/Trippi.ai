@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { Marker, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { Plane, Train, Ship, Car, Bus, Sailboat, Bike, CarTaxiFront, Route } from 'lucide-react'
-import { escapeHtml } from '@trek/shared'
+import { escapeHtml } from '@trippi/shared'
 import { useSettingsStore } from '../../store/settingsStore'
 import type { Reservation, ReservationEndpoint } from '../../types'
 
@@ -46,7 +46,7 @@ function endpointIcon(type: TransportType, label: string | null): L.DivIcon {
   const labelHtml = label ? `<span>${escapeHtml(label)}</span>` : ''
   const estWidth = label ? Math.max(40, label.length * 6 + 28) : 26
   return L.divIcon({
-    className: 'trek-endpoint-marker',
+    className: 'trippi-endpoint-marker',
     html: `<div style="
       display:inline-flex;align-items:center;justify-content:center;gap:4px;
       padding:0 8px;border-radius:999px;
@@ -176,7 +176,7 @@ function buildStatsHtml(color: string, mainLabel: string | null, subLabel: strin
   const height = hasBoth ? 36 : 22
   const main = mainLabel ? `<span style="font-size:12px;font-weight:700;line-height:1;display:block">${escapeHtml(mainLabel)}</span>` : ''
   const sub = subLabel ? `<span style="font-size:10px;font-weight:500;line-height:1;opacity:0.85;display:block${hasBoth ? ';margin-top:4px' : ''}">${escapeHtml(subLabel)}</span>` : ''
-  const html = `<div class="trek-stats-inner" style="
+  const html = `<div class="trippi-stats-inner" style="
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     width:100%;height:100%;
     padding:0 11px;border-radius:999px;
@@ -301,13 +301,13 @@ function StatsLabel({ item }: { item: TransportItem }) {
     }
     if (el) el.style.display = ''
     marker.setLatLng(pose.point as L.LatLngTuple)
-    if (!innerRef.current && el) innerRef.current = el.querySelector('.trek-stats-inner') as HTMLElement | null
+    if (!innerRef.current && el) innerRef.current = el.querySelector('.trippi-stats-inner') as HTMLElement | null
     if (innerRef.current) innerRef.current.style.transform = `rotate(${pose.angle}deg)`
   }
 
   useEffect(() => {
     const icon = L.divIcon({
-      className: 'trek-endpoint-stats',
+      className: 'trippi-endpoint-stats',
       html,
       iconSize: [width, height],
       iconAnchor: [width / 2, height / 2],

@@ -11,7 +11,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
  * to the response via the resolver service.
  *
  * Byte-identical to the legacy Express route (server/src/routes/photos.ts):
- * a finite-id guard (400), the canAccessTrekPhoto check (403), then stream or
+ * a finite-id guard (400), the canAccessTrippiPhoto check (403), then stream or
  * the provider info (404 inside the service / mapped error for info).
  */
 @Controller('api/photos')

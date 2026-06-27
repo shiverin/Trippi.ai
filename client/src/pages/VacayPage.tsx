@@ -219,7 +219,7 @@ export default function VacayPage(): React.ReactElement {
         <div className="fixed inset-0 flex items-center justify-center px-4 bg-[rgba(0,0,0,0.7)]"
           style={{ zIndex: 99995, backdropFilter: 'blur(8px)' }}>
           {incomingInvites.map(inv => (
-            <div key={inv.plan_id} className="trek-modal-enter w-full max-w-md rounded-2xl shadow-2xl overflow-hidden bg-surface-card">
+            <div key={inv.plan_id} className="trippi-modal-enter w-full max-w-md rounded-2xl shadow-2xl overflow-hidden bg-surface-card">
               <div className="px-6 pt-6 pb-4 text-center">
                 <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center text-lg font-bold bg-surface-secondary text-content">
                   {inv.owner_username?.[0]?.toUpperCase()}

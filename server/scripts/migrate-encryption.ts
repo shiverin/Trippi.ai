@@ -1,7 +1,7 @@
 /**
  * Encryption key migration script.
  *
- * Re-encrypts all at-rest secrets in the TREK database from one ENCRYPTION_KEY
+ * Re-encrypts all at-rest secrets in the TRIPPI database from one ENCRYPTION_KEY
  * to another without requiring the application to be running.
  *
  * Usage (host):
@@ -9,7 +9,7 @@
  *   node --import tsx scripts/migrate-encryption.ts
  *
  * Usage (Docker):
- *   docker exec -it trek node --import tsx scripts/migrate-encryption.ts
+ *   docker exec -it trippi node --import tsx scripts/migrate-encryption.ts
  *
  * The script will prompt for the old and new keys interactively so they never
  * appear in shell history, process arguments, or log output.
@@ -138,7 +138,7 @@ interface MigrationResult {
 }
 
 async function main() {
-  console.log('=== TREK Encryption Key Migration ===\n');
+  console.log('=== TRIPPI Encryption Key Migration ===\n');
   console.log('This script re-encrypts all stored secrets under a new ENCRYPTION_KEY.');
   console.log('A backup of the database will be created before any changes are made.\n');
 
@@ -294,12 +294,12 @@ async function main() {
       }
     }
 
-    // --- trek_photos: passphrase ---
-    const photos = db.prepare('SELECT id, passphrase FROM trek_photos WHERE passphrase IS NOT NULL').all() as { id: number; passphrase: string }[];
+    // --- trippi_photos: passphrase ---
+    const photos = db.prepare('SELECT id, passphrase FROM trippi_photos WHERE passphrase IS NOT NULL').all() as { id: number; passphrase: string }[];
     for (const row of photos) {
-      const newVal = migrateApiKeyValue(row.passphrase, `trek_photos[${row.id}].passphrase`);
+      const newVal = migrateApiKeyValue(row.passphrase, `trippi_photos[${row.id}].passphrase`);
       if (newVal !== null) {
-        db.prepare('UPDATE trek_photos SET passphrase = ? WHERE id = ?').run(newVal, row.id);
+        db.prepare('UPDATE trippi_photos SET passphrase = ? WHERE id = ?').run(newVal, row.id);
       }
     }
   })();

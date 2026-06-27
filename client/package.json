@@ -1,5 +1,5 @@
 {
-  "name": "@trek/client",
+  "name": "@trippi/client",
   "version": "3.1.2",
   "private": true,
   "type": "module",
@@ -27,7 +27,7 @@
     "@fontsource/poppins": "^5.2.7",
     "@react-pdf/renderer": "^4.5.1",
     "@simplewebauthn/browser": "^13.1.2",
-    "@trek/shared": "*",
+    "@trippi/shared": "*",
     "axios": "^1.6.7",
     "dexie": "^4.4.2",
     "heic-to": "^1.4.2",

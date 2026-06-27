@@ -1,6 +1,6 @@
 # Third-party data & attributions
 
-TREK bundles and uses third-party data that requires attribution.
+TRIPPI bundles and uses third-party data that requires attribution.
 
 ## geoBoundaries — country & sub-national boundaries
 
@@ -17,7 +17,7 @@ geoBoundaries is licensed under **CC BY 4.0**
 (https://creativecommons.org/licenses/by/4.0/). Source: https://www.geoboundaries.org/
 
 The bundled files are simplified (coordinate-quantized) and re-tagged with the
-property names TREK consumes. Country borders (`admin0`) derive from the geoBoundaries
+property names TRIPPI consumes. Country borders (`admin0`) derive from the geoBoundaries
 CGAZ composite; sub-national regions (`admin1`) derive from the per-country open
 (gbOpen) release.
 

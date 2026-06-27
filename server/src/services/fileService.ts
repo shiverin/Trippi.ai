@@ -72,7 +72,7 @@ export function resolveFilePath(filename: string): { resolved: string; safe: boo
 // ---------------------------------------------------------------------------
 
 export function authenticateDownload(req: Request): { userId: number } | { error: string; status: number } {
-  const cookieToken = (req as any).cookies?.trek_session as string | undefined;
+  const cookieToken = (req as any).cookies?.trippi_session as string | undefined;
   const authHeader = req.headers['authorization'];
   const bearerToken = authHeader ? (authHeader.split(' ')[1] || undefined) : undefined;
   const queryToken = req.query.token as string | undefined;

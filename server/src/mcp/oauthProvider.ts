@@ -76,7 +76,7 @@ function rowToInfo(row: OAuthClientRow): OAuthClientInformationFull {
 // Clients store
 // ---------------------------------------------------------------------------
 
-export const trekClientsStore: OAuthRegisteredClientsStore = {
+export const trippiClientsStore: OAuthRegisteredClientsStore = {
     async getClient(clientId: string): Promise<OAuthClientInformationFull | undefined> {
         const row = db.prepare(
             'SELECT client_id, name, redirect_uris, allowed_scopes, is_public, created_via FROM oauth_clients WHERE client_id = ?'
@@ -120,8 +120,8 @@ export const trekClientsStore: OAuthRegisteredClientsStore = {
 // OAuthServerProvider
 // ---------------------------------------------------------------------------
 
-export const trekOAuthProvider: OAuthServerProvider = {
-    get clientsStore() { return trekClientsStore; },
+export const trippiOAuthProvider: OAuthServerProvider = {
+    get clientsStore() { return trippiClientsStore; },
 
     // Redirects browser to the SPA consent page with OAuth params forwarded.
     async authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
@@ -131,7 +131,7 @@ export const trekOAuthProvider: OAuthServerProvider = {
         if (resource !== mcpResource) {
             const url = new URL(params.redirectUri);
             url.searchParams.set('error', 'invalid_target');
-            url.searchParams.set('error_description', 'Requested resource must be the TREK MCP endpoint');
+            url.searchParams.set('error_description', 'Requested resource must be the TRIPPI MCP endpoint');
             if (params.state) url.searchParams.set('state', params.state);
             res.redirect(302, url.toString());
             return;

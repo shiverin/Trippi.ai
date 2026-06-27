@@ -26,7 +26,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Přihlašování…',
   'login.signIn': 'Přihlásit se',
   'login.createAdmin': 'Vytvořit účet administrátora',
-  'login.createAdminHint': 'Nastavte první administrátorský účet pro TREK.',
+  'login.createAdminHint': 'Nastavte první administrátorský účet pro TRIPPI.',
   'login.setNewPassword': 'Nastavit nové heslo',
   'login.setNewPasswordHint': 'Před pokračováním musíte změnit heslo.',
   'login.createAccount': 'Vytvořit účet',

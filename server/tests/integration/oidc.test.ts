@@ -32,7 +32,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../src/db/database', () => dbMock);
 vi.mock('../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
   SESSION_DURATION: '24h',
@@ -171,7 +171,7 @@ describe('GET /api/auth/oidc/callback', () => {
     // Create a valid state token
     const { state } = oidcService.createState('http://localhost:3001/api/auth/oidc/callback');
 
-    const res = await request(app).get(`/api/auth/oidc/callback?code=authcode123&state=${state}`).set('Cookie', `trek_oidc_state=${state}`);
+    const res = await request(app).get(`/api/auth/oidc/callback?code=authcode123&state=${state}`).set('Cookie', `trippi_oidc_state=${state}`);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain('/login?oidc_code=');
@@ -189,7 +189,7 @@ describe('GET /api/auth/oidc/callback', () => {
 
     const { state } = oidcService.createState('http://localhost:3001/api/auth/oidc/callback');
 
-    const res = await request(app).get(`/api/auth/oidc/callback?code=code999&state=${state}`).set('Cookie', `trek_oidc_state=${state}`);
+    const res = await request(app).get(`/api/auth/oidc/callback?code=code999&state=${state}`).set('Cookie', `trippi_oidc_state=${state}`);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain('/login?oidc_code=');
@@ -226,7 +226,7 @@ describe('GET /api/auth/oidc/callback', () => {
 
     const { state } = oidcService.createState('http://localhost:3001/api/auth/oidc/callback');
 
-    const res = await request(app).get(`/api/auth/oidc/callback?code=badcode&state=${state}`).set('Cookie', `trek_oidc_state=${state}`);
+    const res = await request(app).get(`/api/auth/oidc/callback?code=badcode&state=${state}`).set('Cookie', `trippi_oidc_state=${state}`);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain('oidc_error=token_failed');
@@ -238,7 +238,7 @@ describe('GET /api/auth/oidc/callback', () => {
 
     const { state } = oidcService.createState('http://localhost:3001/api/auth/oidc/callback');
 
-    const res = await request(app).get(`/api/auth/oidc/callback?code=anycode&state=${state}`).set('Cookie', `trek_oidc_state=${state}`);
+    const res = await request(app).get(`/api/auth/oidc/callback?code=anycode&state=${state}`).set('Cookie', `trippi_oidc_state=${state}`);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain('oidc_error=no_id_token');
@@ -251,7 +251,7 @@ describe('GET /api/auth/oidc/callback', () => {
 
     const { state } = oidcService.createState('http://localhost:3001/api/auth/oidc/callback');
 
-    const res = await request(app).get(`/api/auth/oidc/callback?code=anycode&state=${state}`).set('Cookie', `trek_oidc_state=${state}`);
+    const res = await request(app).get(`/api/auth/oidc/callback?code=anycode&state=${state}`).set('Cookie', `trippi_oidc_state=${state}`);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain('oidc_error=id_token_invalid');
@@ -269,7 +269,7 @@ describe('GET /api/auth/oidc/callback', () => {
 
     const { state } = oidcService.createState('http://localhost:3001/api/auth/oidc/callback');
 
-    const res = await request(app).get(`/api/auth/oidc/callback?code=anycode&state=${state}`).set('Cookie', `trek_oidc_state=${state}`);
+    const res = await request(app).get(`/api/auth/oidc/callback?code=anycode&state=${state}`).set('Cookie', `trippi_oidc_state=${state}`);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain('oidc_error=subject_mismatch');
@@ -292,7 +292,7 @@ describe('GET /api/auth/oidc/callback', () => {
 
     const { state } = oidcService.createState('http://localhost:3001/api/auth/oidc/callback');
 
-    const res = await request(app).get(`/api/auth/oidc/callback?code=anycode&state=${state}`).set('Cookie', `trek_oidc_state=${state}`);
+    const res = await request(app).get(`/api/auth/oidc/callback?code=anycode&state=${state}`).set('Cookie', `trippi_oidc_state=${state}`);
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain('oidc_error=registration_disabled');
@@ -314,7 +314,7 @@ describe('GET /api/auth/oidc/exchange', () => {
     const cookieHeader = Array.isArray(res.headers['set-cookie'])
       ? res.headers['set-cookie'].join(';')
       : res.headers['set-cookie'];
-    expect(cookieHeader).toContain('trek_session');
+    expect(cookieHeader).toContain('trippi_session');
   });
 
   it('OIDC-012: missing code returns 400', async () => {

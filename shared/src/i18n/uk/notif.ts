@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Завдання для пакування',
   'notif.packing_tagged.text': '{actor} призначив вас у {category} у {trip}',
   'notif.version_available.title': 'Доступна нова версія',
-  'notif.version_available.text': 'TREK {version} тепер доступний',
+  'notif.version_available.text': 'TRIPPI {version} тепер доступний',
   'notif.action.view_trip': 'Відкрити поїздку',
   'notif.action.view_collab': 'Відкрити повідомлення',
   'notif.action.view_packing': 'Відкрити пакування',

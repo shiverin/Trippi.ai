@@ -69,7 +69,7 @@ export interface AirtrailNamedCode {
   name?: string | null;
 }
 
-/** A flight as returned by list/get (the fields TREK consumes). */
+/** A flight as returned by list/get (the fields TRIPPI consumes). */
 export interface AirtrailFlightRaw {
   id: number;
   from: AirtrailAirport | null;

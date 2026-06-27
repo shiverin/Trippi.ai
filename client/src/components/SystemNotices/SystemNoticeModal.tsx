@@ -112,7 +112,7 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
               </div>
               <div className="text-left">
                 <h2 id={titleId} className="text-lg font-bold text-white leading-tight">{title}</h2>
-                <p className="text-xs text-white/60 font-medium">TREK 3.0</p>
+                <p className="text-xs text-white/60 font-medium">TRIPPI 3.0</p>
               </div>
             </div>
           </div>

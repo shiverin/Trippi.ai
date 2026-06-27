@@ -38,7 +38,7 @@ const admin: TranslationStrings = {
     'Χρησιμοποιείται επίσης ως ο προεπιλεγμένος server για τις ντόπιες ntfy ειδοποιήσεις χρηστών. Αφήστε κενό για προεπιλογή ntfy.sh. Οι χρήστες μπορούν να το παρακάμψουν στις δικές τους ρυθμίσεις.',
   'admin.notifications.adminNtfyPanel.serverPlaceholder': 'https://ntfy.sh',
   'admin.notifications.adminNtfyPanel.topicLabel': 'Θέμα Διαχειριστή',
-  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trek-admin-alerts',
+  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trippi-admin-alerts',
   'admin.notifications.adminNtfyPanel.tokenLabel': 'Access Token (προαιρετικό)',
   'admin.notifications.adminNtfyPanel.tokenCleared': 'Το access token διαχειριστή εκκαθαρίστηκε',
   'admin.notifications.adminNtfyPanel.saved': 'Οι ρυθμίσεις ntfy διαχειριστή αποθηκεύτηκαν',
@@ -207,7 +207,7 @@ const admin: TranslationStrings = {
   'admin.tabs.addons': 'Πρόσθετα',
   'admin.addons.title': 'Πρόσθετα',
   'admin.addons.subtitle':
-    'Ενεργοποιήστε ή απενεργοποιήστε λειτουργίες για να εξατομικεύσετε την εμπειρία σας στο TREK.',
+    'Ενεργοποιήστε ή απενεργοποιήστε λειτουργίες για να εξατομικεύσετε την εμπειρία σας στο TRIPPI.',
   'admin.addons.catalog.packing.name': 'Λίστες',
   'admin.addons.catalog.packing.description': 'Λίστες πακεταρίσματος και εργασίες προς εκτέλεση για τα ταξίδια σας',
   'admin.addons.catalog.budget.name': 'Προϋπολογισμός',
@@ -244,7 +244,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Δεδομένα Καιρού',
   'admin.weather.badge': 'Από 24 Μαρτίου 2026',
   'admin.weather.description':
-    'Το TREK χρησιμοποιεί το Open-Meteo ως πηγή δεδομένων καιρού. Το Open-Meteo είναι μια δωρεάν, ανοιχτού κώδικα υπηρεσία καιρού — δεν απαιτείται κλειδί API.',
+    'Το TRIPPI χρησιμοποιεί το Open-Meteo ως πηγή δεδομένων καιρού. Το Open-Meteo είναι μια δωρεάν, ανοιχτού κώδικα υπηρεσία καιρού — δεν απαιτείται κλειδί API.',
   'admin.weather.forecast': 'Πρόγνωση 16 ημερών',
   'admin.weather.forecastDesc': 'Προηγουμένως 5 ημέρες (OpenWeatherMap)',
   'admin.weather.climate': 'Ιστορικά δεδομένα κλίματος',
@@ -303,14 +303,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Φόρτωση...',
   'admin.github.error': 'Αποτυχία φόρτωσης εκδόσεων',
   'admin.github.by': 'από',
-  'admin.github.support': 'Βοηθά να συνεχίσω την ανάπτυξη του TREK',
+  'admin.github.support': 'Βοηθά να συνεχίσω την ανάπτυξη του TRIPPI',
   'admin.update.available': 'Διαθέσιμη ενημέρωση',
-  'admin.update.text': 'Το TREK {version} είναι διαθέσιμο. Εκτελείτε το {current}.',
+  'admin.update.text': 'Το TRIPPI {version} είναι διαθέσιμο. Εκτελείτε το {current}.',
   'admin.update.button': 'Προβολή στο GitHub',
   'admin.update.install': 'Εγκατάσταση Ενημέρωσης',
   'admin.update.confirmTitle': 'Εγκατάσταση Ενημέρωσης;',
   'admin.update.confirmText':
-    'Το TREK θα ενημερωθεί από {current} σε {version}. Ο server θα επανεκκινήσει αυτόματα στη συνέχεια.',
+    'Το TRIPPI θα ενημερωθεί από {current} σε {version}. Ο server θα επανεκκινήσει αυτόματα στη συνέχεια.',
   'admin.update.dataInfo':
     'Όλα τα δεδομένα σας (ταξίδια, χρήστες, κλειδιά API, μεταφορτώσεις, Vacay, Atlas, προϋπολογισμοί) θα διατηρηθούν.',
   'admin.update.warning': 'Η εφαρμογή θα είναι σύντομα μη διαθέσιμη κατά την επανεκκίνηση.',
@@ -322,9 +322,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Μετάβαση στο Αντίγραφο Ασφαλείας',
   'admin.update.howTo': 'Πώς να Ενημερώσετε',
   'admin.update.dockerText':
-    'Η εγκατάστασή σας TREK εκτελείται σε Docker. Για να ενημερωθείτε στο {version}, εκτελέστε τις ακόλουθες εντολές στον server σας:',
+    'Η εγκατάστασή σας TRIPPI εκτελείται σε Docker. Για να ενημερωθείτε στο {version}, εκτελέστε τις ακόλουθες εντολές στον server σας:',
   'admin.update.nonDockerText':
-    'Αυτή η εγκατάσταση TREK δεν εκτελείται σε Docker. Για να ενημερωθείτε στο {version}, εκτελέστε ξανά τη μέθοδο εγκατάστασης ή ενημέρωσης που χρησιμοποιήσατε — για παράδειγμα, στα Proxmox Community Scripts εκτελέστε την ενημέρωση από την κονσόλα LXC:',
+    'Αυτή η εγκατάσταση TRIPPI δεν εκτελείται σε Docker. Για να ενημερωθείτε στο {version}, εκτελέστε ξανά τη μέθοδο εγκατάστασης ή ενημέρωσης που χρησιμοποιήσατε — για παράδειγμα, στα Proxmox Community Scripts εκτελέστε την ενημέρωση από την κονσόλα LXC:',
   'admin.update.wikiLink': 'Άνοιγμα του οδηγού ενημέρωσης',
   'admin.update.reloadHint': 'Παρακαλώ ανανεώστε τη σελίδα σε λίγα δευτερόλεπτα.',
   'admin.tabs.permissions': 'Δικαιώματα',
@@ -341,10 +341,10 @@ const admin: TranslationStrings = {
     'Δεν αναλύεται ακόμη κανένας τομέας WebAuthn για αυτή την εγκατάσταση. Ορίστε το APP_URL ή το Relying Party ID παρακάτω — τα passkeys παραμένουν κρυφά μέχρι τότε.',
   'admin.passkey.rpId': 'Relying Party ID (τομέας)',
   'admin.passkey.rpIdHint':
-    'Ο σκέτος τομέας στον οποίο δεσμεύονται τα passkeys, π.χ. trek.example.org. Αφήστε το κενό για να παραχθεί από το APP_URL. Η μεταγενέστερη αλλαγή του ακυρώνει τα υπάρχοντα passkeys.',
+    'Ο σκέτος τομέας στον οποίο δεσμεύονται τα passkeys, π.χ. trippi.example.org. Αφήστε το κενό για να παραχθεί από το APP_URL. Η μεταγενέστερη αλλαγή του ακυρώνει τα υπάρχοντα passkeys.',
   'admin.passkey.origins': 'Επιτρεπόμενες προελεύσεις',
   'admin.passkey.originsHint':
-    'Πλήρεις προελεύσεις χωρισμένες με κόμμα, π.χ. https://trek.example.org. Αφήστε το κενό για χρήση του APP_URL.',
+    'Πλήρεις προελεύσεις χωρισμένες με κόμμα, π.χ. https://trippi.example.org. Αφήστε το κενό για χρήση του APP_URL.',
   'admin.passkey.reset': 'Επαναφορά passkeys',
   'admin.passkey.resetHint':
     'Αφαιρέστε όλα τα passkeys αυτού του χρήστη (π.χ. σε περίπτωση χαμένης συσκευής). Μπορούν ακόμη να συνδεθούν με τον κωδικό τους.',

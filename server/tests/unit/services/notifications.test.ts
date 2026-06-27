@@ -126,10 +126,10 @@ describe('buildWebhookBody', () => {
     expect(body.embeds[0].footer.text).toContain('Tokyo Adventure');
   });
 
-  it('Discord embed footer defaults to TREK when no trip name', () => {
+  it('Discord embed footer defaults to TRIPPI when no trip name', () => {
     const noTrip = { ...payload, tripName: undefined };
     const body = JSON.parse(buildWebhookBody('https://discord.com/api/webhooks/123/abc', noTrip));
-    expect(body.embeds[0].footer.text).toBe('TREK');
+    expect(body.embeds[0].footer.text).toBe('TRIPPI');
   });
 
   it('discordapp.com URL is also detected as Discord', () => {
@@ -162,7 +162,7 @@ describe('buildWebhookBody', () => {
     expect(body).toHaveProperty('title', payload.title);
     expect(body).toHaveProperty('body', payload.body);
     expect(body).toHaveProperty('timestamp');
-    expect(body).toHaveProperty('source', 'TREK');
+    expect(body).toHaveProperty('source', 'TRIPPI');
   });
 });
 
@@ -186,19 +186,19 @@ describe('buildEmailHtml', () => {
 
   it('uses English i18n strings for lang=en', () => {
     const html = buildEmailHtml('Subject', 'Body', 'en');
-    expect(html).toContain('notifications enabled in TREK');
+    expect(html).toContain('notifications enabled in TRIPPI');
   });
 
   it('uses German i18n strings for lang=de', () => {
     const html = buildEmailHtml('Subject', 'Body', 'de');
-    expect(html).toContain('TREK aktiviert');
+    expect(html).toContain('TRIPPI aktiviert');
   });
 
   it('falls back to English i18n for unknown language', () => {
     const en = buildEmailHtml('Subject', 'Body', 'en');
     const unknown = buildEmailHtml('Subject', 'Body', 'xx');
     // Both should have the same footer text
-    expect(unknown).toContain('notifications enabled in TREK');
+    expect(unknown).toContain('notifications enabled in TRIPPI');
   });
 });
 
@@ -358,7 +358,7 @@ describe('resolveNtfyUrl', () => {
 // ── sendNtfy ─────────────────────────────────────────────────────────────────
 
 describe('sendNtfy', () => {
-  const ntfyUrl = 'https://ntfy.sh/trek-test';
+  const ntfyUrl = 'https://ntfy.sh/trippi-test';
   const payload = { event: 'trip_invite', title: 'Test Title', body: 'Test body' };
 
   beforeEach(() => {
@@ -409,10 +409,10 @@ describe('sendNtfy', () => {
     const mockFetch = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
     mockFetch.mockResolvedValueOnce({ ok: true, text: async () => '' } as never);
 
-    await sendNtfy(ntfyUrl, null, { ...payload, link: 'https://trek.example.com/trips/5' });
+    await sendNtfy(ntfyUrl, null, { ...payload, link: 'https://trippi.example.com/trips/5' });
 
     const [, calledOpts] = mockFetch.mock.calls[0];
-    expect(calledOpts.headers['Click']).toBe('https://trek.example.com/trips/5');
+    expect(calledOpts.headers['Click']).toBe('https://trippi.example.com/trips/5');
   });
 
   it('NTFY-005 — SSRF guard blocks private URL and returns false', async () => {

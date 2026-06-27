@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { WeatherResult } from '@trek/shared';
+import type { WeatherResult } from '@trippi/shared';
 import { getWeather, getDetailedWeather } from '../../services/weatherService';
 
 /**

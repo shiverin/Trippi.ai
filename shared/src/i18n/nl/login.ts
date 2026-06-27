@@ -26,7 +26,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Inloggen…',
   'login.signIn': 'Inloggen',
   'login.createAdmin': 'Beheerdersaccount aanmaken',
-  'login.createAdminHint': 'Stel het eerste beheerdersaccount in voor TREK.',
+  'login.createAdminHint': 'Stel het eerste beheerdersaccount in voor TRIPPI.',
   'login.setNewPassword': 'Nieuw wachtwoord instellen',
   'login.setNewPasswordHint': 'U moet uw wachtwoord wijzigen voordat u verder kunt gaan.',
   'login.createAccount': 'Account aanmaken',

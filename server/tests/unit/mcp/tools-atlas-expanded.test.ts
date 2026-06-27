@@ -2,7 +2,7 @@
  * Unit tests for MCP atlas expanded tools (atlas addon-gated):
  * get_atlas_stats, list_visited_regions, mark_region_visited, unmark_region_visited,
  * get_country_atlas_places, update_bucket_list_item.
- * Also covers resources trek://atlas/stats and trek://atlas/regions.
+ * Also covers resources trippi://atlas/stats and trippi://atlas/regions.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
 
@@ -27,7 +27,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../../src/db/database', () => dbMock);
 vi.mock('../../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
 }));
@@ -273,14 +273,14 @@ describe('Tool: update_bucket_list_item', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Resource: trek://atlas/stats
+// Resource: trippi://atlas/stats
 // ---------------------------------------------------------------------------
 
-describe('Resource: trek://atlas/stats', () => {
+describe('Resource: trippi://atlas/stats', () => {
   it('returns stats object', async () => {
     const { user } = createUser(testDb);
     await withResourceHarness(user.id, async (h) => {
-      const result = await h.client.readResource({ uri: 'trek://atlas/stats' });
+      const result = await h.client.readResource({ uri: 'trippi://atlas/stats' });
       const data = parseResourceResult(result) as any;
       expect(data).toBeDefined();
     });
@@ -288,14 +288,14 @@ describe('Resource: trek://atlas/stats', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Resource: trek://atlas/regions
+// Resource: trippi://atlas/regions
 // ---------------------------------------------------------------------------
 
-describe('Resource: trek://atlas/regions', () => {
+describe('Resource: trippi://atlas/regions', () => {
   it('returns regions array', async () => {
     const { user } = createUser(testDb);
     await withResourceHarness(user.id, async (h) => {
-      const result = await h.client.readResource({ uri: 'trek://atlas/regions' });
+      const result = await h.client.readResource({ uri: 'trippi://atlas/regions' });
       const data = parseResourceResult(result) as any;
       expect(Array.isArray(data)).toBe(true);
     });
@@ -307,7 +307,7 @@ describe('Resource: trek://atlas/regions', () => {
       'INSERT INTO visited_regions (user_id, region_code, region_name, country_code) VALUES (?, ?, ?, ?)'
     ).run(user.id, 'ES-CT', 'Catalonia', 'ES');
     await withResourceHarness(user.id, async (h) => {
-      const result = await h.client.readResource({ uri: 'trek://atlas/regions' });
+      const result = await h.client.readResource({ uri: 'trippi://atlas/regions' });
       const data = parseResourceResult(result) as any;
       expect(data).toHaveLength(1);
       expect(data[0].region_code).toBe('ES-CT');

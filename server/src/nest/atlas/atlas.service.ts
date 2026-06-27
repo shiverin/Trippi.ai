@@ -22,7 +22,7 @@ type UpdateBucketData = Parameters<typeof updateBucketItem>[2];
  * Thin Nest wrapper around the existing atlas service. The Admin-1 GeoJSON
  * cache, the stats aggregation and the visited-region logic all stay in
  * atlasService, so behaviour is unchanged. Returns native service shapes; the
- * client-facing contracts live in @trek/shared.
+ * client-facing contracts live in @trippi/shared.
  */
 @Injectable()
 export class AtlasService {

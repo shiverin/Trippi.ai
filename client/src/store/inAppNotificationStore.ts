@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { inAppNotificationsApi } from '../api/client'
 
-// The server contract (@trek/shared `inAppListResultSchema`) deliberately keeps
+// The server contract (@trippi/shared `inAppListResultSchema`) deliberately keeps
 // each notification row as an open record — the registry-derived shape varies by
 // type. This is the client's structured view of that row; the list/unread-count
 // responses themselves are now typed + DEV-validated via inAppNotificationsApi.

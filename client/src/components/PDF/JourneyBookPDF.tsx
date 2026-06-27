@@ -1,6 +1,6 @@
 // Journey Photo Book PDF — Polarsteps-inspired, magazine-density
 import { marked } from 'marked'
-import { sanitizeRichTextHtml } from '@trek/shared'
+import { sanitizeRichTextHtml } from '@trippi/shared'
 import type { JourneyDetail, JourneyEntry, JourneyPhoto } from '../../store/journeyStore'
 
 function esc(str: string | null | undefined): string {
@@ -271,7 +271,7 @@ export async function downloadJourneyBookPDF(journey: JourneyDetail) {
         <div><div class="cover-stat-val">${allPhotos.length}</div><div class="cover-stat-label">Photos</div></div>
       </div>
     </div>
-    <div class="cover-footer">Made with TREK</div>
+    <div class="cover-footer">Made with TRIPPI</div>
   </div>
 
   <!-- Entry Pages -->
@@ -281,7 +281,7 @@ export async function downloadJourneyBookPDF(journey: JourneyDetail) {
   <div class="closing-page">
     <div>
       <div class="closing-title">The End</div>
-      <div class="closing-sub">Made with TREK · ${new Date().getFullYear()}</div>
+      <div class="closing-sub">Made with TRIPPI · ${new Date().getFullYear()}</div>
     </div>
   </div>
 

@@ -14,7 +14,7 @@ import { openFile } from '../../utils/fileDownload'
 import type { Day, Place, Reservation, TripFile, AssignmentsMap, Accommodation, BudgetItem } from '../../types'
 import { BookingCostsSection } from './BookingCostsSection'
 import type { BookingExpenseRequest } from './BookingCostsSection.types'
-import { typeToCostCategory } from '@trek/shared'
+import { typeToCostCategory } from '@trippi/shared'
 
 const TYPE_OPTIONS = [
   { value: 'hotel',      labelKey: 'reservations.type.hotel',      Icon: Hotel },

@@ -30,8 +30,8 @@ function makeRes(): { res: Response; status: ReturnType<typeof vi.fn>; json: Ret
 // ── extractToken ─────────────────────────────────────────────────────────────
 
 describe('extractToken', () => {
-  it('returns cookie value when trek_session cookie is set', () => {
-    const req = makeReq({ cookies: { trek_session: 'cookie-token' } });
+  it('returns cookie value when trippi_session cookie is set', () => {
+    const req = makeReq({ cookies: { trippi_session: 'cookie-token' } });
     expect(extractToken(req)).toBe('cookie-token');
   });
 
@@ -42,7 +42,7 @@ describe('extractToken', () => {
 
   it('prefers cookie over Authorization header when both are present', () => {
     const req = makeReq({
-      cookies: { trek_session: 'cookie-token' },
+      cookies: { trippi_session: 'cookie-token' },
       headers: { authorization: 'Bearer header-token' },
     });
     expect(extractToken(req)).toBe('cookie-token');
@@ -80,7 +80,7 @@ describe('authenticate', () => {
   it('returns 401 when JWT is invalid', () => {
     const next = vi.fn() as unknown as NextFunction;
     const { res, status } = makeRes();
-    authenticate(makeReq({ cookies: { trek_session: 'invalid.jwt.token' } }), res, next);
+    authenticate(makeReq({ cookies: { trippi_session: 'invalid.jwt.token' } }), res, next);
     expect(next).not.toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(401);
   });
@@ -90,7 +90,7 @@ describe('authenticate', () => {
     vi.mocked(db.prepare).mockReturnValue({ get: vi.fn(() => mockUser), all: vi.fn() } as any);
 
     const token = jwt.sign({ id: 1 }, 'test-secret', { algorithm: 'HS256' });
-    const req = makeReq({ cookies: { trek_session: token } });
+    const req = makeReq({ cookies: { trippi_session: token } });
     const next = vi.fn() as unknown as NextFunction;
     const { res } = makeRes();
 
@@ -107,7 +107,7 @@ describe('authenticate', () => {
     const next = vi.fn() as unknown as NextFunction;
     const { res, status } = makeRes();
 
-    authenticate(makeReq({ cookies: { trek_session: token } }), res, next);
+    authenticate(makeReq({ cookies: { trippi_session: token } }), res, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(401);
@@ -121,7 +121,7 @@ describe('authenticate', () => {
     );
     const next = vi.fn() as unknown as NextFunction;
     const { res, status } = makeRes();
-    authenticate(makeReq({ cookies: { trek_session: expiredToken } }), res, next);
+    authenticate(makeReq({ cookies: { trippi_session: expiredToken } }), res, next);
     expect(next).not.toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(401);
   });
@@ -130,7 +130,7 @@ describe('authenticate', () => {
     const tamperedToken = jwt.sign({ id: 1 }, 'wrong-secret', { algorithm: 'HS256' });
     const next = vi.fn() as unknown as NextFunction;
     const { res, status } = makeRes();
-    authenticate(makeReq({ cookies: { trek_session: tamperedToken } }), res, next);
+    authenticate(makeReq({ cookies: { trippi_session: tamperedToken } }), res, next);
     expect(next).not.toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(401);
   });

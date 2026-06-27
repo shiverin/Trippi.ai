@@ -3,7 +3,7 @@ import { HttpException } from '@nestjs/common';
 import { SystemNoticesController } from '../../../src/nest/system-notices/system-notices.controller';
 import type { SystemNoticesService } from '../../../src/nest/system-notices/system-notices.service';
 import type { User } from '../../../src/types';
-import type { SystemNoticeDto } from '@trek/shared';
+import type { SystemNoticeDto } from '@trippi/shared';
 
 function makeController(svc: Partial<SystemNoticesService>) {
   return new SystemNoticesController(svc as SystemNoticesService);

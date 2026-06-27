@@ -10,7 +10,7 @@ import { JourneyService } from './journey.service';
  *
  * Byte-identical to the legacy Express route (server/src/routes/journeyPublic.ts):
  * NOT behind any guard, every route validates the share token (404 on failure),
- * the unified proxy streams by trek_photo_id and the legacy proxy serves local
+ * the unified proxy streams by trippi_photo_id and the legacy proxy serves local
  * files (with the uploads-dir traversal guard) or proxies immich/synology.
  */
 @Controller('api/public/journey')

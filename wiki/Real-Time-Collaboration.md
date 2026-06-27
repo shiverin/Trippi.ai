@@ -1,6 +1,6 @@
 # Real-Time Collaboration
 
-TREK keeps every trip in sync across all connected members without requiring a page refresh. A dedicated **Collab addon** adds a second layer on top of that sync: group chat, shared notes, polls, and a "What's Next" widget showing upcoming assigned places.
+TRIPPI keeps every trip in sync across all connected members without requiring a page refresh. A dedicated **Collab addon** adds a second layer on top of that sync: group chat, shared notes, polls, and a "What's Next" widget showing upcoming assigned places.
 
 <!-- TODO: screenshot: collaborative editing with presence indicators -->
 
@@ -40,7 +40,7 @@ On **desktop** the panel shows Chat as a fixed 380 px column on the left when ot
 
 ## Conflict handling
 
-TREK uses a **last-write-wins** model. Each mutation is applied on the server and the resulting canonical state is broadcast to all connected clients. If two members edit the same field at the same time, the change that reaches the server last is the one that sticks; all clients converge to that server-authoritative state.
+TRIPPI uses a **last-write-wins** model. Each mutation is applied on the server and the resulting canonical state is broadcast to all connected clients. If two members edit the same field at the same time, the change that reaches the server last is the one that sticks; all clients converge to that server-authoritative state.
 
 On reconnect, any locally queued mutations are flushed to the server before the client re-fetches trip data, so offline changes are applied before the latest state is read back.
 

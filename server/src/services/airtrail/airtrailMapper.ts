@@ -1,6 +1,6 @@
 import * as crypto from 'node:crypto';
 import type { AirtrailAirport, AirtrailFlightRaw, AirtrailNamedCode } from './airtrailClient';
-import type { AirtrailFlight } from '@trek/shared';
+import type { AirtrailFlight } from '@trippi/shared';
 
 /** Preferred display/lookup code for an airport. */
 function airportCode(a: AirtrailAirport | null): string | null {
@@ -17,7 +17,7 @@ export function entityCode(e: AirtrailNamedCode | null | undefined): string | nu
 
 /**
  * Human-readable name for an airline/aircraft (e.g. "Lufthansa"), falling back to the
- * code when AirTrail doesn't provide a name. Used for what TREK displays/stores; the
+ * code when AirTrail doesn't provide a name. Used for what TRIPPI displays/stores; the
  * raw code stays available via entityCode for the writeback payload (#1334).
  */
 export function entityName(e: AirtrailNamedCode | null | undefined): string | null {
@@ -27,7 +27,7 @@ export function entityName(e: AirtrailNamedCode | null | undefined): string | nu
 /**
  * Local calendar date + clock time for an instant at a given IANA zone.
  * AirTrail stores `departure`/`arrival` as instants (ISO w/ offset) plus a local
- * `date`; the airport-local wall time is what TREK shows and files days by.
+ * `date`; the airport-local wall time is what TRIPPI shows and files days by.
  */
 function localParts(iso: string | null, tz: string | null): { date: string | null; time: string | null } {
   if (!iso) return { date: null, time: null };
@@ -103,7 +103,7 @@ function hasCoords(a: AirtrailAirport | null): a is AirtrailAirport & { lat: num
 
 /** Raw AirTrail flight → the data createReservation() expects (type:'flight'). */
 export function mapFlightToReservation(raw: AirtrailFlightRaw): MappedReservation {
-  // Read the SCHEDULED times only — TREK plans against the scheduled (booked) time,
+  // Read the SCHEDULED times only — TRIPPI plans against the scheduled (booked) time,
   // not the actual/estimated `departure`/`arrival`. When a flight has no scheduled
   // time, the clock is left blank (date preserved) rather than fabricated.
   const dep = localParts(raw.departureScheduled, raw.from?.tz ?? null);
@@ -184,7 +184,7 @@ export function mapFlightToReservation(raw: AirtrailFlightRaw): MappedReservatio
 
 /**
  * Stable snapshot hash of an AirTrail flight, used by the sync engine to detect
- * remote changes (AirTrail exposes no updated_at/etag) and to suppress TREK's own
+ * remote changes (AirTrail exposes no updated_at/etag) and to suppress TRIPPI's own
  * writes from re-triggering a pull. Only fields that can meaningfully change are
  * included, in a fixed key order.
  */

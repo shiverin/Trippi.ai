@@ -35,7 +35,7 @@ vi.mock('../../src/services/categoryService', () => mocks);
 
 import { CategoriesModule } from '../../src/nest/categories/categories.module';
 import { DatabaseModule } from '../../src/nest/database/database.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 const cat = { id: 1, name: 'Food', color: '#fff', icon: '🍔' };
 
@@ -47,7 +47,7 @@ describe('Categories e2e (real JwtAuthGuard + AdminGuard + temp SQLite)', () => 
     const moduleRef = await Test.createTestingModule({ imports: [DatabaseModule, CategoriesModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

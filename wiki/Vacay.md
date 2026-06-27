@@ -10,7 +10,7 @@ Vacay is a personal vacation day planner that lives separately from your trip pl
 
 ## What Vacay is
 
-While trips in TREK represent specific travel plans, Vacay tracks your annual leave entitlement — the number of vacation days granted by your employer or contract, which days you have already logged, and the balance left. It is personal by default, but you can fuse your plan with another TREK user to see each other's calendars side by side.
+While trips in TRIPPI represent specific travel plans, Vacay tracks your annual leave entitlement — the number of vacation days granted by your employer or contract, which days you have already logged, and the balance left. It is personal by default, but you can fuse your plan with another TRIPPI user to see each other's calendars side by side.
 
 ## Accessing Vacay
 
@@ -32,7 +32,7 @@ For each year, your entitlement panel shows:
 
 The main area shows a full 12-month grid. Each cell represents one day. Click a day to log or remove a vacation entry. Logged days are colour-coded by person when collaborators are fused into your plan.
 
-Days that overlap with any of your existing TREK trips are marked with a small blue dot in the corner.
+Days that overlap with any of your existing TRIPPI trips are marked with a small blue dot in the corner.
 
 You can also switch the calendar toolbar to **Company** mode to mark shared company holidays, which are highlighted in amber and do not deduct from personal allowances.
 
@@ -46,7 +46,7 @@ You can also switch the calendar toolbar to **Company** mode to mark shared comp
 
 ## Inviting collaborators
 
-You can invite other TREK users to fuse their Vacay plan with yours. Once a user accepts, your plans are merged: you see each other's logged days in distinct colours, and you can log days on behalf of the other person if needed.
+You can invite other TRIPPI users to fuse their Vacay plan with yours. Once a user accepts, your plans are merged: you see each other's logged days in distinct colours, and you can log days on behalf of the other person if needed.
 
 To invite someone, click the **+** icon in the **Persons** panel in the sidebar, choose a user, and send the invite. The recipient receives a notification and must accept before the fusion takes effect.
 

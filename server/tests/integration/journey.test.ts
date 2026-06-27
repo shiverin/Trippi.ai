@@ -41,7 +41,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../src/db/database', () => dbMock);
 vi.mock('../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
   SESSION_DURATION: '24h',
@@ -953,7 +953,7 @@ describe('Share link update', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Provider photos — passphrase persistence', () => {
-  it('JOURNEY-INT-046 — single mode with passphrase persists encrypted passphrase on trek_photos', async () => {
+  it('JOURNEY-INT-046 — single mode with passphrase persists encrypted passphrase on trippi_photos', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-04-01' });
@@ -965,13 +965,13 @@ describe('Provider photos — passphrase persistence', () => {
 
     expect(res.status).toBe(201);
 
-    const row = testDb.prepare('SELECT passphrase FROM trek_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?')
+    const row = testDb.prepare('SELECT passphrase FROM trippi_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?')
       .get('synologyphotos', 'shared-asset-1', user.id) as { passphrase: string | null } | undefined;
     expect(row?.passphrase).not.toBeNull();
     expect(typeof row?.passphrase).toBe('string');
   });
 
-  it('JOURNEY-INT-047 — batch mode with passphrase persists encrypted passphrase on all trek_photos rows', async () => {
+  it('JOURNEY-INT-047 — batch mode with passphrase persists encrypted passphrase on all trippi_photos rows', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-04-02' });
@@ -985,7 +985,7 @@ describe('Provider photos — passphrase persistence', () => {
     expect(res.body.added).toBe(2);
 
     for (const assetId of ['batch-asset-1', 'batch-asset-2']) {
-      const row = testDb.prepare('SELECT passphrase FROM trek_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?')
+      const row = testDb.prepare('SELECT passphrase FROM trippi_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?')
         .get('synologyphotos', assetId, user.id) as { passphrase: string | null } | undefined;
       expect(row?.passphrase).not.toBeNull();
     }

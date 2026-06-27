@@ -99,8 +99,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'TREK \u2014 Travel Planner',
-        short_name: 'TREK',
+        name: 'TRIPPI \u2014 Travel Planner',
+        short_name: 'TRIPPI',
         description: 'Travel Resource & Exploration Kit',
         theme_color: '#111827',
         background_color: '#0f172a',

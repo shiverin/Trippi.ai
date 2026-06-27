@@ -2,7 +2,7 @@
 
 ## What the encryption key protects
 
-TREK encrypts sensitive settings at rest using AES-256-GCM. The following values are stored encrypted in the database:
+TRIPPI encrypts sensitive settings at rest using AES-256-GCM. The following values are stored encrypted in the database:
 
 - Google Maps API key (per user)
 - Mapbox access token (per user)
@@ -14,13 +14,13 @@ TREK encrypts sensitive settings at rest using AES-256-GCM. The following values
 - SMTP password (global, in `app_settings`)
 - Admin webhook URL and admin ntfy token (global, in `app_settings`)
 - MFA (TOTP) secrets for all users
-- Photo passphrases for Synology shared-link photos (in `trek_photos`)
+- Photo passphrases for Synology shared-link photos (in `trippi_photos`)
 
 The encryption derives a key from `ENCRYPTION_KEY` using SHA-256 (with a domain suffix per secret type), so the raw `ENCRYPTION_KEY` value is never stored in the database.
 
 ## Key resolution order
 
-On startup, TREK resolves the encryption key in this order:
+On startup, TRIPPI resolves the encryption key in this order:
 
 1. **`ENCRYPTION_KEY` environment variable** — explicit, always takes priority. When set, the value is also written to `./data/.encryption_key` so it survives container restarts if the env var is later removed.
 2. **`./data/.encryption_key` file** — present on any install that has started at least once.
@@ -29,7 +29,7 @@ On startup, TREK resolves the encryption key in this order:
 
 ## What happens if the key is lost
 
-All encrypted settings (API keys, SMTP password, OIDC secret, MFA secrets, notification tokens, etc.) become unreadable — TREK cannot decrypt them. They must be re-entered manually after the key is restored or replaced. Unencrypted data (trips, places, users, etc.) is unaffected.
+All encrypted settings (API keys, SMTP password, OIDC secret, MFA secrets, notification tokens, etc.) become unreadable — TRIPPI cannot decrypt them. They must be re-entered manually after the key is restored or replaced. Unencrypted data (trips, places, users, etc.) is unaffected.
 
 ## Backing up the key
 
@@ -44,7 +44,7 @@ Use `scripts/migrate-encryption.ts` to re-encrypt all stored secrets without dow
 **Docker:**
 
 ```bash
-docker exec -it trek node --import tsx scripts/migrate-encryption.ts
+docker exec -it trippi node --import tsx scripts/migrate-encryption.ts
 ```
 
 **Host (run from the `server/` directory):**
@@ -63,13 +63,13 @@ The script:
    - `users` (per user): `maps_api_key`, `openweather_api_key`, `immich_api_key`, `synology_password`, `synology_sid`, `synology_did`, `mfa_secret`
    - `settings` (per user): `webhook_url`, `ntfy_token`, `mapbox_access_token`
    - `trip_album_links`: `passphrase`
-   - `trek_photos`: `passphrase`
+   - `trippi_photos`: `passphrase`
 5. Reports counts of migrated, already-migrated, skipped (empty), and errored values.
 
 After a successful migration:
 
 1. Update `ENCRYPTION_KEY` in your environment to the new value.
-2. Restart TREK.
+2. Restart TRIPPI.
 
 If any secrets could not be migrated, the script exits with a non-zero status and the original database backup is retained.
 

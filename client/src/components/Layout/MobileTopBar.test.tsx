@@ -28,7 +28,7 @@ describe('MobileTopBar', () => {
   it('FE-COMP-MOBILETOPBAR-001: renders the profile avatar (no brand logo)', () => {
     render(<MobileTopBar />, { initialEntries: ['/dashboard'] });
     expect(screen.getByRole('button', { name: 'Profile' })).toBeInTheDocument();
-    expect(screen.queryByText('trek')).not.toBeInTheDocument();
+    expect(screen.queryByText('trippi')).not.toBeInTheDocument();
   });
 
   it('FE-COMP-MOBILETOPBAR-002: avatar opens the profile sheet', async () => {

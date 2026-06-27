@@ -1,4 +1,4 @@
-import { SUPPORTED_LANGUAGE_CODES as SUPPORTED_LANG_CODES } from '@trek/shared';
+import { SUPPORTED_LANGUAGE_CODES as SUPPORTED_LANG_CODES } from '@trippi/shared';
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -117,7 +117,7 @@ if (!SUPPORTED_LANG_CODES.includes(rawDefaultLang)) {
 }
 export const DEFAULT_LANGUAGE = SUPPORTED_LANG_CODES.includes(rawDefaultLang) ? rawDefaultLang : 'en';
 
-// SESSION_DURATION controls how long a TREK session (the `trek_session` JWT
+// SESSION_DURATION controls how long a TRIPPI session (the `trippi_session` JWT
 // cookie) stays valid before re-login is required. Accepts ms-style strings:
 // '1h', '12h', '7d', '30d', '90d', etc. It applies to BOTH the JWT `exp` claim
 // and the cookie `maxAge`, so the two never drift apart. Invalid values warn at
@@ -156,7 +156,7 @@ export const SESSION_DURATION_SECONDS = Math.floor(SESSION_DURATION_MS / 1000);
 
 // SESSION_DURATION_REMEMBER is the session length used when the user ticks
 // "Remember me" on the login form: a longer-lived JWT `exp` claim plus a
-// persistent `trek_session` cookie `maxAge`. An unticked login keeps
+// persistent `trippi_session` cookie `maxAge`. An unticked login keeps
 // SESSION_DURATION and a browser-session cookie (no `maxAge`). Same ms-style
 // format and fallback behavior as SESSION_DURATION.
 const DEFAULT_SESSION_DURATION_REMEMBER = '30d';

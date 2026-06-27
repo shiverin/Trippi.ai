@@ -40,7 +40,7 @@ vi.mock('../../src/services/inAppNotifications', () => inapp);
 vi.mock('../../src/services/notifications', () => channels);
 
 import { NotificationsModule } from '../../src/nest/notifications/notifications.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('Notifications e2e (real auth guard + temp SQLite)', () => {
   let server: Server;
@@ -50,7 +50,7 @@ describe('Notifications e2e (real auth guard + temp SQLite)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [NotificationsModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

@@ -1,6 +1,6 @@
 # Audit Log
 
-The audit log records significant actions taken on your TREK instance. Use it to monitor logins, admin changes, and integration configuration.
+The audit log records significant actions taken on your TRIPPI instance. Use it to monitor logins, admin changes, and integration configuration.
 
 ## Where to find it
 
@@ -117,15 +117,15 @@ The panel loads 100 entries at a time by default. Click **Load more** at the bot
 
 ## IP addresses
 
-The client IP is read from the `X-Forwarded-For` header. When TREK is behind a reverse proxy, set `TRUST_PROXY=1` (the number of proxy hops) so the header is trusted and the real client IP is recorded. Without this setting, the proxy's own IP is logged instead. See [Environment-Variables](Environment-Variables).
+The client IP is read from the `X-Forwarded-For` header. When TRIPPI is behind a reverse proxy, set `TRUST_PROXY=1` (the number of proxy hops) so the header is trusted and the real client IP is recorded. Without this setting, the proxy's own IP is logged instead. See [Environment-Variables](Environment-Variables).
 
 ## Log file
 
 In addition to the database, audit events are written to a plain-text log file:
 
-- **Path:** `./data/logs/trek.log`
+- **Path:** `./data/logs/trippi.log`
 - **Rotation:** rotated when the file reaches 10 MB
-- **Retention:** the 4 most recent rotated files are kept (`trek.log.1` through `trek.log.4`)
+- **Retention:** the 4 most recent rotated files are kept (`trippi.log.1` through `trippi.log.4`)
 
 ## Database retention
 

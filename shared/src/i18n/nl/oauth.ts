@@ -21,7 +21,7 @@ const oauth: TranslationStrings = {
   'oauth.scope.trips:delete.label': 'Reizen verwijderen',
   'oauth.scope.trips:delete.description': 'Hele reizen permanent verwijderen — deze actie is onomkeerbaar',
   'oauth.scope.trips:share.label': 'Deellinks beheren',
-  'oauth.scope.trips:share.description': 'Publieke deellinks aanmaken, bijwerken en intrekken',
+  'oauth.scope.trips:share.description': 'Publieke deellinks aanmaken, bijwerken en intrippiken',
   'oauth.scope.places:read.label': 'Plaatsen en kaartgegevens bekijken',
   'oauth.scope.places:read.description': 'Plaatsen, dagtoewijzingen, tags en categorieën lezen',
   'oauth.scope.places:write.label': 'Plaatsen beheren',
@@ -69,15 +69,15 @@ const oauth: TranslationStrings = {
   'oauth.scope.journey:write.label': 'Reisverslagen beheren',
   'oauth.scope.journey:write.description': 'Reisverslagen en hun vermeldingen aanmaken, bijwerken en verwijderen',
   'oauth.scope.journey:share.label': 'Reisverslag-links beheren',
-  'oauth.scope.journey:share.description': 'Publieke deellinks voor reisverslagen aanmaken, bijwerken en intrekken',
+  'oauth.scope.journey:share.description': 'Publieke deellinks voor reisverslagen aanmaken, bijwerken en intrippiken',
   'oauth.authorize.authorizing': 'Authorizing…', // en-fallback
   'oauth.authorize.loading': 'Loading…', // en-fallback
   'oauth.authorize.errorTitle': 'Authorization Error', // en-fallback
   'oauth.authorize.loginTitle': 'Sign in to continue', // en-fallback
-  'oauth.authorize.loginDescription': '{client} wants access to your TREK account. Please sign in first.', // en-fallback
-  'oauth.authorize.loginButton': 'Sign in to TREK', // en-fallback
+  'oauth.authorize.loginDescription': '{client} wants access to your TRIPPI account. Please sign in first.', // en-fallback
+  'oauth.authorize.loginButton': 'Sign in to TRIPPI', // en-fallback
   'oauth.authorize.requestLabel': 'Authorization Request', // en-fallback
-  'oauth.authorize.requestDescription': 'This application is requesting access to your TREK account.', // en-fallback
+  'oauth.authorize.requestDescription': 'This application is requesting access to your TRIPPI account.', // en-fallback
   'oauth.authorize.trustNote': 'Only grant access to applications you trust. Your data stays on your server.', // en-fallback
   'oauth.authorize.selectScope': 'Select at least one scope', // en-fallback
   'oauth.authorize.approveOneScope': 'Approve ({count} scope)', // en-fallback

@@ -8,7 +8,7 @@ import { isDemoEmail } from '../services/demo';
 
 export function extractToken(req: Request): string | null {
   // Prefer httpOnly cookie; fall back to Authorization: Bearer (MCP, API clients)
-  const cookieToken = (req as any).cookies?.trek_session;
+  const cookieToken = (req as any).cookies?.trippi_session;
   if (cookieToken) return cookieToken;
   const authHeader = req.headers['authorization'];
   return (authHeader && authHeader.split(' ')[1]) || null;
@@ -72,7 +72,7 @@ const authenticate = (req: Request, res: Response, next: NextFunction): void => 
  *  Used on state-mutating OAuth endpoints (consent POST, client CRUD, session revoke)
  *  to prevent Bearer JWT tokens obtained by other means from managing OAuth clients. */
 const requireCookieAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const cookieToken = (req as any).cookies?.trek_session;
+  const cookieToken = (req as any).cookies?.trippi_session;
   if (!cookieToken) {
     res.status(401).json({ error: 'Cookie session required for this endpoint', code: 'COOKIE_AUTH_REQUIRED' });
     return;
@@ -110,7 +110,7 @@ const adminOnly = (req: Request, res: Response, next: NextFunction): void => {
 const demoUploadBlock = (req: Request, res: Response, next: NextFunction): void => {
   const authReq = req as AuthRequest;
   if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(authReq.user?.email)) {
-    res.status(403).json({ error: 'Uploads are disabled in demo mode. Self-host TREK for full functionality.' });
+    res.status(403).json({ error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' });
     return;
   }
   next();

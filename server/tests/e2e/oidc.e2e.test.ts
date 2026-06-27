@@ -2,7 +2,7 @@
  * OIDC e2e — exercises the migrated /api/auth/oidc flow with the real cookie
  * service. The OIDC service + auth toggles are mocked; this proves the flow is
  * unauthenticated, the sso-disabled 403, the login redirect, and that /exchange
- * sets the httpOnly trek_session cookie from a valid auth code.
+ * sets the httpOnly trippi_session cookie from a valid auth code.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
@@ -25,7 +25,7 @@ const { oidcSvc } = vi.hoisted(() => ({
 vi.mock('../../src/services/oidcService', () => oidcSvc);
 
 import { OidcModule } from '../../src/nest/oidc/oidc.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('OIDC e2e (real cookie service)', () => {
   let server: Server;
@@ -35,7 +35,7 @@ describe('OIDC e2e (real cookie service)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [OidcModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }
@@ -75,12 +75,12 @@ describe('OIDC e2e (real cookie service)', () => {
     expect(res.body).toEqual({ error: 'Code required' });
   });
 
-  it('GET /exchange sets the httpOnly trek_session cookie + returns the token', async () => {
+  it('GET /exchange sets the httpOnly trippi_session cookie + returns the token', async () => {
     oidcSvc.consumeAuthCode.mockReturnValue({ token: 'jwt.value' });
     const res = await request(server).get('/api/auth/oidc/exchange').query({ code: 'good' });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ token: 'jwt.value' });
     const setCookie = res.headers['set-cookie'] as unknown as string[];
-    expect(setCookie.some((c) => c.startsWith('trek_session=') && /HttpOnly/i.test(c))).toBe(true);
+    expect(setCookie.some((c) => c.startsWith('trippi_session=') && /HttpOnly/i.test(c))).toBe(true);
   });
 });

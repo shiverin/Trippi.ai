@@ -1,5 +1,5 @@
 import { Controller, Get, HttpException, Query, UseGuards } from '@nestjs/common';
-import type { WeatherResult } from '@trek/shared';
+import type { WeatherResult } from '@trippi/shared';
 import { WeatherService } from './weather.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ApiError } from '../../services/weatherService';
@@ -13,7 +13,7 @@ import { ApiError } from '../../services/weatherService';
  * Parity note: the "X is required" 400s and the 500 fallback messages are bespoke
  * strings, not the generic Zod-pipe envelope, so they are reproduced here exactly
  * rather than derived from the schema. The Zod contract/types live in
- * @trek/shared/weather and are used for typing; `lang` defaults to 'de' only when
+ * @trippi/shared/weather and are used for typing; `lang` defaults to 'de' only when
  * the param is absent, matching the Express destructuring default.
  */
 @Controller('api/weather')

@@ -10,7 +10,7 @@ const trips: TranslationStrings = {
   'trips.reminderDay': 'dag',
   'trips.reminderDays': 'dagen',
   'trips.reminderCustom': 'Aangepast',
-  'trips.reminderDaysBefore': 'dagen voor vertrek',
+  'trips.reminderDaysBefore': 'dagen voor vertrippi',
   'trips.reminderDisabledHint':
     'Reisherinneringen zijn uitgeschakeld. Schakel ze in via Admin > Instellingen > Meldingen.',
 };

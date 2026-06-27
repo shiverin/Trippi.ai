@@ -738,7 +738,7 @@ describe('CollabNotes', () => {
       http.post('/api/trips/1/collab/notes', async ({ request }) => {
         postBody = await request.json() as Record<string, unknown>;
         return HttpResponse.json({
-          note: { id: 99, trip_id: 1, user_id: 1, author_username: 'testuser', author_avatar: null, title: 'URL Note', content: '', category: null, color: '#3b82f6', website: 'https://trek.app', files: [], attachments: [], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+          note: { id: 99, trip_id: 1, user_id: 1, author_username: 'testuser', author_avatar: null, title: 'URL Note', content: '', category: null, color: '#3b82f6', website: 'https://trippi.app', files: [], attachments: [], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
         });
       })
     );
@@ -748,9 +748,9 @@ describe('CollabNotes', () => {
     const titleInput = await screen.findByPlaceholderText('Note title');
     await user.type(titleInput, 'URL Note');
     const websiteInput = screen.getByPlaceholderText(/https:\/\//i);
-    await user.type(websiteInput, 'https://trek.app');
+    await user.type(websiteInput, 'https://trippi.app');
     await user.click(screen.getByRole('button', { name: /^Create$/i }));
-    await waitFor(() => expect(postBody.website).toBe('https://trek.app'));
+    await waitFor(() => expect(postBody.website).toBe('https://trippi.app'));
   });
 
   it('FE-COMP-NOTES-040: CategorySettingsModal color change updates color', async () => {
@@ -1067,13 +1067,13 @@ describe('CollabNotes', () => {
           notes: [{
             id: 1, trip_id: 1, user_id: 1, author_username: 'testuser', author_avatar: null,
             title: 'OG Image Note', content: '', category: null, color: '#3b82f6',
-            website: 'https://trek-app.example.com', files: [], attachments: [],
+            website: 'https://trippi-app.example.com', files: [], attachments: [],
             created_at: '2025-06-01T10:00:00.000Z', updated_at: '2025-06-01T10:00:00.000Z',
           }],
         })
       ),
       http.get('/api/trips/1/collab/link-preview', () =>
-        HttpResponse.json({ title: 'Trek App', image: 'https://trek-app.example.com/og.jpg' })
+        HttpResponse.json({ title: 'Trippi App', image: 'https://trippi-app.example.com/og.jpg' })
       ),
     );
     render(<CollabNotes {...defaultProps} />);

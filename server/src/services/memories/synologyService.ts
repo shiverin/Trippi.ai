@@ -198,7 +198,7 @@ async function _fetchSynologyJson<T>(url: string, body: URLSearchParams, skipSsl
     }
 }
 
-const SYNOLOGY_DEVICE_NAME = 'trek';
+const SYNOLOGY_DEVICE_NAME = 'trippi';
 
 async function _loginToSynology(
     url: string,

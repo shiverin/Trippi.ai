@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { verifyJwtAndLoadUser } from '../../middleware/auth';
 import { db } from '../../db/database';
 import { mcpHandler } from '../../mcp';
-import { trekOAuthProvider, trekClientsStore } from '../../mcp/oauthProvider';
+import { trippiOAuthProvider, trippiClientsStore } from '../../mcp/oauthProvider';
 import { isAddonEnabled } from '../../services/adminService';
 import { ADDON_IDS } from '../../addons';
 import { ALL_SCOPES } from '../../mcp/scopes';
@@ -157,7 +157,7 @@ export function applyPlatformTransport(app: express.Application): void {
       oauthMetadata: metadata,
       resourceServerUrl: new URL(`${metadata.issuer}/mcp`),
       scopesSupported: ALL_SCOPES as string[],
-      resourceName: 'TREK MCP',
+      resourceName: 'TRIPPI MCP',
     });
     return _sdkMetaRouter;
   }
@@ -186,7 +186,7 @@ export function applyPlatformTransport(app: express.Application): void {
   // Clients like ChatGPT probe /.well-known/oauth-protected-resource (no path suffix) on every
   // fresh discovery. Without this, they get 404, fall back to the issuer URL as the resource
   // parameter, and the authorize handler rejects them with invalid_target — showing the user
-  // the TREK home page instead of the consent form.
+  // the TRIPPI home page instead of the consent form.
   app.get('/.well-known/oauth-protected-resource', (_req: Request, res: Response) => {
     if (!isAddonEnabled(ADDON_IDS.MCP)) return res.status(404).end();
     const meta = getOAuthMetadata();
@@ -195,16 +195,16 @@ export function applyPlatformTransport(app: express.Application): void {
       authorization_servers:    [meta.issuer],
       bearer_methods_supported: ['header'],
       scopes_supported:         ALL_SCOPES,
-      resource_name:            'TREK MCP',
+      resource_name:            'TRIPPI MCP',
     });
   });
 
   // SDK authorize handler: validates OAuth params, calls provider.authorize() which redirects
   // to the SPA consent page at /oauth/consent
-  app.use('/oauth/authorize', mcpAddonGate, authorizationHandler({ provider: trekOAuthProvider }));
+  app.use('/oauth/authorize', mcpAddonGate, authorizationHandler({ provider: trippiOAuthProvider }));
 
   // SDK DCR handler: accepts registrations without scope (fixes issue #959 bug 2)
-  app.use('/oauth/register', mcpAddonGate, clientRegistrationHandler({ clientsStore: trekClientsStore }));
+  app.use('/oauth/register', mcpAddonGate, clientRegistrationHandler({ clientsStore: trippiClientsStore }));
 
   // MCP endpoint
   app.post('/mcp', mcpHandler);

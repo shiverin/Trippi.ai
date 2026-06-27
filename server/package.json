@@ -1,5 +1,5 @@
 {
-  "name": "@trek/server",
+  "name": "@trippi/server",
   "version": "3.1.2",
   "main": "src/index.ts",
   "scripts": {
@@ -26,7 +26,7 @@
     "@nestjs/core": "^11.1.24",
     "@nestjs/platform-express": "^11.1.24",
     "@simplewebauthn/server": "^13.1.2",
-    "@trek/shared": "*",
+    "@trippi/shared": "*",
     "archiver": "^6.0.1",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.8.0",

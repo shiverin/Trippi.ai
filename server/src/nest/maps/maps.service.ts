@@ -6,7 +6,7 @@ import type {
   MapsPlacePhotoResult,
   MapsReverseResult,
   MapsResolveUrlResult,
-} from '@trek/shared';
+} from '@trippi/shared';
 import { DatabaseService } from '../database/database.service';
 import {
   searchPlaces,

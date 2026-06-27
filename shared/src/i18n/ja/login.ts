@@ -26,7 +26,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'サインイン中…',
   'login.signIn': 'サインイン',
   'login.createAdmin': '管理者アカウントを作成',
-  'login.createAdminHint': 'TREKの最初の管理者アカウントを設定します。',
+  'login.createAdminHint': 'TRIPPIの最初の管理者アカウントを設定します。',
   'login.setNewPassword': '新しいパスワードを設定',
   'login.setNewPasswordHint': '続行する前にパスワードを変更してください。',
   'login.createAccount': 'アカウントを作成',

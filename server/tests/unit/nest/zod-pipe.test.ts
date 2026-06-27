@@ -11,7 +11,7 @@ describe('ZodValidationPipe', () => {
     expect(pipe.transform({ name: 'x' }, meta)).toEqual({ name: 'x' });
   });
 
-  it('throws TREK { error } envelope with status 400 on invalid input', () => {
+  it('throws TRIPPI { error } envelope with status 400 on invalid input', () => {
     let thrown: unknown;
     try {
       pipe.transform({ name: '' }, meta);

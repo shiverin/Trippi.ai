@@ -4,7 +4,7 @@ Production-ready setup using Docker Compose with security hardening enabled.
 
 ## Compose File
 
-See https://github.com/mauriceboe/TREK/blob/main/docker-compose.yml
+See https://github.com/mauriceboe/TRIPPI/blob/main/docker-compose.yml
 
 ## Security Hardening Explained
 
@@ -34,12 +34,12 @@ services:
   app:
     # ... (rest of service config unchanged)
     volumes:
-      - trek_data:/app/data
-      - trek_uploads:/app/uploads
+      - trippi_data:/app/data
+      - trippi_uploads:/app/uploads
 
 volumes:
-  trek_data:
-  trek_uploads:
+  trippi_data:
+  trippi_uploads:
 ```
 
 Docker creates the volumes automatically on first `docker compose up`. Use `docker volume ls` and `docker volume inspect` to manage them.
@@ -52,8 +52,8 @@ The compose file reads variables from a `.env` file placed alongside `docker-com
 # .env
 ENCRYPTION_KEY=<output of: openssl rand -hex 32>
 TZ=Europe/Berlin
-ALLOWED_ORIGINS=https://trek.example.com
-APP_URL=https://trek.example.com
+ALLOWED_ORIGINS=https://trippi.example.com
+APP_URL=https://trippi.example.com
 ```
 
 Uncomment and fill in the OIDC, initial setup, or MCP variables as needed. For a full description of every variable, see [Environment-Variables](Environment-Variables).
@@ -64,18 +64,18 @@ Three tag strategies are available:
 
 | Tag | Example | Behavior |
 |---|---|---|
-| `latest` | `mauriceboe/trek:latest` | Always the newest release across all major versions |
-| Major version | `mauriceboe/trek:3` | Latest release pinned to that major version |
-| Full version | `mauriceboe/trek:3.0.15` | Exact release; never changes |
+| `latest` | `mauriceboe/trippi:latest` | Always the newest release across all major versions |
+| Major version | `mauriceboe/trippi:3` | Latest release pinned to that major version |
+| Full version | `mauriceboe/trippi:3.0.15` | Exact release; never changes |
 
 The compose file above uses `latest`. To pin, change the `image:` line:
 
 ```yaml
-image: mauriceboe/trek:3        # track major version 3
-image: mauriceboe/trek:3.0.15   # pin to exact release
+image: mauriceboe/trippi:3        # track major version 3
+image: mauriceboe/trippi:3.0.15   # pin to exact release
 ```
 
-## Start TREK
+## Start TRIPPI
 
 ```bash
 docker compose up -d
@@ -89,7 +89,7 @@ docker compose logs -f
 
 ## HTTPS and Reverse Proxy
 
-This compose file is designed for deployments where a reverse proxy (nginx, Caddy, Traefik) terminates TLS in front of TREK. To enable HTTPS redirects and secure cookies, uncomment `FORCE_HTTPS=true` and `TRUST_PROXY=1`.
+This compose file is designed for deployments where a reverse proxy (nginx, Caddy, Traefik) terminates TLS in front of TRIPPI. To enable HTTPS redirects and secure cookies, uncomment `FORCE_HTTPS=true` and `TRUST_PROXY=1`.
 
 See [Reverse-Proxy](Reverse-Proxy) for complete proxy configuration examples.
 

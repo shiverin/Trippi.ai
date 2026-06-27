@@ -1,9 +1,9 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/logo-trek-light.gif" />
-  <source media="(prefers-color-scheme: light)" srcset="docs/logo-trek-dark.gif" />
-  <img src="docs/logo-trek-dark.gif" alt="TREK" height="96" />
+  <source media="(prefers-color-scheme: dark)" srcset="docs/logo-trippi-light.gif" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/logo-trippi-dark.gif" />
+  <img src="docs/logo-trippi-dark.gif" alt="TRIPPI" height="96" />
 </picture>
 
 <br />
@@ -18,9 +18,9 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 
 <br />
 
-<a href="https://demo.liketrek.com"><img alt="Demo" src="https://img.shields.io/badge/Demo-try-111827?style=for-the-badge" /></a>
+<a href="https://demo.liketrippi.com"><img alt="Demo" src="https://img.shields.io/badge/Demo-try-111827?style=for-the-badge" /></a>
 &nbsp;
-<a href="https://hub.docker.com/r/mauriceboe/trek"><img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?style=for-the-badge" /></a>
+<a href="https://hub.docker.com/r/mauriceboe/trippi"><img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?style=for-the-badge" /></a>
 &nbsp;
 <a href="https://discord.gg/NhZBDSd4qW"><img alt="Discord" src="https://img.shields.io/badge/Discord-join-5865F2?style=for-the-badge" /></a>
 &nbsp;
@@ -31,9 +31,9 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 <a href="https://www.buymeacoffee.com/mauriceboe"><img alt="BMAC" src="https://img.shields.io/badge/BMAC-support-FFDD00?style=for-the-badge" /></a>
 <br />
 <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL_v3-6B7280?style=flat-square" /></a>
-<a href="https://github.com/mauriceboe/TREK/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/mauriceboe/TREK?include_prereleases&style=flat-square&color=6B7280" /></a>
-<a href="https://hub.docker.com/r/mauriceboe/trek"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/mauriceboe/trek?style=flat-square&color=6B7280" /></a>
-<a href="https://github.com/mauriceboe/TREK"><img alt="Stars" src="https://img.shields.io/github/stars/mauriceboe/TREK?style=flat-square&color=6B7280" /></a>
+<a href="https://github.com/mauriceboe/TRIPPI/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/mauriceboe/TRIPPI?include_prereleases&style=flat-square&color=6B7280" /></a>
+<a href="https://hub.docker.com/r/mauriceboe/trippi"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/mauriceboe/trippi?style=flat-square&color=6B7280" /></a>
+<a href="https://github.com/mauriceboe/TRIPPI"><img alt="Stars" src="https://img.shields.io/github/stars/mauriceboe/TRIPPI?style=flat-square&color=6B7280" /></a>
 
 </div>
 
@@ -41,7 +41,7 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 
 <div align="center">
 
-<img src="https://github.com/mauriceboe/trek-media/releases/download/readme-assets/TREK1.gif" alt="TREK — 60-second tour" width="100%" />
+<img src="https://github.com/mauriceboe/trippi-media/releases/download/readme-assets/TRIPPI1.gif" alt="TRIPPI — 60-second tour" width="100%" />
 
 </div>
 
@@ -64,7 +64,7 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 
 <picture>
   <source media="(max-width: 700px)" srcset="docs/tiles/grid-mobile.svg" />
-  <img src="docs/tiles/grid-desktop.svg" alt="TREK feature tiles" width="100%" />
+  <img src="docs/tiles/grid-desktop.svg" alt="TRIPPI feature tiles" width="100%" />
 </picture>
 
 <details>
@@ -137,7 +137,7 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 - **Atlas** — world map of visited countries, bucket list, travel stats, streak tracking, liquid-glass UI
 - **Journey** — magazine-style travel journal with entries, photos (Immich/Synology), maps, moods
 - **AirTrail** — connect a self-hosted AirTrail instance to import and sync flights into reservations
-- **MCP** — expose TREK to AI assistants via OAuth 2.1
+- **MCP** — expose TRIPPI to AI assistants via OAuth 2.1
 
 </td>
 <td width="50%" valign="top">
@@ -176,10 +176,10 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 ```bash
 ENCRYPTION_KEY=$(openssl rand -hex 32) docker run -d -p 3000:3000 \
   -e ENCRYPTION_KEY=$ENCRYPTION_KEY \
-  -v ./data:/app/data -v ./uploads:/app/uploads mauriceboe/trek
+  -v ./data:/app/data -v ./uploads:/app/uploads mauriceboe/trippi
 ```
 
-Open `http://localhost:3000`. On first boot TREK seeds an admin account — if you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` those are used, otherwise the credentials are printed to the container log (`docker logs trek`).
+Open `http://localhost:3000`. On first boot TRIPPI seeds an admin account — if you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` those are used, otherwise the credentials are printed to the container log (`docker logs trippi`).
 
 <div align="center">
 
@@ -217,8 +217,8 @@ Real-time sync via WebSocket (`ws`). Backend on NestJS 11. State with Zustand. A
 ```yaml
 services:
   app:
-    image: mauriceboe/trek:latest
-    container_name: trek
+    image: mauriceboe/trippi:latest
+    container_name: trippi
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -243,11 +243,11 @@ services:
       # - FORCE_HTTPS=true                   # behind a TLS-terminating proxy
       # - TRUST_PROXY=1
       # - OIDC_ISSUER=https://auth.example.com
-      # - OIDC_CLIENT_ID=trek
+      # - OIDC_CLIENT_ID=trippi
       # - OIDC_CLIENT_SECRET=supersecret
       # - OIDC_DISPLAY_NAME=SSO
       # - OIDC_ADMIN_CLAIM=groups
-      # - OIDC_ADMIN_VALUE=app-trek-admins
+      # - OIDC_ADMIN_VALUE=app-trippi-admins
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
@@ -275,22 +275,22 @@ docker compose up -d
 <h2 id="helm-kubernetes">Helm (Kubernetes)</h2>
 
 ```bash
-helm repo add trek https://mauriceboe.github.io/TREK
+helm repo add trippi https://mauriceboe.github.io/TRIPPI
 helm repo update
-helm install trek trek/trek
+helm install trippi trippi/trippi
 ```
 
-See [`charts/README.md`](https://github.com/mauriceboe/TREK/blob/main/charts/README.md) for values.
+See [`charts/README.md`](https://github.com/mauriceboe/TRIPPI/blob/main/charts/README.md) for values.
 
 <h2 id="install-as-app-pwa">Install as App (PWA)</h2>
 
-TREK works as a Progressive Web App — no App Store needed.
+TRIPPI works as a Progressive Web App — no App Store needed.
 
-1. Open TREK in the browser (HTTPS required)
+1. Open TRIPPI in the browser (HTTPS required)
 2. **iOS**: Share ▸ *Add to Home Screen*
 3. **Android**: Menu ▸ *Install app* (or *Add to Home Screen*)
 
-TREK then launches fullscreen with its own icon, just like a native app.
+TRIPPI then launches fullscreen with its own icon, just like a native app.
 
 <br />
 
@@ -305,12 +305,12 @@ docker compose pull && docker compose up -d
 **Docker run** — reuse the original volume paths:
 
 ```bash
-docker pull mauriceboe/trek
-docker rm -f trek
-docker run -d --name trek -p 3000:3000 -v ./data:/app/data -v ./uploads:/app/uploads --restart unless-stopped mauriceboe/trek
+docker pull mauriceboe/trippi
+docker rm -f trippi
+docker run -d --name trippi -p 3000:3000 -v ./data:/app/data -v ./uploads:/app/uploads --restart unless-stopped mauriceboe/trippi
 ```
 
-> Not sure which paths you used? `docker inspect trek --format '{{json .Mounts}}'` before removing the container.
+> Not sure which paths you used? `docker inspect trippi --format '{{json .Mounts}}'` before removing the container.
 
 Your data stays in the mounted `data` and `uploads` volumes — updates never touch it.
 
@@ -322,14 +322,14 @@ Your data stays in the mounted `data` and `uploads` volumes — updates never to
 If you need to rotate `ENCRYPTION_KEY` (e.g. upgrading from a version that derived encryption from `JWT_SECRET`):
 
 ```bash
-docker exec -it trek node --import tsx scripts/migrate-encryption.ts
+docker exec -it trippi node --import tsx scripts/migrate-encryption.ts
 ```
 
 The script creates a timestamped DB backup before making changes and prompts for old + new keys (input is not echoed).
 
 <h2 id="reverse-proxy">Reverse Proxy</h2>
 
-For production, put TREK behind a TLS-terminating reverse proxy. TREK uses WebSockets for real-time sync, so the proxy **must** support WebSocket upgrades on `/ws`.
+For production, put TRIPPI behind a TLS-terminating reverse proxy. TRIPPI uses WebSockets for real-time sync, so the proxy **must** support WebSocket upgrades on `/ws`.
 
 <details>
 <summary>Nginx</summary>
@@ -337,13 +337,13 @@ For production, put TREK behind a TLS-terminating reverse proxy. TREK uses WebSo
 ```nginx
 server {
     listen 80;
-    server_name trek.yourdomain.com;
+    server_name trippi.yourdomain.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name trek.yourdomain.com;
+    server_name trippi.yourdomain.com;
 
     ssl_certificate     /etc/ssl/fullchain.pem;
     ssl_certificate_key /etc/ssl/privkey.pem;
@@ -377,7 +377,7 @@ server {
 <summary>Caddy</summary>
 
 ```caddy
-trek.yourdomain.com {
+trippi.yourdomain.com {
     reverse_proxy localhost:3000
 }
 ```
@@ -407,12 +407,12 @@ Caddy handles TLS and WebSockets automatically.
 | `ALLOWED_ORIGINS` | Comma-separated origins for CORS and email links | same-origin |
 | `FORCE_HTTPS` | Optional. When `true`: 301-redirects HTTP to HTTPS, sends HSTS, adds CSP `upgrade-insecure-requests`, forces the session cookie `secure` flag. Useful behind a TLS-terminating reverse proxy. Requires `TRUST_PROXY`. | `false` |
 | `HSTS_INCLUDE_SUBDOMAINS` | When `true`: adds the `includeSubDomains` directive to the HSTS header, extending HTTPS enforcement to all subdomains. Only effective when HSTS is active (`FORCE_HTTPS=true` or `NODE_ENV=production`). Leave `false` if you run other services on sibling subdomains over plain HTTP. | `false` |
-| `COOKIE_SECURE` | Controls the `secure` flag on the `trek_session` cookie. Auto-derived: on when `NODE_ENV=production` or `FORCE_HTTPS=true`. Escape hatch: set `false` to allow session cookies over plain HTTP. Not recommended in production. | auto |
-| `SESSION_DURATION` | How long a login session stays valid when **"Remember me" is unchecked** (the default): sets the `trek_session` JWT `exp` and issues a browser-session cookie (cleared when the browser closes). Accepts `ms`-style strings: `1h`, `12h`, `7d`, `30d`, `90d`. Invalid values warn at startup and fall back to the default. | `24h` |
-| `SESSION_DURATION_REMEMBER` | Session length when **"Remember me" is ticked** at login: a longer-lived JWT plus a persistent `trek_session` cookie that survives browser restarts. Same format and startup-fallback behaviour as `SESSION_DURATION`. | `30d` |
+| `COOKIE_SECURE` | Controls the `secure` flag on the `trippi_session` cookie. Auto-derived: on when `NODE_ENV=production` or `FORCE_HTTPS=true`. Escape hatch: set `false` to allow session cookies over plain HTTP. Not recommended in production. | auto |
+| `SESSION_DURATION` | How long a login session stays valid when **"Remember me" is unchecked** (the default): sets the `trippi_session` JWT `exp` and issues a browser-session cookie (cleared when the browser closes). Accepts `ms`-style strings: `1h`, `12h`, `7d`, `30d`, `90d`. Invalid values warn at startup and fall back to the default. | `24h` |
+| `SESSION_DURATION_REMEMBER` | Session length when **"Remember me" is ticked** at login: a longer-lived JWT plus a persistent `trippi_session` cookie that survives browser restarts. Same format and startup-fallback behaviour as `SESSION_DURATION`. | `30d` |
 | `TRUST_PROXY` | Number of trusted reverse proxies. Tells the server to read client IP from `X-Forwarded-For` and protocol from `X-Forwarded-Proto`. Defaults to `1` in production; off in dev unless set. | `1` |
 | `ALLOW_INTERNAL_NETWORK` | Allow outbound requests to private/RFC-1918 IPs (e.g. Immich on your LAN). Loopback and link-local addresses remain blocked. | `false` |
-| `APP_URL` | Public base URL of this instance (e.g. `https://trek.example.com`). Required when OIDC is enabled; used as base for email notification links. | — |
+| `APP_URL` | Public base URL of this instance (e.g. `https://trippi.example.com`). Required when OIDC is enabled; used as base for email notification links. | — |
 | **OIDC / SSO** | | |
 | `OIDC_ISSUER` | OpenID Connect provider URL | — |
 | `OIDC_CLIENT_ID` | OIDC client ID | — |
@@ -422,9 +422,9 @@ Caddy handles TLS and WebSockets automatically.
 | `OIDC_ADMIN_CLAIM` | OIDC claim used to identify admin users | — |
 | `OIDC_ADMIN_VALUE` | Value of the OIDC claim that grants admin role | — |
 | `OIDC_SCOPE` | Space-separated OIDC scopes. **Fully replaces** the default — always include `openid email profile`. | `openid email profile` |
-| `OIDC_DISCOVERY_URL` | Override the auto-constructed OIDC discovery endpoint (e.g. Authentik: `.../application/o/trek/.well-known/openid-configuration`) | — |
+| `OIDC_DISCOVERY_URL` | Override the auto-constructed OIDC discovery endpoint (e.g. Authentik: `.../application/o/trippi/.well-known/openid-configuration`) | — |
 | **Initial setup** | | |
-| `ADMIN_EMAIL` | Email for the first admin on initial boot. Must be set together with `ADMIN_PASSWORD`. If either is omitted a random password is printed to the server log. No effect once a user exists. | `admin@trek.local` |
+| `ADMIN_EMAIL` | Email for the first admin on initial boot. Must be set together with `ADMIN_PASSWORD`. If either is omitted a random password is printed to the server log. No effect once a user exists. | `admin@trippi.local` |
 | `ADMIN_PASSWORD` | Password for the first admin on initial boot. Pairs with `ADMIN_EMAIL`. | random |
 | **Other** | | |
 | `DEMO_MODE` | Enable demo mode (hourly data resets) | `false` |
@@ -439,7 +439,7 @@ Caddy handles TLS and WebSockets automatically.
 
 - **Database** — SQLite, stored in `./data/travel.db`
 - **Uploads** — stored in `./uploads/`
-- **Logs** — `./data/logs/trek.log` (auto-rotated)
+- **Logs** — `./data/logs/trippi.log` (auto-rotated)
 - **Backups** — create and restore via Admin Panel
 - **Auto-Backups** — configurable schedule and retention in Admin Panel
 
@@ -454,5 +454,5 @@ for full third-party attributions.
 
 ## License
 
-TREK is [AGPL v3](LICENSE). Self-host freely for personal or internal company use. If you modify and offer TREK as a network service to third parties, your modifications must be open-sourced under the same licence.
+TRIPPI is [AGPL v3](LICENSE). Self-host freely for personal or internal company use. If you modify and offer TRIPPI as a network service to third parties, your modifications must be open-sourced under the same licence.
 

@@ -89,7 +89,7 @@ const settings: TranslationStrings = {
   'settings.webhookUrl.testSuccess': '테스트 웹훅이 성공적으로 전송되었습니다',
   'settings.webhookUrl.testFailed': '테스트 웹훅 실패',
   'settings.ntfyUrl.topicLabel': 'Ntfy 토픽',
-  'settings.ntfyUrl.topicPlaceholder': 'my-trek-alerts',
+  'settings.ntfyUrl.topicPlaceholder': 'my-trippi-alerts',
   'settings.ntfyUrl.serverLabel': 'Ntfy 서버 URL (선택)',
   'settings.ntfyUrl.serverPlaceholder': 'https://ntfy.sh',
   'settings.ntfyUrl.hint':
@@ -193,9 +193,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': '새로운 기능을 제안하세요',
   'settings.about.wikiHint': '문서 및 가이드',
   'settings.about.supporters.badge': '월간 후원자',
-  'settings.about.supporters.title': 'TREK의 여행 동반자',
+  'settings.about.supporters.title': 'TRIPPI의 여행 동반자',
   'settings.about.supporters.subtitle':
-    '다음 여정을 계획하는 동안, 이분들이 TREK의 미래를 함께 만들어가고 있습니다. 월간 후원금은 개발과 실제 작업 시간에 직접 사용되어 TREK이 오픈 소스로 유지될 수 있게 합니다.',
+    '다음 여정을 계획하는 동안, 이분들이 TRIPPI의 미래를 함께 만들어가고 있습니다. 월간 후원금은 개발과 실제 작업 시간에 직접 사용되어 TRIPPI이 오픈 소스로 유지될 수 있게 합니다.',
   'settings.about.supporters.since': '{date}부터 후원자',
   'settings.about.supporters.tierEmpty': '첫 번째 후원자가 되어보세요',
   'settings.about.supporter.tier.noReturnTicket': '편도 티켓',
@@ -204,7 +204,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': '알뜰 여행자',
   'settings.about.supporter.tier.hostelBunkmate': '호스텔 룸메이트',
   'settings.about.description':
-    'TREK은 첫 아이디어부터 마지막 추억까지 여행을 체계적으로 관리하는 자체 호스팅 여행 플래너입니다. 일별 계획, 예산, 짐 목록, 사진 등 모든 것이 하나의 서버에 담겨 있습니다.',
+    'TRIPPI은 첫 아이디어부터 마지막 추억까지 여행을 체계적으로 관리하는 자체 호스팅 여행 플래너입니다. 일별 계획, 예산, 짐 목록, 사진 등 모든 것이 하나의 서버에 담겨 있습니다.',
   'settings.about.madeWith': '으로 만들어졌습니다',
   'settings.about.madeBy': 'Maurice와 성장하는 오픈 소스 커뮤니티가 함께',
   'settings.username': '사용자 이름',
@@ -310,7 +310,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': '자체 네트워크의 신뢰할 수 있는 인스턴스에서만 활성화하세요.',
   'settings.airtrail.writeBack': '변경 사항을 AirTrail에 다시 기록',
   'settings.airtrail.writeBackHint':
-    '기본적으로 꺼져 있음: AirTrail이 신뢰할 수 있는 원본이며 TREK은 읽기만 합니다. TREK에서 변경한 내용을 AirTrail로 다시 보내려면 켜세요.',
+    '기본적으로 꺼져 있음: AirTrail이 신뢰할 수 있는 원본이며 TRIPPI은 읽기만 합니다. TRIPPI에서 변경한 내용을 AirTrail로 다시 보내려면 켜세요.',
   'settings.airtrail.connected': '연결됨',
   'settings.airtrail.notConnected': '연결되지 않음',
   'settings.airtrail.toast.saved': 'AirTrail 연결이 저장되었습니다',

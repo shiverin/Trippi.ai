@@ -1,6 +1,6 @@
 {
-  "capturedAt": "2026-06-27T16:22:08.509Z",
-  "baseURL": "http://localhost:5173",
+  "capturedAt": "2026-06-27T16:55:13.708Z",
+  "baseURL": "http://127.0.0.1:5173",
   "screens": [
     {
       "name": "01-login-desktop",

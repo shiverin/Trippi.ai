@@ -77,7 +77,7 @@ scoped to `src/nest/**`) requires ≥80%.
 
 ## Definition of Done (per module)
 
-Contract in `@trek/shared` → service ported 1:1 → controller with identical routes →
+Contract in `@trippi/shared` → service ported 1:1 → controller with identical routes →
 validation/error parity → unit + parity + e2e tests over the gate → prefix toggled to
 Nest → parity verified on the demo DB → **then** decommission the old Express
 route/service (separate step, after the toggle is confirmed in prod) → frontend points

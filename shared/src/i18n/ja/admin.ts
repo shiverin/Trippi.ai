@@ -32,7 +32,7 @@ const admin: TranslationStrings = {
   'admin.notifications.adminNtfyPanel.serverHint': 'ユーザー通知の既定サーバーとしても使用されます。',
   'admin.notifications.adminNtfyPanel.serverPlaceholder': 'https://ntfy.sh',
   'admin.notifications.adminNtfyPanel.topicLabel': '管理者トピック',
-  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trek-admin-alerts',
+  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trippi-admin-alerts',
   'admin.notifications.adminNtfyPanel.tokenLabel': 'アクセストークン（任意）',
   'admin.notifications.adminNtfyPanel.tokenCleared': '管理者アクセストークンを削除しました',
   'admin.notifications.adminNtfyPanel.saved': '管理者ntfy設定を保存しました',
@@ -191,7 +191,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': '保存に失敗しました',
   'admin.tabs.addons': 'アドオン',
   'admin.addons.title': 'アドオン',
-  'admin.addons.subtitle': '機能を有効／無効にしてTREKをカスタマイズします。',
+  'admin.addons.subtitle': '機能を有効／無効にしてTRIPPIをカスタマイズします。',
   'admin.addons.catalog.packing.name': 'リスト',
   'admin.addons.catalog.packing.description': '旅行用の持ち物リストとToDo',
   'admin.addons.catalog.budget.name': '予算',
@@ -224,7 +224,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': '天気データ',
   'admin.weather.badge': '2026年3月24日以降',
   'admin.weather.description':
-    'TREKは天気データにOpen‑Meteoを使用しています。無料でオープンソース、APIキーは不要です。',
+    'TRIPPIは天気データにOpen‑Meteoを使用しています。無料でオープンソース、APIキーは不要です。',
   'admin.weather.forecast': '16日間予報',
   'admin.weather.forecastDesc': '以前は5日（OpenWeatherMap）',
   'admin.weather.climate': '過去の気候データ',
@@ -282,13 +282,13 @@ const admin: TranslationStrings = {
   'admin.github.loading': '読み込み中...',
   'admin.github.error': 'リリースの読み込みに失敗しました',
   'admin.github.by': '作成者',
-  'admin.github.support': 'TREKの開発を支援',
+  'admin.github.support': 'TRIPPIの開発を支援',
   'admin.update.available': '更新があります',
-  'admin.update.text': 'TREK {version} が利用可能です。現在は {current} を使用しています。',
+  'admin.update.text': 'TRIPPI {version} が利用可能です。現在は {current} を使用しています。',
   'admin.update.button': 'GitHubで見る',
   'admin.update.install': '更新をインストール',
   'admin.update.confirmTitle': '更新をインストールしますか？',
-  'admin.update.confirmText': 'TREKを {current} から {version} に更新します。更新後、サーバーは自動的に再起動します。',
+  'admin.update.confirmText': 'TRIPPIを {current} から {version} に更新します。更新後、サーバーは自動的に再起動します。',
   'admin.update.dataInfo':
     'すべてのデータ（旅行、ユーザー、APIキー、アップロード、Vacay、Atlas、予算）は保持されます。',
   'admin.update.warning': '再起動中、アプリは短時間利用できません。',
@@ -300,9 +300,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'バックアップへ',
   'admin.update.howTo': '更新方法',
   'admin.update.dockerText':
-    'TREKはDockerで実行されています。{version} に更新するには、サーバーで次のコマンドを実行してください：',
+    'TRIPPIはDockerで実行されています。{version} に更新するには、サーバーで次のコマンドを実行してください：',
   'admin.update.nonDockerText':
-    'このTREKインスタンスはDockerで実行されていません。{version} に更新するには、使用したインストールまたは更新方法をもう一度実行してください。たとえばProxmox Community Scriptsの場合は、LXCコンソールから更新を実行します：',
+    'このTRIPPIインスタンスはDockerで実行されていません。{version} に更新するには、使用したインストールまたは更新方法をもう一度実行してください。たとえばProxmox Community Scriptsの場合は、LXCコンソールから更新を実行します：',
   'admin.update.wikiLink': '更新ガイドを開く',
   'admin.update.reloadHint': '数秒後にページを再読み込みしてください。',
   'admin.tabs.permissions': '権限',
@@ -317,10 +317,10 @@ const admin: TranslationStrings = {
     'このデプロイにはまだ有効な WebAuthn ドメインがありません。下の APP_URL または Relying Party ID を設定してください。それまでパスキーは表示されません。',
   'admin.passkey.rpId': 'Relying Party ID（ドメイン）',
   'admin.passkey.rpIdHint':
-    'パスキーが紐づくドメイン名のみ（例：trek.example.org）。空欄の場合は APP_URL から導出されます。後で変更すると既存のパスキーは無効になります。',
+    'パスキーが紐づくドメイン名のみ（例：trippi.example.org）。空欄の場合は APP_URL から導出されます。後で変更すると既存のパスキーは無効になります。',
   'admin.passkey.origins': '許可するオリジン',
   'admin.passkey.originsHint':
-    'カンマ区切りの完全なオリジン（例：https://trek.example.org）。空欄の場合は APP_URL を使用します。',
+    'カンマ区切りの完全なオリジン（例：https://trippi.example.org）。空欄の場合は APP_URL を使用します。',
   'admin.passkey.reset': 'パスキーをリセット',
   'admin.passkey.resetHint':
     'このユーザーのパスキーをすべて削除します（例：デバイスを紛失した場合）。パスワードでのサインインは引き続き可能です。',

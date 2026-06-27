@@ -9,7 +9,7 @@ import { db } from '../../db/database';
 import type { User } from '../../types';
 import { KitineraryExtractorService } from './kitinerary-extractor.service';
 import { mapReservations } from './kitinerary-mapper';
-import type { BookingImportPreviewItem, BookingImportPreviewResponse, BookingImportConfirmResponse, Reservation } from '@trek/shared';
+import type { BookingImportPreviewItem, BookingImportPreviewResponse, BookingImportConfirmResponse, Reservation } from '@trippi/shared';
 import type { ParsedBookingItem } from './kitinerary.types';
 
 function resolveDayId(tripId: string, iso: string | null | undefined): number | null {

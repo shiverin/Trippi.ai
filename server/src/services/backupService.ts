@@ -181,12 +181,12 @@ export async function createBackup(): Promise<BackupInfo> {
       }
 
       if (fs.existsSync(uploadsDir)) {
-        // Exclude the place-photo and trek-memory caches: both are re-derivable
+        // Exclude the place-photo and trippi-memory caches: both are re-derivable
         // (re-fetched on demand, keyed on stable ids) and would otherwise dominate
         // backup size. Restores self-heal — the cache dirs are recreated at startup.
         archive.glob(
           '**/*',
-          { cwd: uploadsDir, ignore: ['photos/google/**', 'photos/trek/**'], nodir: true, dot: true },
+          { cwd: uploadsDir, ignore: ['photos/google/**', 'photos/trippi/**'], nodir: true, dot: true },
           { prefix: 'uploads' },
         );
       }
@@ -258,7 +258,7 @@ export async function restoreFromZip(zipPath: string): Promise<RestoreResult> {
       for (const table of requiredTables) {
         if (!tableNames.has(table)) {
           fs.rmSync(extractDir, { recursive: true, force: true });
-          return { success: false, error: `Uploaded database is missing required table: ${table}. This does not appear to be a TREK backup.`, status: 400 };
+          return { success: false, error: `Uploaded database is missing required table: ${table}. This does not appear to be a TRIPPI backup.`, status: 400 };
         }
       }
     } catch (err) {

@@ -68,7 +68,7 @@ export function validateShareTokenForPhoto(token: string, photoId: number): { jo
   const photo = db.prepare(`
     SELECT gp.photo_id, tkp.owner_id, gp.journey_id
     FROM journey_photos gp
-    JOIN trek_photos tkp ON tkp.id = gp.photo_id
+    JOIN trippi_photos tkp ON tkp.id = gp.photo_id
     WHERE gp.photo_id = ? AND gp.journey_id = ?
   `).get(photoId, row.journey_id) as any;
   if (!photo) return null;
@@ -81,7 +81,7 @@ export function validateShareTokenForAsset(token: string, assetId: string): { ow
   if (!row) return null;
   const photo = db.prepare(`
     SELECT tkp.owner_id FROM journey_photos gp
-    JOIN trek_photos tkp ON tkp.id = gp.photo_id
+    JOIN trippi_photos tkp ON tkp.id = gp.photo_id
     WHERE tkp.asset_id = ? AND gp.journey_id = ?
   `).get(assetId, row.journey_id) as any;
   // Only resolve assets that actually belong to this shared journey.
@@ -108,7 +108,7 @@ export function getPublicJourney(token: string) {
            tkp.provider, tkp.asset_id, tkp.owner_id, tkp.file_path, tkp.thumbnail_path, tkp.width, tkp.height
     FROM journey_entry_photos jep
     JOIN journey_photos gp ON gp.id = jep.journey_photo_id
-    JOIN trek_photos tkp ON tkp.id = gp.photo_id
+    JOIN trippi_photos tkp ON tkp.id = gp.photo_id
     WHERE gp.journey_id = ?
     ORDER BY jep.sort_order
   `).all(row.journey_id) as any[];
@@ -122,7 +122,7 @@ export function getPublicJourney(token: string) {
     SELECT gp.id, gp.journey_id, gp.photo_id, gp.caption, gp.shared, gp.sort_order, gp.created_at,
            tkp.provider, tkp.asset_id, tkp.owner_id, tkp.file_path, tkp.thumbnail_path, tkp.width, tkp.height
     FROM journey_photos gp
-    JOIN trek_photos tkp ON tkp.id = gp.photo_id
+    JOIN trippi_photos tkp ON tkp.id = gp.photo_id
     WHERE gp.journey_id = ?
     ORDER BY gp.sort_order
   `).all(row.journey_id) as any[];

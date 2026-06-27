@@ -159,7 +159,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': 'Impossibile salvare',
   'admin.tabs.addons': 'Moduli',
   'admin.addons.title': 'Moduli',
-  'admin.addons.subtitle': 'Abilita o disabilita le funzionalità per personalizzare la tua esperienza TREK.',
+  'admin.addons.subtitle': 'Abilita o disabilita le funzionalità per personalizzare la tua esperienza TRIPPI.',
   'admin.addons.catalog.packing.name': 'Liste',
   'admin.addons.catalog.packing.description': 'Liste di imballaggio e attività da svolgere per i tuoi viaggi',
   'admin.addons.catalog.budget.name': 'Budget',
@@ -192,7 +192,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Dati meteo',
   'admin.weather.badge': 'Dal 24 marzo 2026',
   'admin.weather.description':
-    'TREK utilizza Open-Meteo come fonte dei dati meteo. Open-Meteo è un servizio meteo gratuito e open-source — non è richiesta alcuna chiave API.',
+    'TRIPPI utilizza Open-Meteo come fonte dei dati meteo. Open-Meteo è un servizio meteo gratuito e open-source — non è richiesta alcuna chiave API.',
   'admin.weather.forecast': 'Previsioni a 16 giorni',
   'admin.weather.forecastDesc': 'In precedenza 5 giorni (OpenWeatherMap)',
   'admin.weather.climate': 'Dati climatici storici',
@@ -252,14 +252,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Caricamento...',
   'admin.github.error': 'Impossibile caricare i rilasci',
   'admin.github.by': 'da',
-  'admin.github.support': 'Mi aiuta a continuare a sviluppare TREK',
+  'admin.github.support': 'Mi aiuta a continuare a sviluppare TRIPPI',
   'admin.update.available': 'Aggiornamento disponibile',
-  'admin.update.text': 'TREK {version} è disponibile. Stai eseguendo {current}.',
+  'admin.update.text': 'TRIPPI {version} è disponibile. Stai eseguendo {current}.',
   'admin.update.button': 'Vedi su GitHub',
   'admin.update.install': 'Installa aggiornamento',
   'admin.update.confirmTitle': "Installare l'aggiornamento?",
   'admin.update.confirmText':
-    'TREK verrà aggiornato da {current} a {version}. Il server si riavvierà automaticamente in seguito.',
+    'TRIPPI verrà aggiornato da {current} a {version}. Il server si riavvierà automaticamente in seguito.',
   'admin.update.dataInfo':
     'Tutti i tuoi dati (viaggi, utenti, chiavi API, caricamenti, Ferie, Atlante, budget) saranno preservati.',
   'admin.update.warning': "L'app sarà temporaneamente non disponibile durante il riavvio.",
@@ -271,9 +271,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Vai a Backup',
   'admin.update.howTo': 'Come aggiornare',
   'admin.update.dockerText':
-    'La tua istanza TREK è in esecuzione in Docker. Per aggiornare alla versione {version}, esegui i seguenti comandi sul tuo server:',
+    'La tua istanza TRIPPI è in esecuzione in Docker. Per aggiornare alla versione {version}, esegui i seguenti comandi sul tuo server:',
   'admin.update.nonDockerText':
-    "Questa istanza TREK non è in esecuzione in Docker. Per aggiornare alla versione {version}, riesegui il metodo di installazione o aggiornamento che hai usato — ad esempio, su Proxmox Community Scripts esegui l'aggiornamento dalla console LXC:",
+    "Questa istanza TRIPPI non è in esecuzione in Docker. Per aggiornare alla versione {version}, riesegui il metodo di installazione o aggiornamento che hai usato — ad esempio, su Proxmox Community Scripts esegui l'aggiornamento dalla console LXC:",
   'admin.update.wikiLink': "Apri la guida all'aggiornamento",
   'admin.update.reloadHint': 'Ricarica la pagina tra qualche secondo.',
   'admin.tabs.permissions': 'Permessi',
@@ -304,7 +304,7 @@ const admin: TranslationStrings = {
     'Usato anche come server predefinito per le notifiche ntfy degli utenti. Lasciare vuoto per usare ntfy.sh. Gli utenti possono sovrascriverlo nelle proprie impostazioni.',
   'admin.notifications.adminNtfyPanel.serverPlaceholder': 'https://ntfy.sh',
   'admin.notifications.adminNtfyPanel.topicLabel': 'Argomento admin',
-  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trek-admin-alerts',
+  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trippi-admin-alerts',
   'admin.notifications.adminNtfyPanel.tokenLabel': 'Token di accesso (opzionale)',
   'admin.notifications.adminNtfyPanel.tokenCleared': 'Token di accesso admin rimosso',
   'admin.notifications.adminNtfyPanel.saved': 'Impostazioni Ntfy admin salvate',
@@ -332,10 +332,10 @@ const admin: TranslationStrings = {
     'Nessun dominio WebAuthn è ancora risolto per questa installazione. Imposta APP_URL o il Relying Party ID qui sotto — le passkey restano nascoste fino ad allora.',
   'admin.passkey.rpId': 'Relying Party ID (dominio)',
   'admin.passkey.rpIdHint':
-    'Il dominio puro a cui le passkey sono associate, es. trek.example.org. Lascia vuoto per derivarlo da APP_URL. Modificarlo in seguito invalida le passkey esistenti.',
+    'Il dominio puro a cui le passkey sono associate, es. trippi.example.org. Lascia vuoto per derivarlo da APP_URL. Modificarlo in seguito invalida le passkey esistenti.',
   'admin.passkey.origins': 'Origini consentite',
   'admin.passkey.originsHint':
-    'Origini complete separate da virgola, es. https://trek.example.org. Lascia vuoto per usare APP_URL.',
+    'Origini complete separate da virgola, es. https://trippi.example.org. Lascia vuoto per usare APP_URL.',
   'admin.passkey.reset': 'Reimposta passkey',
   'admin.passkey.resetHint':
     'Rimuovi tutte le passkey di questo utente (es. in caso di dispositivo smarrito). Potrà comunque accedere con la sua password.',

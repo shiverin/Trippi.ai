@@ -51,7 +51,7 @@ describe('FilesController (parity with the legacy /api/trips/:tripId/files route
     it('403 in demo mode for a demo email', () => {
       process.env.DEMO_MODE = 'true';
       vi.mocked(isDemoEmail).mockReturnValue(true);
-      expect(thrown(() => new FilesController(fsvc()).upload(user, '5', file, {}))).toEqual({ status: 403, body: { error: 'Uploads are disabled in demo mode. Self-host TREK for full functionality.' } });
+      expect(thrown(() => new FilesController(fsvc()).upload(user, '5', file, {}))).toEqual({ status: 403, body: { error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' } });
     });
     it('403 without file_upload, 400 without a file, else creates + broadcasts', () => {
       expect(thrown(() => new FilesController(fsvc({ can: vi.fn().mockReturnValue(false) })).upload(user, '5', file, {}))).toEqual({ status: 403, body: { error: 'No permission to upload files' } });
@@ -165,13 +165,13 @@ describe('FilesDownloadController', () => {
   });
 
   it('404 when the safe path is gone from disk', () => {
-    const missing = path.join(os.tmpdir(), `trek-no-such-${Date.now()}.pdf`);
+    const missing = path.join(os.tmpdir(), `trippi-no-such-${Date.now()}.pdf`);
     const s = dsvc({ resolveFilePath: vi.fn().mockReturnValue({ resolved: missing, safe: true }) });
     expect(thrown(() => new FilesDownloadController(s).download(req, res, '5', '9'))).toEqual({ status: 404, body: { error: 'File not found' } });
   });
 
   it('streams a regular file via sendFile with an explicit root', () => {
-    const real = path.join(os.tmpdir(), `trek-dl-${Date.now()}.pdf`);
+    const real = path.join(os.tmpdir(), `trippi-dl-${Date.now()}.pdf`);
     fs.writeFileSync(real, 'x');
     try {
       const sendFile = vi.fn();
@@ -186,7 +186,7 @@ describe('FilesDownloadController', () => {
   });
 
   it('serves a .pkpass inline with the Wallet MIME type and the original name', () => {
-    const real = path.join(os.tmpdir(), `trek-pass-${Date.now()}.pkpass`);
+    const real = path.join(os.tmpdir(), `trippi-pass-${Date.now()}.pkpass`);
     fs.writeFileSync(real, 'x');
     try {
       const setHeader = vi.fn();
@@ -204,7 +204,7 @@ describe('FilesDownloadController', () => {
   });
 
   it('falls back to the resolved basename when a .pkpass has no original name', () => {
-    const real = path.join(os.tmpdir(), `trek-pass-${Date.now()}.pkpass`);
+    const real = path.join(os.tmpdir(), `trippi-pass-${Date.now()}.pkpass`);
     fs.writeFileSync(real, 'x');
     try {
       const setHeader = vi.fn();

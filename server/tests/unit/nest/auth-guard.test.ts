@@ -87,7 +87,7 @@ describe('JwtAuthGuard', () => {
 describe('CookieAuthGuard', () => {
   const guard = new CookieAuthGuard();
 
-  it('401s when the trek_session cookie is missing', () => {
+  it('401s when the trippi_session cookie is missing', () => {
     expect(thrown(() => guard.canActivate(context({ cookies: {} })))).toEqual({
       status: 401,
       body: { error: 'Cookie session required for this endpoint', code: 'COOKIE_AUTH_REQUIRED' },
@@ -101,14 +101,14 @@ describe('CookieAuthGuard', () => {
 
   it('401s when the cookie token fails verification', () => {
     vi.mocked(verifyJwtAndLoadUser).mockReturnValue(null);
-    expect(thrown(() => guard.canActivate(context({ cookies: { trek_session: 'tok' } })))).toEqual({
+    expect(thrown(() => guard.canActivate(context({ cookies: { trippi_session: 'tok' } })))).toEqual({
       status: 401,
       body: { error: 'Invalid or expired session', code: 'AUTH_REQUIRED' },
     });
   });
 
   it('attaches the user and allows a valid cookie session through', () => {
-    const req: Record<string, unknown> = { cookies: { trek_session: 'tok' } };
+    const req: Record<string, unknown> = { cookies: { trippi_session: 'tok' } };
     vi.mocked(verifyJwtAndLoadUser).mockReturnValue(user);
     expect(guard.canActivate(context(req))).toBe(true);
     expect(req.user).toBe(user);

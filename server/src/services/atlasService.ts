@@ -3,7 +3,7 @@ import path from 'path';
 import zlib from 'zlib';
 import { db } from '../db/database';
 import { Trip, Place } from '../types';
-import { CONTINENT_MAP } from '@trek/shared';
+import { CONTINENT_MAP } from '@trippi/shared';
 
 // ── Bundled boundary GeoJSON (admin-0 countries + admin-1 regions) ─────────
 //
@@ -186,7 +186,7 @@ export async function reverseGeocodeCountry(lat: number, lng: number): Promise<s
   await throttleNominatim();
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=3&accept-language=en`, {
-      headers: { 'User-Agent': 'TREK Travel Planner (https://github.com/mauriceboe/TREK)' },
+      headers: { 'User-Agent': 'TRIPPI Travel Planner (https://github.com/mauriceboe/TRIPPI)' },
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return null;
@@ -592,7 +592,7 @@ async function fetchNominatimAddress(lat: number, lng: number, zoom: number): Pr
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=${zoom}&accept-language=en`,
       {
-        headers: { 'User-Agent': 'TREK Travel Planner (https://github.com/mauriceboe/TREK)' },
+        headers: { 'User-Agent': 'TRIPPI Travel Planner (https://github.com/mauriceboe/TRIPPI)' },
         signal: AbortSignal.timeout(10_000),
       }
     );

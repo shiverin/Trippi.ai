@@ -1,11 +1,11 @@
 # Reverse Proxy
 
-Putting TREK behind a TLS-terminating reverse proxy is strongly recommended for production.
+Putting TRIPPI behind a TLS-terminating reverse proxy is strongly recommended for production.
 
-## Why HTTPS Matters for TREK
+## Why HTTPS Matters for TRIPPI
 
 - **PWA install** requires HTTPS — browsers block "Add to Home Screen" on plain HTTP.
-- **Session cookies** — the `trek_session` cookie is marked `secure` in production, so it won't be sent over HTTP.
+- **Session cookies** — the `trippi_session` cookie is marked `secure` in production, so it won't be sent over HTTP.
 - **OIDC / SSO** — identity providers require the redirect URI to use HTTPS.
 - **MCP** — the MCP API requires HTTPS for OAuth 2.1 auth.
 
@@ -13,7 +13,7 @@ Putting TREK behind a TLS-terminating reverse proxy is strongly recommended for 
 
 Whatever proxy you use, it must satisfy two constraints:
 
-1. **WebSocket upgrades on `/ws`** — TREK uses WebSockets for real-time sync. Set `proxy_read_timeout 86400` (Nginx) or rely on Caddy's automatic upgrade handling.
+1. **WebSocket upgrades on `/ws`** — TRIPPI uses WebSockets for real-time sync. Set `proxy_read_timeout 86400` (Nginx) or rely on Caddy's automatic upgrade handling.
 2. **Body size ≥ 500 MB** — backup restore ZIPs can include the full uploads directory. Set `client_max_body_size 500m` (Nginx) or `request_body_max_size 500mb` (Caddy) if you restore large backups.
 
 ## Nginx
@@ -21,13 +21,13 @@ Whatever proxy you use, it must satisfy two constraints:
 ```nginx
 server {
     listen 80;
-    server_name trek.yourdomain.com;
+    server_name trippi.yourdomain.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name trek.yourdomain.com;
+    server_name trippi.yourdomain.com;
 
     ssl_certificate /path/to/fullchain.pem;
     ssl_certificate_key /path/to/privkey.pem;
@@ -62,14 +62,14 @@ server {
 Key lines:
 - `proxy_read_timeout 86400` — keeps WebSocket connections alive (86400 s = 24 h).
 - `client_max_body_size 500m` — allows large backup restore uploads; set in both locations.
-- `X-Forwarded-Proto $scheme` — tells TREK whether the original request was HTTPS; required for `FORCE_HTTPS` redirect and cookie security to work correctly.
+- `X-Forwarded-Proto $scheme` — tells TRIPPI whether the original request was HTTPS; required for `FORCE_HTTPS` redirect and cookie security to work correctly.
 
 ## Caddy
 
 Caddy handles WebSocket upgrades automatically:
 
 ```
-trek.yourdomain.com {
+trippi.yourdomain.com {
     reverse_proxy localhost:3000
 }
 ```
@@ -77,7 +77,7 @@ trek.yourdomain.com {
 For large backup restores, add:
 
 ```
-trek.yourdomain.com {
+trippi.yourdomain.com {
     request_body max_size 500mb
     reverse_proxy localhost:3000
 }
@@ -85,18 +85,18 @@ trek.yourdomain.com {
 
 ## HTTPS Environment Variables
 
-Four variables control how TREK behaves behind a proxy. They work as a group:
+Four variables control how TRIPPI behaves behind a proxy. They work as a group:
 
 | Variable | Purpose | Default |
 |---|---|---|
 | `FORCE_HTTPS` | When `true`: 301-redirects HTTP→HTTPS (except `/api/health`), sends HSTS (`max-age=31536000`), adds CSP `upgrade-insecure-requests`, forces cookie `secure` flag | `false` |
 | `TRUST_PROXY` | Number of trusted proxy hops. Lets Express read the real client IP from `X-Forwarded-For`. Automatically set to `1` in production even if not explicitly configured. | `1` (production), off (development) |
-| `COOKIE_SECURE` | Controls the `secure` flag on `trek_session`. Auto-derived as `true` when `NODE_ENV=production` or `FORCE_HTTPS=true`. Set to `false` explicitly to allow cookies over plain HTTP (e.g. LAN testing without TLS). | auto |
-| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins (e.g. `https://trek.example.com`). In production without this set, all cross-origin requests are blocked. In development without this set, all origins are allowed. | blocked in prod, open in dev |
+| `COOKIE_SECURE` | Controls the `secure` flag on `trippi_session`. Auto-derived as `true` when `NODE_ENV=production` or `FORCE_HTTPS=true`. Set to `false` explicitly to allow cookies over plain HTTP (e.g. LAN testing without TLS). | auto |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins (e.g. `https://trippi.example.com`). In production without this set, all cross-origin requests are blocked. In development without this set, all origins are allowed. | blocked in prod, open in dev |
 
 > **Note on `FORCE_HTTPS` and proxy headers:** The HTTPS redirect reads `X-Forwarded-Proto` directly from the incoming headers — it does not depend on Express's `trust proxy` setting. If you set `FORCE_HTTPS=true` and your reverse proxy correctly sends `X-Forwarded-Proto: https`, the redirect will work regardless of `TRUST_PROXY`. However, you still need `TRUST_PROXY` set so Express resolves the correct client IP from `X-Forwarded-For`.
 
-If you access TREK directly on `http://<host>:3000` without a proxy, leave `FORCE_HTTPS` unset and do not set `TRUST_PROXY`.
+If you access TRIPPI directly on `http://<host>:3000` without a proxy, leave `FORCE_HTTPS` unset and do not set `TRUST_PROXY`.
 
 See [Environment-Variables](Environment-Variables) for full documentation of these and all other variables.
 

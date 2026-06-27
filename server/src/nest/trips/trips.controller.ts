@@ -145,7 +145,7 @@ export class TripsController {
   @UseInterceptors(FileInterceptor('cover', COVER_UPLOAD))
   cover(@CurrentUser() user: User, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
     if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(user.email)) {
-      throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TREK for full functionality.' }, 403);
+      throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' }, 403);
     }
     const access = this.trips.canAccessTrip(id, user.id);
     if (!access?.user_id) {

@@ -5,11 +5,11 @@ export interface McpSession {
   server: McpServer;
   transport: StreamableHTTPServerTransport;
   userId: number;
-  /** null = static trek_ token or JWT (full access); string[] = OAuth 2.1 scopes */
+  /** null = static trippi_ token or JWT (full access); string[] = OAuth 2.1 scopes */
   scopes: string[] | null;
   /** OAuth 2.1 client_id that owns this session; null for static-token / JWT sessions */
   clientId: string | null;
-  /** true when authenticated via static trek_ token — triggers deprecation prompt */
+  /** true when authenticated via static trippi_ token — triggers deprecation prompt */
   isStaticToken: boolean;
   lastActivity: number;
 }

@@ -11,7 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type { ChannelTestResult, UnreadCountResult } from '@trek/shared';
+import type { ChannelTestResult, UnreadCountResult } from '@trippi/shared';
 import type { User } from '../../types';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';

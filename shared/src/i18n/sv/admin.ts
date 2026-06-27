@@ -37,7 +37,7 @@ const admin: TranslationStrings = {
     'Används även som standardserver för ntfy-meddelanden till användare. Lämna fältet tomt för att använda ntfy.sh som standard. Användare kan ändra detta i sina egna inställningar.',
   'admin.notifications.adminNtfyPanel.serverPlaceholder': 'https://ntfy.sh',
   'admin.notifications.adminNtfyPanel.topicLabel': 'Admin Ämne',
-  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trek-admin-alerts',
+  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trippi-admin-alerts',
   'admin.notifications.adminNtfyPanel.tokenLabel': 'Åtkomsttoken (valfritt)',
   'admin.notifications.adminNtfyPanel.tokenCleared': 'Administratörens åtkomsttoken har raderats',
   'admin.notifications.adminNtfyPanel.saved': 'Admin ntfy inställningar sparade',
@@ -216,7 +216,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': 'Det gick inte att spara',
   'admin.tabs.addons': 'Tillägg',
   'admin.addons.title': 'Tillägg',
-  'admin.addons.subtitle': 'Aktivera eller inaktivera funktioner för att anpassa din TREK-upplevelse.',
+  'admin.addons.subtitle': 'Aktivera eller inaktivera funktioner för att anpassa din TRIPPI-upplevelse.',
   'admin.addons.catalog.packing.name': 'Listor',
   'admin.addons.catalog.packing.description': 'Packlistor och saker att göra inför dina resor',
   'admin.addons.catalog.budget.name': 'Budget',
@@ -249,7 +249,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Väderdata',
   'admin.weather.badge': 'Sedan den 24 mars 2026',
   'admin.weather.description':
-    'TREK använder Open-Meteo som källa för väderdata. Open-Meteo är en kostnadsfri vädertjänst med öppen källkod – ingen API-nyckel krävs.',
+    'TRIPPI använder Open-Meteo som källa för väderdata. Open-Meteo är en kostnadsfri vädertjänst med öppen källkod – ingen API-nyckel krävs.',
   'admin.weather.forecast': '16-dagarsprognos',
   'admin.weather.forecastDesc': 'Tidigare 5 dagar (OpenWeatherMap)',
   'admin.weather.climate': 'Historiska klimatdata',
@@ -309,14 +309,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Laddar...',
   'admin.github.error': 'Det gick inte att ladda utgåvorna',
   'admin.github.by': 'av',
-  'admin.github.support': 'Hjälper mig att fortsätta bygga TREK',
+  'admin.github.support': 'Hjälper mig att fortsätta bygga TRIPPI',
   'admin.update.available': 'Uppdatering tillgänglig',
-  'admin.update.text': 'TREK {version} finns tillgängligt. Du kör {current}.',
+  'admin.update.text': 'TRIPPI {version} finns tillgängligt. Du kör {current}.',
   'admin.update.button': 'Visa på GitHub',
   'admin.update.install': 'Installera uppdatering',
   'admin.update.confirmTitle': 'Ska uppdateringen installeras?',
   'admin.update.confirmText':
-    'TREK kommer att uppdateras från {current} till {version}. Servern startas om automatiskt därefter.',
+    'TRIPPI kommer att uppdateras från {current} till {version}. Servern startas om automatiskt därefter.',
   'admin.update.dataInfo':
     'Alla dina data (resor, användare, API-nycklar, uppladdningar, Vacay, Atlas, budgetar) kommer att bevaras.',
   'admin.update.warning': 'Appen kommer att vara tillfälligt otillgänglig under omstarten.',
@@ -328,9 +328,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Gå till Säkerhetskopiering',
   'admin.update.howTo': 'Så här uppdaterar du',
   'admin.update.dockerText':
-    'Din TREK-instans körs i Docker. För att uppdatera till {version} kör du följande kommandon på din server:',
+    'Din TRIPPI-instans körs i Docker. För att uppdatera till {version} kör du följande kommandon på din server:',
   'admin.update.nonDockerText':
-    'Denna TREK-instans körs inte i Docker. För att uppdatera till {version}, kör installations- eller uppdateringsmetod du använde på nytt — till exempel, i Proxmox Community Scripts kör du uppdateringen från LXC-konsolen:',
+    'Denna TRIPPI-instans körs inte i Docker. För att uppdatera till {version}, kör installations- eller uppdateringsmetod du använde på nytt — till exempel, i Proxmox Community Scripts kör du uppdateringen från LXC-konsolen:',
   'admin.update.wikiLink': 'Öppna uppdateringsguiden',
   'admin.update.reloadHint': 'Vänligen uppdatera sidan om några sekunder.',
   'admin.tabs.permissions': 'Behörigheter',
@@ -345,10 +345,10 @@ const admin: TranslationStrings = {
     'Det finns ännu ingen WebAuthn-domän för denna distribution. Ange APP_URL eller Relying Party ID nedan – inloggningsnycklar förblir dolda tills dess.',
   'admin.passkey.rpId': 'Relying Party ID (domain)',
   'admin.passkey.rpIdHint':
-    'De rena domän inloggningsnycklarna är kopplade till t.ex. trek.example.org. Lämna fältet tomt om du vill att nyckeln ska härledas från APP_URL. Om du ändrar detta senare blir befintliga nycklar ogiltiga.',
+    'De rena domän inloggningsnycklarna är kopplade till t.ex. trippi.example.org. Lämna fältet tomt om du vill att nyckeln ska härledas från APP_URL. Om du ändrar detta senare blir befintliga nycklar ogiltiga.',
   'admin.passkey.origins': 'Allowed origins',
   'admin.passkey.originsHint':
-    'Fullständiga ursprungsadresser separerade med kommatecken, t.ex. https://trek.example.org. Lämna fältet tomt för att använda APP_URL.',
+    'Fullständiga ursprungsadresser separerade med kommatecken, t.ex. https://trippi.example.org. Lämna fältet tomt för att använda APP_URL.',
   'admin.passkey.reset': 'Återställ inloggningsnycklar',
   'admin.passkey.resetHint':
     'Ta bort alla den här användarens inloggningsnycklar (t.ex. om enheten har försvunnit). Användaren kan fortfarande logga in med sitt lösenord.',

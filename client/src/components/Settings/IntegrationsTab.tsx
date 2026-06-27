@@ -157,7 +157,7 @@ function useIntegrations() {
   const mcpEndpoint = `${window.location.origin}/mcp`
   const mcpJsonConfigOAuth = `{
   "mcpServers": {
-    "trek": {
+    "trippi": {
       "command": "npx",
       "args": [
         "mcp-remote",
@@ -170,7 +170,7 @@ function useIntegrations() {
 }`
   const mcpJsonConfig = `{
   "mcpServers": {
-    "trek": {
+    "trippi": {
       "command": "npx",
       "args": [
         "mcp-remote",

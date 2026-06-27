@@ -78,7 +78,7 @@ export function Tooltip({ label, placement = 'bottom', delay = 250, disabled, ch
         <div
           ref={tooltipRef}
           role="tooltip"
-          className="trek-popover-enter bg-surface-card text-content border border-edge-faint"
+          className="trippi-popover-enter bg-surface-card text-content border border-edge-faint"
           style={{
             position: 'fixed',
             top: coords?.top ?? -9999,

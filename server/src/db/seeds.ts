@@ -18,7 +18,7 @@ function seedAdminAccount(db: Database.Database): void {
     const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }).count;
     if (userCount > 0) return;
 
-    // Demo mode seeds its own admin (admin@trek.app, username 'admin') right after this.
+    // Demo mode seeds its own admin (admin@trippi.app, username 'admin') right after this.
     // Creating a first-run admin here would grab username 'admin' first and make the demo
     // seeder fail on the UNIQUE(username) constraint, leaving the demo user uncreated.
     if (process.env.DEMO_MODE?.toLowerCase() === 'true') return;
@@ -26,7 +26,7 @@ function seedAdminAccount(db: Database.Database): void {
     if (isOidcOnlyConfigured()) {
       console.log('');
       console.log('╔══════════════════════════════════════════════╗');
-      console.log('║  TREK — OIDC-Only Mode                       ║');
+      console.log('║  TRIPPI — OIDC-Only Mode                       ║');
       console.log('║  First SSO login will become admin.           ║');
       console.log('╚══════════════════════════════════════════════╝');
       console.log('');
@@ -45,7 +45,7 @@ function seedAdminAccount(db: Database.Database): void {
       email = env_admin_email;
     } else {
       password = crypto.randomBytes(12).toString('base64url');
-      email = 'admin@trek.local';
+      email = 'admin@trippi.local';
     }
 
     const hash = bcrypt.hashSync(password, BCRYPT_COST);
@@ -55,7 +55,7 @@ function seedAdminAccount(db: Database.Database): void {
 
     console.log('');
     console.log('╔══════════════════════════════════════════════╗');
-    console.log('║  TREK — First Run: Admin Account Created     ║');
+    console.log('║  TRIPPI — First Run: Admin Account Created     ║');
     console.log('╠══════════════════════════════════════════════╣');
     console.log(`║  Email:    ${email.padEnd(33)}║`);
     console.log(`║  Password: ${password.padEnd(33)}║`);

@@ -43,7 +43,7 @@ function makeRes() {
 const req = { query: {}, headers: {} } as Request;
 // Callback request carrying the state-binding cookie a real browser would send
 // after going through /login.
-const reqCb = (state = 's') => ({ query: {}, headers: {}, cookies: { trek_oidc_state: state } } as unknown as Request);
+const reqCb = (state = 's') => ({ query: {}, headers: {}, cookies: { trippi_oidc_state: state } } as unknown as Request);
 
 beforeEach(() => vi.clearAllMocks());
 afterEach(() => { delete process.env.NODE_ENV; });

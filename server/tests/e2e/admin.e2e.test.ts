@@ -34,7 +34,7 @@ const { adminSvc } = vi.hoisted(() => ({
 vi.mock('../../src/services/adminService', () => adminSvc);
 
 import { AdminModule } from '../../src/nest/admin/admin.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('Admin e2e (real auth + admin guard + temp SQLite)', () => {
   let server: Server;
@@ -44,7 +44,7 @@ describe('Admin e2e (real auth + admin guard + temp SQLite)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AdminModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

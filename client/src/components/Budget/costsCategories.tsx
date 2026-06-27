@@ -1,6 +1,6 @@
 import { Hotel, Utensils, ShoppingCart, Bus, Plane, Ticket, Camera, ShoppingBag, FileText, HeartPulse, Coins, MoreHorizontal } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { COST_CATEGORIES, type CostCategory } from '@trek/shared'
+import { COST_CATEGORIES, type CostCategory } from '@trippi/shared'
 
 /**
  * The fixed Costs categories. Users can't add their own — every expense maps to

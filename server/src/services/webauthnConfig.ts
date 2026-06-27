@@ -76,7 +76,7 @@ export function resolveWebauthnConfig(): WebauthnConfig | null {
   }
   if (origins.length === 0) return null;
 
-  return { rpID, rpName: 'TREK', origins };
+  return { rpID, rpName: 'TRIPPI', origins };
 }
 
 /** True when a usable RP ID resolves for this deployment (exposed as a pure boolean on app-config). */

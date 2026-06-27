@@ -204,7 +204,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': 'Kaydedilemedi',
   'admin.tabs.addons': 'Eklentiler',
   'admin.addons.title': 'Eklentiler',
-  'admin.addons.subtitle': 'TREK deneyiminizi özelleştirmek için özellikleri etkinleştirin veya devre dışı bırakın.',
+  'admin.addons.subtitle': 'TRIPPI deneyiminizi özelleştirmek için özellikleri etkinleştirin veya devre dışı bırakın.',
   'admin.addons.catalog.packing.name': 'Listeler',
   'admin.addons.catalog.packing.description': 'Seyahatleriniz için paket listeleri ve yapılacak işler',
   'admin.addons.catalog.budget.name': 'Bütçe',
@@ -238,7 +238,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Hava Durumu Verileri',
   'admin.weather.badge': "24 Mart 2026'dan beri",
   'admin.weather.description':
-    "TREK, hava durumu veri kaynağı olarak Open-Meteo'yu kullanıyor. Open-Meteo ücretsiz, açık kaynaklı bir hava durumu hizmetidir; API anahtarı gerekmez.",
+    "TRIPPI, hava durumu veri kaynağı olarak Open-Meteo'yu kullanıyor. Open-Meteo ücretsiz, açık kaynaklı bir hava durumu hizmetidir; API anahtarı gerekmez.",
   'admin.weather.forecast': '16 günlük tahmin',
   'admin.weather.forecastDesc': 'Daha önce 5 gün (OpenWeatherMap)',
   'admin.weather.climate': 'Geçmiş iklim verileri',
@@ -297,14 +297,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Yükleniyor...',
   'admin.github.error': 'Sürümler yüklenemedi',
   'admin.github.by': 'ile',
-  'admin.github.support': "TREK'i geliştirmeye devam etmeme yardımcı oluyor",
+  'admin.github.support': "TRIPPI'i geliştirmeye devam etmeme yardımcı oluyor",
   'admin.update.available': 'Güncelleme mevcut',
-  'admin.update.text': 'TREK {versiyon} mevcut. {current} çalıştırıyorsunuz.',
+  'admin.update.text': 'TRIPPI {versiyon} mevcut. {current} çalıştırıyorsunuz.',
   'admin.update.button': "GitHub'da görüntüle",
   'admin.update.install': 'Güncellemeyi Yükle',
   'admin.update.confirmTitle': 'Güncelleme Yüklensin mi?',
   'admin.update.confirmText':
-    'TREK, {current} sürümünden {version} sürümüne güncellenecek. Sunucu daha sonra otomatik olarak yeniden başlatılacaktır.',
+    'TRIPPI, {current} sürümünden {version} sürümüne güncellenecek. Sunucu daha sonra otomatik olarak yeniden başlatılacaktır.',
   'admin.update.dataInfo':
     'Tüm verileriniz (seyahatler, kullanıcılar, API anahtarları, yüklemeler, Vacay, Atlas, bütçeler) korunacaktır.',
   'admin.update.warning': 'Yeniden başlatma sırasında uygulama kısa süreliğine kullanılamayacaktır.',
@@ -316,9 +316,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Yedeklemeye Git',
   'admin.update.howTo': 'Nasıl Güncellenir?',
   'admin.update.dockerText':
-    "TREK örneğiniz Docker'da çalışır. {version} sürümüne güncellemek için sunucunuzda aşağıdaki komutları çalıştırın:",
+    "TRIPPI örneğiniz Docker'da çalışır. {version} sürümüne güncellemek için sunucunuzda aşağıdaki komutları çalıştırın:",
   'admin.update.nonDockerText':
-    'Bu TREK örneği Docker üzerinde çalışmıyor. {version} sürümüne güncellemek için kullandığınız kurulum veya güncelleme yöntemini yeniden çalıştırın — örneğin Proxmox Community Scripts kullanıyorsanız güncellemeyi LXC konsolundan çalıştırın:',
+    'Bu TRIPPI örneği Docker üzerinde çalışmıyor. {version} sürümüne güncellemek için kullandığınız kurulum veya güncelleme yöntemini yeniden çalıştırın — örneğin Proxmox Community Scripts kullanıyorsanız güncellemeyi LXC konsolundan çalıştırın:',
   'admin.update.wikiLink': 'Güncelleme kılavuzunu aç',
   'admin.update.reloadHint': 'Lütfen birkaç saniye içinde sayfayı yeniden yükleyin.',
   'admin.tabs.permissions': 'İzinler',
@@ -335,10 +335,10 @@ const admin: TranslationStrings = {
     'Bu dağıtım için henüz çözümlenen bir WebAuthn alan adı yok. Aşağıdan APP_URL veya Relying Party ID değerini ayarlayın — o ana kadar passkey’ler gizli kalır.',
   'admin.passkey.rpId': 'Relying Party ID (alan adı)',
   'admin.passkey.rpIdHint':
-    'Passkey’lerin bağlı olduğu yalın alan adı, ör. trek.example.org. APP_URL’den türetmek için boş bırakın. Daha sonra değiştirmek mevcut passkey’leri geçersiz kılar.',
+    'Passkey’lerin bağlı olduğu yalın alan adı, ör. trippi.example.org. APP_URL’den türetmek için boş bırakın. Daha sonra değiştirmek mevcut passkey’leri geçersiz kılar.',
   'admin.passkey.origins': 'İzin verilen kaynaklar',
   'admin.passkey.originsHint':
-    'Virgülle ayrılmış tam kaynaklar, ör. https://trek.example.org. APP_URL kullanmak için boş bırakın.',
+    'Virgülle ayrılmış tam kaynaklar, ör. https://trippi.example.org. APP_URL kullanmak için boş bırakın.',
   'admin.passkey.reset': 'Passkey’leri sıfırla',
   'admin.passkey.resetHint':
     'Bu kullanıcının tüm passkey’lerini kaldırın (ör. kaybolan bir cihazda). Yine de şifreleriyle oturum açabilirler.',

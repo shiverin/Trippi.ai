@@ -1126,7 +1126,7 @@ describe('getPlaceDetails (fetch stubbed)', () => {
     expect(place.summary).toBeNull();
   });
 
-  it('MAPS-041b2: normalises non-standard TREK language codes for Google (br→pt-BR, gr→el)', async () => {
+  it('MAPS-041b2: normalises non-standard TRIPPI language codes for Google (br→pt-BR, gr→el)', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ id: 'ChIJ1', displayName: { text: 'X' }, location: { latitude: 0, longitude: 0 } }),
@@ -1504,7 +1504,7 @@ describe('googleFtidFromMapsUrl', () => {
 // ── buildUserAgent (instance-specific UA, #1309) ──────────────────────────────
 
 describe('buildUserAgent', () => {
-  const base = 'TREK Travel Planner (https://github.com/mauriceboe/TREK)';
+  const base = 'TRIPPI Travel Planner (https://github.com/mauriceboe/TRIPPI)';
 
   it('MAPS-094: returns the bare base UA when no instance URL is configured', () => {
     expect(buildUserAgent(undefined)).toBe(base);
@@ -1512,7 +1512,7 @@ describe('buildUserAgent', () => {
   });
 
   it('MAPS-095: appends a configured https instance URL so the deployment is identifiable', () => {
-    expect(buildUserAgent('https://trek.example.org')).toBe(`${base}; https://trek.example.org`);
+    expect(buildUserAgent('https://trippi.example.org')).toBe(`${base}; https://trippi.example.org`);
   });
 
   it('MAPS-096: drops the http://localhost fallback — it is not a unique identifier', () => {

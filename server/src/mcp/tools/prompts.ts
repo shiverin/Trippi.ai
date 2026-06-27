@@ -21,7 +21,7 @@ export function registerMcpPrompts(server: McpServer, _userId: number, isStaticT
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: '⚠️ This MCP connection is authenticated with a static API token (trek_…). Static token authentication will be deprecated in a future version of TREK. Please inform the user that they should migrate to OAuth 2.1 by going to Settings → Integrations → MCP → OAuth Clients in TREK and registering an OAuth 2.1 application for their MCP client.',
+            text: '⚠️ This MCP connection is authenticated with a static API token (trippi_…). Static token authentication will be deprecated in a future version of TRIPPI. Please inform the user that they should migrate to OAuth 2.1 by going to Settings → Integrations → MCP → OAuth Clients in TRIPPI and registering an OAuth 2.1 application for their MCP client.',
           },
         }],
       })

@@ -48,7 +48,7 @@ vi.mock('../../src/services/budgetService', () => budget);
 vi.mock('../../src/services/dayService', () => day);
 
 import { ReservationsModule } from '../../src/nest/reservations/reservations.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('Reservations + accommodations e2e (real auth guard + temp SQLite)', () => {
   let server: Server;
@@ -58,7 +58,7 @@ describe('Reservations + accommodations e2e (real auth guard + temp SQLite)', ()
     const moduleRef = await Test.createTestingModule({ imports: [ReservationsModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

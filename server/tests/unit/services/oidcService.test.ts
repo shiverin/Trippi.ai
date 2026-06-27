@@ -34,7 +34,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../../src/db/database', () => dbMock);
 vi.mock('../../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
 }));
@@ -156,13 +156,13 @@ describe('resolveOidcRole', () => {
   });
 
   it('OIDC-SVC-011: returns admin when groups array contains OIDC_ADMIN_VALUE', () => {
-    process.env.OIDC_ADMIN_VALUE = 'trek-admins';
-    expect(resolveOidcRole({ sub: 'x', groups: ['trek-users', 'trek-admins'] }, false)).toBe('admin');
+    process.env.OIDC_ADMIN_VALUE = 'trippi-admins';
+    expect(resolveOidcRole({ sub: 'x', groups: ['trippi-users', 'trippi-admins'] }, false)).toBe('admin');
   });
 
   it('OIDC-SVC-012: returns user when groups array does not contain OIDC_ADMIN_VALUE', () => {
-    process.env.OIDC_ADMIN_VALUE = 'trek-admins';
-    expect(resolveOidcRole({ sub: 'x', groups: ['trek-users'] }, false)).toBe('user');
+    process.env.OIDC_ADMIN_VALUE = 'trippi-admins';
+    expect(resolveOidcRole({ sub: 'x', groups: ['trippi-users'] }, false)).toBe('user');
   });
 
   it('OIDC-SVC-013: uses custom OIDC_ADMIN_CLAIM when set', () => {
@@ -542,8 +542,8 @@ describe('getUserInfo', () => {
 describe('verifyIdToken', () => {
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const jwk = publicKey.export({ format: 'jwk' }) as Record<string, unknown>;
-  const ISSUER = 'https://auth.example.com/application/o/trek';
-  const CLIENT_ID = 'trek-client';
+  const ISSUER = 'https://auth.example.com/application/o/trippi';
+  const CLIENT_ID = 'trippi-client';
   const JWKS_URI = 'https://auth.example.com/.well-known/jwks.json';
 
   function mockJwks() {

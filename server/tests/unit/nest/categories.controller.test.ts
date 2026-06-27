@@ -3,7 +3,7 @@ import { HttpException } from '@nestjs/common';
 import { CategoriesController } from '../../../src/nest/categories/categories.controller';
 import type { CategoriesService } from '../../../src/nest/categories/categories.service';
 import type { User } from '../../../src/types';
-import type { Category } from '@trek/shared';
+import type { Category } from '@trippi/shared';
 
 const admin = { id: 1, role: 'admin' } as User;
 

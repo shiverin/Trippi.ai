@@ -6,7 +6,7 @@ import apiClient, { mapsApi } from '../../api/client'
 import L from 'leaflet'
 import type { GeoJsonFeatureCollection } from '../../types'
 import { A2_TO_A3, type AtlasData, type CountryDetail, type BucketItem } from './atlasModel'
-import { continentForCountry } from '@trek/shared'
+import { continentForCountry } from '@trippi/shared'
 
 function useCountryNames(language: string): (code: string) => string {
   const [resolver, setResolver] = useState<(code: string) => string>(() => (code: string) => code)

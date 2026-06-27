@@ -175,9 +175,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Suggerisci una nuova funzionalità',
   'settings.about.wikiHint': 'Documentazione e guide',
   'settings.about.supporters.badge': 'Sostenitori Mensili',
-  'settings.about.supporters.title': 'Compagni di viaggio per TREK',
+  'settings.about.supporters.title': 'Compagni di viaggio per TRIPPI',
   'settings.about.supporters.subtitle':
-    'Mentre pianifichi il tuo prossimo itinerario, queste persone aiutano a pianificare il futuro di TREK. Il loro contributo mensile va direttamente allo sviluppo e alle ore realmente investite — per mantenere TREK Open Source.',
+    'Mentre pianifichi il tuo prossimo itinerario, queste persone aiutano a pianificare il futuro di TRIPPI. Il loro contributo mensile va direttamente allo sviluppo e alle ore realmente investite — per mantenere TRIPPI Open Source.',
   'settings.about.supporters.since': 'sostenitore da {date}',
   'settings.about.supporters.tierEmpty': 'Sii il primo',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -186,7 +186,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    "TREK è un pianificatore di viaggi self-hosted che ti aiuta a organizzare i tuoi viaggi dalla prima idea all'ultimo ricordo. Pianificazione giornaliera, budget, liste bagagli, foto e molto altro — tutto in un unico posto, sul tuo server.",
+    "TRIPPI è un pianificatore di viaggi self-hosted che ti aiuta a organizzare i tuoi viaggi dalla prima idea all'ultimo ricordo. Pianificazione giornaliera, budget, liste bagagli, foto e molto altro — tutto in un unico posto, sul tuo server.",
   'settings.about.madeWith': 'Fatto con',
   'settings.about.madeBy': 'da Maurice e una crescente comunità open-source.',
   'settings.username': 'Nome utente',
@@ -265,7 +265,7 @@ const settings: TranslationStrings = {
   'settings.webhookUrl.testSuccess': 'Webhook di test inviato con successo',
   'settings.webhookUrl.testFailed': 'Invio webhook di test fallito',
   'settings.ntfyUrl.topicLabel': 'Argomento Ntfy',
-  'settings.ntfyUrl.topicPlaceholder': 'my-trek-alerts',
+  'settings.ntfyUrl.topicPlaceholder': 'my-trippi-alerts',
   'settings.ntfyUrl.serverLabel': 'URL server Ntfy (opzionale)',
   'settings.ntfyUrl.serverPlaceholder': 'https://ntfy.sh',
   'settings.ntfyUrl.hint':
@@ -319,7 +319,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': "Abilita solo per un'istanza attendibile sulla tua rete.",
   'settings.airtrail.writeBack': 'Scrivi le modifiche su AirTrail',
   'settings.airtrail.writeBackHint':
-    'Disattivato per impostazione predefinita: AirTrail è la fonte attendibile e TREK si limita a leggerlo. Attiva per inviare ad AirTrail le modifiche fatte in TREK.',
+    'Disattivato per impostazione predefinita: AirTrail è la fonte attendibile e TRIPPI si limita a leggerlo. Attiva per inviare ad AirTrail le modifiche fatte in TRIPPI.',
   'settings.airtrail.connected': 'Connesso',
   'settings.airtrail.notConnected': 'Non connesso',
   'settings.airtrail.toast.saved': 'Connessione AirTrail salvata',

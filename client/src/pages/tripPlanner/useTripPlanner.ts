@@ -183,7 +183,7 @@ export function useTripPlanner() {
     healthApi.features().then(f => setBookingImportAvailable(f.bookingImport)).catch(() => {})
   }, [])
 
-  const connectionsStorageKey = tripId ? `trek:visible-connections:${tripId}` : null
+  const connectionsStorageKey = tripId ? `trippi:visible-connections:${tripId}` : null
   const [visibleConnections, setVisibleConnections] = useState<number[]>(() => {
     if (typeof window === 'undefined' || !connectionsStorageKey) return []
     try {

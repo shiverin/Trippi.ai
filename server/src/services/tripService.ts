@@ -419,7 +419,7 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
     .replace(/\r/g, '');
   const fmtDate = (d: string) => d.replace(/-/g, '');
   const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  const uid = (id: number, type: string) => `trek-${type}-${id}@trek`;
+  const uid = (id: number, type: string) => `trippi-${type}-${id}@trippi`;
 
   // Format datetime: handles full ISO "2026-03-30T09:00" and time-only "10:00"
   // iCal requires exactly YYYYMMDDTHHMMSS format
@@ -437,8 +437,8 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
     return d.replace(/[-:]/g, '');
   };
 
-  let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//TREK//Travel Planner//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n';
-  ics += `X-WR-CALNAME:${esc(trip.title || 'TREK Trip')}\r\n`;
+  let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//TRIPPI//Travel Planner//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n';
+  ics += `X-WR-CALNAME:${esc(trip.title || 'TRIPPI Trip')}\r\n`;
 
   // Trip as all-day event
   if (trip.start_date && trip.end_date) {
@@ -598,7 +598,7 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
 
   ics += 'END:VCALENDAR\r\n';
 
-  const safeFilename = (trip.title || 'trek-trip').replace(/["\r\n]/g, '').replace(/[^\w\s.-]/g, '_');
+  const safeFilename = (trip.title || 'trippi-trip').replace(/["\r\n]/g, '').replace(/[^\w\s.-]/g, '_');
   return { ics, filename: `${safeFilename}.ics` };
 }
 

@@ -75,11 +75,11 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
   }, [])
 
   const toggleDarkMode = () => {
-    document.documentElement.classList.add('trek-theme-transitioning')
+    document.documentElement.classList.add('trippi-theme-transitioning')
     updateSetting('dark_mode', dark ? 'light' : 'dark').catch(() => {})
     if (themeTransitionTimer.current !== null) window.clearTimeout(themeTransitionTimer.current)
     themeTransitionTimer.current = window.setTimeout(() => {
-      document.documentElement.classList.remove('trek-theme-transitioning')
+      document.documentElement.classList.remove('trippi-theme-transitioning')
       themeTransitionTimer.current = null
     }, 360)
   }
@@ -110,17 +110,17 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
       <div className="flex items-center gap-3 min-w-0">
         {showBack && (
           <button onClick={onBack}
-            className="trek-back-btn p-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-sm flex-shrink-0 text-content-muted"
+            className="trippi-back-btn p-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-sm flex-shrink-0 text-content-muted"
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-            <ArrowLeft className="trek-back-icon w-4 h-4" />
+            <ArrowLeft className="trippi-back-icon w-4 h-4" />
             <span className="hidden sm:inline">{t('common.back')}</span>
           </button>
         )}
 
         <Link to="/dashboard" className="flex items-center transition-colors flex-shrink-0">
-          <img src={dark ? '/icons/icon-white.svg' : '/icons/icon-dark.svg'} alt="TREK" className="sm:hidden" style={{ height: 22, width: 22 }} />
-          <img src={dark ? '/logo-light.svg' : '/logo-dark.svg'} alt="TREK" className="hidden sm:block" style={{ height: 28 }} />
+          <img src={dark ? '/icons/icon-white.svg' : '/icons/icon-dark.svg'} alt="TRIPPI" className="sm:hidden" style={{ height: 22, width: 22 }} />
+          <img src={dark ? '/logo-light.svg' : '/logo-dark.svg'} alt="TRIPPI" className="hidden sm:block" style={{ height: 28 }} />
         </Link>
 
         {tripTitle && (
@@ -137,7 +137,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
           the left brand block and the right action cluster keep their layout. */}
       {globalAddons.length > 0 && !tripTitle && (
         <div
-          className="trek-nav-pill"
+          className="trippi-nav-pill"
           style={{
             position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
             display: 'flex', gap: 4, padding: 4, borderRadius: 14,
@@ -232,7 +232,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
           {userMenuOpen && ReactDOM.createPortal(
             <>
               <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setUserMenuOpen(false)} />
-              <div className="trek-menu-enter w-52 rounded-xl shadow-xl border overflow-hidden bg-surface-card border-edge" style={{ position: 'fixed', top: 'var(--nav-h)', right: 8, zIndex: 9999 }}>
+              <div className="trippi-menu-enter w-52 rounded-xl shadow-xl border overflow-hidden bg-surface-card border-edge" style={{ position: 'fixed', top: 'var(--nav-h)', right: 8, zIndex: 9999 }}>
                 <div className="px-4 py-3 border-b border-edge-secondary">
                   <p className="text-sm font-medium text-content">{user.username}</p>
                   <p className="text-xs truncate text-content-muted">{user.email}</p>
@@ -273,7 +273,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
                     <div className="px-4 pt-2 pb-2.5 text-center border-t border-edge-secondary" style={{ marginTop: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--bg-tertiary)', borderRadius: 99, padding: '4px 12px' }}>
-                          <img src={dark ? '/text-light.svg' : '/text-dark.svg'} alt="TREK" style={{ height: 10, opacity: 0.5 }} />
+                          <img src={dark ? '/text-light.svg' : '/text-dark.svg'} alt="TRIPPI" style={{ height: 10, opacity: 0.5 }} />
                           <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)' }}>v{appVersion}</span>
                         </div>
                         <a href="https://discord.gg/NhZBDSd4qW" target="_blank" rel="noopener noreferrer"

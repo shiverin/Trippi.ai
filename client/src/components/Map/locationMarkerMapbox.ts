@@ -19,7 +19,7 @@ function buildLocationEl(): { root: HTMLDivElement; cone: HTMLDivElement } {
   pulse.style.cssText = `
     position:absolute;inset:-14px;border-radius:50%;
     background:#3b82f6;opacity:0.25;
-    animation:trek-location-pulse 2s ease-out infinite;
+    animation:trippi-location-pulse 2s ease-out infinite;
   `
   // Heading cone (conic gradient fan)
   const cone = document.createElement('div')
@@ -51,11 +51,11 @@ function buildLocationEl(): { root: HTMLDivElement; cone: HTMLDivElement } {
 // Inject the pulse keyframes once per document so the animation is
 // available for every map instance.
 function ensurePulseStyle() {
-  if (document.getElementById('trek-location-style')) return
+  if (document.getElementById('trippi-location-style')) return
   const s = document.createElement('style')
-  s.id = 'trek-location-style'
+  s.id = 'trippi-location-style'
   s.textContent = `
-    @keyframes trek-location-pulse {
+    @keyframes trippi-location-pulse {
       0%   { transform: scale(0.6); opacity: 0.35; }
       70%  { transform: scale(1.6); opacity: 0; }
       100% { transform: scale(1.6); opacity: 0; }
@@ -79,9 +79,9 @@ export function attachLocationMarker(map: mapboxgl.Map, MarkerCtor: MarkerConstr
   const marker = new MarkerCtor({ element: root, anchor: 'center' })
 
   const ensureAccuracyLayer = () => {
-    if (map.getSource('trek-location-accuracy')) return
+    if (map.getSource('trippi-location-accuracy')) return
     try {
-      map.addSource('trek-location-accuracy', {
+      map.addSource('trippi-location-accuracy', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
@@ -90,9 +90,9 @@ export function attachLocationMarker(map: mapboxgl.Map, MarkerCtor: MarkerConstr
       // zoom the way Apple/Google Maps does — always the same real-world
       // size regardless of viewport.
       map.addLayer({
-        id: 'trek-location-accuracy',
+        id: 'trippi-location-accuracy',
         type: 'fill',
-        source: 'trek-location-accuracy',
+        source: 'trippi-location-accuracy',
         paint: {
           'fill-color': '#3b82f6',
           'fill-opacity': 0.14,
@@ -125,7 +125,7 @@ export function attachLocationMarker(map: mapboxgl.Map, MarkerCtor: MarkerConstr
   }
 
   const setAccuracy = (p: GeoPosition) => {
-    const src = map.getSource('trek-location-accuracy') as mapboxgl.GeoJSONSource | undefined
+    const src = map.getSource('trippi-location-accuracy') as mapboxgl.GeoJSONSource | undefined
     if (!src) return
     if (!p.accuracy || p.accuracy < 1) {
       src.setData({ type: 'FeatureCollection', features: [] })
@@ -152,7 +152,7 @@ export function attachLocationMarker(map: mapboxgl.Map, MarkerCtor: MarkerConstr
       lastPosRef = p
       if (!p) {
         marker.remove()
-        const src = map.getSource('trek-location-accuracy') as mapboxgl.GeoJSONSource | undefined
+        const src = map.getSource('trippi-location-accuracy') as mapboxgl.GeoJSONSource | undefined
         src?.setData({ type: 'FeatureCollection', features: [] })
         return
       }
@@ -169,8 +169,8 @@ export function attachLocationMarker(map: mapboxgl.Map, MarkerCtor: MarkerConstr
     destroy: () => {
       try { marker.remove() } catch { /* noop */ }
       try {
-        if (map.getLayer('trek-location-accuracy')) map.removeLayer('trek-location-accuracy')
-        if (map.getSource('trek-location-accuracy')) map.removeSource('trek-location-accuracy')
+        if (map.getLayer('trippi-location-accuracy')) map.removeLayer('trippi-location-accuracy')
+        if (map.getSource('trippi-location-accuracy')) map.removeSource('trippi-location-accuracy')
       } catch { /* noop */ }
     },
   }

@@ -8,7 +8,7 @@ The dashboard at `/dashboard` is your home base — it lists all your trips, let
 
 ## View Modes
 
-Use the toggle button in the top toolbar to switch between **grid** (card thumbnails) and **list** (compact rows). Your preference is saved in `localStorage` under the key `trek_dashboard_view` and persists across sessions.
+Use the toggle button in the top toolbar to switch between **grid** (card thumbnails) and **list** (compact rows). Your preference is saved in `localStorage` under the key `trippi_dashboard_view` and persists across sessions.
 
 In grid mode the dashboard shows a large [Spotlight card](#spotlight-card) for your most relevant trip, with remaining trips in a responsive grid below. In list mode the Spotlight card is not shown separately — all trips (including the one that would be the spotlight) appear as uniform rows in the same sort order.
 

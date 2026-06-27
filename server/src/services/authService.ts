@@ -40,7 +40,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Pre-computed bcrypt hash to equalise timing of "unknown email" and
 // "OIDC-only account" branches with the real verification path (CWE-208).
-const DUMMY_PASSWORD_HASH = bcrypt.hashSync('__trek_no_such_user__', BCRYPT_COST);
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('__trippi_no_such_user__', BCRYPT_COST);
 
 const MFA_SETUP_TTL_MS = 15 * 60 * 1000;
 const mfaSetupPending = new Map<number, { secret: string; exp: number }>();
@@ -1004,7 +1004,7 @@ export function setupMfa(userId: number, userEmail: string): { error?: string; s
   try {
     secret = authenticator.generateSecret();
     mfaSetupPending.set(userId, { secret, exp: Date.now() + MFA_SETUP_TTL_MS });
-    otpauth_url = authenticator.keyuri(userEmail, 'TREK', secret);
+    otpauth_url = authenticator.keyuri(userEmail, 'TRIPPI', secret);
   } catch (err) {
     console.error('[MFA] Setup error:', err);
     return { error: 'MFA setup failed', status: 500 };
@@ -1364,7 +1364,7 @@ export function createMcpToken(userId: number, name?: string): { error?: string;
   const tokenCount = (db.prepare('SELECT COUNT(*) as count FROM mcp_tokens WHERE user_id = ?').get(userId) as { count: number }).count;
   if (tokenCount >= 10) return { error: 'Maximum of 10 tokens per user reached', status: 400 };
 
-  const rawToken = 'trek_' + randomBytes(24).toString('hex');
+  const rawToken = 'trippi_' + randomBytes(24).toString('hex');
   const tokenHash = createHash('sha256').update(rawToken).digest('hex');
   const tokenPrefix = rawToken.slice(0, 13);
 

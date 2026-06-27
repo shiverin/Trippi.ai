@@ -234,7 +234,7 @@ export default function AdminUserModals({ admin, t }: AdminUserModalsProps): Rea
 
               {updateInfo?.is_docker === false ? (
                 <a
-                  href="https://github.com/mauriceboe/TREK/wiki/Updating"
+                  href="https://github.com/mauriceboe/TRIPPI/wiki/Updating"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
@@ -247,14 +247,14 @@ export default function AdminUserModals({ admin, t }: AdminUserModalsProps): Rea
                 <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, fontSize: 12, lineHeight: 1.8, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
                   className="bg-gray-900 dark:bg-gray-950 text-gray-100 border border-gray-700"
                 >
-{`docker pull mauriceboe/trek:latest
-docker stop trek && docker rm trek
-docker run -d --name trek \\
+{`docker pull mauriceboe/trippi:latest
+docker stop trippi && docker rm trippi
+docker run -d --name trippi \\
   -p 3000:3000 \\
-  -v /opt/trek/data:/app/data \\
-  -v /opt/trek/uploads:/app/uploads \\
+  -v /opt/trippi/data:/app/data \\
+  -v /opt/trippi/uploads:/app/uploads \\
   --restart unless-stopped \\
-  mauriceboe/trek:latest`}
+  mauriceboe/trippi:latest`}
                 </div>
               )}
 

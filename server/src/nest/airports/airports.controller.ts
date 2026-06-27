@@ -1,5 +1,5 @@
 import { Controller, Get, HttpException, Param, Query, UseGuards } from '@nestjs/common';
-import type { Airport } from '@trek/shared';
+import type { Airport } from '@trippi/shared';
 import { AirportsService } from './airports.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 

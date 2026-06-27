@@ -17,7 +17,7 @@ import type { Day, Reservation, ReservationEndpoint, TripFile, BudgetItem } from
 import { parseReservationMetadata, orderedEndpoints } from '../../utils/flightLegs'
 import { BookingCostsSection } from './BookingCostsSection'
 import type { BookingExpenseRequest } from './BookingCostsSection.types'
-import { typeToCostCategory } from '@trek/shared'
+import { typeToCostCategory } from '@trippi/shared'
 
 const TRANSPORT_TYPES = ['flight', 'train', 'bus', 'car', 'taxi', 'bicycle', 'cruise', 'ferry', 'transport_other'] as const
 type TransportType = typeof TRANSPORT_TYPES[number]

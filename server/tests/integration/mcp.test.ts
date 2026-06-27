@@ -36,7 +36,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../src/db/database', () => dbMock);
 vi.mock('../../src/config', () => ({
-  JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+  JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
   SESSION_DURATION: '24h',
@@ -143,7 +143,7 @@ describe('MCP session init', () => {
 });
 
 describe('MCP API token auth', () => {
-  it('MCP-002 — POST /mcp with valid trek_ API token authenticates successfully', async () => {
+  it('MCP-002 — POST /mcp with valid trippi_ API token authenticates successfully', async () => {
     const { user } = createUser(testDb);
     const { rawToken } = createMcpToken(testDb, user.id);
     testDb.prepare("UPDATE addons SET enabled = 1 WHERE id = 'mcp'").run();
@@ -174,12 +174,12 @@ describe('MCP API token auth', () => {
     expect(after).not.toBe(before);
   });
 
-  it('MCP — POST /mcp with unknown trek_ token returns 401', async () => {
+  it('MCP — POST /mcp with unknown trippi_ token returns 401', async () => {
     testDb.prepare("UPDATE addons SET enabled = 1 WHERE id = 'mcp'").run();
 
     const res = await request(app)
       .post('/mcp')
-      .set('Authorization', 'Bearer trek_totally_fake_token_not_in_db')
+      .set('Authorization', 'Bearer trippi_totally_fake_token_not_in_db')
       .send({ jsonrpc: '2.0', method: 'initialize', id: 1 });
     expect(res.status).toBe(401);
   });

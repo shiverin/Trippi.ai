@@ -44,7 +44,7 @@ const { svc } = vi.hoisted(() => ({
 vi.mock('../../src/services/collabService', () => svc);
 
 import { CollabModule } from '../../src/nest/collab/collab.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 
 describe('Collab e2e (real auth guard + temp SQLite)', () => {
   let server: Server;
@@ -54,7 +54,7 @@ describe('Collab e2e (real auth guard + temp SQLite)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [CollabModule] }).compile();
     const nest = moduleRef.createNestApplication();
     nest.use(cookieParser());
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

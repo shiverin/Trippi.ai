@@ -32,7 +32,7 @@ export function supportsCustom3d(style: string): boolean {
 // fallback source so real building volumes sit on top of the imagery —
 // the Apple Maps-style "3D satellite" look the user asked for.
 export function addCustom3dBuildings(map: mapboxgl.Map, dark: boolean) {
-  if (map.getLayer('trek-3d-buildings')) return
+  if (map.getLayer('trippi-3d-buildings')) return
   const baseColor = dark ? '#3b3b3f' : '#cfd2d6'
 
   // Styles without a `composite` source (pure satellite) need a fallback
@@ -52,7 +52,7 @@ export function addCustom3dBuildings(map: mapboxgl.Map, dark: boolean) {
     const layers = map.getStyle()?.layers || []
     const firstSymbolId = layers.find(l => l.type === 'symbol')?.id
     map.addLayer({
-      id: 'trek-3d-buildings',
+      id: 'trippi-3d-buildings',
       source: sourceId,
       'source-layer': 'building',
       filter: ['==', 'extrude', 'true'],

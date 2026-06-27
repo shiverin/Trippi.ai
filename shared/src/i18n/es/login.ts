@@ -27,7 +27,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Iniciando sesión…',
   'login.signIn': 'Entrar',
   'login.createAdmin': 'Crear cuenta de administrador',
-  'login.createAdminHint': 'Configura la primera cuenta administradora de TREK.',
+  'login.createAdminHint': 'Configura la primera cuenta administradora de TRIPPI.',
   'login.setNewPassword': 'Establecer nueva contraseña',
   'login.setNewPasswordHint': 'Debe cambiar su contraseña antes de continuar.',
   'login.createAccount': 'Crear cuenta',

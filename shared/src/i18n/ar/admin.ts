@@ -178,7 +178,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': 'فشل الحفظ',
   'admin.tabs.addons': 'الإضافات',
   'admin.addons.title': 'الإضافات',
-  'admin.addons.subtitle': 'فعّل أو عطّل الميزات لتخصيص تجربة TREK.',
+  'admin.addons.subtitle': 'فعّل أو عطّل الميزات لتخصيص تجربة TRIPPI.',
   'admin.addons.catalog.packing.name': 'القوائم',
   'admin.addons.catalog.packing.description': 'قوائم التعبئة والمهام لرحلاتك',
   'admin.addons.catalog.budget.name': 'الميزانية',
@@ -210,7 +210,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'بيانات الطقس',
   'admin.weather.badge': 'منذ 24 مارس 2026',
   'admin.weather.description':
-    'يستخدم TREK خدمة Open-Meteo كمصدر لبيانات الطقس. وهي خدمة مجانية ومفتوحة المصدر ولا تتطلب مفتاح API.',
+    'يستخدم TRIPPI خدمة Open-Meteo كمصدر لبيانات الطقس. وهي خدمة مجانية ومفتوحة المصدر ولا تتطلب مفتاح API.',
   'admin.weather.forecast': 'توقعات 16 يومًا',
   'admin.weather.forecastDesc': 'سابقًا 5 أيام (OpenWeatherMap)',
   'admin.weather.climate': 'بيانات المناخ التاريخية',
@@ -266,13 +266,13 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'جارٍ التحميل...',
   'admin.github.error': 'فشل تحميل الإصدارات',
   'admin.github.by': 'بواسطة',
-  'admin.github.support': 'يساعدني في تطوير TREK',
+  'admin.github.support': 'يساعدني في تطوير TRIPPI',
   'admin.update.available': 'يتوفر تحديث',
-  'admin.update.text': 'TREK {version} متوفر. أنت تستخدم {current}.',
+  'admin.update.text': 'TRIPPI {version} متوفر. أنت تستخدم {current}.',
   'admin.update.button': 'عرض على GitHub',
   'admin.update.install': 'تثبيت التحديث',
   'admin.update.confirmTitle': 'تثبيت التحديث؟',
-  'admin.update.confirmText': 'سيتم تحديث TREK من {current} إلى {version}. سيُعاد تشغيل الخادم تلقائيًا بعد ذلك.',
+  'admin.update.confirmText': 'سيتم تحديث TRIPPI من {current} إلى {version}. سيُعاد تشغيل الخادم تلقائيًا بعد ذلك.',
   'admin.update.dataInfo':
     'جميع بياناتك (الرحلات، المستخدمون، مفاتيح API، المرفوعات، الإجازة، الأطلس، الميزانيات) ستبقى محفوظة.',
   'admin.update.warning': 'سيكون التطبيق غير متاح لفترة وجيزة أثناء إعادة التشغيل.',
@@ -283,9 +283,9 @@ const admin: TranslationStrings = {
   'admin.update.backupHint': 'نوصي بإنشاء نسخة احتياطية قبل التحديث.',
   'admin.update.backupLink': 'الذهاب إلى النسخ الاحتياطي',
   'admin.update.howTo': 'كيفية التحديث',
-  'admin.update.dockerText': 'يعمل TREK الخاص بك في Docker. للتحديث إلى {version}، نفّذ الأوامر التالية على الخادم:',
+  'admin.update.dockerText': 'يعمل TRIPPI الخاص بك في Docker. للتحديث إلى {version}، نفّذ الأوامر التالية على الخادم:',
   'admin.update.nonDockerText':
-    'لا يعمل TREK هذا في Docker. للتحديث إلى {version}، أعد تشغيل طريقة التثبيت أو التحديث التي استخدمتها — على سبيل المثال، في Proxmox Community Scripts نفّذ التحديث من وحدة تحكم LXC:',
+    'لا يعمل TRIPPI هذا في Docker. للتحديث إلى {version}، أعد تشغيل طريقة التثبيت أو التحديث التي استخدمتها — على سبيل المثال، في Proxmox Community Scripts نفّذ التحديث من وحدة تحكم LXC:',
   'admin.update.wikiLink': 'فتح دليل التحديث',
   'admin.update.reloadHint': 'يرجى إعادة تحميل الصفحة بعد بضع ثوانٍ.',
   'admin.tabs.permissions': 'الصلاحيات',
@@ -295,7 +295,7 @@ const admin: TranslationStrings = {
   'admin.notifications.webhookPanel.title': 'Webhook', // en-fallback
   'admin.notifications.inappPanel.title': 'In-App', // en-fallback
   'admin.notifications.adminNtfyPanel.serverPlaceholder': 'https://ntfy.sh', // en-fallback
-  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trek-admin-alerts', // en-fallback
+  'admin.notifications.adminNtfyPanel.topicPlaceholder': 'trippi-admin-alerts', // en-fallback
   'admin.authMethods': 'Authentication Methods', // en-fallback
   'admin.passwordLogin': 'Password Login', // en-fallback
   'admin.passwordLoginHint': 'Allow users to sign in with email and password', // en-fallback
@@ -322,9 +322,9 @@ const admin: TranslationStrings = {
     'لا يوجد نطاق WebAuthn صالح لهذا التثبيت بعد. عيّن APP_URL أو Relying Party ID أدناه — تبقى مفاتيح المرور مخفية حتى ذلك الحين.',
   'admin.passkey.rpId': 'Relying Party ID (النطاق)',
   'admin.passkey.rpIdHint':
-    'النطاق المجرّد الذي تُربط به مفاتيح المرور، مثل trek.example.org. اتركه فارغًا لاشتقاقه من APP_URL. تغييره لاحقًا يُبطل مفاتيح المرور الموجودة.',
+    'النطاق المجرّد الذي تُربط به مفاتيح المرور، مثل trippi.example.org. اتركه فارغًا لاشتقاقه من APP_URL. تغييره لاحقًا يُبطل مفاتيح المرور الموجودة.',
   'admin.passkey.origins': 'الأصول المسموح بها',
-  'admin.passkey.originsHint': 'أصول كاملة مفصولة بفواصل، مثل https://trek.example.org. اتركه فارغًا لاستخدام APP_URL.',
+  'admin.passkey.originsHint': 'أصول كاملة مفصولة بفواصل، مثل https://trippi.example.org. اتركه فارغًا لاستخدام APP_URL.',
   'admin.passkey.reset': 'إعادة تعيين مفاتيح المرور',
   'admin.passkey.resetHint':
     'إزالة جميع مفاتيح المرور لهذا المستخدم (مثلًا عند فقدان جهاز). سيظل بإمكانه تسجيل الدخول بكلمة المرور.',

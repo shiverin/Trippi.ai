@@ -37,7 +37,7 @@ export interface McpHarnessOptions {
 export async function createMcpHarness(options: McpHarnessOptions): Promise<McpHarness> {
   const { userId, withResources = true, withTools = true, scopes = null, isStaticToken = false } = options;
 
-  const server = new McpServer({ name: 'trek-test', version: '1.0.0' });
+  const server = new McpServer({ name: 'trippi-test', version: '1.0.0' });
 
   if (withResources) registerResources(server, userId);
   if (withTools) registerTools(server, userId, scopes ?? null, isStaticToken);

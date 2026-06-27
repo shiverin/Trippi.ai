@@ -196,7 +196,7 @@ describe('JourneyPage', () => {
 
   // FE-PAGE-JOURNEY-007b — XSS regression: the suggestion banner interpolates
   // a user-controlled trip title into an HTML template that is later passed to
-  // dangerouslySetInnerHTML. The sanitiser in @trek/shared must drop any script
+  // dangerouslySetInnerHTML. The sanitiser in @trippi/shared must drop any script
   // payload, otherwise renaming a trip is a one-click XSS for anyone visiting
   // the Journey page.
   it('FE-PAGE-JOURNEY-007b: sanitises script payloads in suggestion title', async () => {

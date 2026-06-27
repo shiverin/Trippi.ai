@@ -135,7 +135,7 @@ export function useLogin() {
       return
     }
 
-    const CONFIG_CACHE_KEY = 'trek_app_config_cache'
+    const CONFIG_CACHE_KEY = 'trippi_app_config_cache'
     authApi.getAppConfig?.()
       .then((config: AppConfig) => {
         try { localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config)) } catch { /* ignore quota errors */ }

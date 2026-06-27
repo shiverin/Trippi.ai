@@ -5,7 +5,7 @@ import { checkPermission } from '../../services/permissions';
 import type { User } from '../../types';
 import * as svc from '../../services/reservationService';
 import { createBudgetItem, updateBudgetItem, deleteBudgetItem, linkBudgetItemToReservation } from '../../services/budgetService';
-import { typeToCostCategory } from '@trek/shared';
+import { typeToCostCategory } from '@trippi/shared';
 
 type Trip = NonNullable<ReturnType<typeof svc.verifyTripAccess>>;
 type BudgetEntry = { total_price?: number; category?: string } | undefined;

@@ -74,9 +74,9 @@ export default function AdminNotificationsTab({ admin, t }: AdminNotificationsTa
           {smtpLoaded && [
             { key: 'smtp_host', label: 'SMTP Host', placeholder: 'mail.example.com' },
             { key: 'smtp_port', label: 'SMTP Port', placeholder: '587' },
-            { key: 'smtp_user', label: 'SMTP User', placeholder: 'trek@example.com' },
+            { key: 'smtp_user', label: 'SMTP User', placeholder: 'trippi@example.com' },
             { key: 'smtp_pass', label: 'SMTP Password', placeholder: '••••••••', type: 'password' },
-            { key: 'smtp_from', label: 'From Address', placeholder: 'trek@example.com' },
+            { key: 'smtp_from', label: 'From Address', placeholder: 'trippi@example.com' },
           ].map(field => (
             <div key={field.key}>
               <label className="block text-xs font-medium text-slate-500 mb-1">{field.label}</label>

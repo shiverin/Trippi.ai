@@ -7,7 +7,7 @@ const stateFile = 'e2e/.tmp/state.json'
 // Credentials match e2e/server-launch.mjs (ADMIN_EMAIL/ADMIN_PASSWORD). The
 // seeded admin is created with must_change_password=1, so the first login goes
 // through the forced change-password step before reaching the dashboard.
-const EMAIL = 'e2e@trek.local'
+const EMAIL = 'e2e@trippi.local'
 const SEED_PW = 'E2eTest12345!'
 const NEW_PW = 'E2eChanged12345!'
 
@@ -27,7 +27,7 @@ setup('authenticate the seeded admin (incl. forced password change)', async ({ p
 
   await page.waitForURL('**/dashboard', { timeout: 30_000 })
 
-  // Dismiss the first-run "Welcome to TREK" system-notice modal(s). It renders
+  // Dismiss the first-run "Welcome to TRIPPI" system-notice modal(s). It renders
   // asynchronously (after the notices fetch), so wait for it before clicking.
   // Dismissal is recorded server-side against this user, so clearing it here
   // keeps it cleared for every authenticated flow in the run (shared test DB).

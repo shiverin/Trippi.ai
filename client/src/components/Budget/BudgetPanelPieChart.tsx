@@ -30,7 +30,7 @@ export default function PieChart({ segments, size = 200, totalLabel }: PieChartP
   return (
     <div style={{ position: 'relative', width: size, height: size, margin: '0 auto' }}>
       <div
-        className="trek-pie-reveal"
+        className="trippi-pie-reveal"
         style={{
           width: size, height: size, borderRadius: '50%',
           background: `conic-gradient(${stops})`,

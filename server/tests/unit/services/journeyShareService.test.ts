@@ -58,18 +58,18 @@ afterAll(() => {
 
 // -- Helpers ------------------------------------------------------------------
 
-/** Insert a trek_photos + journey_photos (gallery) + journey_entry_photos row and return the trek_photos id (used as photoId in public URLs). */
+/** Insert a trippi_photos + journey_photos (gallery) + journey_entry_photos row and return the trippi_photos id (used as photoId in public URLs). */
 function insertJourneyPhoto(
   entryId: number,
   opts: { filePath?: string; assetId?: string; ownerId?: number } = {}
 ): number {
   const provider = opts.assetId ? 'immich' : 'local';
   const filePath = !opts.assetId ? (opts.filePath ?? '/photos/test.jpg') : null;
-  const trekResult = testDb.prepare(`
-    INSERT INTO trek_photos (provider, asset_id, file_path, owner_id, created_at)
+  const trippiResult = testDb.prepare(`
+    INSERT INTO trippi_photos (provider, asset_id, file_path, owner_id, created_at)
     VALUES (?, ?, ?, ?, ?)
   `).run(provider, opts.assetId ?? null, filePath, opts.ownerId ?? null, Date.now());
-  const trekId = trekResult.lastInsertRowid as number;
+  const trippiId = trippiResult.lastInsertRowid as number;
 
   // Look up journey_id from entry so gallery row is keyed to the journey (not entry).
   const entryRow = testDb.prepare('SELECT journey_id FROM journey_entries WHERE id = ?').get(entryId) as { journey_id: number };
@@ -79,18 +79,18 @@ function insertJourneyPhoto(
   testDb.prepare(`
     INSERT OR IGNORE INTO journey_photos (journey_id, photo_id, caption, sort_order, created_at)
     VALUES (?, ?, NULL, 0, ?)
-  `).run(journeyId, trekId, now);
+  `).run(journeyId, trippiId, now);
 
-  const galleryRow = testDb.prepare('SELECT id FROM journey_photos WHERE journey_id = ? AND photo_id = ?').get(journeyId, trekId) as { id: number };
+  const galleryRow = testDb.prepare('SELECT id FROM journey_photos WHERE journey_id = ? AND photo_id = ?').get(journeyId, trippiId) as { id: number };
 
   testDb.prepare(`
     INSERT OR IGNORE INTO journey_entry_photos (entry_id, journey_photo_id, sort_order, created_at)
     VALUES (?, ?, 0, ?)
   `).run(entryId, galleryRow.id, now);
 
-  // Return trek_photos.id — this is p.photo_id in the public API response
+  // Return trippi_photos.id — this is p.photo_id in the public API response
   // and the value the client sends to /api/public/journey/:token/photos/:photoId/:kind
-  return trekId;
+  return trippiId;
 }
 
 // -- Tests --------------------------------------------------------------------
@@ -255,25 +255,25 @@ describe('validateShareTokenForPhoto', () => {
     expect(result!.ownerId).toBe(user.id);
   });
 
-  it('JOURNEY-SHARE-016: resolves correctly when trek_photos.id differs from journey_photos.id (Immich bulk-sync scenario)', () => {
-    // Simulate a user who has many trek_photos from Immich syncs before adding a journey photo.
-    // trek_photos.id will be higher than journey_photos.id — the previous bug matched on jp.id
+  it('JOURNEY-SHARE-016: resolves correctly when trippi_photos.id differs from journey_photos.id (Immich bulk-sync scenario)', () => {
+    // Simulate a user who has many trippi_photos from Immich syncs before adding a journey photo.
+    // trippi_photos.id will be higher than journey_photos.id — the previous bug matched on jp.id
     // instead of jp.photo_id, causing a 404 for Immich photos in public shares.
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id);
 
-    // Pre-populate trek_photos to push the autoincrement higher
+    // Pre-populate trippi_photos to push the autoincrement higher
     for (let i = 0; i < 5; i++) {
-      testDb.prepare(`INSERT INTO trek_photos (provider, asset_id, owner_id, created_at) VALUES ('immich', ?, ?, ?)`).run(`bulk-asset-${i}`, user.id, Date.now());
+      testDb.prepare(`INSERT INTO trippi_photos (provider, asset_id, owner_id, created_at) VALUES ('immich', ?, ?, ?)`).run(`bulk-asset-${i}`, user.id, Date.now());
     }
 
-    // This trek_photos row gets a high id (e.g. 6) while journey_photos id will be 1
-    const trekPhotoId = insertJourneyPhoto(entry.id, { assetId: 'journey-asset-xyz', ownerId: user.id });
+    // This trippi_photos row gets a high id (e.g. 6) while journey_photos id will be 1
+    const trippiPhotoId = insertJourneyPhoto(entry.id, { assetId: 'journey-asset-xyz', ownerId: user.id });
     const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
-    // photoId = trek_photos.id (6), not journey_photos.id (1)
-    const result = validateShareTokenForPhoto(token, trekPhotoId);
+    // photoId = trippi_photos.id (6), not journey_photos.id (1)
+    const result = validateShareTokenForPhoto(token, trippiPhotoId);
 
     expect(result).not.toBeNull();
     expect(result!.ownerId).toBe(user.id);

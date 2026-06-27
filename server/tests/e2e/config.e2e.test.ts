@@ -7,7 +7,7 @@ import request from 'supertest';
 import type { Server } from 'http';
 import { Test } from '@nestjs/testing';
 import { ConfigModule } from '../../src/nest/config/config.module';
-import { TrekExceptionFilter } from '../../src/nest/common/trek-exception.filter';
+import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 import { DEFAULT_LANGUAGE } from '../../src/config';
 
 describe('Public config e2e (no auth guard)', () => {
@@ -17,7 +17,7 @@ describe('Public config e2e (no auth guard)', () => {
   async function build() {
     const moduleRef = await Test.createTestingModule({ imports: [ConfigModule] }).compile();
     const nest = moduleRef.createNestApplication();
-    nest.useGlobalFilters(new TrekExceptionFilter());
+    nest.useGlobalFilters(new TrippiExceptionFilter());
     await nest.init();
     return nest;
   }

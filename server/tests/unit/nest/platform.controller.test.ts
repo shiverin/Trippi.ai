@@ -5,7 +5,7 @@ import { NotFoundException } from '@nestjs/common';
 const h = vi.hoisted(() => ({
   verifyJwtAndLoadUser: vi.fn(),
   isAddonEnabled: vi.fn(),
-  getMcpSafeUrl: vi.fn(() => 'https://trek.example.test'),
+  getMcpSafeUrl: vi.fn(() => 'https://trippi.example.test'),
   dbPrepare: vi.fn(),
   existsSync: vi.fn(),
   // SDK middleware spies — each returns a tagged handler so we can identify which
@@ -19,7 +19,7 @@ const h = vi.hoisted(() => ({
 vi.mock('../../../src/middleware/auth', () => ({ verifyJwtAndLoadUser: h.verifyJwtAndLoadUser }));
 vi.mock('../../../src/db/database', () => ({ db: { prepare: h.dbPrepare } }));
 vi.mock('../../../src/mcp', () => ({ mcpHandler: h.mcpHandler }));
-vi.mock('../../../src/mcp/oauthProvider', () => ({ trekOAuthProvider: {}, trekClientsStore: {} }));
+vi.mock('../../../src/mcp/oauthProvider', () => ({ trippiOAuthProvider: {}, trippiClientsStore: {} }));
 vi.mock('../../../src/services/adminService', () => ({ isAddonEnabled: h.isAddonEnabled }));
 vi.mock('../../../src/services/notifications', () => ({ getMcpSafeUrl: h.getMcpSafeUrl }));
 
@@ -98,7 +98,7 @@ function makeRes() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  h.getMcpSafeUrl.mockReturnValue('https://trek.example.test');
+  h.getMcpSafeUrl.mockReturnValue('https://trippi.example.test');
 });
 
 describe('applyPlatformUploads', () => {
@@ -281,17 +281,17 @@ describe('applyPlatformTransport', () => {
     const res = makeRes();
     handler({}, res);
     const body = res.body as { issuer: string; userinfo_endpoint: string };
-    expect(body.issuer).toBe('https://trek.example.test');
-    expect(body.userinfo_endpoint).toBe('https://trek.example.test/oauth/userinfo');
+    expect(body.issuer).toBe('https://trippi.example.test');
+    expect(body.userinfo_endpoint).toBe('https://trippi.example.test/oauth/userinfo');
   });
 
   it('trims trailing slashes off the configured base URL', () => {
-    h.getMcpSafeUrl.mockReturnValue('https://trek.example.test///');
+    h.getMcpSafeUrl.mockReturnValue('https://trippi.example.test///');
     const calls = build();
     const handler = calls.find((c) => c.path === '/.well-known/openid-configuration')!.handlers[0];
     const res = makeRes();
     handler({}, res);
-    expect((res.body as { issuer: string }).issuer).toBe('https://trek.example.test');
+    expect((res.body as { issuer: string }).issuer).toBe('https://trippi.example.test');
   });
 
   describe('GET /.well-known/oauth-protected-resource (flat)', () => {
@@ -311,8 +311,8 @@ describe('applyPlatformTransport', () => {
       const res = makeRes();
       handler()({}, res);
       const body = res.body as { resource: string; authorization_servers: string[] };
-      expect(body.resource).toBe('https://trek.example.test/mcp');
-      expect(body.authorization_servers).toEqual(['https://trek.example.test']);
+      expect(body.resource).toBe('https://trippi.example.test/mcp');
+      expect(body.authorization_servers).toEqual(['https://trippi.example.test']);
     });
   });
 

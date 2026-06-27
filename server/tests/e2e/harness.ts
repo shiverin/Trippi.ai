@@ -54,12 +54,12 @@ export function seedUser(db: Database.Database, overrides: Partial<SeededUser> =
   return user;
 }
 
-/** Sign a `trek_session` token the real guard will accept (matching JWT_SECRET + pv). */
+/** Sign a `trippi_session` token the real guard will accept (matching JWT_SECRET + pv). */
 export function signSession(userId: number, passwordVersion = 0): string {
   return jwt.sign({ id: userId, pv: passwordVersion }, JWT_SECRET, { algorithm: 'HS256' });
 }
 
 /** Convenience: the Cookie header value for a signed session. */
 export function sessionCookie(userId: number, passwordVersion = 0): string {
-  return `trek_session=${signSession(userId, passwordVersion)}`;
+  return `trippi_session=${signSession(userId, passwordVersion)}`;
 }

@@ -1,6 +1,6 @@
 
 image:
-  repository: mauriceboe/trek
+  repository: mauriceboe/trippi
   # tag: latest
   pullPolicy: IfNotPresent
 
@@ -25,7 +25,7 @@ env:
   # Supported: de, en, es, fr, hu, nl, br, cs, pl, ru, zh, zh-TW, it, ar
   # ALLOWED_ORIGINS: ""
   # NOTE: If using ingress, ensure env.ALLOWED_ORIGINS matches the domains in ingress.hosts for proper CORS configuration.
-  # APP_URL: "https://trek.example.com"
+  # APP_URL: "https://trippi.example.com"
   # Public base URL of this instance. Required when OIDC is enabled — must match the redirect URI registered with your IdP.
   # Also used as the base URL for links in email notifications and other external links.
   # FORCE_HTTPS: "false"
@@ -35,7 +35,7 @@ env:
   # COOKIE_SECURE: "true"
   # Auto-derived (true in production or when FORCE_HTTPS=true). Set "false" to force cookies over plain HTTP. Not recommended for production.
   # SESSION_DURATION: "24h"
-  # How long a login session stays valid when "Remember me" is unchecked (the default): trek_session JWT exp + a browser-session cookie. Accepts 1h, 12h, 7d, 30d, 90d. Defaults to 24h.
+  # How long a login session stays valid when "Remember me" is unchecked (the default): trippi_session JWT exp + a browser-session cookie. Accepts 1h, 12h, 7d, 30d, 90d. Defaults to 24h.
   # SESSION_DURATION_REMEMBER: "30d"
   # Session length when "Remember me" is ticked: a longer-lived JWT + persistent cookie that survives browser restarts. Same format as SESSION_DURATION. Defaults to 30d.
   # TRUST_PROXY: "1"

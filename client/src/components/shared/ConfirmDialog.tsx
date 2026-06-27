@@ -41,12 +41,12 @@ export default function ConfirmDialog({
 
   return ReactDOM.createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center px-4 trek-backdrop-enter bg-[rgba(15,23,42,0.5)]"
+      className="fixed inset-0 z-[10000] flex items-center justify-center px-4 trippi-backdrop-enter bg-[rgba(15,23,42,0.5)]"
       style={{ paddingBottom: 'var(--bottom-nav-h)' }}
       onClick={onClose}
     >
       <div
-        className="trek-modal-enter rounded-2xl shadow-2xl w-full max-w-sm p-6 bg-surface-card"
+        className="trippi-modal-enter rounded-2xl shadow-2xl w-full max-w-sm p-6 bg-surface-card"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start gap-4">

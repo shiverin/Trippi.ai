@@ -3,7 +3,7 @@ import type { Request } from 'express';
 import { extractToken, verifyJwtAndLoadUser } from '../../middleware/auth';
 
 /**
- * Validates TREK's existing JWT session — the same httpOnly `trek_session`
+ * Validates TRIPPI's existing JWT session — the same httpOnly `trippi_session`
  * cookie (or `Authorization: Bearer`) the legacy app uses. Reuses the canonical
  * `verifyJwtAndLoadUser` so the secret, the password_version invalidation gate
  * and the loaded user are IDENTICAL to the Express middleware. No new tokens.

@@ -35,7 +35,7 @@ const { testDb, dbMock } = vi.hoisted(() => {
 
 vi.mock('../../src/db/database', () => dbMock);
 vi.mock('../../src/config', () => ({
-    JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
+    JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
     ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
     updateJwtSecret: () => {},
     SESSION_DURATION: '24h',
@@ -55,7 +55,7 @@ vi.mock('../../src/services/adminService', async (importOriginal) => {
 
 vi.mock('../../src/services/notifications', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../../src/services/notifications')>();
-    return { ...actual, getMcpSafeUrl: () => 'https://trek.example.com' };
+    return { ...actual, getMcpSafeUrl: () => 'https://trippi.example.com' };
 });
 
 vi.mock('../../src/websocket', () => ({ broadcast: vi.fn(), broadcastToUser: vi.fn() }));
@@ -117,7 +117,7 @@ describe('GET /.well-known/oauth-authorization-server', () => {
     it('OAUTH-001 — returns RFC 8414 discovery document', async () => {
         const res = await request(app).get('/.well-known/oauth-authorization-server');
         expect(res.status).toBe(200);
-        expect(res.body.issuer).toBe('https://trek.example.com');
+        expect(res.body.issuer).toBe('https://trippi.example.com');
         expect(res.body.authorization_endpoint).toContain('/oauth/authorize');
         expect(res.body.token_endpoint).toContain('/oauth/token');
         expect(Array.isArray(res.body.scopes_supported)).toBe(true);
@@ -1170,7 +1170,7 @@ describe('M7 — Cookie-only auth on privileged OAuth endpoints', () => {
         const { user } = createUser(testDb);
         // Use a valid JWT in Authorization header (no cookie) — must be rejected
         const jwt = require('jsonwebtoken');
-        const token = jwt.sign({ id: user.id }, 'test-jwt-secret-for-trek-testing-only', { algorithm: 'HS256' });
+        const token = jwt.sign({ id: user.id }, 'test-jwt-secret-for-trippi-testing-only', { algorithm: 'HS256' });
 
         const res = await request(app)
             .post('/api/oauth/authorize')
@@ -1183,7 +1183,7 @@ describe('M7 — Cookie-only auth on privileged OAuth endpoints', () => {
     it('OAUTH-SEC-010 — POST /api/oauth/clients rejects Bearer JWT (no cookie)', async () => {
         const jwt = require('jsonwebtoken');
         const { user } = createUser(testDb);
-        const token = jwt.sign({ id: user.id }, 'test-jwt-secret-for-trek-testing-only', { algorithm: 'HS256' });
+        const token = jwt.sign({ id: user.id }, 'test-jwt-secret-for-trippi-testing-only', { algorithm: 'HS256' });
 
         const res = await request(app)
             .post('/api/oauth/clients')
@@ -1196,7 +1196,7 @@ describe('M7 — Cookie-only auth on privileged OAuth endpoints', () => {
     it('OAUTH-SEC-011 — DELETE /api/oauth/sessions/:id rejects Bearer JWT (no cookie)', async () => {
         const jwt = require('jsonwebtoken');
         const { user } = createUser(testDb);
-        const token = jwt.sign({ id: user.id }, 'test-jwt-secret-for-trek-testing-only', { algorithm: 'HS256' });
+        const token = jwt.sign({ id: user.id }, 'test-jwt-secret-for-trippi-testing-only', { algorithm: 'HS256' });
 
         const res = await request(app)
             .delete('/api/oauth/sessions/1')
@@ -1359,7 +1359,7 @@ describe('POST /oauth/token — client_credentials grant', () => {
             .send({
                 grant_type: 'client_credentials',
                 client_id: r.client!.client_id,
-                client_secret: 'trekcs_wrong',
+                client_secret: 'trippics_wrong',
             });
 
         expect(res.status).toBe(401);

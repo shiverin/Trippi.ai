@@ -6,7 +6,7 @@ import { applyGlobalMiddleware } from './middleware/globalMiddleware';
 import { applyPlatformUploads, applyPlatformTransport, applyPlatformStatic } from './nest/platform/platform.routes';
 
 /**
- * Builds the unified TREK NestJS application that serves the ENTIRE surface — the
+ * Builds the unified TRIPPI NestJS application that serves the ENTIRE surface — the
  * former Express app is gone. One builder is shared by the production bootstrap
  * (index.ts) and the integration-test harness so the two can never drift.
  *
@@ -31,7 +31,7 @@ import { applyPlatformUploads, applyPlatformTransport, applyPlatformStatic } fro
  *
  * The SPA index.html fallback (unmatched GET → index.html in production) is the
  * SpaFallbackFilter (APP_FILTER in AppModule); the global error envelope is the
- * TrekExceptionFilter (also APP_FILTER).
+ * TrippiExceptionFilter (also APP_FILTER).
  */
 export async function buildApp(): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule, new ExpressAdapter());

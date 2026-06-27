@@ -85,7 +85,7 @@ export default function SharedTripPage() {
 
         {/* Logo */}
         <div className="bg-[rgba(255,255,255,0.08)]" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 12, backdropFilter: 'blur(8px)', marginBottom: 12, border: '1px solid rgba(255,255,255,0.1)' }}>
-          <img src="/icons/icon-white.svg" alt="TREK" width="26" height="26" />
+          <img src="/icons/icon-white.svg" alt="TRIPPI" width="26" height="26" />
         </div>
 
         <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.35, marginBottom: 12 }}>Travel Resource & Exploration Kit</div>
@@ -396,10 +396,10 @@ export default function SharedTripPage() {
         {/* Footer */}
         <div style={{ textAlign: 'center', padding: '40px 0 20px' }}>
           <div className="bg-surface-card border border-edge-faint" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <img src="/icons/icon.svg" alt="TREK" width="18" height="18" style={{ borderRadius: 4 }} />
-            <span className="text-[#9ca3af]" style={{ fontSize: 11 }}>{t('shared.sharedVia')} <strong className="text-[#6b7280]">TREK</strong></span>
+            <img src="/icons/icon.svg" alt="TRIPPI" width="18" height="18" style={{ borderRadius: 4 }} />
+            <span className="text-[#9ca3af]" style={{ fontSize: 11 }}>{t('shared.sharedVia')} <strong className="text-[#6b7280]">TRIPPI</strong></span>
           </div>
-          <div className="text-[#d1d5db]" style={{ marginTop: 8, fontSize: 10 }}>Made with <span className="text-[#ef4444]">&hearts;</span> by Maurice · <a href="https://github.com/mauriceboe/TREK" className="text-[#9ca3af]" style={{ textDecoration: 'none' }}>GitHub</a></div>
+          <div className="text-[#d1d5db]" style={{ marginTop: 8, fontSize: 10 }}>Made with <span className="text-[#ef4444]">&hearts;</span> by Maurice · <a href="https://github.com/mauriceboe/TRIPPI" className="text-[#9ca3af]" style={{ textDecoration: 'none' }}>GitHub</a></div>
         </div>
       </div>
     </div>

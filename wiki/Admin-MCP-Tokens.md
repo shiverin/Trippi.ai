@@ -10,7 +10,7 @@ This panel is only visible when the **MCP addon** is enabled in the [Admin-Addon
 
 ## OAuth Sessions
 
-OAuth sessions are created when a user authorizes an MCP client via the OAuth 2.1 flow. These are the recommended way to connect MCP clients to TREK.
+OAuth sessions are created when a user authorizes an MCP client via the OAuth 2.1 flow. These are the recommended way to connect MCP clients to TRIPPI.
 
 **Columns:**
 
@@ -23,11 +23,11 @@ OAuth sessions are created when a user authorizes an MCP client via the OAuth 2.
 
 **Revoking a session:** Click the trash icon on the row and confirm. The session is invalidated immediately and the revocation is recorded in the audit log. The user's MCP client will need to re-authorize before it can make further requests.
 
-OAuth access tokens use the prefix `trekoa_`.
+OAuth access tokens use the prefix `trippioa_`.
 
 ## API Tokens
 
-API tokens are long-lived tokens that users create in their personal settings. They are identified by the `trek_` prefix.
+API tokens are long-lived tokens that users create in their personal settings. They are identified by the `trippi_` prefix.
 
 **Columns:**
 

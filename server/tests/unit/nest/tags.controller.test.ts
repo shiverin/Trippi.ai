@@ -3,7 +3,7 @@ import { HttpException } from '@nestjs/common';
 import { TagsController } from '../../../src/nest/tags/tags.controller';
 import type { TagsService } from '../../../src/nest/tags/tags.service';
 import type { User } from '../../../src/types';
-import type { Tag } from '@trek/shared';
+import type { Tag } from '@trippi/shared';
 
 const user = { id: 5 } as User;
 

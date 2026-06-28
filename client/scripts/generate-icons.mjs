@@ -3,7 +3,7 @@
  * Run: node scripts/generate-icons.mjs
  * Called automatically via the "prebuild" npm script.
  */
-import { readFileSync } from 'fs';
+import { mkdirSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import sharp from 'sharp';
@@ -11,6 +11,8 @@ import sharp from 'sharp';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const iconsDir = join(__dirname, '..', 'public', 'icons');
 const brandIconBuffer = readFileSync(join(__dirname, '..', 'public', 'brand', 'trippi-icon.png'));
+
+mkdirSync(iconsDir, { recursive: true });
 
 const sizes = [
   { name: 'apple-touch-icon-180x180.png', size: 180 },

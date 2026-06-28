@@ -2,6 +2,15 @@ apiVersion: v1
 entries:
   trippi:
   - apiVersion: v2
+    appVersion: 3.1.9
+    created: "2026-06-28T15:54:01.913976955Z"
+    description: Minimal Helm chart for TRIPPI app
+    digest: 33afc0bf87a59d1795a1f71d88cc94618c5dccb6a88b56847d1cc10c4dd77626
+    name: trippi
+    urls:
+    - https://shiverin.github.io/Trippi.ai/trippi-3.1.9.tgz
+    version: 3.1.9
+  - apiVersion: v2
     appVersion: 3.1.8
     created: "2026-06-28T14:07:32.325045284Z"
     description: Minimal Helm chart for TRIPPI app
@@ -55,4 +64,4 @@ entries:
     urls:
     - https://shiverin.github.io/Trippi.ai/trippi-3.1.3.tgz
     version: 3.1.3
-generated: "2026-06-28T14:07:32.323612416Z"
+generated: "2026-06-28T15:54:01.913317146Z"

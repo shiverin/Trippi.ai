@@ -1,7 +1,7 @@
 {
   "name": "@trippi/root",
   "private": true,
-  "version": "3.1.2",
+  "version": "0.0.1",
   "workspaces": [
     "client",
     "server",

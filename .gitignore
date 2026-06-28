@@ -27,6 +27,8 @@ server/uploads/
 .env
 .env.*
 !.env.example
+.env.local
+.vercel
 
 # OS files
 .DS_Store

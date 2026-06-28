@@ -1,5 +1,6 @@
 import { ArrowUpDown, ChevronsDownUp, ChevronsUpDown, FileDown, Undo2 } from 'lucide-react';
 import { useState } from 'react';
+import { apiUrl } from '../../api/baseUrl';
 import type { AssignmentsMap, Category, Day, DayNote, Place, Reservation, Trip } from '../../types';
 import { downloadTripPDF } from '../PDF/TripPDF';
 import { useToast } from '../shared/Toast';
@@ -134,7 +135,7 @@ export function DayPlanSidebarToolbar({
           <button
             onClick={async () => {
               try {
-                const res = await fetch(`/api/trips/${tripId}/export.ics`, {
+                const res = await fetch(apiUrl(`/trips/${tripId}/export.ics`), {
                   credentials: 'include',
                 });
                 if (!res.ok) throw new Error();

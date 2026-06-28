@@ -1,5 +1,6 @@
 import { Camera, Image, Plus, RefreshCw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { apiUrl } from '../../api/baseUrl';
 import { addonsApi, journeyApi } from '../../api/client';
 import { useTranslation } from '../../i18n';
 import { photoUrl } from '../../pages/journeyDetail/JourneyDetailPage.helpers';
@@ -44,7 +45,7 @@ export function GalleryView({
         const connected: { id: string; name: string }[] = [];
         for (const p of enabledProviders) {
           try {
-            const res = await fetch(`/api/integrations/memories/${p.id}/status`, { credentials: 'include' });
+            const res = await fetch(apiUrl(`/integrations/memories/${p.id}/status`), { credentials: 'include' });
             if (res.ok) {
               const status = await res.json();
               if (status.connected) connected.push({ id: p.id, name: p.name });

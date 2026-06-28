@@ -1,5 +1,6 @@
 import { Calendar, Camera, Check, ChevronRight, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { apiUrl } from '../../api/baseUrl';
 import { useTranslation } from '../../i18n';
 import { groupPhotosByDate } from '../../pages/journeyDetail/JourneyDetailPage.helpers';
 import type { JourneyEntry, JourneyTrip } from '../../store/journeyStore';
@@ -76,7 +77,7 @@ export function ProviderPicker({
     setSearchTo(to);
     setSearchPage(page);
     try {
-      const res = await fetch(`/api/integrations/memories/${provider}/search`, {
+      const res = await fetch(apiUrl(`/integrations/memories/${provider}/search`), {
         method: 'POST',
         credentials: 'include',
         signal,
@@ -112,7 +113,7 @@ export function ProviderPicker({
     setHasMore(false);
     try {
       const qs = album.passphrase ? `?passphrase=${encodeURIComponent(album.passphrase)}` : '';
-      const res = await fetch(`/api/integrations/memories/${provider}/albums/${album.id}/photos${qs}`, {
+      const res = await fetch(apiUrl(`/integrations/memories/${provider}/albums/${album.id}/photos${qs}`), {
         credentials: 'include',
         signal,
       });
@@ -126,7 +127,7 @@ export function ProviderPicker({
 
   const loadAlbums = async () => {
     try {
-      const res = await fetch(`/api/integrations/memories/${provider}/albums`, { credentials: 'include' });
+      const res = await fetch(apiUrl(`/integrations/memories/${provider}/albums`), { credentials: 'include' });
       if (res.ok) setAlbums((await res.json()).albums || []);
     } catch {}
   };

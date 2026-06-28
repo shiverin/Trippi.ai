@@ -1,4 +1,5 @@
 // Singleton WebSocket manager for real-time collaboration
+import { apiUrl, websocketUrl } from './baseUrl'
 
 type WebSocketListener = (event: Record<string, unknown>) => void
 type RefetchCallback = (tripId: string) => void
@@ -40,14 +41,9 @@ export function setPreReconnectHook(fn: (() => Promise<void>) | null): void {
   preReconnectHook = fn
 }
 
-function getWsUrl(wsToken: string): string {
-  const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
-  return `${protocol}://${location.host}/ws?token=${wsToken}`
-}
-
 async function fetchWsToken(): Promise<string | null> {
   try {
-    const resp = await fetch('/api/auth/ws-token', {
+    const resp = await fetch(apiUrl('/auth/ws-token'), {
       method: 'POST',
       credentials: 'include',
     })
@@ -105,7 +101,7 @@ async function connectInternal(_isReconnect = false): Promise<void> {
     return
   }
 
-  const url = getWsUrl(wsToken)
+  const url = websocketUrl(wsToken)
   socket = new WebSocket(url)
 
   socket.onopen = () => {

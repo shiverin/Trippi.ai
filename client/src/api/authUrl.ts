@@ -1,7 +1,9 @@
+import { apiUrl } from './baseUrl'
+
 export async function getAuthUrl(url: string, purpose: 'download'): Promise<string> {
   if (!url) return url
   try {
-    const resp = await fetch('/api/auth/resource-token', {
+    const resp = await fetch(apiUrl('/auth/resource-token'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

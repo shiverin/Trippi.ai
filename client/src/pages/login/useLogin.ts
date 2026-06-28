@@ -5,6 +5,7 @@ import { useSettingsStore, hasStoredLanguage } from '../../store/settingsStore'
 import { useTranslation, detectBrowserLanguage } from '../../i18n'
 import { startAuthentication } from '@simplewebauthn/browser'
 import { authApi, configApi } from '../../api/client'
+import { apiUrl } from '../../api/baseUrl'
 import { getApiErrorMessage } from '../../types'
 
 interface AppConfig {
@@ -101,7 +102,7 @@ export function useLogin() {
       if (exchangeInitiated.current) return
       exchangeInitiated.current = true
       setIsLoading(true)
-      fetch('/api/auth/oidc/exchange?code=' + encodeURIComponent(oidcCode), { credentials: 'include' })
+      fetch(apiUrl('/auth/oidc/exchange?code=' + encodeURIComponent(oidcCode)), { credentials: 'include' })
         .then(r => r.json())
         .then(async data => {
           window.history.replaceState({}, '', '/login')

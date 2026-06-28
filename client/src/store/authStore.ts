@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { apiUrl } from '../api/baseUrl'
 import { authApi } from '../api/client'
 import { connect, disconnect } from '../api/websocket'
 import type { User } from '../types'
@@ -192,7 +193,7 @@ export const useAuthStore = create<AuthState>()(
     disconnect()
     useSystemNoticeStore.getState().reset()
     // 4. Tell server to clear the httpOnly cookie (best-effort).
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
+    await fetch(apiUrl('/auth/logout'), { method: 'POST', credentials: 'include' }).catch(() => {})
     // 5. Clear service worker caches containing sensitive data.
     if ('caches' in window) {
       await Promise.all([

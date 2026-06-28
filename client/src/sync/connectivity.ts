@@ -1,3 +1,5 @@
+import { apiUrl } from '../api/baseUrl'
+
 const PROBE_INTERVAL_MS = 30_000
 const PROBE_TIMEOUT_MS = 1_500
 
@@ -15,7 +17,7 @@ async function probe(): Promise<void> {
   try {
     const ctrl = new AbortController()
     const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
-    const res = await fetch('/api/health', {
+    const res = await fetch(apiUrl('/health'), {
       method: 'GET',
       credentials: 'include',
       cache: 'no-store',

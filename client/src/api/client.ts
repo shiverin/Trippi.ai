@@ -42,6 +42,7 @@ import {
   type BookingImportPreviewResponse,
   type BookingImportConfirmResponse,
 } from '@trippi/shared'
+import { API_BASE_URL, apiUrl } from './baseUrl'
 import { getSocketId } from './websocket'
 import { isReachable, probeNow } from '../sync/connectivity'
 
@@ -114,7 +115,7 @@ function translateRateLimit(): string {
 }
 
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   withCredentials: true,
   timeout: 8000,
   headers: {
@@ -697,7 +698,7 @@ export const backupApi = {
   list: () => apiClient.get('/backup/list').then(r => r.data),
   create: () => apiClient.post('/backup/create').then(r => r.data),
   download: async (filename: string): Promise<void> => {
-    const res = await fetch(`/api/backup/download/${filename}`, {
+    const res = await fetch(apiUrl(`/backup/download/${filename}`), {
       credentials: 'include',
     })
     if (!res.ok) throw new Error('Download failed')

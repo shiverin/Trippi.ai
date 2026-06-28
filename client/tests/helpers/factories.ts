@@ -5,21 +5,21 @@
  */
 
 import type {
-  User,
-  Trip,
-  Day,
-  Place,
+  AppConfig,
   Assignment,
+  BudgetItem,
+  Category,
+  Day,
   DayNote,
   PackingItem,
-  TodoItem,
-  BudgetItem,
+  Place,
   Reservation,
-  TripFile,
-  Tag,
-  Category,
   Settings,
-  AppConfig,
+  Tag,
+  TodoItem,
+  Trip,
+  TripFile,
+  User,
 } from '../../src/types';
 
 // ── Counters ──────────────────────────────────────────────────────────────────
@@ -266,7 +266,7 @@ export function buildSettings(overrides: Partial<Settings> = {}): Settings {
     dark_mode: false,
     default_currency: 'USD',
     language: 'en',
-    temperature_unit: 'fahrenheit',
+    temperature_unit: 'celsius',
     time_format: '12h',
     show_place_description: false,
     blur_booking_codes: false,

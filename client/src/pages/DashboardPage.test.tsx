@@ -85,6 +85,33 @@ describe('DashboardPage', () => {
     });
   });
 
+  describe('FE-PAGE-DASH-004B: Empty dashboard filters stay consistent', () => {
+    it('shows the same create-trip empty state for archived and completed filters', async () => {
+      server.use(
+        http.get('/api/trips', () => {
+          return HttpResponse.json({ trips: [] });
+        })
+      );
+
+      const user = userEvent.setup();
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/plan a new trip from scratch/i)).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Archived'));
+      expect(screen.getByText(/No trips yet/i)).toBeInTheDocument();
+      expect(screen.getByText(/Create your first trip and start planning/i)).toBeInTheDocument();
+      expect(screen.getByText(/plan a new trip from scratch/i)).toBeInTheDocument();
+
+      await user.click(screen.getByText('Completed'));
+      expect(screen.getByText(/No trips yet/i)).toBeInTheDocument();
+      expect(screen.getByText(/Create your first trip and start planning/i)).toBeInTheDocument();
+      expect(screen.getByText(/plan a new trip from scratch/i)).toBeInTheDocument();
+    });
+  });
+
   describe('FE-PAGE-DASH-004A: Planned trips remain visible when spotlighted', () => {
     it('shows a single planned trip in the planned list instead of the empty state', async () => {
       const plannedTrip = buildTrip({

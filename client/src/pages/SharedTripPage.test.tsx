@@ -373,8 +373,8 @@ describe('SharedTripPage', () => {
     });
   });
 
-  describe('FE-PAGE-SHARED-015: trippi.ai branding footer is rendered', () => {
-    it('renders the Shared via trippi.ai footer', async () => {
+  describe('FE-PAGE-SHARED-015: trippi branding footer is rendered', () => {
+    it('renders the Shared via trippi footer', async () => {
       renderSharedTrip('test-token');
 
       await waitFor(() => {

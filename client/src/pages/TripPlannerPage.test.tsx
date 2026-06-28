@@ -2,13 +2,30 @@ import { http, HttpResponse } from 'msw';
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildAssignment, buildDay, buildPlace, buildTrip, buildUser } from '../../tests/helpers/factories';
+import {
+  buildAssignment,
+  buildDay,
+  buildPlace,
+  buildReservation,
+  buildTrip,
+  buildUser,
+} from '../../tests/helpers/factories';
 import { server } from '../../tests/helpers/msw/server';
 import { act, fireEvent, render, screen, waitFor } from '../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../tests/helpers/store';
 import { useAuthStore } from '../store/authStore';
 import { useTripStore } from '../store/tripStore';
+import type { Place } from '../types';
 import TripPlannerPage from './TripPlannerPage';
+
+type CapturedMapViewProps = { places?: Place[]; dayPlaces?: Place[] } & Record<string, unknown>;
+const capturedMapViewProps: { current: CapturedMapViewProps } = { current: {} };
+vi.mock('../components/Map/MapViewAuto', () => ({
+  MapViewAuto: (props: CapturedMapViewProps) => {
+    capturedMapViewProps.current = props;
+    return React.createElement('div', { 'data-testid': 'map-view' });
+  },
+}));
 
 // Mock Leaflet-dependent components
 vi.mock('../components/Map/MapView', () => ({
@@ -237,6 +254,7 @@ beforeEach(() => {
   capturedTripMembersModalProps.current = {};
   capturedFileManagerProps.current = {};
   capturedPlaceInspectorProps.current = {};
+  capturedMapViewProps.current = {};
   seedStore(useAuthStore, { isAuthenticated: true, user: buildUser() });
 });
 
@@ -801,6 +819,59 @@ describe('TripPlannerPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('map-view')).toBeInTheDocument();
+      });
+    });
+
+    it('filters map pins to the clicked day and clears the filter on second click', async () => {
+      vi.useFakeTimers();
+
+      const tripId = 42;
+      seedTripStore({ id: tripId });
+      const day1 = buildDay({ id: 101, trip_id: tripId, title: 'Arrival' });
+      const day2 = buildDay({ id: 102, trip_id: tripId, title: 'Second day' });
+      const day1Place = buildPlace({ id: 1, trip_id: tripId, name: 'Day 1 place', lat: 1, lng: 1 });
+      const day2Place = buildPlace({ id: 2, trip_id: tripId, name: 'Day 2 place', lat: 2, lng: 2 });
+      const airportPlace = buildPlace({ id: 3, trip_id: tripId, name: 'Airport', lat: 3, lng: 3 });
+      const unplannedPlace = buildPlace({ id: 4, trip_id: tripId, name: 'Unplanned', lat: 4, lng: 4 });
+      seedStore(useTripStore, {
+        days: [day1, day2],
+        places: [day1Place, day2Place, airportPlace, unplannedPlace],
+        assignments: {
+          [String(day1.id)]: [buildAssignment({ day_id: day1.id, place_id: day1Place.id, place: day1Place })],
+          [String(day2.id)]: [buildAssignment({ day_id: day2.id, place_id: day2Place.id, place: day2Place })],
+        },
+        reservations: [
+          buildReservation({ trip_id: tripId, day_id: day1.id, end_day_id: day1.id, place_id: airportPlace.id }),
+        ],
+      } as any);
+
+      renderPlannerPage(tripId);
+
+      act(() => {
+        vi.runAllTimers();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(capturedMapViewProps.current.places?.map(({ id }) => id).sort((a, b) => a - b)).toEqual([1, 2, 3, 4]);
+      });
+
+      act(() => {
+        capturedDayPlanSidebarProps.current.onSelectDay?.(day1.id);
+      });
+
+      await waitFor(() => {
+        expect(capturedMapViewProps.current.places?.map(({ id }) => id).sort((a, b) => a - b)).toEqual([1, 3]);
+        expect(capturedMapViewProps.current.dayPlaces?.map(({ id }) => id).sort((a, b) => a - b)).toEqual([1, 3]);
+      });
+
+      act(() => {
+        capturedDayPlanSidebarProps.current.onSelectDay?.(day1.id);
+      });
+
+      await waitFor(() => {
+        expect(capturedMapViewProps.current.places?.map(({ id }) => id).sort((a, b) => a - b)).toEqual([1, 2, 3, 4]);
       });
     });
   });

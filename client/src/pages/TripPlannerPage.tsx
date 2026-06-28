@@ -455,7 +455,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
             animation: 'fadeInUp 0.5s ease-out',
           }}
         >
-          {trip?.title || 'trippi.ai'}
+          {trip?.title || 'trippi'}
         </div>
         <div
           className="text-content-faint"

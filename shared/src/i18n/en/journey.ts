@@ -210,7 +210,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Shared via',
   'journey.public.madeWith': 'Made with',
   'journey.pdf.journeyBook': 'Journey Book',
-  'journey.pdf.madeWith': 'Made with trippi.ai',
+  'journey.pdf.madeWith': 'Made with trippi',
   'journey.pdf.day': 'Day',
   'journey.pdf.theEnd': 'The End',
   'journey.pdf.saveAsPdf': 'Save as PDF',

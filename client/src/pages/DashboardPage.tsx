@@ -216,7 +216,7 @@ export default function DashboardPage(): React.ReactElement {
                   </div>
                 </div>
 
-                {gridTrips.length === 0 && tripFilter === 'planned' && !isLoading && !loadError && (
+                {gridTrips.length === 0 && !isLoading && !loadError && (
                   <div className="trips-empty">
                     <h4>{t('dashboard.emptyTitle')}</h4>
                     <p>{t('dashboard.emptyText')}</p>
@@ -239,7 +239,7 @@ export default function DashboardPage(): React.ReactElement {
                       onDelete={() => setDeleteTrip(trip)}
                     />
                   ))}
-                  {tripFilter === 'planned' && !isLoading && (
+                  {!isLoading && (tripFilter === 'planned' || gridTrips.length === 0) && (
                     <button
                       className="add-trip-card"
                       onClick={() => {

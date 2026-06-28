@@ -8,7 +8,7 @@
 
 <br />
 
-<strong>Your trips. Your plan. Your AI travel workspace.</strong>
+<strong>your trippi, our troppi</strong>
 
 trippi.ai is a self-hosted, real-time collaborative travel planner with maps, budgets, packing lists, a journal, and AI built in.
 

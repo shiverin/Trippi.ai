@@ -9,6 +9,8 @@ registerPredicate('whitespace-collision-detected', () => {
   return row?.value === 'true';
 });
 
+registerPredicate('welcome-notice-enabled', () => process.env.WELCOME_NOTICE_ENABLED?.toLowerCase() === 'true');
+
 /**
  * SYSTEM NOTICE REGISTRY
  *
@@ -173,7 +175,7 @@ export const SYSTEM_NOTICES: SystemNotice[] = [
       actionId: 'open:trip-create',
     },
     dismissible: true,
-    conditions: [{ kind: 'firstLogin' }],
+    conditions: [{ kind: 'firstLogin' }, { kind: 'custom', id: 'welcome-notice-enabled' }],
     publishedAt: '2026-04-16T00:00:00Z',
     priority: 100,
   },

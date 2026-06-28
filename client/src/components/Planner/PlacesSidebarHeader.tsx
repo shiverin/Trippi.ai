@@ -148,16 +148,18 @@ export function PlacesHeader(S: SidebarState) {
         });
         const counts = {
           all: baseFiltered.length,
+          planned: baseFiltered.filter((p) => plannedIds.has(p.id)).length,
           unplanned: baseFiltered.filter((p) => !plannedIds.has(p.id)).length,
           tracks: baseFiltered.filter((p) => p.route_geometry).length,
         };
         const tabs = (
           [
             { id: 'all', label: t('places.all') },
+            { id: 'planned', label: t('places.planned') },
             { id: 'unplanned', label: t('places.unplanned') },
             hasTracks ? { id: 'tracks', label: t('places.filterTracks') } : null,
           ] as const
-        ).filter(Boolean) as Array<{ id: 'all' | 'unplanned' | 'tracks'; label: string }>;
+        ).filter(Boolean) as Array<{ id: 'all' | 'planned' | 'unplanned' | 'tracks'; label: string }>;
         return (
           <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
             {tabs.map((f) => {

@@ -172,8 +172,8 @@ export function buildEmailHtml(
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
         <!-- Header -->
         <tr><td style="background: linear-gradient(135deg, #000000 0%, #1a1a2e 100%); padding: 32px 32px 28px; text-align: center;">
-          <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">trippi.ai</div>
-          <div style="color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Your trips. Your plan.</div>
+          <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">trippi</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">your trippi, our troppi</div>
         </td></tr>
         <!-- Content -->
         <tr><td style="padding: 32px 32px 16px;">
@@ -192,7 +192,7 @@ export function buildEmailHtml(
         <!-- Footer -->
         <tr><td style="padding: 20px 32px; background: #f9fafb; border-top: 1px solid #f3f4f6; text-align: center;">
           <p style="margin: 0 0 8px; font-size: 11px; color: #9ca3af; line-height: 1.5;">${s.footer}<br>${s.manage}</p>
-          <p style="margin: 0; font-size: 10px; color: #d1d5db;">${s.madeWith} <span style="color: #ef4444;">&hearts;</span> by trippi.ai &middot; <a href="https://github.com/shiverin/Trippi.ai" style="color: #9ca3af; text-decoration: none;">GitHub</a></p>
+          <p style="margin: 0; font-size: 10px; color: #d1d5db;">${s.madeWith} <span style="color: #ef4444;">&hearts;</span> by trippi &middot; <a href="https://github.com/shiverin/Trippi.ai" style="color: #9ca3af; text-decoration: none;">GitHub</a></p>
         </td></tr>
       </table>
     </td></tr>
@@ -277,7 +277,7 @@ export async function sendPasswordResetEmail(
     await transporter.sendMail({
       from: smtpCfg.from,
       to,
-      subject: `trippi.ai — ${strings.subject}`,
+      subject: `trippi — ${strings.subject}`,
       text: `${strings.greeting}, ${to}\n\n${strings.body}\n\n${strings.ctaIntro}: ${resetUrl}\n\n${strings.expiry}\n${strings.ignore}`,
       html: buildPasswordResetHtml(strings.subject, strings, to, resetUrl, lang),
     });
@@ -314,7 +314,7 @@ export async function sendEmail(
     await transporter.sendMail({
       from: config.from,
       to,
-      subject: `trippi.ai — ${subject}`,
+      subject: `trippi — ${subject}`,
       text: body,
       html: buildEmailHtml(subject, body, lang, navigateTarget),
     });
@@ -342,7 +342,7 @@ export function buildWebhookBody(
           description: payload.body,
           url: payload.link,
           color: 0x3b82f6,
-          footer: { text: payload.tripName ? `Trip: ${payload.tripName}` : 'trippi.ai' },
+          footer: { text: payload.tripName ? `Trip: ${payload.tripName}` : 'trippi' },
           timestamp: new Date().toISOString(),
         },
       ],
@@ -351,13 +351,13 @@ export function buildWebhookBody(
 
   if (isSlack) {
     const trip = payload.tripName ? `  •  _${payload.tripName}_` : '';
-    const link = payload.link ? `\n<${payload.link}|Open in trippi.ai>` : '';
+    const link = payload.link ? `\n<${payload.link}|Open in trippi>` : '';
     return JSON.stringify({
       text: `*${payload.title}*\n${payload.body}${trip}${link}`,
     });
   }
 
-  return JSON.stringify({ ...payload, timestamp: new Date().toISOString(), source: 'trippi.ai' });
+  return JSON.stringify({ ...payload, timestamp: new Date().toISOString(), source: 'trippi' });
 }
 
 export async function sendWebhook(
@@ -411,8 +411,8 @@ export async function testSmtp(to: string): Promise<{ success: boolean; error?: 
     await transporter.sendMail({
       from: config.from,
       to,
-      subject: 'trippi.ai — Test Notification',
-      text: 'This is a test email from trippi.ai. If you received this, your SMTP configuration is working correctly.',
+      subject: 'trippi — Test Notification',
+      text: 'This is a test email from trippi. If you received this, your SMTP configuration is working correctly.',
     });
     return { success: true };
   } catch (err) {
@@ -425,7 +425,7 @@ export async function testWebhook(url: string): Promise<{ success: boolean; erro
     const sent = await sendWebhook(url, {
       event: 'test',
       title: 'Test Notification',
-      body: 'This is a test webhook from trippi.ai. If you received this, your webhook configuration is working correctly.',
+      body: 'This is a test webhook from trippi. If you received this, your webhook configuration is working correctly.',
     });
     return sent ? { success: true } : { success: false, error: 'Failed to send webhook' };
   } catch (err) {
@@ -560,7 +560,7 @@ export async function testNtfy(cfg: {
     const sent = await sendNtfy(url, cfg.token ?? null, {
       event: 'test',
       title: 'Test Notification',
-      body: 'This is a test notification from trippi.ai. If you received this, your ntfy configuration is working correctly.',
+      body: 'This is a test notification from trippi. If you received this, your ntfy configuration is working correctly.',
     });
     return sent ? { success: true } : { success: false, error: 'Failed to send ntfy notification' };
   } catch (err) {

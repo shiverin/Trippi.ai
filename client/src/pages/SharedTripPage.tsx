@@ -182,7 +182,7 @@ export default function SharedTripPage() {
             marginBottom: 12,
           }}
         >
-          Shared with trippi.ai
+          Shared with trippi
         </div>
 
         <h1 style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 700, letterSpacing: -0.5 }}>{trip.title}</h1>
@@ -988,11 +988,11 @@ export default function SharedTripPage() {
               style={{ borderRadius: 4 }}
             />
             <span className="text-[#9ca3af]" style={{ fontSize: 11 }}>
-              {t('shared.sharedVia')} <strong className="text-[#6b7280]">trippi.ai</strong>
+              {t('shared.sharedVia')} <strong className="text-[#6b7280]">trippi</strong>
             </span>
           </div>
           <div className="text-[#d1d5db]" style={{ marginTop: 8, fontSize: 10 }}>
-            Made with <span className="text-[#ef4444]">&hearts;</span> by trippi.ai ·{' '}
+            Made with <span className="text-[#ef4444]">&hearts;</span> by trippi ·{' '}
             <a
               href="https://github.com/shiverin/Trippi.ai"
               className="text-[#9ca3af]"

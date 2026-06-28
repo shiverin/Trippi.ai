@@ -72,9 +72,9 @@ describe('DemoBanner', () => {
   });
 
   // FE-COMP-DEMOBANNER-009
-  it('shows "What is trippi.ai?" section', () => {
+  it('shows "What is trippi?" section', () => {
     render(<DemoBanner />);
-    expect(screen.getByText('What is trippi.ai?')).toBeInTheDocument();
+    expect(screen.getByText('What is trippi?')).toBeInTheDocument();
   });
 
   // FE-COMP-DEMOBANNER-010

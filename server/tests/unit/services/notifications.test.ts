@@ -1,3 +1,15 @@
+import { logError } from '../../../src/services/auditLog';
+import {
+  getEventText,
+  buildEmailHtml,
+  buildWebhookBody,
+  sendWebhook,
+  sendNtfy,
+  resolveNtfyUrl,
+  type NtfyConfig,
+} from '../../../src/services/notifications';
+import { checkSsrf } from '../../../src/utils/ssrfGuard';
+
 import { describe, it, expect, vi, afterEach, afterAll, beforeEach } from 'vitest';
 
 vi.mock('../../../src/db/database', () => ({
@@ -23,10 +35,6 @@ vi.mock('../../../src/utils/ssrfGuard', () => ({
   checkSsrf: vi.fn(async () => ({ allowed: true, isPrivate: false, resolvedIp: '1.2.3.4' })),
   createPinnedDispatcher: vi.fn(() => ({})),
 }));
-
-import { getEventText, buildEmailHtml, buildWebhookBody, sendWebhook, sendNtfy, resolveNtfyUrl, type NtfyConfig } from '../../../src/services/notifications';
-import { checkSsrf } from '../../../src/utils/ssrfGuard';
-import { logError } from '../../../src/services/auditLog';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -76,7 +84,15 @@ describe('getEventText', () => {
   });
 
   it('all 7 event types produce non-empty title and body in English', () => {
-    const events = ['trip_invite', 'booking_change', 'trip_reminder', 'vacay_invite', 'photos_shared', 'collab_message', 'packing_tagged'] as const;
+    const events = [
+      'trip_invite',
+      'booking_change',
+      'trip_reminder',
+      'vacay_invite',
+      'photos_shared',
+      'collab_message',
+      'packing_tagged',
+    ] as const;
     for (const event of events) {
       const result = getEventText('en', event, params);
       expect(result.title, `title for ${event}`).toBeTruthy();
@@ -85,7 +101,15 @@ describe('getEventText', () => {
   });
 
   it('all 7 event types produce non-empty title and body in German', () => {
-    const events = ['trip_invite', 'booking_change', 'trip_reminder', 'vacay_invite', 'photos_shared', 'collab_message', 'packing_tagged'] as const;
+    const events = [
+      'trip_invite',
+      'booking_change',
+      'trip_reminder',
+      'vacay_invite',
+      'photos_shared',
+      'collab_message',
+      'packing_tagged',
+    ] as const;
     for (const event of events) {
       const result = getEventText('de', event, params);
       expect(result.title, `de title for ${event}`).toBeTruthy();
@@ -126,10 +150,10 @@ describe('buildWebhookBody', () => {
     expect(body.embeds[0].footer.text).toContain('Tokyo Adventure');
   });
 
-  it('Discord embed footer defaults to trippi.ai when no trip name', () => {
+  it('Discord embed footer defaults to trippi when no trip name', () => {
     const noTrip = { ...payload, tripName: undefined };
     const body = JSON.parse(buildWebhookBody('https://discord.com/api/webhooks/123/abc', noTrip));
-    expect(body.embeds[0].footer.text).toBe('trippi.ai');
+    expect(body.embeds[0].footer.text).toBe('trippi');
   });
 
   it('discordapp.com URL is also detected as Discord', () => {
@@ -162,7 +186,7 @@ describe('buildWebhookBody', () => {
     expect(body).toHaveProperty('title', payload.title);
     expect(body).toHaveProperty('body', payload.body);
     expect(body).toHaveProperty('timestamp');
-    expect(body).toHaveProperty('source', 'trippi.ai');
+    expect(body).toHaveProperty('source', 'trippi');
   });
 });
 
@@ -186,7 +210,7 @@ describe('buildEmailHtml', () => {
 
   it('uses English i18n strings for lang=en', () => {
     const html = buildEmailHtml('Subject', 'Body', 'en');
-    expect(html).toContain('notifications enabled in trippi.ai');
+    expect(html).toContain('notifications enabled in trippi');
   });
 
   it('uses German i18n strings for lang=de', () => {
@@ -195,10 +219,8 @@ describe('buildEmailHtml', () => {
   });
 
   it('falls back to English i18n for unknown language', () => {
-    const en = buildEmailHtml('Subject', 'Body', 'en');
     const unknown = buildEmailHtml('Subject', 'Body', 'xx');
-    // Both should have the same footer text
-    expect(unknown).toContain('notifications enabled in trippi.ai');
+    expect(unknown).toContain('notifications enabled in trippi');
   });
 });
 
@@ -264,7 +286,9 @@ describe('sendWebhook SSRF protection (SEC-017)', () => {
 
   it('blocks loopback address and returns false', async () => {
     vi.mocked(checkSsrf).mockResolvedValueOnce({
-      allowed: false, isPrivate: true, resolvedIp: '127.0.0.1',
+      allowed: false,
+      isPrivate: true,
+      resolvedIp: '127.0.0.1',
       error: 'Requests to loopback and link-local addresses are not allowed',
     });
 
@@ -275,7 +299,9 @@ describe('sendWebhook SSRF protection (SEC-017)', () => {
 
   it('blocks cloud metadata endpoint (169.254.169.254) and returns false', async () => {
     vi.mocked(checkSsrf).mockResolvedValueOnce({
-      allowed: false, isPrivate: true, resolvedIp: '169.254.169.254',
+      allowed: false,
+      isPrivate: true,
+      resolvedIp: '169.254.169.254',
       error: 'Requests to loopback and link-local addresses are not allowed',
     });
 
@@ -286,7 +312,9 @@ describe('sendWebhook SSRF protection (SEC-017)', () => {
 
   it('blocks private network addresses and returns false', async () => {
     vi.mocked(checkSsrf).mockResolvedValueOnce({
-      allowed: false, isPrivate: true, resolvedIp: '192.168.1.1',
+      allowed: false,
+      isPrivate: true,
+      resolvedIp: '192.168.1.1',
       error: 'Requests to private/internal network addresses are not allowed',
     });
 
@@ -297,7 +325,8 @@ describe('sendWebhook SSRF protection (SEC-017)', () => {
 
   it('blocks non-HTTP protocols', async () => {
     vi.mocked(checkSsrf).mockResolvedValueOnce({
-      allowed: false, isPrivate: false,
+      allowed: false,
+      isPrivate: false,
       error: 'Only HTTP and HTTPS URLs are allowed',
     });
 
@@ -309,7 +338,9 @@ describe('sendWebhook SSRF protection (SEC-017)', () => {
     const mockFetch = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
     mockFetch.mockClear();
     vi.mocked(checkSsrf).mockResolvedValueOnce({
-      allowed: false, isPrivate: true, resolvedIp: '127.0.0.1',
+      allowed: false,
+      isPrivate: true,
+      resolvedIp: '127.0.0.1',
       error: 'blocked',
     });
 
@@ -417,7 +448,9 @@ describe('sendNtfy', () => {
 
   it('NTFY-005 — SSRF guard blocks private URL and returns false', async () => {
     vi.mocked(checkSsrf).mockResolvedValueOnce({
-      allowed: false, isPrivate: true, resolvedIp: '192.168.1.1',
+      allowed: false,
+      isPrivate: true,
+      resolvedIp: '192.168.1.1',
       error: 'Requests to private/internal network addresses are not allowed',
     });
 

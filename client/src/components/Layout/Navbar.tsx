@@ -151,19 +151,29 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
           </button>
         )}
 
-        <Link to="/dashboard" className="flex flex-shrink-0 items-center transition-colors">
+        <Link
+          to="/dashboard"
+          aria-label="trippi dashboard"
+          className="flex flex-shrink-0 items-center gap-2 transition-colors"
+        >
           <img
             src={dark ? '/brand/trippi-icon-light.png' : '/brand/trippi-icon.png'}
-            alt="trippi.ai"
+            alt=""
             className="brand-icon sm:hidden"
             style={{ height: 24, width: 24 }}
           />
-          <img
-            src={dark ? '/brand/trippi-wordmark-light.png' : '/brand/trippi-wordmark.png'}
-            alt="trippi.ai"
-            className="brand-wordmark hidden sm:block"
-            style={{ height: 30 }}
-          />
+          <span
+            className="hidden sm:inline"
+            style={{
+              color: dark ? '#f8fafc' : '#0f2a56',
+              fontSize: 28,
+              fontWeight: 800,
+              lineHeight: 1,
+              letterSpacing: 0,
+            }}
+          >
+            trippi
+          </span>
         </Link>
 
         {tripTitle && (
@@ -380,12 +390,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
                               padding: '4px 12px',
                             }}
                           >
-                            <img
-                              src={dark ? '/brand/trippi-wordmark-light.png' : '/brand/trippi-wordmark.png'}
-                              alt="trippi.ai"
-                              className="brand-wordmark"
-                              style={{ height: 12, opacity: 0.55 }}
-                            />
+                            <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-faint)' }}>trippi</span>
                             <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)' }}>
                               v{appVersion}
                             </span>

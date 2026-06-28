@@ -370,7 +370,7 @@ export default function AboutTab({ appVersion }: Props): React.ReactElement {
           </div>
           <div>
             <div className="text-sm font-semibold text-content">Source Code</div>
-            <div className="text-xs text-content-faint">View the trippi.ai repository</div>
+            <div className="text-xs text-content-faint">View the trippi repository</div>
           </div>
           <ExternalLink size={14} className="ml-auto flex-shrink-0 text-content-faint" />
         </a>

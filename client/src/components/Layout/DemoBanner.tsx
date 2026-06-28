@@ -75,7 +75,7 @@ const texts: Record<string, DemoTexts> = {
   en: {
     titleBefore: 'Welcome to ',
     titleAfter: '',
-    title: 'Welcome to the trippi.ai Demo',
+    title: 'Welcome to the trippi Demo',
     description: 'You can view, edit and create trips. All changes are automatically reset every hour.',
     resetIn: 'Next reset in',
     minutes: 'minutes',
@@ -98,7 +98,7 @@ const texts: Record<string, DemoTexts> = {
       ['Documents', 'Attach files to trips'],
       ['Widgets', 'Currency converter & timezones'],
     ],
-    whatIs: 'What is trippi.ai?',
+    whatIs: 'What is trippi?',
     whatIsDesc:
       'A self-hosted travel planner with real-time collaboration, interactive maps, OIDC login and dark mode.',
     selfHost: 'Open source — ',
@@ -384,7 +384,7 @@ export default function DemoBanner(): React.ReactElement | null {
           </div>
         </div>
 
-        {/* What is trippi.ai */}
+        {/* What is trippi */}
         <div
           style={{
             background: '#f8fafc',

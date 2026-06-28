@@ -246,8 +246,8 @@ describe('JourneyPublicPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Tokyo 2026')).toBeInTheDocument();
     });
-    // Footer shows "trippi.ai" brand and "Made with" text
-    expect(screen.getByText('trippi.ai')).toBeInTheDocument();
+    // Footer shows "trippi" brand and "Made with" text
+    expect(screen.getByText('trippi')).toBeInTheDocument();
     expect(screen.getByText(/Made with/)).toBeInTheDocument();
     expect(screen.getByText('GitHub')).toBeInTheDocument();
   });

@@ -135,7 +135,7 @@ function NoticeContent({
                 <h2 id={titleId} className="text-lg font-bold leading-tight text-white">
                   {title}
                 </h2>
-                <p className="text-xs font-medium text-white/60">trippi.ai 3.0</p>
+                <p className="text-xs font-medium text-white/60">trippi 3.0</p>
               </div>
             </div>
           </div>

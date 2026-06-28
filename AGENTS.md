@@ -1,5 +1,12 @@
 # Agent Instructions
 
+## Local workspace
+
+The active local workspace for this project is `/Users/shizhen/Documents/Trippi.ai`.
+Use this path for all app, git, and database work unless the user explicitly says
+otherwise. The live local SQLite database is `server/data/travel.db` in this
+workspace; make a timestamped backup before manual data edits.
+
 Before pushing to `main`, Codex agents must run the same gates as GitHub Actions and fix every failure.
 
 Required pre-push checks:

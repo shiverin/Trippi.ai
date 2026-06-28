@@ -18,7 +18,7 @@
     "test:integration": "vitest run tests/integration",
     "test:ws": "vitest run tests/websocket",
     "test:e2e": "vitest run tests/e2e",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "rm -rf coverage && vitest run --coverage --pool=threads --no-file-parallelism --maxWorkers=1 --coverage.processingConcurrency=1 --testTimeout 120000 --hookTimeout 120000"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.28.0",

@@ -35,7 +35,11 @@ export function PlacesList(S: SidebarState) {
       {filtered.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 16px', gap: 8 }}>
           <span className="text-content-faint" style={{ fontSize: 13 }}>
-            {filter === 'unplanned' ? t('places.allPlanned') : t('places.noneFound')}
+            {filter === 'planned'
+              ? t('places.noPlanned')
+              : filter === 'unplanned'
+                ? t('places.allPlanned')
+                : t('places.noneFound')}
           </span>
           {canEditPlaces && (
             <button

@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   plugins: [
@@ -99,8 +99,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'trippi.ai',
-        short_name: 'trippi.ai',
+        name: 'trippi',
+        short_name: 'trippi',
         description: 'Your trips. Your plan. Your AI travel workspace.',
         theme_color: '#111827',
         background_color: '#0f172a',
@@ -163,6 +163,6 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
-    }
-  }
-})
+    },
+  },
+});

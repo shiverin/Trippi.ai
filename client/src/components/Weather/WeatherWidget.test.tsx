@@ -65,9 +65,8 @@ describe('WeatherWidget', () => {
     });
   });
 
-  it('FE-COMP-WEATHERWIDGET-005: displays temperature in Celsius', async () => {
+  it('FE-COMP-WEATHERWIDGET-005: displays temperature in Celsius by default', async () => {
     vi.mocked(weatherApi.get).mockResolvedValue(buildWeather({ temp: 20 }));
-    useSettingsStore.setState({ settings: { ...useSettingsStore.getState().settings, temperature_unit: 'celsius' } });
     render(<WeatherWidget lat={48.86} lng={2.35} date="2025-06-01" />);
     await waitFor(() => {
       expect(screen.getByText('20°C')).toBeInTheDocument();

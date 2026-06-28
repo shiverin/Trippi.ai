@@ -837,9 +837,14 @@
     color 0.12s;
 }
 .trek-dash .seg button.on {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--sh-xs);
+  background: #111827;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.18);
+}
+.dark .trek-dash .seg button.on {
+  background: #f8fafc;
+  color: #111827;
+  box-shadow: 0 8px 18px rgba(255, 255, 255, 0.12);
 }
 
 /* ----------------- trips grid ----------------- */

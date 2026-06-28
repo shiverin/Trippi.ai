@@ -219,7 +219,18 @@ describe('Filter tabs', () => {
     expect(screen.getByText('Unplanned Place')).toBeInTheDocument();
   });
 
-  it('FE-PLANNER-SIDEBAR-018: "All" tab re-shows planned places', async () => {
+  it('FE-PLANNER-SIDEBAR-018: "Planned" tab only shows planned places', async () => {
+    const user = userEvent.setup();
+    const planned = buildPlace({ name: 'Planned Place' });
+    const unplanned = buildPlace({ name: 'Unplanned Place' });
+    const assignments = { '1': [buildAssignment({ place: planned, day_id: 1 })] };
+    render(<PlacesSidebar {...defaultProps} places={[planned, unplanned]} assignments={assignments} />);
+    await user.click(screen.getByRole('button', { name: /^Planned/i }));
+    expect(screen.getByText('Planned Place')).toBeInTheDocument();
+    expect(screen.queryByText('Unplanned Place')).not.toBeInTheDocument();
+  });
+
+  it('FE-PLANNER-SIDEBAR-019: "All" tab re-shows planned places', async () => {
     const user = userEvent.setup();
     const planned = buildPlace({ name: 'Planned Place' });
     const unplanned = buildPlace({ name: 'Unplanned Place' });
@@ -231,13 +242,21 @@ describe('Filter tabs', () => {
     expect(screen.getByText('Unplanned Place')).toBeInTheDocument();
   });
 
-  it('FE-PLANNER-SIDEBAR-019: unplanned empty state shows "All places are planned"', async () => {
+  it('FE-PLANNER-SIDEBAR-020: unplanned empty state shows "All places are planned"', async () => {
     const user = userEvent.setup();
     const place = buildPlace({ name: 'Assigned Place' });
     const assignments = { '1': [buildAssignment({ place, day_id: 1 })] };
     render(<PlacesSidebar {...defaultProps} places={[place]} assignments={assignments} />);
     await user.click(screen.getByRole('button', { name: /Unplanned/i }));
     expect(screen.getByText(/All places are planned/i)).toBeInTheDocument();
+  });
+
+  it('FE-PLANNER-SIDEBAR-021: planned empty state is explicit', async () => {
+    const user = userEvent.setup();
+    const place = buildPlace({ name: 'Loose Place' });
+    render(<PlacesSidebar {...defaultProps} places={[place]} />);
+    await user.click(screen.getByRole('button', { name: /^Planned/i }));
+    expect(screen.getByText(/No planned places yet/i)).toBeInTheDocument();
   });
 });
 

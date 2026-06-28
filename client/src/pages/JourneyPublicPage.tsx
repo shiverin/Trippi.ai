@@ -773,11 +773,11 @@ export default function JourneyPublicPage() {
             style={{ borderRadius: 4 }}
           />
           <span style={{ fontSize: 11, color: '#9ca3af' }}>
-            {t('journey.public.sharedVia')} <strong style={{ color: '#6b7280' }}>trippi.ai</strong>
+            {t('journey.public.sharedVia')} <strong style={{ color: '#6b7280' }}>trippi</strong>
           </span>
         </div>
         <div style={{ fontSize: 10, color: '#d1d5db' }}>
-          Made with <span style={{ color: '#ef4444' }}>♥</span> by trippi.ai ·{' '}
+          Made with <span style={{ color: '#ef4444' }}>♥</span> by trippi ·{' '}
           <a href="https://github.com/shiverin/Trippi.ai" style={{ color: '#9ca3af', textDecoration: 'none' }}>
             GitHub
           </a>

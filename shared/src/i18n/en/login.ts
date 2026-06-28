@@ -2,7 +2,7 @@ import type { TranslationStrings } from '../types';
 
 const login: TranslationStrings = {
   'login.error': 'Login failed. Please check your credentials.',
-  'login.tagline': 'Your Trips.\nYour Plan.',
+  'login.tagline': 'your trippi, our troppi',
   'login.description': 'Plan trips collaboratively with interactive maps, budgets, and real-time sync.',
   'login.features.maps': 'Interactive Maps',
   'login.features.mapsDesc': 'Google Places, routes & clustering',

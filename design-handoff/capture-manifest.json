@@ -1,0 +1,42 @@
+{
+  "capturedAt": "2026-06-27T16:22:08.509Z",
+  "baseURL": "http://localhost:5173",
+  "screens": [
+    {
+      "name": "01-login-desktop",
+      "file": "screens/01-login-desktop.png"
+    },
+    {
+      "name": "02-dashboard-empty-desktop",
+      "file": "screens/02-dashboard-empty-desktop.png"
+    },
+    {
+      "name": "03-dashboard-with-trip-desktop",
+      "file": "screens/03-dashboard-with-trip-desktop.png"
+    },
+    {
+      "name": "04-trip-planner-desktop",
+      "file": "screens/04-trip-planner-desktop.png"
+    },
+    {
+      "name": "05-trip-files-desktop",
+      "file": "screens/05-trip-files-desktop.png"
+    },
+    {
+      "name": "06-settings-desktop",
+      "file": "screens/06-settings-desktop.png"
+    },
+    {
+      "name": "07-admin-desktop",
+      "file": "screens/07-admin-desktop.png"
+    },
+    {
+      "name": "08-dashboard-mobile",
+      "file": "screens/08-dashboard-mobile.png"
+    },
+    {
+      "name": "09-trip-planner-mobile",
+      "file": "screens/09-trip-planner-mobile.png"
+    }
+  ]
+}

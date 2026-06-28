@@ -1,0 +1,157 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "client/**"
+      - "shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/test.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "client/**"
+      - "shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 24
+
+jobs:
+  shared:
+    name: Shared
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build --workspace=shared
+
+      - name: Typecheck
+        run: npm run typecheck --workspace=shared
+
+      - name: Lint
+        run: npm --workspace=shared exec eslint -- "src/**/*.ts"
+
+      - name: Format check
+        run: npm run format:check --workspace=shared
+
+      - name: i18n key parity
+        run: npm run i18n:parity:strict --workspace=shared
+
+      - name: Run tests
+        run: npm test --workspace=shared
+
+  server:
+    name: Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure @swc/core's Linux binary for unplugin-swc
+        # The lockfile was generated on Windows and omits @swc/core's Linux
+        # optional native binary, so npm ci/install skips it on the runner.
+        # Install the matching version explicitly so the server's SWC transform
+        # (server/vitest.config.ts) can load.
+        run: |
+          SWC_VERSION=$(node -p "require('@swc/core/package.json').version")
+          npm install --no-save --legacy-peer-deps "@swc/core-linux-x64-gnu@$SWC_VERSION"
+
+      - name: Build shared
+        run: npm run build --workspace=shared
+
+      - name: Build
+        run: npm run build --workspace=server
+
+      - name: Typecheck
+        run: npm run typecheck --workspace=server
+
+      - name: Lint
+        run: npm run lint:check --workspace=server
+
+      - name: Run tests
+        run: npm run test:coverage --workspace=server
+
+      - name: Upload coverage
+        if: success()
+        uses: actions/upload-artifact@v6
+        with:
+          name: backend-coverage
+          path: server/coverage/
+          retention-days: 7
+
+  client:
+    name: Client
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared
+        run: npm run build --workspace=shared
+
+      - name: Typecheck
+        run: npm run typecheck --workspace=client
+
+      - name: Lint
+        run: npm run lint:check --workspace=client
+
+      - name: Page pattern check
+        run: npm run lint:pages --workspace=client
+
+      - name: Run tests
+        run: npm run test:coverage --workspace=client
+
+      - name: Production build
+        run: npm run build --workspace=client
+
+      - name: Upload coverage
+        if: success()
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-coverage
+          path: client/coverage/
+          retention-days: 7

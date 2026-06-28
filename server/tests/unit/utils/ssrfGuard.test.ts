@@ -1,0 +1,360 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Capture Agent constructor options so we can test the lookup callback
+const { agentCapture } = vi.hoisted(() => ({ agentCapture: { options: null as any } }));
+
+// Mock dns/promises to avoid real DNS lookups in unit tests
+vi.mock('dns/promises', () => ({
+  default: { lookup: vi.fn() },
+  lookup: vi.fn(),
+}));
+
+// Mock undici Agent so we can inspect the connect.lookup option
+vi.mock('undici', () => ({
+  Agent: class MockAgent {
+    options: any;
+    constructor(opts: any) {
+      this.options = opts;
+      agentCapture.options = opts;
+    }
+  },
+}));
+
+import dns from 'dns/promises';
+import { checkSsrf, SsrfBlockedError, safeFetch, safeFetchFollow, createPinnedDispatcher } from '../../../src/utils/ssrfGuard';
+
+const mockLookup = vi.mocked(dns.lookup);
+
+function mockIp(ip: string) {
+  mockLookup.mockResolvedValue({ address: ip, family: ip.includes(':') ? 6 : 4 });
+}
+
+describe('checkSsrf', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  // SEC-001 — Loopback always blocked
+  describe('loopback addresses (always blocked)', () => {
+    it('SEC-001: blocks 127.0.0.1', async () => {
+      mockIp('127.0.0.1');
+      const result = await checkSsrf('http://example.com');
+      expect(result.allowed).toBe(false);
+      expect(result.isPrivate).toBe(true);
+    });
+
+    it('SEC-001: blocks ::1 (IPv6 loopback)', async () => {
+      mockIp('::1');
+      const result = await checkSsrf('http://example.com');
+      expect(result.allowed).toBe(false);
+    });
+
+    it('SEC-001: blocks 127.x.x.x range', async () => {
+      mockIp('127.0.0.2');
+      const result = await checkSsrf('http://example.com');
+      expect(result.allowed).toBe(false);
+    });
+  });
+
+  // SEC-002 — Link-local (AWS metadata) always blocked
+  describe('link-local addresses (always blocked)', () => {
+    it('SEC-002: blocks 169.254.169.254 (AWS metadata)', async () => {
+      mockIp('169.254.169.254');
+      const result = await checkSsrf('http://example.com');
+      expect(result.allowed).toBe(false);
+      expect(result.isPrivate).toBe(true);
+    });
+
+    it('SEC-002: blocks any 169.254.x.x address', async () => {
+      mockIp('169.254.0.1');
+      const result = await checkSsrf('http://example.com');
+      expect(result.allowed).toBe(false);
+    });
+  });
+
+  // SEC-003 — Private network blocked when ALLOW_INTERNAL_NETWORK is false
+  describe('private network addresses (conditionally blocked)', () => {
+    beforeEach(() => {
+      vi.stubEnv('ALLOW_INTERNAL_NETWORK', 'false');
+    });
+
+    it('SEC-003: blocks 10.x.x.x (RFC-1918)', async () => {
+      mockIp('10.0.0.1');
+      const result = await checkSsrf('http://example.com');
+      expect(result.allowed).toBe(false);
+      expect(result.isPrivate).toBe(true);
+    });
+
+    it('SEC-003: blocks 192.168.x.x (RFC-1918)', async () => {
+      mockIp('192.168.1.100');
+      const result = await checkSsrf('http://example.com');
+      expect(result.allowed).toBe(false);
+    });
+
+    it('SEC-003: blocks 172.16.x.x through 172.31.x.x (RFC-1918)', async () => {
+      mockIp('172.16.0.1');
+      const result = await checkSsrf('http://example.com');
+      expect(result.allowed).toBe(false);
+    });
+  });
+
+  // SEC-004 — Private network allowed with ALLOW_INTERNAL_NETWORK=true
+  describe('ALLOW_INTERNAL_NETWORK=true', () => {
+    it('SEC-004: allows private IP when flag is set', async () => {
+      vi.stubEnv('ALLOW_INTERNAL_NETWORK', 'true');
+      mockIp('192.168.1.100');
+      // Need to reload module since ALLOW_INTERNAL_NETWORK is read at module load time
+      vi.resetModules();
+      const { checkSsrf: checkSsrfFresh } = await import('../../../src/utils/ssrfGuard');
+      const { lookup: freshLookup } = await import('dns/promises');
+      vi.mocked(freshLookup).mockResolvedValue({ address: '192.168.1.100', family: 4 });
+      const result = await checkSsrfFresh('http://example.com');
+      expect(result.allowed).toBe(true);
+      expect(result.isPrivate).toBe(true);
+    });
+  });
+
+  describe('protocol restrictions', () => {
+    it('rejects non-HTTP/HTTPS protocols', async () => {
+      const result = await checkSsrf('ftp://example.com');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toContain('HTTP');
+    });
+
+    it('rejects file:// protocol', async () => {
+      const result = await checkSsrf('file:///etc/passwd');
+      expect(result.allowed).toBe(false);
+    });
+  });
+
+  describe('invalid URLs', () => {
+    it('rejects malformed URLs', async () => {
+      const result = await checkSsrf('not-a-url');
+      expect(result.allowed).toBe(false);
+      expect(result.error).toContain('Invalid URL');
+    });
+  });
+
+  describe('public URLs', () => {
+    it('allows a normal public IP', async () => {
+      mockIp('8.8.8.8');
+      const result = await checkSsrf('https://example.com');
+      expect(result.allowed).toBe(true);
+      expect(result.isPrivate).toBe(false);
+      expect(result.resolvedIp).toBe('8.8.8.8');
+    });
+  });
+
+  describe('internal hostname suffixes', () => {
+    it('blocks .local domains', async () => {
+      const result = await checkSsrf('http://myserver.local');
+      expect(result.allowed).toBe(false);
+    });
+
+    it('blocks .internal domains', async () => {
+      const result = await checkSsrf('http://service.internal');
+      expect(result.allowed).toBe(false);
+    });
+  });
+
+  describe('DNS resolution failure', () => {
+    it('returns allowed:false when dns.lookup throws', async () => {
+      mockLookup.mockRejectedValue(new Error('ENOTFOUND nxdomain.example'));
+      const result = await checkSsrf('http://nxdomain.example.com');
+      expect(result.allowed).toBe(false);
+      expect(result.isPrivate).toBe(false);
+      expect(result.error).toContain('Could not resolve hostname');
+    });
+  });
+
+});
+
+describe('SsrfBlockedError', () => {
+  it('is an instance of Error', () => {
+    const err = new SsrfBlockedError('blocked');
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it('has name SsrfBlockedError', () => {
+    const err = new SsrfBlockedError('test message');
+    expect(err.name).toBe('SsrfBlockedError');
+  });
+
+  it('has the correct message', () => {
+    const err = new SsrfBlockedError('my message');
+    expect(err.message).toBe('my message');
+  });
+});
+
+describe('safeFetch', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('throws SsrfBlockedError for a blocked URL (invalid URL)', async () => {
+    await expect(safeFetch('not-a-valid-url')).rejects.toThrow(SsrfBlockedError);
+  });
+
+  it('throws SsrfBlockedError for a loopback URL', async () => {
+    mockLookup.mockResolvedValue({ address: '127.0.0.1', family: 4 });
+    await expect(safeFetch('http://localhost')).rejects.toThrow(SsrfBlockedError);
+  });
+
+  it('calls fetch with the resolved URL when allowed', async () => {
+    mockLookup.mockResolvedValue({ address: '93.184.216.34', family: 4 });
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', mockFetch);
+    const result = await safeFetch('https://example.com');
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(result.status).toBe(200);
+  });
+
+  it('throws SsrfBlockedError with fallback message when error is undefined', async () => {
+    // non-http protocol → error:'Only HTTP and HTTPS URLs are allowed'
+    await expect(safeFetch('ftp://example.com')).rejects.toThrow(SsrfBlockedError);
+  });
+});
+
+describe('safeFetchFollow (manual per-hop redirect SSRF)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    mockLookup.mockReset();
+  });
+
+  /** Build a minimal Response-like object for a given hop. */
+  function fakeResponse(opts: { status: number; location?: string; url: string; ok?: boolean }) {
+    return {
+      status: opts.status,
+      ok: opts.ok ?? (opts.status >= 200 && opts.status < 300),
+      url: opts.url,
+      headers: { get: (h: string) => (h.toLowerCase() === 'location' ? opts.location ?? null : null) },
+      body: { cancel: () => Promise.resolve() },
+    };
+  }
+
+  it('follows a legitimate cross-host redirect (goo.gl -> maps.google.com) to the final response', async () => {
+    // Both hops resolve to public IPs.
+    mockLookup.mockResolvedValue({ address: '142.250.0.0', family: 4 });
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(fakeResponse({ status: 302, location: 'https://maps.google.com/maps/place/Foo', url: 'https://goo.gl/abc' }))
+      .mockResolvedValueOnce(fakeResponse({ status: 200, url: 'https://maps.google.com/maps/place/Foo' }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const res = await safeFetchFollow('https://goo.gl/abc');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(res.status).toBe(200);
+    expect(res.url).toBe('https://maps.google.com/maps/place/Foo');
+  });
+
+  it('blocks a redirect whose target resolves to an internal IP', async () => {
+    vi.stubEnv('ALLOW_INTERNAL_NETWORK', 'false');
+    // First hop (public) is allowed; the redirect target resolves to a private IP.
+    mockLookup
+      .mockResolvedValueOnce({ address: '142.250.0.0', family: 4 }) // goo.gl
+      .mockResolvedValue({ address: '169.254.169.254', family: 4 }); // redirect → metadata
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(fakeResponse({ status: 302, location: 'http://169.254.169.254/latest/meta-data/', url: 'https://goo.gl/evil' }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    await expect(safeFetchFollow('https://goo.gl/evil')).rejects.toThrow(SsrfBlockedError);
+    // Only the first hop should have been fetched; the internal hop is blocked BEFORE fetch.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks a redirect to a loopback address even with ALLOW_INTERNAL_NETWORK=true', async () => {
+    mockLookup
+      .mockResolvedValueOnce({ address: '142.250.0.0', family: 4 })
+      .mockResolvedValue({ address: '127.0.0.1', family: 4 });
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(fakeResponse({ status: 301, location: 'http://internal/', url: 'https://goo.gl/x' }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    await expect(safeFetchFollow('https://goo.gl/x', undefined, { bypassInternalIpAllowed: true }))
+      .rejects.toThrow(SsrfBlockedError);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects the initial URL if it is already internal', async () => {
+    mockLookup.mockResolvedValue({ address: '10.0.0.5', family: 4 });
+    const mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+    await expect(safeFetchFollow('http://intranet.example')).rejects.toThrow(SsrfBlockedError);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('returns the response immediately when not a redirect', async () => {
+    mockLookup.mockResolvedValue({ address: '8.8.8.8', family: 4 });
+    const mockFetch = vi.fn().mockResolvedValue(fakeResponse({ status: 200, url: 'https://example.com' }));
+    vi.stubGlobal('fetch', mockFetch);
+    const res = await safeFetchFollow('https://example.com');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(200);
+  });
+
+  it('returns a 3xx with no Location header as-is (nothing to follow)', async () => {
+    mockLookup.mockResolvedValue({ address: '8.8.8.8', family: 4 });
+    const mockFetch = vi.fn().mockResolvedValue(fakeResponse({ status: 304, url: 'https://example.com' }));
+    vi.stubGlobal('fetch', mockFetch);
+    const res = await safeFetchFollow('https://example.com');
+    expect(res.status).toBe(304);
+  });
+
+  it('throws after exceeding the max redirect hops', async () => {
+    mockLookup.mockResolvedValue({ address: '8.8.8.8', family: 4 });
+    // Always 302 to a new public host → loops until the hop cap.
+    let n = 0;
+    const mockFetch = vi.fn().mockImplementation(() =>
+      Promise.resolve(fakeResponse({ status: 302, location: `https://h${++n}.example.com/`, url: `https://h${n}.example.com/` })),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+    await expect(safeFetchFollow('https://start.example.com', undefined, { maxRedirects: 2 }))
+      .rejects.toThrow(SsrfBlockedError);
+    // initial + 2 allowed redirects = 3 fetches, then the 4th hop is rejected before fetch
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('resolves relative redirect Location against the current URL', async () => {
+    mockLookup.mockResolvedValue({ address: '8.8.8.8', family: 4 });
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(fakeResponse({ status: 302, location: '/resolved/path', url: 'https://example.com/start' }))
+      .mockResolvedValueOnce(fakeResponse({ status: 200, url: 'https://example.com/resolved/path' }));
+    vi.stubGlobal('fetch', mockFetch);
+    await safeFetchFollow('https://example.com/start');
+    // Second fetch must target the absolute resolution of the relative Location.
+    expect(mockFetch.mock.calls[1][0]).toBe('https://example.com/resolved/path');
+  });
+});
+
+describe('createPinnedDispatcher', () => {
+  it('returns an object (Agent instance)', () => {
+    const dispatcher = createPinnedDispatcher('93.184.216.34');
+    expect(dispatcher).toBeDefined();
+    expect(typeof dispatcher).toBe('object');
+  });
+
+  it('pinned lookup callback calls back with the resolved IPv4 address', () => {
+    createPinnedDispatcher('93.184.216.34');
+    const lookup = agentCapture.options?.connect?.lookup;
+    expect(typeof lookup).toBe('function');
+    const cb = vi.fn();
+    lookup('example.com', {}, cb);
+    expect(cb).toHaveBeenCalledWith(null, '93.184.216.34', 4);
+  });
+
+  it('pinned lookup callback uses family 6 for IPv6 address', () => {
+    createPinnedDispatcher('2001:4860:4860::8888');
+    const lookup = agentCapture.options?.connect?.lookup;
+    const cb = vi.fn();
+    lookup('example.com', {}, cb);
+    expect(cb).toHaveBeenCalledWith(null, '2001:4860:4860::8888', 6);
+  });
+
+  it('returns array format when opts.all is true', () => {
+    createPinnedDispatcher('93.184.216.34');
+    const lookup = agentCapture.options?.connect?.lookup;
+    const cb = vi.fn();
+    lookup('example.com', { all: true }, cb);
+    expect(cb).toHaveBeenCalledWith(null, [{ address: '93.184.216.34', family: 4 }]);
+  });
+});

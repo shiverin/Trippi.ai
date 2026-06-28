@@ -423,7 +423,7 @@ Caddy handles TLS and WebSockets automatically.
 | **Other** | | |
 | `DEMO_MODE` | Enable demo mode (hourly data resets) | `false` |
 | `MCP_RATE_LIMIT` | Max MCP API requests per user per minute | `300` |
-| `MCP_MAX_SESSION_PER_USER` | Max concurrent MCP sessions per user | `20` |
+| `MCP_MAX_SESSION_PER_USER` | Max concurrent MCP sessions per user | `200` |
 
 </details>
 

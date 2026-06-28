@@ -281,14 +281,14 @@ Restart the container after adding the variable. Once set, clicking **Connect** 
 
 ## MCP integration: "Too many requests" or "Session limit reached"
 
-**Cause:** Each user is limited to 300 MCP requests per minute and 20 concurrent sessions by default. Exceeding either limit returns a `429` response.
+**Cause:** Each user is limited to 300 MCP requests per minute and 200 concurrent sessions by default. Exceeding either limit returns a `429` response.
 
 **Fix:** Increase the limits via environment variables:
 
 ```yaml
 environment:
   - MCP_RATE_LIMIT=600          # requests per minute per user (default: 300)
-  - MCP_MAX_SESSION_PER_USER=50 # concurrent sessions per user (default: 20)
+  - MCP_MAX_SESSION_PER_USER=500 # concurrent sessions per user (default: 200)
 ```
 
 ---

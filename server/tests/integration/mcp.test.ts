@@ -243,29 +243,38 @@ describe('MCP session management', () => {
     return sessionId as string;
   }
 
-  it('MCP-003 — session limit of 5 per user', async () => {
-    const { user } = createUser(testDb);
-    testDb.prepare("UPDATE addons SET enabled = 1 WHERE id = 'mcp'").run();
+  it('MCP-003 — respects configured session limit per user', async () => {
+    const originalMaxSessions = process.env.MCP_MAX_SESSION_PER_USER;
+    process.env.MCP_MAX_SESSION_PER_USER = '5';
 
-    // Create 5 sessions
-    for (let i = 0; i < 20; i++) {
-      await createSession(user.id);
+    try {
+      const { user } = createUser(testDb);
+      testDb.prepare("UPDATE addons SET enabled = 1 WHERE id = 'mcp'").run();
+
+      for (let i = 0; i < 5; i++) {
+        await createSession(user.id);
+      }
+
+      const token = generateToken(user.id);
+      const res = await request(app)
+        .post('/mcp')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Accept', 'application/json, text/event-stream')
+        .send({
+          jsonrpc: '2.0',
+          method: 'initialize',
+          id: 1,
+          params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
+        });
+      expect(res.status).toBe(429);
+      expect(res.body.error).toMatch(/session limit/i);
+    } finally {
+      if (originalMaxSessions === undefined) {
+        delete process.env.MCP_MAX_SESSION_PER_USER;
+      } else {
+        process.env.MCP_MAX_SESSION_PER_USER = originalMaxSessions;
+      }
     }
-
-    // 6th should fail
-    const token = generateToken(user.id);
-    const res = await request(app)
-      .post('/mcp')
-      .set('Authorization', `Bearer ${token}`)
-      .set('Accept', 'application/json, text/event-stream')
-      .send({
-        jsonrpc: '2.0',
-        method: 'initialize',
-        id: 1,
-        params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
-      });
-    expect(res.status).toBe(429);
-    expect(res.body.error).toMatch(/session limit/i);
   });
 
   it('MCP — session resumption with valid mcp-session-id', async () => {

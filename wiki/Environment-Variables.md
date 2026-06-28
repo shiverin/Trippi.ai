@@ -182,7 +182,7 @@ For setup instructions, see [MCP-Overview](MCP-Overview).
 | Variable                   | Description                              | Default |
 |----------------------------|------------------------------------------|---------|
 | `MCP_RATE_LIMIT`           | Max MCP API requests per user per minute | `300`   |
-| `MCP_MAX_SESSION_PER_USER` | Max concurrent MCP sessions per user     | `20`    |
+| `MCP_MAX_SESSION_PER_USER` | Max concurrent MCP sessions per user     | `200`   |
 
 ---
 

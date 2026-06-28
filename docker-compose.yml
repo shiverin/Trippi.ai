@@ -43,7 +43,7 @@ services:
 #      - ADMIN_EMAIL=admin@trippi.local # Initial admin e-mail — only used on first boot when no users exist
 #      - ADMIN_PASSWORD=changeme      # Initial admin password — only used on first boot when no users exist
 #      - MCP_RATE_LIMIT=300 # Max MCP API requests per user per minute (default: 300)
-#      - MCP_MAX_SESSION_PER_USER=20 # Max concurrent MCP sessions per user (default: 20)
+#      - MCP_MAX_SESSION_PER_USER=200 # Max concurrent MCP sessions per user (default: 200)
 #      - KITINERARY_EXTRACTOR_PATH= # Optional. Full path to kitinerary-extractor binary. Auto-detected from PATH and /usr/lib/*/libexec/kf6/ when unset.
     volumes:
       - ./data:/app/data

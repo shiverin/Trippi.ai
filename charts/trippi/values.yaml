@@ -65,7 +65,7 @@ env:
   # Enable demo mode (hourly data resets).
   # MCP_RATE_LIMIT: "300"
   # Max MCP API requests per user per minute. Defaults to 300.
-  # MCP_MAX_SESSION_PER_USER: "20"
+  # MCP_MAX_SESSION_PER_USER: "200"
   # Max concurrent MCP sessions per user. Defaults to 20.
   # OVERPASS_URL: ""
   # Custom Overpass endpoint(s) for the map POI "explore" search, comma-separated. When set, REPLACES the bundled

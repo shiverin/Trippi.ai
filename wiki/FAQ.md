@@ -14,7 +14,7 @@ Yes. trippi.ai is a Progressive Web App. After your first visit, the service wor
 
 Each user can create up to **10 static API tokens**. Static tokens are deprecated — migrate to OAuth 2.1 when possible.
 
-For OAuth 2.1, each user can register up to **10 OAuth clients**. The default limit for concurrent MCP sessions is **20 per user** (configurable via `MCP_MAX_SESSION_PER_USER`). See [MCP Setup](MCP-Setup).
+For OAuth 2.1, each user can register up to **10 OAuth clients**. The default limit for concurrent MCP sessions is **200 per user** (configurable via `MCP_MAX_SESSION_PER_USER`). See [MCP Setup](MCP-Setup).
 
 > **Admin:** MCP must be enabled in Admin Panel > Addons before any user can access it.
 

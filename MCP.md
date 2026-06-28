@@ -167,7 +167,7 @@ that match your granted scopes for that session.
 | **Demo mode restrictions**              | If trippi.ai is running in demo mode, all write operations through MCP are blocked.                                                                   |
 | **Rate limiting**                       | 300 requests per minute per user (configurable via `MCP_RATE_LIMIT`). Exceeding this returns a `429` error.                                     |
 | **Per-client rate limiting**            | Rate limits are tracked per user-client pair, so each OAuth client has its own independent rate limit window.                                    |
-| **Session limits**                      | Maximum 20 concurrent MCP sessions per user (configurable via `MCP_MAX_SESSION_PER_USER`). Sessions expire after 1 hour of inactivity.          |
+| **Session limits**                      | Maximum 200 concurrent MCP sessions per user (configurable via `MCP_MAX_SESSION_PER_USER`). Sessions expire after 1 hour of inactivity.         |
 | **Token limits**                        | Maximum 10 static API tokens per user. Maximum 10 OAuth clients per user.                                                                        |
 | **Token revocation**                    | Deleting a static token or revoking an OAuth session immediately terminates all active MCP sessions for that token/client.                       |
 | **OAuth scope enforcement**             | Only tools matching your granted OAuth scopes are registered in the session. Calling an out-of-scope tool returns an error.                      |

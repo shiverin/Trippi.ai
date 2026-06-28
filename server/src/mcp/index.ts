@@ -97,10 +97,9 @@ const STATIC_TOKEN_DEPRECATION_NOTICE =
   "The actual tool result follows — answer the user's question as well.";
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
-const sessionParsed = Number.parseInt(process.env.MCP_MAX_SESSION_PER_USER ?? '');
-const MAX_SESSIONS_PER_USER = Number.isFinite(sessionParsed) && sessionParsed > 0 ? sessionParsed : 20;
+const DEFAULT_MAX_SESSIONS_PER_USER = 200;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const parsed = Number.parseInt(process.env.MCP_RATE_LIMIT ?? '');
+const parsed = Number.parseInt(process.env.MCP_RATE_LIMIT ?? '', 10);
 const RATE_LIMIT_MAX = Number.isFinite(parsed) && parsed > 0 ? parsed : 300; // requests per minute per user
 
 interface RateLimitEntry {
@@ -108,6 +107,11 @@ interface RateLimitEntry {
   windowStart: number;
 }
 const rateLimitMap = new Map<string, RateLimitEntry>();
+
+function getMaxSessionsPerUser(): number {
+  const sessionParsed = Number.parseInt(process.env.MCP_MAX_SESSION_PER_USER ?? '', 10);
+  return Number.isFinite(sessionParsed) && sessionParsed > 0 ? sessionParsed : DEFAULT_MAX_SESSIONS_PER_USER;
+}
 
 function isRateLimited(userId: number, clientId: string | null): boolean {
   const key = `${userId}:${clientId ?? 'native'}`;
@@ -289,7 +293,7 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  if (countSessionsForUser(user.id) >= MAX_SESSIONS_PER_USER) {
+  if (countSessionsForUser(user.id) >= getMaxSessionsPerUser()) {
     res.status(429).json({ error: 'Session limit reached. Close an existing session before opening a new one.' });
     return;
   }

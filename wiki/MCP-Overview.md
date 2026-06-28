@@ -38,7 +38,7 @@ See [MCP-Setup](MCP-Setup) for step-by-step instructions for each method.
 | Setting | Default | Environment variable |
 |---|---|---|
 | Requests per minute per user | 300 | `MCP_RATE_LIMIT` |
-| Max concurrent sessions per user | 20 | `MCP_MAX_SESSION_PER_USER` |
+| Max concurrent sessions per user | 200 | `MCP_MAX_SESSION_PER_USER` |
 
 Rate limits are tracked per user–client pair, so each OAuth client has its own independent window. Sessions expire after 1 hour of inactivity.
 

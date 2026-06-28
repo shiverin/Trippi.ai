@@ -25,7 +25,7 @@ helm install trippi-ai trippi-ai/trek
 Or install directly from the local chart:
 
 ```sh
-helm install trippi-ai ./charts/trek \
+helm install trippi-ai ./charts/trippi \
   --set ingress.enabled=true \
   --set ingress.hosts[0].host=yourdomain.com
 ```

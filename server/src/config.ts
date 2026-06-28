@@ -117,7 +117,7 @@ if (!SUPPORTED_LANG_CODES.includes(rawDefaultLang)) {
 }
 export const DEFAULT_LANGUAGE = SUPPORTED_LANG_CODES.includes(rawDefaultLang) ? rawDefaultLang : 'en';
 
-// SESSION_DURATION controls how long a trippi.ai session (the `trek_session` JWT
+// SESSION_DURATION controls how long a trippi.ai session (the `trippi_session` JWT
 // cookie) stays valid before re-login is required. Accepts ms-style strings:
 // '1h', '12h', '7d', '30d', '90d', etc. It applies to BOTH the JWT `exp` claim
 // and the cookie `maxAge`, so the two never drift apart. Invalid values warn at

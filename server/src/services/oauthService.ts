@@ -173,7 +173,7 @@ export function createOAuthClient(
   const id = randomUUID();
   const clientId = randomUUID();
   // Public clients have no usable secret; store an opaque random value to satisfy NOT NULL.
-  const rawSecret = isPublic ? null : 'trekcs_' + randomBytes(24).toString('hex');
+  const rawSecret = isPublic ? null : 'trippics_' + randomBytes(24).toString('hex');
   const secretHash = rawSecret ? hashToken(rawSecret) : randomBytes(32).toString('hex');
 
   db.prepare(
@@ -238,7 +238,7 @@ export function rotateOAuthClientSecret(
   if (!row) return { error: 'Client not found', status: 404 };
   if (row.is_public) return { error: 'Public clients do not use a client secret', status: 400 };
 
-  const rawSecret = 'trekcs_' + randomBytes(24).toString('hex');
+  const rawSecret = 'trippics_' + randomBytes(24).toString('hex');
   const secretHash = hashToken(rawSecret);
 
   db.prepare('UPDATE oauth_clients SET client_secret_hash = ? WHERE id = ?').run(secretHash, clientRowId);

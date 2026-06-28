@@ -94,7 +94,7 @@ function rowToInfo(row: OAuthClientRow): OAuthClientInformationFull {
 // Clients store
 // ---------------------------------------------------------------------------
 
-export const trekClientsStore: OAuthRegisteredClientsStore = {
+export const trippiClientsStore: OAuthRegisteredClientsStore = {
   async getClient(clientId: string): Promise<OAuthClientInformationFull | undefined> {
     const row = db
       .prepare(
@@ -141,9 +141,9 @@ export const trekClientsStore: OAuthRegisteredClientsStore = {
 // OAuthServerProvider
 // ---------------------------------------------------------------------------
 
-export const trekOAuthProvider: OAuthServerProvider = {
+export const trippiOAuthProvider: OAuthServerProvider = {
   get clientsStore() {
-    return trekClientsStore;
+    return trippiClientsStore;
   },
 
   // Redirects browser to the SPA consent page with OAuth params forwarded.

@@ -22,7 +22,8 @@ import { useToast } from '../shared/Toast';
 import PasskeysSection from './PasskeysSection';
 import Section from './Section';
 
-const MFA_BACKUP_SESSION_KEY = 'trek_mfa_backup_codes_pending';
+const MFA_BACKUP_SESSION_KEY = 'trippi_mfa_backup_codes_pending';
+const LEGACY_MFA_BACKUP_SESSION_KEY = 'trek_mfa_backup_codes_pending';
 
 export default function AccountTab(): React.ReactElement {
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loadUser, demoMode, appRequireMfa } = useAuthStore();
@@ -76,19 +77,23 @@ export default function AccountTab(): React.ReactElement {
   useEffect(() => {
     if (!user?.mfa_enabled || backupCodes) return;
     try {
-      const raw = sessionStorage.getItem(MFA_BACKUP_SESSION_KEY);
+      const raw =
+        sessionStorage.getItem(MFA_BACKUP_SESSION_KEY) ?? sessionStorage.getItem(LEGACY_MFA_BACKUP_SESSION_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as unknown;
       if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((x) => typeof x === 'string')) {
         setBackupCodes(parsed);
       }
+      sessionStorage.removeItem(LEGACY_MFA_BACKUP_SESSION_KEY);
     } catch {
       sessionStorage.removeItem(MFA_BACKUP_SESSION_KEY);
+      sessionStorage.removeItem(LEGACY_MFA_BACKUP_SESSION_KEY);
     }
   }, [user?.mfa_enabled, backupCodes]);
 
   const dismissBackupCodes = () => {
     sessionStorage.removeItem(MFA_BACKUP_SESSION_KEY);
+    sessionStorage.removeItem(LEGACY_MFA_BACKUP_SESSION_KEY);
     setBackupCodes(null);
   };
 
@@ -108,7 +113,7 @@ export default function AccountTab(): React.ReactElement {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'trek-mfa-backup-codes.txt';
+    a.download = 'trippi-mfa-backup-codes.txt';
     document.body.appendChild(a);
     a.click();
     a.remove();

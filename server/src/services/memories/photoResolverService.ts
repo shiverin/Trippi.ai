@@ -14,7 +14,12 @@ import path from 'path';
 
 // ── Lookup / Register ────────────────────────────────────────────────────
 
-export function getOrCreateTrippiPhoto(provider: string, assetId: string, ownerId: number, passphrase?: string): number {
+export function getOrCreateTrippiPhoto(
+  provider: string,
+  assetId: string,
+  ownerId: number,
+  passphrase?: string,
+): number {
   const existing = db
     .prepare('SELECT id FROM trippi_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?')
     .get(provider, assetId, ownerId) as { id: number } | undefined;
@@ -37,9 +42,9 @@ export function getOrCreateLocalTrippiPhoto(
   width?: number | null,
   height?: number | null,
 ): number {
-  const existing = db.prepare("SELECT id FROM trippi_photos WHERE provider = 'local' AND file_path = ?").get(filePath) as
-    | { id: number }
-    | undefined;
+  const existing = db
+    .prepare("SELECT id FROM trippi_photos WHERE provider = 'local' AND file_path = ?")
+    .get(filePath) as { id: number } | undefined;
   if (existing) return existing.id;
 
   const res = db
@@ -200,12 +205,17 @@ export async function getPhotoInfo(userId: number, photoId: number): Promise<Ser
 
 // ── Update provider on existing trippi_photo (for Immich upload sync) ─────
 
-export function setTrippiPhotoProvider(trekPhotoId: number, provider: string, assetId: string, ownerId: number): void {
+export function setTrippiPhotoProvider(
+  trippiPhotoId: number,
+  provider: string,
+  assetId: string,
+  ownerId: number,
+): void {
   db.prepare('UPDATE trippi_photos SET provider = ?, asset_id = ?, owner_id = ? WHERE id = ?').run(
     provider,
     assetId,
     ownerId,
-    trekPhotoId,
+    trippiPhotoId,
   );
 }
 

@@ -1078,9 +1078,7 @@ export function listUsers(excludeUserId: number) {
 // Key validation
 // ---------------------------------------------------------------------------
 
-export async function validateKeys(
-  userId: number,
-): Promise<{
+export async function validateKeys(userId: number): Promise<{
   error?: string;
   status?: number;
   maps: boolean;

@@ -1,7 +1,7 @@
 import { ADDON_IDS } from '../../addons';
 import { db } from '../../db/database';
 import { mcpHandler } from '../../mcp';
-import { trekOAuthProvider, trekClientsStore } from '../../mcp/oauthProvider';
+import { trippiOAuthProvider, trippiClientsStore } from '../../mcp/oauthProvider';
 import { ALL_SCOPES } from '../../mcp/scopes';
 import { verifyJwtAndLoadUser } from '../../middleware/auth';
 import { isAddonEnabled } from '../../services/adminService';
@@ -205,10 +205,10 @@ export function applyPlatformTransport(app: express.Application): void {
 
   // SDK authorize handler: validates OAuth params, calls provider.authorize() which redirects
   // to the SPA consent page at /oauth/consent
-  app.use('/oauth/authorize', mcpAddonGate, authorizationHandler({ provider: trekOAuthProvider }));
+  app.use('/oauth/authorize', mcpAddonGate, authorizationHandler({ provider: trippiOAuthProvider }));
 
   // SDK DCR handler: accepts registrations without scope (fixes issue #959 bug 2)
-  app.use('/oauth/register', mcpAddonGate, clientRegistrationHandler({ clientsStore: trekClientsStore }));
+  app.use('/oauth/register', mcpAddonGate, clientRegistrationHandler({ clientsStore: trippiClientsStore }));
 
   // MCP endpoint
   app.post('/mcp', mcpHandler);

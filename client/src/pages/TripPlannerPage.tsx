@@ -440,7 +440,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                 ? '/brand/trippi-icon-light.png'
                 : '/brand/trippi-icon.png'
             }
-            alt="trippi.ai"
+            alt="Loading"
             width={64}
             height={64}
           />

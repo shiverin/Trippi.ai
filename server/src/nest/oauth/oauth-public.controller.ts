@@ -94,13 +94,11 @@ export class OauthPublicController {
       if (result.error) {
         if (result.error === 'invalid_client')
           logWarn(`[OAuth] Invalid client credentials on refresh for client_id=${client_id} ip=${ip ?? '-'}`);
-        res
-          .status(result.status || 400)
-          .json({
-            error: result.error,
-            error_description:
-              result.error === 'invalid_client' ? 'Invalid client credentials' : 'Refresh token is invalid or expired',
-          });
+        res.status(result.status || 400).json({
+          error: result.error,
+          error_description:
+            result.error === 'invalid_client' ? 'Invalid client credentials' : 'Refresh token is invalid or expired',
+        });
         return;
       }
       res.json(result.tokens);
@@ -109,12 +107,10 @@ export class OauthPublicController {
 
     if (grant_type === 'client_credentials') {
       if (!client_secret) {
-        res
-          .status(401)
-          .json({
-            error: 'invalid_client',
-            error_description: 'client_secret is required for client_credentials grant',
-          });
+        res.status(401).json({
+          error: 'invalid_client',
+          error_description: 'client_secret is required for client_credentials grant',
+        });
         return;
       }
       const client = this.oauth.authenticateClient(client_id, client_secret);
@@ -131,12 +127,10 @@ export class OauthPublicController {
           details: { client_id, reason: 'unauthorized_client' },
           ip,
         });
-        res
-          .status(400)
-          .json({
-            error: 'unauthorized_client',
-            error_description: 'This client is not authorized for the client_credentials grant',
-          });
+        res.status(400).json({
+          error: 'unauthorized_client',
+          error_description: 'This client is not authorized for the client_credentials grant',
+        });
         return;
       }
       const allowedScopes: string[] = JSON.parse(client.allowed_scopes);
@@ -145,12 +139,10 @@ export class OauthPublicController {
         const requested = body.scope.split(' ').filter(Boolean);
         const invalid = requested.filter((s) => !allowedScopes.includes(s));
         if (invalid.length > 0) {
-          res
-            .status(400)
-            .json({
-              error: 'invalid_scope',
-              error_description: `Scopes not allowed for this client: ${invalid.join(', ')}`,
-            });
+          res.status(400).json({
+            error: 'invalid_scope',
+            error_description: `Scopes not allowed for this client: ${invalid.join(', ')}`,
+          });
           return;
         }
         grantedScopes = requested;

@@ -833,11 +833,13 @@ function CurrencyTool(): React.ReactElement {
   // so a (docker) upgrade no longer resets the widget (#1311).
   useEffect(() => {
     if (!isLoaded) return;
-    const lf = localStorage.getItem('trek_fx_from');
-    const lt = localStorage.getItem('trek_fx_to');
+    const lf = localStorage.getItem('trippi_fx_from') ?? localStorage.getItem('trek_fx_from');
+    const lt = localStorage.getItem('trippi_fx_to') ?? localStorage.getItem('trek_fx_to');
     if (!lf && !lt) return;
     if (lf) updateSetting('dashboard_fx_from', lf).catch(() => {});
     if (lt) updateSetting('dashboard_fx_to', lt).catch(() => {});
+    localStorage.removeItem('trippi_fx_from');
+    localStorage.removeItem('trippi_fx_to');
     localStorage.removeItem('trek_fx_from');
     localStorage.removeItem('trek_fx_to');
   }, [isLoaded, updateSetting]);
@@ -953,7 +955,7 @@ function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
   // so a (docker) upgrade no longer resets the widget (#1311).
   useEffect(() => {
     if (!isLoaded) return;
-    const raw = localStorage.getItem('trek_dashboard_tz');
+    const raw = localStorage.getItem('trippi_dashboard_tz') ?? localStorage.getItem('trek_dashboard_tz');
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw);
@@ -961,6 +963,7 @@ function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
     } catch {
       /* ignore malformed storage */
     }
+    localStorage.removeItem('trippi_dashboard_tz');
     localStorage.removeItem('trek_dashboard_tz');
   }, [isLoaded, updateSetting]);
 

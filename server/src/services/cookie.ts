@@ -2,7 +2,7 @@ import { SESSION_DURATION_MS, SESSION_DURATION_REMEMBER_MS } from '../config';
 
 import { Request, Response } from 'express';
 
-const COOKIE_NAME = 'trek_session';
+const COOKIE_NAME = 'trippi_session';
 
 /**
  * Controls the cookie lifetime for a login:

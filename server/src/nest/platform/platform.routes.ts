@@ -35,7 +35,7 @@ export const PUBLIC_DIR = path.join(__dirname, '../../../public');
  * (identical to its original position near the top of createApp).
  */
 export function applyPlatformUploads(app: express.Application): void {
-  // Static: avatars, covers, and journey photos.
+  // Static: avatars, covers, journey photos, and generated exports.
   //
   // Security model (audit SEC-M9): these paths are unauthenticated by
   // design. All filenames are server-chosen UUID v4 (see `uuid()` in
@@ -56,6 +56,7 @@ export function applyPlatformUploads(app: express.Application): void {
   app.use('/uploads/avatars', express.static(path.join(UPLOADS_DIR, 'avatars')));
   app.use('/uploads/covers', express.static(path.join(UPLOADS_DIR, 'covers')));
   app.use('/uploads/journey', express.static(path.join(UPLOADS_DIR, 'journey')));
+  app.use('/uploads/exports', express.static(path.join(UPLOADS_DIR, 'exports')));
 
   // Photos require either a valid logged-in session (via JWT with the
   // password_version gate) OR a share token that covers the SPECIFIC

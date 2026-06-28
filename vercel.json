@@ -4,7 +4,47 @@
   "outputDirectory": "client/dist",
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/api/:path*",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/api/:path*"
+    },
+    {
+      "source": "/mcp",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/mcp"
+    },
+    {
+      "source": "/oauth/authorize",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/oauth/authorize"
+    },
+    {
+      "source": "/oauth/register",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/oauth/register"
+    },
+    {
+      "source": "/oauth/token",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/oauth/token"
+    },
+    {
+      "source": "/oauth/revoke",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/oauth/revoke"
+    },
+    {
+      "source": "/oauth/userinfo",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/oauth/userinfo"
+    },
+    {
+      "source": "/.well-known/:path*",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/.well-known/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/uploads/:path*"
+    },
+    {
+      "source": "/ws",
+      "destination": "https://potential-fastest-academic-entering.trycloudflare.com/ws"
+    },
+    {
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]

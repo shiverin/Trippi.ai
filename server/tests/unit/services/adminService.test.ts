@@ -3,6 +3,46 @@
  * Uses a real in-memory SQLite DB. Focuses on validation/error branches
  * that the integration tests don't exercise.
  */
+import { runMigrations } from '../../../src/db/migrations';
+import { createTables } from '../../../src/db/schema';
+import {
+  listUsers,
+  createUser as svcCreateUser,
+  updateUser,
+  deleteUser,
+  getStats,
+  getPermissions,
+  savePermissions,
+  getAuditLog,
+  listInvites,
+  createInvite,
+  deleteInvite,
+  getBagTracking,
+  updateBagTracking,
+  listPackingTemplates,
+  createPackingTemplate,
+  updatePackingTemplate,
+  deletePackingTemplate,
+  createTemplateCategory,
+  updateTemplateCategory,
+  deleteTemplateCategory,
+  getPackingTemplate,
+  createTemplateItem,
+  updateTemplateItem,
+  deleteTemplateItem,
+  getOidcSettings,
+  updateOidcSettings,
+  saveDemoBaseline,
+  getGithubReleases,
+  checkVersion,
+  listAddons,
+  updateAddon,
+  listMcpTokens,
+  deleteMcpToken,
+} from '../../../src/services/adminService';
+import { createUser, createAdmin, createInviteToken } from '../../helpers/factories';
+import { resetTestDb } from '../../helpers/test-db';
+
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 
 // ── DB setup ──────────────────────────────────────────────────────────────────
@@ -41,46 +81,11 @@ vi.mock('../../../src/mcp', () => ({
 vi.mock('../../../src/demo/demo-reset', () => ({
   saveBaseline: vi.fn(),
 }));
-
-import { createTables } from '../../../src/db/schema';
-import { runMigrations } from '../../../src/db/migrations';
-import { resetTestDb } from '../../helpers/test-db';
-import { createUser, createAdmin, createInviteToken } from '../../helpers/factories';
-import {
-  listUsers,
-  createUser as svcCreateUser,
-  updateUser,
-  deleteUser,
-  getStats,
-  getPermissions,
-  savePermissions,
-  getAuditLog,
-  listInvites,
-  createInvite,
-  deleteInvite,
-  getBagTracking,
-  updateBagTracking,
-  listPackingTemplates,
-  createPackingTemplate,
-  updatePackingTemplate,
-  deletePackingTemplate,
-  createTemplateCategory,
-  updateTemplateCategory,
-  deleteTemplateCategory,
-  getPackingTemplate,
-  createTemplateItem,
-  updateTemplateItem,
-  deleteTemplateItem,
-  getOidcSettings,
-  updateOidcSettings,
-  saveDemoBaseline,
-  getGithubReleases,
-  checkVersion,
-  listAddons,
-  updateAddon,
-  listMcpTokens,
-  deleteMcpToken,
-} from '../../../src/services/adminService';
+vi.mock('bcryptjs', () => ({
+  default: {
+    hashSync: vi.fn((password: string) => `hashed:${password}`),
+  },
+}));
 
 beforeAll(() => {
   createTables(testDb);
@@ -122,7 +127,12 @@ describe('createUser (service)', () => {
   });
 
   it('ADMIN-SVC-004 — returns 400 for invalid role', () => {
-    const result = svcCreateUser({ username: 'u1', email: 'u1@test.com', password: 'ValidPass1!', role: 'superuser' }) as any;
+    const result = svcCreateUser({
+      username: 'u1',
+      email: 'u1@test.com',
+      password: 'ValidPass1!',
+      role: 'superuser',
+    }) as any;
     expect(result.status).toBe(400);
     expect(result.error).toMatch(/invalid role/i);
   });
@@ -429,9 +439,9 @@ describe('Template categories', () => {
 describe('getAuditLog — JSON details', () => {
   it('ADMIN-SVC-045 — parses JSON details when present', () => {
     const { user } = createUser(testDb);
-    testDb.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
-      user.id, 'test_action', JSON.stringify({ key: 'val' })
-    );
+    testDb
+      .prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)')
+      .run(user.id, 'test_action', JSON.stringify({ key: 'val' }));
     const result = getAuditLog({}) as any;
     expect(result.entries.length).toBeGreaterThanOrEqual(1);
     const entry = result.entries.find((e: any) => e.action === 'test_action');
@@ -441,9 +451,9 @@ describe('getAuditLog — JSON details', () => {
 
   it('ADMIN-SVC-046 — handles invalid JSON gracefully with _parse_error flag', () => {
     const { user } = createUser(testDb);
-    testDb.prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)').run(
-      user.id, 'bad_json_action', 'not-valid-json{'
-    );
+    testDb
+      .prepare('INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)')
+      .run(user.id, 'bad_json_action', 'not-valid-json{');
     const result = getAuditLog({}) as any;
     const entry = result.entries.find((e: any) => e.action === 'bad_json_action');
     expect(entry).toBeDefined();
@@ -526,10 +536,13 @@ describe('getGithubReleases', () => {
       { id: 1, tag_name: 'v3.0.0', name: 'Release 3.0.0', html_url: 'https://github.com/example/releases/tag/v3.0.0' },
       { id: 2, tag_name: 'v2.9.9', name: 'Release 2.9.9', html_url: 'https://github.com/example/releases/tag/v2.9.9' },
     ];
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => mockReleases,
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockReleases,
+      }),
+    );
     const result = await getGithubReleases();
     expect(Array.isArray(result)).toBe(true);
     expect(result).toHaveLength(2);
@@ -546,18 +559,21 @@ describe('checkVersion', () => {
 
   it('ADMIN-SVC-054 — returns update_available:false when fetch fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
-    const result = await checkVersion() as any;
+    const result = (await checkVersion()) as any;
     expect(result.update_available).toBe(false);
     expect(result.current).toBeDefined();
     expect(result.latest).toBeDefined();
   });
 
   it('ADMIN-SVC-055 — returns update_available:true when latest version is greater than current', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ tag_name: 'v999.0.0', html_url: 'https://github.com/example/releases/tag/v999.0.0' }),
-    }));
-    const result = await checkVersion() as any;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ tag_name: 'v999.0.0', html_url: 'https://github.com/example/releases/tag/v999.0.0' }),
+      }),
+    );
+    const result = (await checkVersion()) as any;
     expect(result.update_available).toBe(true);
     expect(result.latest).toBe('999.0.0');
     expect(result.release_url).toBe('https://github.com/example/releases/tag/v999.0.0');

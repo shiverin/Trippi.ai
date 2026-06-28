@@ -85,6 +85,34 @@ describe('DashboardPage', () => {
     });
   });
 
+  describe('FE-PAGE-DASH-004A: Planned trips remain visible when spotlighted', () => {
+    it('shows a single planned trip in the planned list instead of the empty state', async () => {
+      const plannedTrip = buildTrip({
+        title: 'Solo Planned Trip',
+        start_date: '2026-08-01',
+        end_date: '2026-08-07',
+      });
+
+      server.use(
+        http.get('/api/trips', ({ request }) => {
+          const url = new URL(request.url);
+          if (url.searchParams.get('archived')) return HttpResponse.json({ trips: [] });
+          return HttpResponse.json({ trips: [plannedTrip] });
+        })
+      );
+
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Solo Planned Trip').length).toBeGreaterThan(0);
+      });
+
+      expect(screen.getAllByText('Solo Planned Trip').some((el) => el.closest('.trip-card'))).toBe(true);
+      expect(screen.queryByText(/no trips yet/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/plan a new trip from scratch/i)).toBeInTheDocument();
+    });
+  });
+
   describe('FE-PAGE-DASH-005: Create Trip button opens TripFormModal', () => {
     it('clicking New Trip button opens the trip form modal', async () => {
       const user = userEvent.setup();

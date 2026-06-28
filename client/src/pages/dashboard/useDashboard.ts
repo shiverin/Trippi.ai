@@ -96,7 +96,6 @@ export function useDashboard() {
     || trips.find(t => t.start_date && t.start_date >= today)
     || trips[0]
     || null
-  const rest = spotlight ? trips.filter(t => t.id !== spotlight.id) : trips
 
   // Pull the spotlight trip's members + places so the boarding pass can show
   // real buddies and place thumbnails instead of placeholders.
@@ -179,8 +178,8 @@ export function useDashboard() {
   }
 
   const gridTrips = tripFilter === 'archive' ? archivedTrips
-    : tripFilter === 'completed' ? rest.filter(t => getTripStatus(t) === 'past')
-    : rest.filter(t => getTripStatus(t) !== 'past')
+    : tripFilter === 'completed' ? trips.filter(t => getTripStatus(t) === 'past')
+    : trips.filter(t => getTripStatus(t) !== 'past')
 
   return {
     // cross-cutting

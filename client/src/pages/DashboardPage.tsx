@@ -152,7 +152,7 @@ export default function DashboardPage(): React.ReactElement {
           styling instead of inheriting the dashboard scope's font and the
           `.trippi-dash button` reset (which shifted the bell icon + menu items). */}
       <Navbar />
-      <div className="trek-dash trek-dash-shell">
+      <div className="trippi-dash trek-dash trek-dash-shell">
         {demoMode && <DemoBanner />}
         <div className="trek-dash-scroll">
           <MobileTopBar />

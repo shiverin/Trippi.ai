@@ -5,10 +5,20 @@
  * The MCP endpoint uses JWT auth and server-sent events / streaming HTTP.
  * Tests cover authentication, session management, rate limiting, and API token auth.
  */
-import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
-import request from 'supertest';
-import type { Application } from 'express';
+import { buildApp } from '../../src/bootstrap';
+import { runMigrations } from '../../src/db/migrations';
+import { createTables } from '../../src/db/schema';
+import { closeMcpSessions } from '../../src/mcp/index';
+import { sessions } from '../../src/mcp/sessionManager';
+import { generateToken } from '../helpers/auth';
+import { createUser } from '../helpers/factories';
+import { createMcpToken } from '../helpers/factories';
+import { resetTestDb, resetRateLimits } from '../helpers/test-db';
 import type { INestApplication } from '@nestjs/common';
+
+import type { Application } from 'express';
+import request from 'supertest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
 
 const { testDb, dbMock } = vi.hoisted(() => {
   const Database = require('better-sqlite3');
@@ -21,13 +31,29 @@ const { testDb, dbMock } = vi.hoisted(() => {
     closeDb: () => {},
     reinitialize: () => {},
     getPlaceWithTags: (placeId: number) => {
-      const place: any = db.prepare(`SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon FROM places p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = ?`).get(placeId);
+      const place: any = db
+        .prepare(
+          `SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon FROM places p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = ?`,
+        )
+        .get(placeId);
       if (!place) return null;
-      const tags = db.prepare(`SELECT t.* FROM tags t JOIN place_tags pt ON t.id = pt.tag_id WHERE pt.place_id = ?`).all(placeId);
-      return { ...place, category: place.category_id ? { id: place.category_id, name: place.category_name, color: place.category_color, icon: place.category_icon } : null, tags };
+      const tags = db
+        .prepare(`SELECT t.* FROM tags t JOIN place_tags pt ON t.id = pt.tag_id WHERE pt.place_id = ?`)
+        .all(placeId);
+      return {
+        ...place,
+        category: place.category_id
+          ? { id: place.category_id, name: place.category_name, color: place.category_color, icon: place.category_icon }
+          : null,
+        tags,
+      };
     },
     canAccessTrip: (tripId: any, userId: number) =>
-      db.prepare(`SELECT t.id, t.user_id FROM trips t LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = ? WHERE t.id = ? AND (t.user_id = ? OR m.user_id IS NOT NULL)`).get(userId, tripId, userId),
+      db
+        .prepare(
+          `SELECT t.id, t.user_id FROM trips t LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = ? WHERE t.id = ? AND (t.user_id = ? OR m.user_id IS NOT NULL)`,
+        )
+        .get(userId, tripId, userId),
     isOwner: (tripId: any, userId: number) =>
       !!db.prepare('SELECT id FROM trips WHERE id = ? AND user_id = ?').get(tripId, userId),
   };
@@ -45,15 +71,6 @@ vi.mock('../../src/config', () => ({
   DEFAULT_LANGUAGE: 'en',
 }));
 vi.mock('../../src/websocket', () => ({ broadcast: vi.fn(), broadcastToUser: vi.fn() }));
-
-import { buildApp } from '../../src/bootstrap';
-import { createTables } from '../../src/db/schema';
-import { runMigrations } from '../../src/db/migrations';
-import { resetTestDb, resetRateLimits } from '../helpers/test-db';
-import { createUser } from '../helpers/factories';
-import { generateToken } from '../helpers/auth';
-import { createMcpToken } from '../helpers/factories';
-import { closeMcpSessions } from '../../src/mcp/index';
 
 let nestApp: INestApplication;
 let app: Application;
@@ -81,9 +98,7 @@ describe('MCP authentication', () => {
   // then checks auth (401). In test DB the addon may be disabled.
 
   it('MCP-001 — POST /mcp without auth returns 403 (addon disabled before auth check)', async () => {
-    const res = await request(app)
-      .post('/mcp')
-      .send({ jsonrpc: '2.0', method: 'initialize', id: 1 });
+    const res = await request(app).post('/mcp').send({ jsonrpc: '2.0', method: 'initialize', id: 1 });
     // MCP handler checks addon enabled before verifying auth; addon is disabled in test DB
     expect(res.status).toBe(403);
   });
@@ -94,9 +109,7 @@ describe('MCP authentication', () => {
   });
 
   it('MCP-001 — DELETE /mcp without auth returns 403 (addon disabled)', async () => {
-    const res = await request(app)
-      .delete('/mcp')
-      .set('Mcp-Session-Id', 'fake-session-id');
+    const res = await request(app).delete('/mcp').set('Mcp-Session-Id', 'fake-session-id');
     expect(res.status).toBe(403);
   });
 });
@@ -113,7 +126,12 @@ describe('MCP session init', () => {
       .post('/mcp')
       .set('Authorization', `Bearer ${token}`)
       .set('Accept', 'application/json, text/event-stream')
-      .send({ jsonrpc: '2.0', method: 'initialize', id: 1, params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } } });
+      .send({
+        jsonrpc: '2.0',
+        method: 'initialize',
+        id: 1,
+        params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
+      });
     // Valid JWT + enabled addon → auth passes; SDK returns 200 with session headers
     expect(res.status).toBe(200);
   });
@@ -152,7 +170,12 @@ describe('MCP API token auth', () => {
       .post('/mcp')
       .set('Authorization', `Bearer ${rawToken}`)
       .set('Accept', 'application/json, text/event-stream')
-      .send({ jsonrpc: '2.0', method: 'initialize', id: 1, params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } } });
+      .send({
+        jsonrpc: '2.0',
+        method: 'initialize',
+        id: 1,
+        params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
+      });
     expect(res.status).toBe(200);
   });
 
@@ -161,15 +184,24 @@ describe('MCP API token auth', () => {
     const { rawToken, id: tokenId } = createMcpToken(testDb, user.id);
     testDb.prepare("UPDATE addons SET enabled = 1 WHERE id = 'mcp'").run();
 
-    const before = (testDb.prepare('SELECT last_used_at FROM mcp_tokens WHERE id = ?').get(tokenId) as { last_used_at: string | null }).last_used_at;
+    const before = (
+      testDb.prepare('SELECT last_used_at FROM mcp_tokens WHERE id = ?').get(tokenId) as { last_used_at: string | null }
+    ).last_used_at;
 
     await request(app)
       .post('/mcp')
       .set('Authorization', `Bearer ${rawToken}`)
       .set('Accept', 'application/json, text/event-stream')
-      .send({ jsonrpc: '2.0', method: 'initialize', id: 1, params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } } });
+      .send({
+        jsonrpc: '2.0',
+        method: 'initialize',
+        id: 1,
+        params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
+      });
 
-    const after = (testDb.prepare('SELECT last_used_at FROM mcp_tokens WHERE id = ?').get(tokenId) as { last_used_at: string | null }).last_used_at;
+    const after = (
+      testDb.prepare('SELECT last_used_at FROM mcp_tokens WHERE id = ?').get(tokenId) as { last_used_at: string | null }
+    ).last_used_at;
     expect(after).not.toBeNull();
     expect(after).not.toBe(before);
   });
@@ -187,9 +219,7 @@ describe('MCP API token auth', () => {
   it('MCP — POST /mcp with no Authorization header returns 401', async () => {
     testDb.prepare("UPDATE addons SET enabled = 1 WHERE id = 'mcp'").run();
 
-    const res = await request(app)
-      .post('/mcp')
-      .send({ jsonrpc: '2.0', method: 'initialize', id: 1 });
+    const res = await request(app).post('/mcp').send({ jsonrpc: '2.0', method: 'initialize', id: 1 });
     expect(res.status).toBe(401);
   });
 });
@@ -201,7 +231,12 @@ describe('MCP session management', () => {
       .post('/mcp')
       .set('Authorization', `Bearer ${token}`)
       .set('Accept', 'application/json, text/event-stream')
-      .send({ jsonrpc: '2.0', method: 'initialize', id: 1, params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } } });
+      .send({
+        jsonrpc: '2.0',
+        method: 'initialize',
+        id: 1,
+        params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
+      });
     expect(res.status).toBe(200);
     const sessionId = res.headers['mcp-session-id'];
     expect(sessionId).toBeTruthy();
@@ -223,7 +258,12 @@ describe('MCP session management', () => {
       .post('/mcp')
       .set('Authorization', `Bearer ${token}`)
       .set('Accept', 'application/json, text/event-stream')
-      .send({ jsonrpc: '2.0', method: 'initialize', id: 1, params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } } });
+      .send({
+        jsonrpc: '2.0',
+        method: 'initialize',
+        id: 1,
+        params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
+      });
     expect(res.status).toBe(429);
     expect(res.body.error).toMatch(/session limit/i);
   });
@@ -241,6 +281,19 @@ describe('MCP session management', () => {
       .set('Accept', 'application/json, text/event-stream')
       .send({ jsonrpc: '2.0', method: 'tools/list', id: 2, params: {} });
     expect(res.status).toBe(200);
+  });
+
+  it('MCP — transport close removes session from active registry', async () => {
+    const { user } = createUser(testDb);
+    testDb.prepare("UPDATE addons SET enabled = 1 WHERE id = 'mcp'").run();
+    const sessionId = await createSession(user.id);
+    const session = sessions.get(sessionId);
+
+    expect(session).toBeTruthy();
+
+    await session!.transport.close();
+
+    expect(sessions.has(sessionId)).toBe(false);
   });
 
   it('MCP — session belongs to different user returns 403', async () => {
@@ -264,9 +317,7 @@ describe('MCP session management', () => {
     testDb.prepare("UPDATE addons SET enabled = 1 WHERE id = 'mcp'").run();
     const token = generateToken(user.id);
 
-    const res = await request(app)
-      .get('/mcp')
-      .set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get('/mcp').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(400);
   });
 });
@@ -287,7 +338,12 @@ describe('MCP rate limiting', () => {
           .post('/mcp')
           .set('Authorization', `Bearer ${token}`)
           .set('Accept', 'application/json, text/event-stream')
-          .send({ jsonrpc: '2.0', method: 'initialize', id: i + 1, params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } } });
+          .send({
+            jsonrpc: '2.0',
+            method: 'initialize',
+            id: i + 1,
+            params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
+          });
         // Each should pass (no rate limit hit yet since limit is read at module init,
         // but we can verify that the responses are not 429)
         expect(res.status).not.toBe(429);

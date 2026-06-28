@@ -130,6 +130,12 @@ function countSessionsForUser(userId: number): number {
   return count;
 }
 
+function removeSession(sid: string): void {
+  if (sessions.delete(sid)) {
+    console.log(`[MCP] Session ${sid} closed. Active sessions: ${sessions.size}`);
+  }
+}
+
 const sessionSweepInterval = setInterval(() => {
   const cutoff = Date.now() - SESSION_TTL_MS;
   let cleaned = 0;
@@ -334,9 +340,13 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
       );
     },
     onsessionclosed: (sid) => {
-      sessions.delete(sid);
+      removeSession(sid);
     },
   });
+  transport.onclose = () => {
+    const sid = transport.sessionId;
+    if (sid) removeSession(sid);
+  };
 
   logToolCallAudit(req, user.id, clientId);
   try {

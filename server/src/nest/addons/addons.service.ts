@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
 import { db } from '../../db/database';
-import type { Addon } from '../../types';
 import { getBagTracking, getCollabFeatures } from '../../services/adminService';
 import { getPhotoProviderConfig } from '../../services/memories/helpersService';
+import type { Addon } from '../../types';
+import { Injectable } from '@nestjs/common';
 
 /**
  * Thin wrapper around the enabled-addons + photo-provider read that the legacy

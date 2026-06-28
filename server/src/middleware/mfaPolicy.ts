@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
 import { db } from '../db/database';
-import { extractToken, verifyJwtAndLoadUser } from './auth';
 import { DEMO_EMAILS } from '../services/demo';
+import { extractToken, verifyJwtAndLoadUser } from './auth';
+
+import { Request, Response, NextFunction } from 'express';
 
 /** Paths that never require MFA (public or pre-auth). */
 export function isPublicApiPath(method: string, pathNoQuery: string): boolean {
@@ -70,7 +71,9 @@ export function enforceGlobalMfaPolicy(req: Request, res: Response, next: NextFu
   }
   const userId = verified.id;
 
-  const requireRow = db.prepare("SELECT value FROM app_settings WHERE key = 'require_mfa'").get() as { value: string } | undefined;
+  const requireRow = db.prepare("SELECT value FROM app_settings WHERE key = 'require_mfa'").get() as
+    | { value: string }
+    | undefined;
   if (requireRow?.value !== 'true') {
     next();
     return;

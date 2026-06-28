@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Penugasan Perlengkapan',
   'notif.packing_tagged.text': '{actor} menugaskanmu ke {category} di {trip}',
   'notif.version_available.title': 'Versi Baru Tersedia',
-  'notif.version_available.text': 'TRIPPI {version} kini tersedia',
+  'notif.version_available.text': 'trippi.ai {version} kini tersedia',
   'notif.action.view_trip': 'Lihat Perjalanan',
   'notif.action.view_collab': 'Lihat Pesan',
   'notif.action.view_packing': 'Lihat Perlengkapan',

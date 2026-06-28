@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const br: NotificationLocale = {
   email: {
-    footer: 'Você recebeu isso porque tem as notificações ativadas no TRIPPI.',
+    footer: 'Você recebeu isso porque tem as notificações ativadas no trippi.ai.',
     manage: 'Gerenciar preferências nas configurações',
     madeWith: 'Made with',
-    openTrippi: 'Abrir TRIPPI',
+    openTrippi: 'Abrir trippi.ai',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const br: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Convite Vacay Fusion',
-      body: `${p.actor} convidou você para fundir planos de férias. Abra o TRIPPI para aceitar ou recusar.`,
+      body: `${p.actor} convidou você para fundir planos de férias. Abra o trippi.ai para aceitar ou recusar.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} fotos compartilhadas`,
@@ -41,8 +41,8 @@ const br: NotificationLocale = {
       body: `${p.actor} atribuiu você à categoria "${p.category}" em "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Nova versão do TRIPPI disponível',
-      body: `O TRIPPI ${p.version} está disponível. Acesse o painel de administração para atualizar.`,
+      title: 'Nova versão do trippi.ai disponível',
+      body: `O trippi.ai ${p.version} está disponível. Acesse o painel de administração para atualizar.`,
     }),
     synology_session_cleared: () => ({
       title: 'Sessão Synology encerrada',
@@ -52,7 +52,7 @@ const br: NotificationLocale = {
   passwordReset: {
     subject: 'Redefinir sua senha',
     greeting: 'Olá',
-    body: 'Recebemos um pedido para redefinir a senha da sua conta TRIPPI. Clique no botão abaixo para definir uma nova senha.',
+    body: 'Recebemos um pedido para redefinir a senha da sua conta trippi.ai. Clique no botão abaixo para definir uma nova senha.',
     ctaIntro: 'Redefinir senha',
     expiry: 'Este link expira em 60 minutos.',
     ignore: 'Se você não solicitou isto, pode ignorar este e-mail — sua senha não será alterada.',

@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, Res, UseGuards } from '@nestjs/common';
-import type { Response } from 'express';
-import type { User } from '../../types';
 import type { Selection } from '../../services/memories/helpersService';
-import { MemoriesService } from './memories.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { MemoriesService } from './memories.service';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, Res, UseGuards } from '@nestjs/common';
+
+import type { Response } from 'express';
 
 /**
  * /api/integrations/memories/unified — provider-agnostic trip photo + album-link
@@ -56,7 +57,12 @@ export class UnifiedMemoriesController {
     @Body() body: Record<string, unknown>,
     @Res() res: Response,
   ): Promise<void> {
-    const result = await this.memories.setTripPhotoSharing(tripId, user.id, Number(body?.photo_id), body?.shared as boolean);
+    const result = await this.memories.setTripPhotoSharing(
+      tripId,
+      user.id,
+      Number(body?.photo_id),
+      body?.shared as boolean,
+    );
     if ('error' in result) {
       res.status(result.error.status).json({ error: result.error.message });
       return;
@@ -98,7 +104,14 @@ export class UnifiedMemoriesController {
     @Res() res: Response,
   ): void {
     const passphrase = body?.passphrase ? String(body.passphrase) : undefined;
-    const result = this.memories.createTripAlbumLink(tripId, user.id, body?.provider, body?.album_id, body?.album_name, passphrase);
+    const result = this.memories.createTripAlbumLink(
+      tripId,
+      user.id,
+      body?.provider,
+      body?.album_id,
+      body?.album_name,
+      passphrase,
+    );
     if ('error' in result) {
       res.status(result.error.status).json({ error: result.error.message });
       return;

@@ -1,5 +1,6 @@
-import { Request } from 'express';
 import { db } from '../db/database';
+
+import { Request } from 'express';
 import fs from 'fs';
 import path from 'path';
 
@@ -8,18 +9,20 @@ const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_LOG_FILES = 5;
 
 const C = {
-  blue:    '\x1b[34m',
-  cyan:    '\x1b[36m',
-  red:     '\x1b[31m',
-  yellow:  '\x1b[33m',
-  reset:   '\x1b[0m',
+  blue: '\x1b[34m',
+  cyan: '\x1b[36m',
+  red: '\x1b[31m',
+  yellow: '\x1b[33m',
+  reset: '\x1b[0m',
 };
 
 // ── File logger with rotation ─────────────────────────────────────────────
 
 const logsDir = path.join(process.cwd(), 'data/logs');
-try { fs.mkdirSync(logsDir, { recursive: true }); } catch {}
-const logFilePath = path.join(logsDir, 'trippi.log');
+try {
+  fs.mkdirSync(logsDir, { recursive: true });
+} catch {}
+const logFilePath = path.join(logsDir, 'trek.log');
 
 function rotateIfNeeded(): void {
   try {
@@ -91,7 +94,9 @@ function resolveUserEmail(userId: number | null): string {
   try {
     const row = db.prepare('SELECT email FROM users WHERE id = ?').get(userId) as { email: string } | undefined;
     return row?.email || `uid:${userId}`;
-  } catch { return `uid:${userId}`; }
+  } catch {
+    return `uid:${userId}`;
+  }
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -122,9 +127,13 @@ export function writeAudit(entry: {
 }): void {
   try {
     const detailsJson = entry.details && Object.keys(entry.details).length > 0 ? JSON.stringify(entry.details) : null;
-    db.prepare(
-      `INSERT INTO audit_log (user_id, action, resource, details, ip) VALUES (?, ?, ?, ?, ?)`
-    ).run(entry.userId, entry.action, entry.resource ?? null, detailsJson, entry.ip ?? null);
+    db.prepare(`INSERT INTO audit_log (user_id, action, resource, details, ip) VALUES (?, ?, ?, ?, ?)`).run(
+      entry.userId,
+      entry.action,
+      entry.resource ?? null,
+      detailsJson,
+      entry.ip ?? null,
+    );
 
     const email = resolveUserEmail(entry.userId);
     const label = ACTION_LABELS[entry.action] || entry.action;

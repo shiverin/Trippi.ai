@@ -1,9 +1,10 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from '@nestjs/common';
+
 import type { Response } from 'express';
 import { MulterError } from 'multer';
 
 /**
- * Normalises every Nest exception to TRIPPI's legacy error envelope so migrated
+ * Normalises every Nest exception to trippi.ai's legacy error envelope so migrated
  * routes are byte-identical for the client. This mirrors the legacy global
  * Express error handler (server/src/app.ts) exactly:
  *   - multer errors            -> 413 (LIMIT_FILE_SIZE) / 400, body { error: <multer message> }
@@ -37,7 +38,7 @@ export class TrippiExceptionFilter implements ExceptionFilter {
 
       if (body && typeof body === 'object') {
         const obj = body as Record<string, unknown>;
-        // TRIPPI-native shape ({ error } / { error, code } from guards + the Zod
+        // trippi.ai-native shape ({ error } / { error, code } from guards + the Zod
         // pipe): pass through verbatim. Nest's own exceptions instead carry the
         // { statusCode, message, error } trio (incl. transformException's
         // PayloadTooLargeException for LIMIT_FILE_SIZE) and must be normalised.

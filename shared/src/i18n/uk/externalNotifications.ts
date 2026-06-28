@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const uk: NotificationLocale = {
   email: {
-    footer: 'Ви отримали це, оскільки увімкнули сповіщення в TRIPPI.',
+    footer: 'Ви отримали це, оскільки увімкнули сповіщення в trippi.ai.',
     manage: 'Керувати налаштуваннями у Налаштуваннях',
     madeWith: 'Made with',
-    openTrippi: 'Відкрити TRIPPI',
+    openTrippi: 'Відкрити trippi.ai',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const uk: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Запрошення Vacay Fusion',
-      body: `${p.actor} запрошує вас об'єднати плани відпустки. Відкрийте TRIPPI, щоб прийняти або відхилити.`,
+      body: `${p.actor} запрошує вас об'єднати плани відпустки. Відкрийте trippi.ai, щоб прийняти або відхилити.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} фото поділились`,
@@ -41,8 +41,8 @@ const uk: NotificationLocale = {
       body: `${p.actor} призначив вас до категорії "${p.category}" у "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Доступна нова версія TRIPPI',
-      body: `TRIPPI ${p.version} тепер доступний. Перейдіть до панелі адміністратора для оновлення.`,
+      title: 'Доступна нова версія trippi.ai',
+      body: `trippi.ai ${p.version} тепер доступний. Перейдіть до панелі адміністратора для оновлення.`,
     }),
     synology_session_cleared: () => ({
       title: 'Сеанс Synology скинуто',
@@ -52,7 +52,7 @@ const uk: NotificationLocale = {
   passwordReset: {
     subject: 'Скидання пароля',
     greeting: 'Привіт',
-    body: 'Ми отримали запит на скидання пароля вашого облікового запису TRIPPI. Натисніть кнопку нижче, щоб встановити новий пароль.',
+    body: 'Ми отримали запит на скидання пароля вашого облікового запису trippi.ai. Натисніть кнопку нижче, щоб встановити новий пароль.',
     ctaIntro: 'Скинути пароль',
     expiry: 'Це посилання дійсне протягом 60 хвилин.',
     ignore: 'Якщо ви не надсилали цей запит, просто проігноруйте цей лист — ваш пароль залишиться незмінним.',

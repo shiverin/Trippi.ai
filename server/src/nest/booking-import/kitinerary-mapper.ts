@@ -1,8 +1,20 @@
 import { findByIata } from '../../services/airportService';
 import type {
-  KiReservation, KiFlight, KiTrainTrip, KiBusTrip, KiBoatTrip,
-  KiLodgingBusiness, KiFoodEstablishment, KiRentalCar, KiEvent,
-  KiGeo, KiAddress, KiDateTimeish, ParsedBookingItem, ParsedEndpoint, ParsedVenue,
+  KiReservation,
+  KiFlight,
+  KiTrainTrip,
+  KiBusTrip,
+  KiBoatTrip,
+  KiLodgingBusiness,
+  KiFoodEstablishment,
+  KiRentalCar,
+  KiEvent,
+  KiGeo,
+  KiAddress,
+  KiDateTimeish,
+  ParsedBookingItem,
+  ParsedEndpoint,
+  ParsedVenue,
 } from './kitinerary.types';
 
 // ---------------------------------------------------------------------------
@@ -26,7 +38,9 @@ function splitIso(dt: KiDateTimeish): { date: string | null; time: string | null
 function formatAddress(address: string | KiAddress | undefined): string | null {
   if (!address) return null;
   if (typeof address === 'string') return address || null;
-  const joined = [address.streetAddress, address.addressLocality, address.postalCode, address.addressCountry].filter(Boolean).join(', ');
+  const joined = [address.streetAddress, address.addressLocality, address.postalCode, address.addressCountry]
+    .filter(Boolean)
+    .join(', ');
   return joined || null;
 }
 
@@ -48,8 +62,16 @@ function mapFlight(r: KiReservation, source: ParsedBookingItem['source']): Parse
   const depAp = depIata ? findByIata(depIata) : null;
   const arrAp = arrIata ? findByIata(arrIata) : null;
 
-  const depLabel = depAp ? (depAp.city ? `${depAp.city} (${depAp.iata})` : depAp.name) : (f.departureAirport?.name ?? depIata ?? 'Unknown');
-  const arrLabel = arrAp ? (arrAp.city ? `${arrAp.city} (${arrAp.iata})` : arrAp.name) : (f.arrivalAirport?.name ?? arrIata ?? 'Unknown');
+  const depLabel = depAp
+    ? depAp.city
+      ? `${depAp.city} (${depAp.iata})`
+      : depAp.name
+    : (f.departureAirport?.name ?? depIata ?? 'Unknown');
+  const arrLabel = arrAp
+    ? arrAp.city
+      ? `${arrAp.city} (${arrAp.iata})`
+      : arrAp.name
+    : (f.arrivalAirport?.name ?? arrIata ?? 'Unknown');
 
   const airline = f.airline?.name ?? f.airline?.iataCode ?? '';
   const flightNum = f.flightNumber ?? '';
@@ -60,16 +82,58 @@ function mapFlight(r: KiReservation, source: ParsedBookingItem['source']): Parse
 
   const endpoints: ParsedEndpoint[] = [];
   if (depAp) {
-    endpoints.push({ role: 'from', sequence: 0, name: depLabel, code: depAp.iata, lat: depAp.lat, lng: depAp.lng, timezone: depAp.tz, local_time: depTime, local_date: depDate });
+    endpoints.push({
+      role: 'from',
+      sequence: 0,
+      name: depLabel,
+      code: depAp.iata,
+      lat: depAp.lat,
+      lng: depAp.lng,
+      timezone: depAp.tz,
+      local_time: depTime,
+      local_date: depDate,
+    });
   } else {
     const c = coords(f.departureAirport?.geo);
-    if (c) endpoints.push({ role: 'from', sequence: 0, name: depLabel, code: depIata, lat: c.lat, lng: c.lng, timezone: null, local_time: depTime, local_date: depDate });
+    if (c)
+      endpoints.push({
+        role: 'from',
+        sequence: 0,
+        name: depLabel,
+        code: depIata,
+        lat: c.lat,
+        lng: c.lng,
+        timezone: null,
+        local_time: depTime,
+        local_date: depDate,
+      });
   }
   if (arrAp) {
-    endpoints.push({ role: 'to', sequence: 1, name: arrLabel, code: arrAp.iata, lat: arrAp.lat, lng: arrAp.lng, timezone: arrAp.tz, local_time: arrTime, local_date: arrDate });
+    endpoints.push({
+      role: 'to',
+      sequence: 1,
+      name: arrLabel,
+      code: arrAp.iata,
+      lat: arrAp.lat,
+      lng: arrAp.lng,
+      timezone: arrAp.tz,
+      local_time: arrTime,
+      local_date: arrDate,
+    });
   } else {
     const c = coords(f.arrivalAirport?.geo);
-    if (c) endpoints.push({ role: 'to', sequence: 1, name: arrLabel, code: arrIata, lat: c.lat, lng: c.lng, timezone: null, local_time: arrTime, local_date: arrDate });
+    if (c)
+      endpoints.push({
+        role: 'to',
+        sequence: 1,
+        name: arrLabel,
+        code: arrIata,
+        lat: c.lat,
+        lng: c.lng,
+        timezone: null,
+        local_time: arrTime,
+        local_date: arrDate,
+      });
   }
 
   return {
@@ -111,20 +175,45 @@ function sameConnection(a: KiReservation, b: KiReservation): boolean {
 
 /** Collapse several connecting flight legs (same PNR) into one multi-leg booking. */
 function mapFlightGroup(legs: KiReservation[], source: ParsedBookingItem['source']): ParsedBookingItem | null {
-  const flights = legs.map(l => l.reservationFor as KiFlight | undefined);
-  if (flights.some(f => !f)) return mapFlight(legs[0], source); // malformed → fall back to single
+  const flights = legs.map((l) => l.reservationFor as KiFlight | undefined);
+  if (flights.some((f) => !f)) return mapFlight(legs[0], source); // malformed → fall back to single
   const fs = flights as KiFlight[];
 
   const iataOf = (ap: KiFlight['departureAirport']) => ap?.iataCode?.toUpperCase() ?? null;
   const makeEndpoint = (
-    ap: KiFlight['departureAirport'], role: 'from' | 'stop' | 'to', time: string | null, date: string | null,
+    ap: KiFlight['departureAirport'],
+    role: 'from' | 'stop' | 'to',
+    time: string | null,
+    date: string | null,
   ): ParsedEndpoint | null => {
     const iata = iataOf(ap);
     const found = iata ? findByIata(iata) : null;
     const label = found ? (found.city ? `${found.city} (${found.iata})` : found.name) : (ap?.name ?? iata ?? 'Unknown');
-    if (found) return { role, sequence: 0, name: label, code: found.iata, lat: found.lat, lng: found.lng, timezone: found.tz, local_time: time, local_date: date };
+    if (found)
+      return {
+        role,
+        sequence: 0,
+        name: label,
+        code: found.iata,
+        lat: found.lat,
+        lng: found.lng,
+        timezone: found.tz,
+        local_time: time,
+        local_date: date,
+      };
     const c = coords(ap?.geo);
-    if (c) return { role, sequence: 0, name: label, code: iata, lat: c.lat, lng: c.lng, timezone: null, local_time: time, local_date: date };
+    if (c)
+      return {
+        role,
+        sequence: 0,
+        name: label,
+        code: iata,
+        lat: c.lat,
+        lng: c.lng,
+        timezone: null,
+        local_time: time,
+        local_date: date,
+      };
     return null;
   };
 
@@ -150,11 +239,15 @@ function mapFlightGroup(legs: KiReservation[], source: ParsedBookingItem['source
       arr_time: arr.time,
     });
   });
-  endpoints.forEach((e, i) => { e.sequence = i; });
+  endpoints.forEach((e, i) => {
+    e.sequence = i;
+  });
 
   const last = fs[fs.length - 1];
   const airline = first.airline?.name ?? first.airline?.iataCode ?? '';
-  const route = [iataOf(first.departureAirport), ...fs.map(f => iataOf(f.arrivalAirport))].filter(Boolean).join(' → ');
+  const route = [iataOf(first.departureAirport), ...fs.map((f) => iataOf(f.arrivalAirport))]
+    .filter(Boolean)
+    .join(' → ');
   return {
     type: 'flight',
     title: airline ? `${airline} ${route}` : `Flight ${route}`,
@@ -189,8 +282,30 @@ function mapTrain(r: KiReservation, source: ParsedBookingItem['source']): Parsed
   const endpoints: ParsedEndpoint[] = [];
   const dc = coords(t.departureStation?.geo);
   const ac = coords(t.arrivalStation?.geo);
-  if (dc) endpoints.push({ role: 'from', sequence: 0, name: depName, code: null, lat: dc.lat, lng: dc.lng, timezone: null, local_time: depTime, local_date: depDate });
-  if (ac) endpoints.push({ role: 'to', sequence: 1, name: arrName, code: null, lat: ac.lat, lng: ac.lng, timezone: null, local_time: arrTime, local_date: arrDate });
+  if (dc)
+    endpoints.push({
+      role: 'from',
+      sequence: 0,
+      name: depName,
+      code: null,
+      lat: dc.lat,
+      lng: dc.lng,
+      timezone: null,
+      local_time: depTime,
+      local_date: depDate,
+    });
+  if (ac)
+    endpoints.push({
+      role: 'to',
+      sequence: 1,
+      name: arrName,
+      code: null,
+      lat: ac.lat,
+      lng: ac.lng,
+      timezone: null,
+      local_time: arrTime,
+      local_date: arrDate,
+    });
 
   return {
     type: 'train',
@@ -220,10 +335,41 @@ function mapBus(r: KiReservation, source: ParsedBookingItem['source']): ParsedBo
   const endpoints: ParsedEndpoint[] = [];
   const dc = coords(b.departureBusStop?.geo);
   const ac = coords(b.arrivalBusStop?.geo);
-  if (dc) endpoints.push({ role: 'from', sequence: 0, name: depName, code: null, lat: dc.lat, lng: dc.lng, timezone: null, local_time: depTime, local_date: depDate });
-  if (ac) endpoints.push({ role: 'to', sequence: 1, name: arrName, code: null, lat: ac.lat, lng: ac.lng, timezone: null, local_time: arrTime, local_date: arrDate });
+  if (dc)
+    endpoints.push({
+      role: 'from',
+      sequence: 0,
+      name: depName,
+      code: null,
+      lat: dc.lat,
+      lng: dc.lng,
+      timezone: null,
+      local_time: depTime,
+      local_date: depDate,
+    });
+  if (ac)
+    endpoints.push({
+      role: 'to',
+      sequence: 1,
+      name: arrName,
+      code: null,
+      lat: ac.lat,
+      lng: ac.lng,
+      timezone: null,
+      local_time: arrTime,
+      local_date: arrDate,
+    });
 
-  return { type: 'train', title, reservation_time: toIsoString(b.departureTime), reservation_end_time: toIsoString(b.arrivalTime), confirmation_number: r.reservationNumber ?? null, endpoints, needs_review: endpoints.length < 2, source };
+  return {
+    type: 'train',
+    title,
+    reservation_time: toIsoString(b.departureTime),
+    reservation_end_time: toIsoString(b.arrivalTime),
+    confirmation_number: r.reservationNumber ?? null,
+    endpoints,
+    needs_review: endpoints.length < 2,
+    source,
+  };
 }
 
 function mapBoat(r: KiReservation, source: ParsedBookingItem['source']): ParsedBookingItem | null {
@@ -240,10 +386,40 @@ function mapBoat(r: KiReservation, source: ParsedBookingItem['source']): ParsedB
   const endpoints: ParsedEndpoint[] = [];
   const dc = coords(b.departureBoatTerminal?.geo);
   const ac = coords(b.arrivalBoatTerminal?.geo);
-  if (dc) endpoints.push({ role: 'from', sequence: 0, name: depName, code: null, lat: dc.lat, lng: dc.lng, timezone: null, local_time: depTime, local_date: depDate });
-  if (ac) endpoints.push({ role: 'to', sequence: 1, name: arrName, code: null, lat: ac.lat, lng: ac.lng, timezone: null, local_time: arrTime, local_date: arrDate });
+  if (dc)
+    endpoints.push({
+      role: 'from',
+      sequence: 0,
+      name: depName,
+      code: null,
+      lat: dc.lat,
+      lng: dc.lng,
+      timezone: null,
+      local_time: depTime,
+      local_date: depDate,
+    });
+  if (ac)
+    endpoints.push({
+      role: 'to',
+      sequence: 1,
+      name: arrName,
+      code: null,
+      lat: ac.lat,
+      lng: ac.lng,
+      timezone: null,
+      local_time: arrTime,
+      local_date: arrDate,
+    });
 
-  return { type: 'cruise', title, reservation_time: toIsoString(b.departureTime), reservation_end_time: toIsoString(b.arrivalTime), confirmation_number: r.reservationNumber ?? null, endpoints, source };
+  return {
+    type: 'cruise',
+    title,
+    reservation_time: toIsoString(b.departureTime),
+    reservation_end_time: toIsoString(b.arrivalTime),
+    confirmation_number: r.reservationNumber ?? null,
+    endpoints,
+    source,
+  };
 }
 
 function mapLodging(r: KiReservation, source: ParsedBookingItem['source']): ParsedBookingItem | null {
@@ -251,7 +427,13 @@ function mapLodging(r: KiReservation, source: ParsedBookingItem['source']): Pars
   if (!l?.name) return null;
 
   const c = coords(l.geo);
-  const venue: ParsedVenue = { name: l.name, ...(c ?? {}), address: formatAddress(l.address) ?? undefined, website: l.url ?? undefined, phone: l.telephone ?? undefined };
+  const venue: ParsedVenue = {
+    name: l.name,
+    ...(c ?? {}),
+    address: formatAddress(l.address) ?? undefined,
+    website: l.url ?? undefined,
+    phone: l.telephone ?? undefined,
+  };
 
   const { date: checkInDate, time: checkInTime } = splitIso(r.checkinTime);
   const { date: checkOutDate, time: checkOutTime } = splitIso(r.checkoutTime);
@@ -265,7 +447,10 @@ function mapLodging(r: KiReservation, source: ParsedBookingItem['source']): Pars
     location: formatAddress(l.address),
     _venue: venue,
     _accommodation: { check_in: checkIn, check_out: checkOut, confirmation: r.reservationNumber ?? undefined },
-    metadata: { ...(checkInTime ? { check_in_time: checkInTime } : {}), ...(checkOutTime ? { check_out_time: checkOutTime } : {}) },
+    metadata: {
+      ...(checkInTime ? { check_in_time: checkInTime } : {}),
+      ...(checkOutTime ? { check_out_time: checkOutTime } : {}),
+    },
     source,
   };
 }
@@ -275,9 +460,24 @@ function mapFood(r: KiReservation, source: ParsedBookingItem['source']): ParsedB
   if (!f?.name) return null;
 
   const c = coords(f.geo);
-  const venue: ParsedVenue = { name: f.name, ...(c ?? {}), address: formatAddress(f.address) ?? undefined, website: f.url ?? undefined, phone: f.telephone ?? undefined };
+  const venue: ParsedVenue = {
+    name: f.name,
+    ...(c ?? {}),
+    address: formatAddress(f.address) ?? undefined,
+    website: f.url ?? undefined,
+    phone: f.telephone ?? undefined,
+  };
 
-  return { type: 'restaurant', title: f.name, reservation_time: toIsoString(r.startTime), reservation_end_time: toIsoString(r.endTime), confirmation_number: r.reservationNumber ?? null, location: formatAddress(f.address), _venue: venue, source };
+  return {
+    type: 'restaurant',
+    title: f.name,
+    reservation_time: toIsoString(r.startTime),
+    reservation_end_time: toIsoString(r.endTime),
+    confirmation_number: r.reservationNumber ?? null,
+    location: formatAddress(f.address),
+    _venue: venue,
+    source,
+  };
 }
 
 function mapRentalCar(r: KiReservation, source: ParsedBookingItem['source']): ParsedBookingItem | null {
@@ -288,9 +488,19 @@ function mapRentalCar(r: KiReservation, source: ParsedBookingItem['source']): Pa
 
   const pickup = r.pickupLocation as KiReservation['pickupLocation'];
   const pc = coords(pickup?.geo);
-  const venue: ParsedVenue | undefined = pickup?.name ? { name: pickup.name, ...(pc ?? {}), address: formatAddress(pickup.address) ?? undefined } : undefined;
+  const venue: ParsedVenue | undefined = pickup?.name
+    ? { name: pickup.name, ...(pc ?? {}), address: formatAddress(pickup.address) ?? undefined }
+    : undefined;
 
-  return { type: 'car', title, reservation_time: toIsoString(r.pickupTime), reservation_end_time: toIsoString(r.dropoffTime), confirmation_number: r.reservationNumber ?? null, ...(venue ? { _venue: venue } : {}), source };
+  return {
+    type: 'car',
+    title,
+    reservation_time: toIsoString(r.pickupTime),
+    reservation_end_time: toIsoString(r.dropoffTime),
+    confirmation_number: r.reservationNumber ?? null,
+    ...(venue ? { _venue: venue } : {}),
+    source,
+  };
 }
 
 function mapEvent(r: KiReservation, source: ParsedBookingItem['source']): ParsedBookingItem | null {
@@ -299,16 +509,30 @@ function mapEvent(r: KiReservation, source: ParsedBookingItem['source']): Parsed
 
   const loc = e.location;
   const c = coords(loc?.geo);
-  const venue: ParsedVenue | undefined = loc?.name ? { name: loc.name, ...(c ?? {}), address: formatAddress(loc.address) ?? undefined } : undefined;
+  const venue: ParsedVenue | undefined = loc?.name
+    ? { name: loc.name, ...(c ?? {}), address: formatAddress(loc.address) ?? undefined }
+    : undefined;
 
-  return { type: 'event', title: e.name, reservation_time: toIsoString(e.startDate), reservation_end_time: toIsoString(e.endDate), confirmation_number: r.reservationNumber ?? null, location: loc ? (formatAddress(loc.address) ?? loc.name ?? null) : null, ...(venue ? { _venue: venue } : {}), source };
+  return {
+    type: 'event',
+    title: e.name,
+    reservation_time: toIsoString(e.startDate),
+    reservation_end_time: toIsoString(e.endDate),
+    confirmation_number: r.reservationNumber ?? null,
+    location: loc ? (formatAddress(loc.address) ?? loc.name ?? null) : null,
+    ...(venue ? { _venue: venue } : {}),
+    source,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Public
 // ---------------------------------------------------------------------------
 
-export function mapReservations(kiItems: KiReservation[], fileName: string): { items: ParsedBookingItem[]; warnings: string[] } {
+export function mapReservations(
+  kiItems: KiReservation[],
+  fileName: string,
+): { items: ParsedBookingItem[]; warnings: string[] } {
   const items: ParsedBookingItem[] = [];
   const warnings: string[] = [];
 
@@ -336,14 +560,28 @@ export function mapReservations(kiItems: KiReservation[], fileName: string): { i
     }
 
     switch (r['@type']) {
-      case 'TrainReservation':             item = mapTrain(r, source);   break;
-      case 'BusReservation':              item = mapBus(r, source);     break;
-      case 'BoatReservation':             item = mapBoat(r, source);    break;
-      case 'LodgingReservation':          item = mapLodging(r, source); break;
-      case 'FoodEstablishmentReservation': item = mapFood(r, source);   break;
-      case 'RentalCarReservation':        item = mapRentalCar(r, source); break;
+      case 'TrainReservation':
+        item = mapTrain(r, source);
+        break;
+      case 'BusReservation':
+        item = mapBus(r, source);
+        break;
+      case 'BoatReservation':
+        item = mapBoat(r, source);
+        break;
+      case 'LodgingReservation':
+        item = mapLodging(r, source);
+        break;
+      case 'FoodEstablishmentReservation':
+        item = mapFood(r, source);
+        break;
+      case 'RentalCarReservation':
+        item = mapRentalCar(r, source);
+        break;
       case 'EventReservation':
-      case 'TouristAttractionVisit':      item = mapEvent(r, source);   break;
+      case 'TouristAttractionVisit':
+        item = mapEvent(r, source);
+        break;
       default:
         warnings.push(`Unknown type "${r['@type']}" in ${fileName}[${i}] — skipped`);
     }

@@ -1,9 +1,11 @@
 import { db } from '../db/database';
-import { loadTagsByPlaceIds, loadParticipantsByAssignmentIds, formatAssignmentWithPlace } from './queryHelpers';
 import { AssignmentRow, DayAssignment } from '../types';
+import { loadTagsByPlaceIds, loadParticipantsByAssignmentIds, formatAssignmentWithPlace } from './queryHelpers';
 
 export function getAssignmentWithPlace(assignmentId: number | bigint) {
-  const a = db.prepare(`
+  const a = db
+    .prepare(
+      `
     SELECT da.*, p.id as place_id, p.name as place_name, p.description as place_description,
       p.lat, p.lng, p.address, p.category_id, p.price, p.currency as place_currency,
       COALESCE(da.assignment_time, p.place_time) as place_time,
@@ -15,22 +17,32 @@ export function getAssignmentWithPlace(assignmentId: number | bigint) {
     JOIN places p ON da.place_id = p.id
     LEFT JOIN categories c ON p.category_id = c.id
     WHERE da.id = ?
-  `).get(assignmentId) as AssignmentRow | undefined;
+  `,
+    )
+    .get(assignmentId) as AssignmentRow | undefined;
 
   if (!a) return null;
 
-  const tags = db.prepare(`
+  const tags = db
+    .prepare(
+      `
     SELECT t.* FROM tags t
     JOIN place_tags pt ON t.id = pt.tag_id
     WHERE pt.place_id = ?
-  `).all(a.place_id);
+  `,
+    )
+    .all(a.place_id);
 
-  const participants = db.prepare(`
+  const participants = db
+    .prepare(
+      `
     SELECT ap.user_id, u.username, u.avatar
     FROM assignment_participants ap
     JOIN users u ON ap.user_id = u.id
     WHERE ap.assignment_id = ?
-  `).all(a.id);
+  `,
+    )
+    .all(a.id);
 
   return {
     id: a.id,
@@ -62,19 +74,23 @@ export function getAssignmentWithPlace(assignmentId: number | bigint) {
       google_ftid: a.google_ftid,
       website: a.website,
       phone: a.phone,
-      category: a.category_id ? {
-        id: a.category_id,
-        name: a.category_name,
-        color: a.category_color,
-        icon: a.category_icon,
-      } : null,
+      category: a.category_id
+        ? {
+            id: a.category_id,
+            name: a.category_name,
+            color: a.category_color,
+            icon: a.category_icon,
+          }
+        : null,
       tags,
-    }
+    },
   };
 }
 
 export function listDayAssignments(dayId: string | number) {
-  const assignments = db.prepare(`
+  const assignments = db
+    .prepare(
+      `
     SELECT da.*, p.id as place_id, p.name as place_name, p.description as place_description,
       p.lat, p.lng, p.address, p.category_id, p.price, p.currency as place_currency,
       COALESCE(da.assignment_time, p.place_time) as place_time,
@@ -87,15 +103,17 @@ export function listDayAssignments(dayId: string | number) {
     LEFT JOIN categories c ON p.category_id = c.id
     WHERE da.day_id = ?
     ORDER BY da.order_index ASC, da.created_at ASC
-  `).all(dayId) as AssignmentRow[];
+  `,
+    )
+    .all(dayId) as AssignmentRow[];
 
-  const placeIds = [...new Set(assignments.map(a => a.place_id))];
+  const placeIds = [...new Set(assignments.map((a) => a.place_id))];
   const tagsByPlaceId = loadTagsByPlaceIds(placeIds, { compact: true });
 
-  const assignmentIds = assignments.map(a => a.id);
+  const assignmentIds = assignments.map((a) => a.id);
   const participantsByAssignment = loadParticipantsByAssignmentIds(assignmentIds);
 
-  return assignments.map(a => {
+  return assignments.map((a) => {
     return formatAssignmentWithPlace(a, tagsByPlaceId[a.place_id] || [], participantsByAssignment[a.id] || []);
   });
 }
@@ -109,20 +127,24 @@ export function placeExists(placeId: string | number, tripId: string | number) {
 }
 
 export function createAssignment(dayId: string | number, placeId: string | number, notes: string | null) {
-  const maxOrder = db.prepare('SELECT MAX(order_index) as max FROM day_assignments WHERE day_id = ?').get(dayId) as { max: number | null };
+  const maxOrder = db.prepare('SELECT MAX(order_index) as max FROM day_assignments WHERE day_id = ?').get(dayId) as {
+    max: number | null;
+  };
   const orderIndex = (maxOrder.max !== null ? maxOrder.max : -1) + 1;
 
-  const result = db.prepare(
-    'INSERT INTO day_assignments (day_id, place_id, order_index, notes) VALUES (?, ?, ?, ?)'
-  ).run(dayId, placeId, orderIndex, notes || null);
+  const result = db
+    .prepare('INSERT INTO day_assignments (day_id, place_id, order_index, notes) VALUES (?, ?, ?, ?)')
+    .run(dayId, placeId, orderIndex, notes || null);
 
   return getAssignmentWithPlace(result.lastInsertRowid);
 }
 
 export function assignmentExistsInDay(id: string | number, dayId: string | number, tripId: string | number) {
-  return !!db.prepare(
-    'SELECT da.id FROM day_assignments da JOIN days d ON da.day_id = d.id WHERE da.id = ? AND da.day_id = ? AND d.trip_id = ?'
-  ).get(id, dayId, tripId);
+  return !!db
+    .prepare(
+      'SELECT da.id FROM day_assignments da JOIN days d ON da.day_id = d.id WHERE da.id = ? AND da.day_id = ? AND d.trip_id = ?',
+    )
+    .get(id, dayId, tripId);
 }
 
 export function deleteAssignment(id: string | number) {
@@ -144,11 +166,15 @@ export function reorderAssignments(dayId: string | number, orderedIds: number[])
 }
 
 export function getAssignmentForTrip(id: string | number, tripId: string | number) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT da.* FROM day_assignments da
     JOIN days d ON da.day_id = d.id
     WHERE da.id = ? AND d.trip_id = ?
-  `).get(id, tripId) as DayAssignment | undefined;
+  `,
+    )
+    .get(id, tripId) as DayAssignment | undefined;
 }
 
 export function moveAssignment(id: string | number, newDayId: string | number, orderIndex: number, oldDayId: number) {
@@ -158,37 +184,52 @@ export function moveAssignment(id: string | number, newDayId: string | number, o
 }
 
 export function getParticipants(assignmentId: string | number) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT ap.user_id, u.username, u.avatar
     FROM assignment_participants ap
     JOIN users u ON ap.user_id = u.id
     WHERE ap.assignment_id = ?
-  `).all(assignmentId);
+  `,
+    )
+    .all(assignmentId);
 }
 
 export function updateTime(id: string | number, placeTime: string | null, endTime: string | null) {
-  db.prepare('UPDATE day_assignments SET assignment_time = ?, assignment_end_time = ? WHERE id = ?')
-    .run(placeTime ?? null, endTime ?? null, id);
+  db.prepare('UPDATE day_assignments SET assignment_time = ?, assignment_end_time = ? WHERE id = ?').run(
+    placeTime ?? null,
+    endTime ?? null,
+    id,
+  );
 
   // Auto-sort: reorder timed assignments chronologically within the day
   if (placeTime) {
-    const assignment = db.prepare('SELECT day_id FROM day_assignments WHERE id = ?').get(id) as { day_id: number } | undefined;
+    const assignment = db.prepare('SELECT day_id FROM day_assignments WHERE id = ?').get(id) as
+      | { day_id: number }
+      | undefined;
     if (assignment) {
-      const dayAssignments = db.prepare(`
+      const dayAssignments = db
+        .prepare(
+          `
         SELECT da.id, COALESCE(da.assignment_time, p.place_time) as effective_time
         FROM day_assignments da
         JOIN places p ON da.place_id = p.id
         WHERE da.day_id = ?
         ORDER BY da.order_index ASC
-      `).all(assignment.day_id) as { id: number; effective_time: string | null }[];
+      `,
+        )
+        .all(assignment.day_id) as { id: number; effective_time: string | null }[];
 
       // Separate timed and untimed, sort timed by time
-      const timed = dayAssignments.filter(a => a.effective_time).sort((a, b) => {
-        const ta = a.effective_time!.includes(':') ? a.effective_time! : '99:99';
-        const tb = b.effective_time!.includes(':') ? b.effective_time! : '99:99';
-        return ta.localeCompare(tb);
-      });
-      const untimed = dayAssignments.filter(a => !a.effective_time);
+      const timed = dayAssignments
+        .filter((a) => a.effective_time)
+        .sort((a, b) => {
+          const ta = a.effective_time!.includes(':') ? a.effective_time! : '99:99';
+          const tb = b.effective_time!.includes(':') ? b.effective_time! : '99:99';
+          return ta.localeCompare(tb);
+        });
+      const untimed = dayAssignments.filter((a) => !a.effective_time);
 
       // Interleave: timed in chronological order, untimed keep relative position
       const reordered = [...timed, ...untimed];
@@ -207,10 +248,14 @@ export function setParticipants(assignmentId: string | number, userIds: number[]
     for (const userId of userIds) insert.run(assignmentId, userId);
   }
 
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT ap.user_id, u.username, u.avatar
     FROM assignment_participants ap
     JOIN users u ON ap.user_id = u.id
     WHERE ap.assignment_id = ?
-  `).all(assignmentId);
+  `,
+    )
+    .all(assignmentId);
 }

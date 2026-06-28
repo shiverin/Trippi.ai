@@ -27,7 +27,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Σύνδεση…',
   'login.signIn': 'Σύνδεση',
   'login.createAdmin': 'Δημιουργία Λογαριασμού Διαχειριστή',
-  'login.createAdminHint': 'Ρυθμίστε τον πρώτο λογαριασμό διαχειριστή για το TRIPPI.',
+  'login.createAdminHint': 'Ρυθμίστε τον πρώτο λογαριασμό διαχειριστή για το trippi.ai.',
   'login.setNewPassword': 'Ορισμός Νέου Κωδικού',
   'login.setNewPasswordHint': 'Πρέπει να αλλάξετε τον κωδικό σας πριν συνεχίσετε.',
   'login.createAccount': 'Δημιουργία Λογαριασμού',

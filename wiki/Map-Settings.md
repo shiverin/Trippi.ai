@@ -1,6 +1,6 @@
 # Map Settings
 
-The Map tab (Settings → Map) controls which map engine and tile source TRIPPI uses in the Trip Planner and Journey maps. Changes take effect after clicking **Save map settings**.
+The Map tab (Settings → Map) controls which map engine and tile source trippi.ai uses in the Trip Planner and Journey maps. Changes take effect after clicking **Save map settings**.
 
 > **Note:** The Atlas view always uses Leaflet regardless of this setting.
 

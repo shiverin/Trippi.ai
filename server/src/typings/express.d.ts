@@ -1,8 +1,7 @@
-// Augments Express's `Request` with the fields TRIPPI middleware + Nest guards
+// Augments Express's `Request` with the fields trippi.ai middleware + Nest guards
 // attach after authentication. Replaces the per-site casts
 // (`(req as AuthRequest).user`, `getRequest<Request & { user?: User }>()`) with
 // a single source of truth so downstream code can read `req.user` directly.
-
 import type { User } from '../types';
 
 declare module 'express-serve-static-core' {

@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
 import { canAccessTrip } from '../../db/database';
 import { checkPermission } from '../../services/permissions';
-import type { User } from '../../types';
 import * as svc from '../../services/shareService';
+import type { User } from '../../types';
+import { Injectable } from '@nestjs/common';
 
 type Trip = NonNullable<ReturnType<typeof canAccessTrip>>;
 
@@ -23,8 +23,16 @@ export class ShareService {
   createOrUpdate(tripId: string, userId: number, permissions: Parameters<typeof svc.createOrUpdateShareLink>[2]) {
     return svc.createOrUpdateShareLink(tripId, userId, permissions);
   }
-  get(tripId: string) { return svc.getShareLink(tripId); }
-  remove(tripId: string) { return svc.deleteShareLink(tripId); }
-  getSharedTripData(token: string) { return svc.getSharedTripData(token); }
-  getSharedPlacePhotoPath(token: string, placeId: string) { return svc.getSharedPlacePhotoPath(token, placeId); }
+  get(tripId: string) {
+    return svc.getShareLink(tripId);
+  }
+  remove(tripId: string) {
+    return svc.deleteShareLink(tripId);
+  }
+  getSharedTripData(token: string) {
+    return svc.getSharedTripData(token);
+  }
+  getSharedPlacePhotoPath(token: string, placeId: string) {
+    return svc.getSharedPlacePhotoPath(token, placeId);
+  }
 }

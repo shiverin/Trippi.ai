@@ -1,5 +1,3 @@
-import { Injectable } from '@nestjs/common';
-import type { Category } from '@trippi/shared';
 import {
   listCategories,
   getCategoryById,
@@ -7,6 +5,8 @@ import {
   updateCategory,
   deleteCategory,
 } from '../../services/categoryService';
+import { Injectable } from '@nestjs/common';
+import type { Category } from '@trippi/shared';
 
 /**
  * Thin Nest wrapper around the existing category service. The SQL and the

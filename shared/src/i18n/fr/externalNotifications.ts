@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const fr: NotificationLocale = {
   email: {
-    footer: 'Vous recevez cet e-mail car les notifications sont activées dans TRIPPI.',
+    footer: 'Vous recevez cet e-mail car les notifications sont activées dans trippi.ai.',
     manage: 'Gérer les préférences',
     madeWith: 'Made with',
-    openTrippi: 'Ouvrir TRIPPI',
+    openTrippi: 'Ouvrir trippi.ai',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const fr: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Invitation Vacay Fusion',
-      body: `${p.actor} vous invite à fusionner les plans de vacances. Ouvrez TRIPPI pour accepter ou refuser.`,
+      body: `${p.actor} vous invite à fusionner les plans de vacances. Ouvrez trippi.ai pour accepter ou refuser.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} photos partagées`,
@@ -41,8 +41,8 @@ const fr: NotificationLocale = {
       body: `${p.actor} vous a assigné à la catégorie "${p.category}" dans "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Nouvelle version TRIPPI disponible',
-      body: `TRIPPI ${p.version} est maintenant disponible. Rendez-vous dans le panneau d'administration pour mettre à jour.`,
+      title: 'Nouvelle version trippi.ai disponible',
+      body: `trippi.ai ${p.version} est maintenant disponible. Rendez-vous dans le panneau d'administration pour mettre à jour.`,
     }),
     synology_session_cleared: () => ({
       title: 'Session Synology effacée',
@@ -52,7 +52,7 @@ const fr: NotificationLocale = {
   passwordReset: {
     subject: 'Réinitialisez votre mot de passe',
     greeting: 'Bonjour',
-    body: 'Nous avons reçu une demande de réinitialisation du mot de passe de votre compte TRIPPI. Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe.',
+    body: 'Nous avons reçu une demande de réinitialisation du mot de passe de votre compte trippi.ai. Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe.',
     ctaIntro: 'Réinitialiser le mot de passe',
     expiry: 'Ce lien expire dans 60 minutes.',
     ignore: "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail — votre mot de passe ne changera pas.",

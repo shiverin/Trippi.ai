@@ -12,7 +12,7 @@ docker run -d \
   -v ./uploads:/app/uploads \
   -e ENCRYPTION_KEY=<your-32-byte-hex-key> \
   --restart unless-stopped \
-  mauriceboe/trippi:latest
+  shiverin/trippi.ai:latest
 ```
 
 `ENCRYPTION_KEY` is strongly recommended but not strictly required. If omitted, a key is auto-generated on first start and persisted to `data/.encryption_key`. Setting it explicitly means you can recreate the container from scratch (e.g. on a new host) without losing access to stored encrypted data (API keys, SMTP credentials, OIDC secrets, MFA secrets).
@@ -38,11 +38,11 @@ See [Environment-Variables](Environment-Variables) for the full list.
 
 | Tag | Example | Behavior |
 |---|---|---|
-| `latest` | `mauriceboe/trippi:latest` | Always the newest release across all major versions |
-| Major version | `mauriceboe/trippi:3` | Latest release pinned to that major version |
-| Full version | `mauriceboe/trippi:3.0.15` | Exact release; never changes |
+| `latest` | `shiverin/trippi.ai:latest` | Always the newest release across all major versions |
+| Major version | `shiverin/trippi.ai:3` | Latest release pinned to that major version |
+| Full version | `shiverin/trippi.ai:3.0.15` | Exact release; never changes |
 
-Replace `mauriceboe/trippi:latest` in the run command with your chosen tag to pin to a major version or exact release.
+Replace `shiverin/trippi.ai:latest` in the run command with your chosen tag to pin to a major version or exact release.
 
 ## Volume Reference
 
@@ -65,7 +65,7 @@ docker run -d \
   -v trippi_uploads:/app/uploads \
   -e ENCRYPTION_KEY=<your-32-byte-hex-key> \
   --restart unless-stopped \
-  mauriceboe/trippi:latest
+  shiverin/trippi.ai:latest
 ```
 
 Docker creates `trippi_data` and `trippi_uploads` automatically on first run. Named volumes are easier to manage with `docker volume` commands and work better in some NAS or container-management environments.

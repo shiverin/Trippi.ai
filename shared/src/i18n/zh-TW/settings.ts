@@ -190,9 +190,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': '建議新功能',
   'settings.about.wikiHint': '文件與指南',
   'settings.about.supporters.badge': '月度支持者',
-  'settings.about.supporters.title': '與 TRIPPI 同行的夥伴',
+  'settings.about.supporters.title': '與 trippi.ai 同行的夥伴',
   'settings.about.supporters.subtitle':
-    '當你規劃下一段路線時，這些人也在一起規劃 TRIPPI 的未來。他們每月的支持直接用於開發與實際投入的時間——讓 TRIPPI 保持開源。',
+    '當你規劃下一段路線時，這些人也在一起規劃 trippi.ai 的未來。他們每月的支持直接用於開發與實際投入的時間——讓 trippi.ai 保持開源。',
   'settings.about.supporters.since': '自 {date} 起的支持者',
   'settings.about.supporters.tierEmpty': '成為第一個',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -201,9 +201,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'TRIPPI 是一款自架旅遊規劃器，幫助您從最初構想到最後回憶，整理每次旅行。日程規劃、預算、行李清單、照片及更多功能——全部集中在您自己的伺服器上。',
+    'trippi.ai 是一款自架旅遊規劃器，幫助您從最初構想到最後回憶，整理每次旅行。日程規劃、預算、行李清單、照片及更多功能——全部集中在您自己的伺服器上。',
   'settings.about.madeWith': '以',
-  'settings.about.madeBy': '由 Maurice 及不斷成長的開源社群製作。',
+  'settings.about.madeBy': '由 trippi.ai 及不斷成長的開源社群製作。',
   'settings.username': '使用者名稱',
   'settings.email': '郵箱',
   'settings.role': '角色',
@@ -299,7 +299,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': '僅在你自己網路上受信任的執行個體啟用。',
   'settings.airtrail.writeBack': '將變更寫回 AirTrail',
   'settings.airtrail.writeBackHint':
-    '預設關閉：AirTrail 是資料來源，TRIPPI 僅從中讀取。開啟後會將在 TRIPPI 中所做的修改寫回 AirTrail。',
+    '預設關閉：AirTrail 是資料來源，trippi.ai 僅從中讀取。開啟後會將在 trippi.ai 中所做的修改寫回 AirTrail。',
   'settings.airtrail.connected': '已連接',
   'settings.airtrail.notConnected': '未連接',
   'settings.airtrail.toast.saved': '已儲存 AirTrail 連接',

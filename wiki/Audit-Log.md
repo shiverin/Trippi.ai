@@ -1,6 +1,6 @@
 # Audit Log
 
-The audit log records significant actions taken on your TRIPPI instance. Use it to monitor logins, admin changes, and integration configuration.
+The audit log records significant actions taken on your trippi.ai instance. Use it to monitor logins, admin changes, and integration configuration.
 
 ## Where to find it
 
@@ -117,7 +117,7 @@ The panel loads 100 entries at a time by default. Click **Load more** at the bot
 
 ## IP addresses
 
-The client IP is read from the `X-Forwarded-For` header. When TRIPPI is behind a reverse proxy, set `TRUST_PROXY=1` (the number of proxy hops) so the header is trusted and the real client IP is recorded. Without this setting, the proxy's own IP is logged instead. See [Environment-Variables](Environment-Variables).
+The client IP is read from the `X-Forwarded-For` header. When trippi.ai is behind a reverse proxy, set `TRUST_PROXY=1` (the number of proxy hops) so the header is trusted and the real client IP is recorded. Without this setting, the proxy's own IP is logged instead. See [Environment-Variables](Environment-Variables).
 
 ## Log file
 

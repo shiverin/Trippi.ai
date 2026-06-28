@@ -1,8 +1,8 @@
+import { ApiError } from '../../services/weatherService';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { WeatherService } from './weather.service';
 import { Controller, Get, HttpException, Query, UseGuards } from '@nestjs/common';
 import type { WeatherResult } from '@trippi/shared';
-import { WeatherService } from './weather.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ApiError } from '../../services/weatherService';
 
 /**
  * /api/weather — first migrated leaf module (the pilot).

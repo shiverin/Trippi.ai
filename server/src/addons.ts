@@ -10,4 +10,4 @@ export const ADDON_IDS = {
   AIRTRAIL: 'airtrail',
 } as const;
 
-export type AddonId = typeof ADDON_IDS[keyof typeof ADDON_IDS];
+export type AddonId = (typeof ADDON_IDS)[keyof typeof ADDON_IDS];

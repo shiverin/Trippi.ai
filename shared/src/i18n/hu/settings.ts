@@ -174,9 +174,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Javasolj egy új funkciót',
   'settings.about.wikiHint': 'Dokumentáció és útmutatók',
   'settings.about.supporters.badge': 'Havi támogatók',
-  'settings.about.supporters.title': 'Útitársak a TRIPPI mellett',
+  'settings.about.supporters.title': 'Útitársak a trippi.ai mellett',
   'settings.about.supporters.subtitle':
-    'Miközben te a következő útvonaladat tervezed, ők a TRIPPI jövőjét tervezik velem együtt. Havi hozzájárulásuk közvetlenül fejlesztésre és valódi órákra fordítódik — hogy a TRIPPI Open Source maradhasson.',
+    'Miközben te a következő útvonaladat tervezed, ők a trippi.ai jövőjét tervezik velem együtt. Havi hozzájárulásuk közvetlenül fejlesztésre és valódi órákra fordítódik — hogy a trippi.ai Open Source maradhasson.',
   'settings.about.supporters.since': 'támogató {date} óta',
   'settings.about.supporters.tierEmpty': 'Légy az első',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -185,9 +185,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'A TRIPPI egy saját szerveren üzemeltetett útitervező, amely segít az utazásaid megszervezésében az első ötlettől az utolsó emlékig. Napi tervezés, költségvetés, csomagolási listák, fotók és még sok más — minden egy helyen, a saját szervereden.',
+    'A trippi.ai egy saját szerveren üzemeltetett útitervező, amely segít az utazásaid megszervezésében az első ötlettől az utolsó emlékig. Napi tervezés, költségvetés, csomagolási listák, fotók és még sok más — minden egy helyen, a saját szervereden.',
   'settings.about.madeWith': 'Készítve',
-  'settings.about.madeBy': 'Maurice és egy növekvő nyílt forráskódú közösség által.',
+  'settings.about.madeBy': 'trippi.ai és egy növekvő nyílt forráskódú közösség által.',
   'settings.username': 'Felhasználónév',
   'settings.email': 'E-mail',
   'settings.role': 'Szerepkör',
@@ -320,7 +320,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': 'Csak megbízható, saját hálózaton futó példány esetén engedélyezd.',
   'settings.airtrail.writeBack': 'Módosítások visszaírása az AirTrailbe',
   'settings.airtrail.writeBackHint':
-    'Alapértelmezés szerint kikapcsolva: az AirTrail a hiteles forrás, és a TRIPPI csak olvas belőle. Kapcsold be, hogy a TRIPPI-ben végzett módosításokat visszaküldje az AirTrailbe.',
+    'Alapértelmezés szerint kikapcsolva: az AirTrail a hiteles forrás, és a trippi.ai csak olvas belőle. Kapcsold be, hogy a trippi.ai-ben végzett módosításokat visszaküldje az AirTrailbe.',
   'settings.airtrail.connected': 'Csatlakoztatva',
   'settings.airtrail.notConnected': 'Nincs csatlakoztatva',
   'settings.airtrail.toast.saved': 'AirTrail-kapcsolat mentve',

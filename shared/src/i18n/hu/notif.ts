@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Csomagolási feladat',
   'notif.packing_tagged.text': '{actor} hozzárendelte Önt a {category} kategóriához a(z) {trip} utazásban',
   'notif.version_available.title': 'Új verzió elérhető',
-  'notif.version_available.text': 'A TRIPPI {version} elérhető',
+  'notif.version_available.text': 'A trippi.ai {version} elérhető',
   'notif.action.view_trip': 'Utazás megtekintése',
   'notif.action.view_collab': 'Üzenetek megtekintése',
   'notif.action.view_packing': 'Csomagolás megtekintése',

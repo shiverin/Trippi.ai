@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '../../../tests/helpers/render';
 import Modal from './Modal';
 
 describe('Modal', () => {
@@ -11,12 +11,20 @@ describe('Modal', () => {
   });
 
   it('FE-COMP-MODAL-001: does not render when isOpen is false', () => {
-    render(<Modal isOpen={false} onClose={onClose}><p>content</p></Modal>);
+    render(
+      <Modal isOpen={false} onClose={onClose}>
+        <p>content</p>
+      </Modal>
+    );
     expect(screen.queryByText('content')).toBeNull();
   });
 
   it('FE-COMP-MODAL-002: renders overlay when isOpen is true', () => {
-    render(<Modal isOpen={true} onClose={onClose}><p>content</p></Modal>);
+    render(
+      <Modal isOpen={true} onClose={onClose}>
+        <p>content</p>
+      </Modal>
+    );
     expect(screen.getByText('content')).toBeTruthy();
   });
 
@@ -26,7 +34,11 @@ describe('Modal', () => {
   });
 
   it('FE-COMP-MODAL-004: renders children content', () => {
-    render(<Modal isOpen={true} onClose={onClose}><p>Hello World</p></Modal>);
+    render(
+      <Modal isOpen={true} onClose={onClose}>
+        <p>Hello World</p>
+      </Modal>
+    );
     expect(screen.getByText('Hello World')).toBeTruthy();
   });
 
@@ -55,8 +67,12 @@ describe('Modal', () => {
   });
 
   it('FE-COMP-MODAL-008: clicking the backdrop calls onClose', () => {
-    render(<Modal isOpen={true} onClose={onClose}><p>inner</p></Modal>);
-    const backdrop = document.querySelector('.trippi-modal-backdrop') as HTMLElement;
+    render(
+      <Modal isOpen={true} onClose={onClose}>
+        <p>inner</p>
+      </Modal>
+    );
+    const backdrop = document.querySelector('.trek-modal-backdrop') as HTMLElement;
     // Simulate mousedown then click on the backdrop itself
     fireEvent.mouseDown(backdrop, { target: backdrop });
     fireEvent.click(backdrop);
@@ -65,7 +81,11 @@ describe('Modal', () => {
 
   it('FE-COMP-MODAL-009: clicking inside modal content does NOT call onClose', async () => {
     const user = userEvent.setup();
-    render(<Modal isOpen={true} onClose={onClose}><p>inner content</p></Modal>);
+    render(
+      <Modal isOpen={true} onClose={onClose}>
+        <p>inner content</p>
+      </Modal>
+    );
     await user.click(screen.getByText('inner content'));
     expect(onClose).not.toHaveBeenCalled();
   });

@@ -1,13 +1,13 @@
-import { Body, Controller, Headers, HttpException, Param, Post, UseGuards } from '@nestjs/common';
+import { importAirtrailFlights } from '../../services/airtrail/airtrailImport';
+import { checkPermission } from '../../services/permissions';
+import { verifyTripAccess } from '../../services/tripAccess';
 import type { User } from '../../types';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { AirtrailAddonGuard } from './airtrail-addon.guard';
+import { Body, Controller, Headers, HttpException, Param, Post, UseGuards } from '@nestjs/common';
 import { airtrailImportSchema, type AirtrailImport, type AirtrailImportResult } from '@trippi/shared';
-import { verifyTripAccess } from '../../services/tripAccess';
-import { checkPermission } from '../../services/permissions';
-import { importAirtrailFlights } from '../../services/airtrail/airtrailImport';
 
 /**
  * POST /api/trips/:tripId/reservations/import/airtrail — turn selected AirTrail

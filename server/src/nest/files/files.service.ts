@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import type { Request } from 'express';
-import { broadcast } from '../../websocket';
+import * as svc from '../../services/fileService';
 import { checkPermission } from '../../services/permissions';
 import type { User, TripFile } from '../../types';
-import * as svc from '../../services/fileService';
+import { broadcast } from '../../websocket';
+import { Injectable } from '@nestjs/common';
+
+import type { Request } from 'express';
 
 type Trip = NonNullable<ReturnType<typeof svc.verifyTripAccess>>;
 type FilePermission = 'file_upload' | 'file_edit' | 'file_delete';
@@ -28,22 +29,55 @@ export class FilesService {
   }
 
   // Download-token auth + safe path resolution (used by the unguarded download route).
-  authenticateDownload(req: Request) { return svc.authenticateDownload(req); }
-  resolveFilePath(filename: string) { return svc.resolveFilePath(filename); }
+  authenticateDownload(req: Request) {
+    return svc.authenticateDownload(req);
+  }
+  resolveFilePath(filename: string) {
+    return svc.resolveFilePath(filename);
+  }
 
-  listFiles(tripId: string, showTrash: boolean) { return svc.listFiles(tripId, showTrash); }
-  getFileById(id: string, tripId: string) { return svc.getFileById(id, tripId); }
-  getDeletedFile(id: string, tripId: string) { return svc.getDeletedFile(id, tripId); }
-  createFile(tripId: string, file: Parameters<typeof svc.createFile>[1], userId: number, opts: Parameters<typeof svc.createFile>[3]) {
+  listFiles(tripId: string, showTrash: boolean) {
+    return svc.listFiles(tripId, showTrash);
+  }
+  getFileById(id: string, tripId: string) {
+    return svc.getFileById(id, tripId);
+  }
+  getDeletedFile(id: string, tripId: string) {
+    return svc.getDeletedFile(id, tripId);
+  }
+  createFile(
+    tripId: string,
+    file: Parameters<typeof svc.createFile>[1],
+    userId: number,
+    opts: Parameters<typeof svc.createFile>[3],
+  ) {
     return svc.createFile(tripId, file, userId, opts);
   }
-  updateFile(id: string, current: TripFile, updates: Parameters<typeof svc.updateFile>[2]) { return svc.updateFile(id, current, updates); }
-  toggleStarred(id: string, currentStarred: number | undefined) { return svc.toggleStarred(id, currentStarred); }
-  softDeleteFile(id: string) { return svc.softDeleteFile(id); }
-  restoreFile(id: string) { return svc.restoreFile(id); }
-  permanentDeleteFile(file: TripFile) { return svc.permanentDeleteFile(file); }
-  emptyTrash(tripId: string) { return svc.emptyTrash(tripId); }
-  createFileLink(id: string, opts: Parameters<typeof svc.createFileLink>[1]) { return svc.createFileLink(id, opts); }
-  deleteFileLink(linkId: string, id: string) { return svc.deleteFileLink(linkId, id); }
-  getFileLinks(id: string) { return svc.getFileLinks(id); }
+  updateFile(id: string, current: TripFile, updates: Parameters<typeof svc.updateFile>[2]) {
+    return svc.updateFile(id, current, updates);
+  }
+  toggleStarred(id: string, currentStarred: number | undefined) {
+    return svc.toggleStarred(id, currentStarred);
+  }
+  softDeleteFile(id: string) {
+    return svc.softDeleteFile(id);
+  }
+  restoreFile(id: string) {
+    return svc.restoreFile(id);
+  }
+  permanentDeleteFile(file: TripFile) {
+    return svc.permanentDeleteFile(file);
+  }
+  emptyTrash(tripId: string) {
+    return svc.emptyTrash(tripId);
+  }
+  createFileLink(id: string, opts: Parameters<typeof svc.createFileLink>[1]) {
+    return svc.createFileLink(id, opts);
+  }
+  deleteFileLink(linkId: string, id: string) {
+    return svc.deleteFileLink(linkId, id);
+  }
+  getFileLinks(id: string) {
+    return svc.getFileLinks(id);
+  }
 }

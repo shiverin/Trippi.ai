@@ -1,6 +1,6 @@
-# TRIPPI Wiki
+# trippi.ai Wiki
 
-TRIPPI is a self-hosted, real-time collaborative travel planner licensed under AGPL-3.0.
+trippi.ai is a self-hosted, real-time collaborative travel planner licensed under AGPL-3.0.
 
 ![Dashboard](assets/DashboardWidgets.png)
 
@@ -38,7 +38,7 @@ TRIPPI is a self-hosted, real-time collaborative travel planner licensed under A
 - **Atlas** — interactive world map, bucket list, travel stats, continent breakdown
 - **Journey** — magazine-style travel journal with entries, photos (via Immich/Synology Photos), maps, and moods
 - **Naver List Import** — import places from shared Naver Maps lists
-- **MCP** — expose TRIPPI to AI assistants via the Model Context Protocol (OAuth 2.1)
+- **MCP** — expose trippi.ai to AI assistants via the Model Context Protocol (OAuth 2.1)
 
 > Dashboard widgets (currency converter and timezone clock) are per-user preferences, not an admin-toggleable addon — see [Dashboard-Widgets](Dashboard-Widgets).
 
@@ -54,7 +54,7 @@ TRIPPI is a self-hosted, real-time collaborative travel planner licensed under A
 - Addon management, API key storage, scheduled auto-backups
 - System notices for onboarding and announcements
 
-> **Admin:** Most configuration lives in the Admin Panel. On first boot TRIPPI seeds an admin account automatically — credentials come from `ADMIN_EMAIL` / `ADMIN_PASSWORD` if set, otherwise a random password is printed to the container log.
+> **Admin:** Most configuration lives in the Admin Panel. On first boot trippi.ai seeds an admin account automatically — credentials come from `ADMIN_EMAIL` / `ADMIN_PASSWORD` if set, otherwise a random password is printed to the container log.
 
 ## Get Started
 

@@ -1,6 +1,6 @@
 
 image:
-  repository: mauriceboe/trippi
+  repository: shiverin/trippi.ai
   # tag: latest
   pullPolicy: IfNotPresent
 

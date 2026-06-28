@@ -2,88 +2,89 @@
  * Offline settings tab — shows cached trips, storage info, and controls
  * to re-sync or clear the offline cache.
  */
-import React, { useState, useEffect, useCallback } from 'react'
-import { Wifi, RefreshCw, Trash2, Database } from 'lucide-react'
-import Section from './Section'
-import { offlineDb, clearAll } from '../../db/offlineDb'
-import { tripSyncManager } from '../../sync/tripSyncManager'
-import { mutationQueue } from '../../sync/mutationQueue'
-import type { SyncMeta } from '../../db/offlineDb'
-import type { Trip } from '../../types'
+import { Database, RefreshCw, Trash2, Wifi } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { SyncMeta } from '../../db/offlineDb';
+import { clearAll, offlineDb } from '../../db/offlineDb';
+import { mutationQueue } from '../../sync/mutationQueue';
+import { tripSyncManager } from '../../sync/tripSyncManager';
+import type { Trip } from '../../types';
+import Section from './Section';
 
 interface CachedTripRow {
-  trip: Trip
-  meta: SyncMeta
-  placeCount: number
-  fileCount: number
+  trip: Trip;
+  meta: SyncMeta;
+  placeCount: number;
+  fileCount: number;
 }
 
 export default function OfflineTab(): React.ReactElement {
-  const [rows, setRows] = useState<CachedTripRow[]>([])
-  const [pendingCount, setPendingCount] = useState(0)
-  const [failedCount, setFailedCount] = useState(0)
-  const [syncing, setSyncing] = useState(false)
-  const [clearing, setClearing] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [rows, setRows] = useState<CachedTripRow[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const [metas, pending, failed] = await Promise.all([
         offlineDb.syncMeta.toArray(),
         mutationQueue.pendingCount(),
         mutationQueue.failedCount(),
-      ])
-      setPendingCount(pending)
-      setFailedCount(failed)
+      ]);
+      setPendingCount(pending);
+      setFailedCount(failed);
 
-      const result: CachedTripRow[] = []
+      const result: CachedTripRow[] = [];
       for (const meta of metas) {
-        const trip = await offlineDb.trips.get(meta.tripId)
-        if (!trip) continue
+        const trip = await offlineDb.trips.get(meta.tripId);
+        if (!trip) continue;
         const [placeCount, fileCount] = await Promise.all([
           offlineDb.places.where('trip_id').equals(meta.tripId).count(),
           offlineDb.tripFiles.where('trip_id').equals(meta.tripId).count(),
-        ])
-        result.push({ trip, meta, placeCount, fileCount })
+        ]);
+        result.push({ trip, meta, placeCount, fileCount });
       }
-      result.sort((a, b) => (a.trip.start_date ?? '').localeCompare(b.trip.start_date ?? ''))
-      setRows(result)
+      result.sort((a, b) => (a.trip.start_date ?? '').localeCompare(b.trip.start_date ?? ''));
+      setRows(result);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function handleResync() {
-    setSyncing(true)
+    setSyncing(true);
     try {
-      await tripSyncManager.syncAll()
-      await load()
+      await tripSyncManager.syncAll();
+      await load();
     } finally {
-      setSyncing(false)
+      setSyncing(false);
     }
   }
 
   async function handleClear() {
-    if (!window.confirm('Clear all offline trip data? You can re-sync anytime while online.')) return
-    setClearing(true)
+    if (!window.confirm('Clear all offline trip data? You can re-sync anytime while online.')) return;
+    setClearing(true);
     try {
-      await clearAll()
-      await load()
+      await clearAll();
+      await load();
     } finally {
-      setClearing(false)
+      setClearing(false);
     }
   }
 
   const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+    d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
   return (
     <Section title="Offline Cache" icon={Database}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
         {/* Stats row */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <Stat label="Cached trips" value={rows.length} />
@@ -98,10 +99,15 @@ export default function OfflineTab(): React.ReactElement {
             disabled={syncing || !navigator.onLine}
             className="border border-edge bg-surface-secondary text-content"
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
               borderRadius: 8,
               cursor: syncing || !navigator.onLine ? 'not-allowed' : 'pointer',
-              fontSize: 13, fontWeight: 500, opacity: !navigator.onLine ? 0.5 : 1,
+              fontSize: 13,
+              fontWeight: 500,
+              opacity: !navigator.onLine ? 0.5 : 1,
             }}
           >
             <RefreshCw size={14} style={syncing ? { animation: 'spin 1s linear infinite' } : {}} />
@@ -113,10 +119,15 @@ export default function OfflineTab(): React.ReactElement {
             disabled={clearing || rows.length === 0}
             className="border border-edge bg-surface-secondary text-[#ef4444]"
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
               borderRadius: 8,
               cursor: clearing || rows.length === 0 ? 'not-allowed' : 'pointer',
-              fontSize: 13, fontWeight: 500, opacity: rows.length === 0 ? 0.5 : 1,
+              fontSize: 13,
+              fontWeight: 500,
+              opacity: rows.length === 0 ? 0.5 : 1,
             }}
           >
             <Trash2 size={14} />
@@ -126,7 +137,9 @@ export default function OfflineTab(): React.ReactElement {
 
         {/* Cached trip list */}
         {loading ? (
-          <p className="text-content-muted" style={{ fontSize: 13 }}>Loading…</p>
+          <p className="text-content-muted" style={{ fontSize: 13 }}>
+            Loading…
+          </p>
         ) : rows.length === 0 ? (
           <p className="text-content-muted" style={{ fontSize: 13 }}>
             No trips cached yet. Connect to internet to sync.
@@ -138,8 +151,11 @@ export default function OfflineTab(): React.ReactElement {
                 key={trip.id}
                 className="border border-edge bg-surface-secondary"
                 style={{
-                  padding: '10px 14px', borderRadius: 8,
-                  display: 'flex', flexDirection: 'column', gap: 2,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -149,7 +165,10 @@ export default function OfflineTab(): React.ReactElement {
                   <span className="text-content-muted" style={{ fontSize: 11 }}>
                     <Wifi size={10} style={{ display: 'inline', marginRight: 3 }} />
                     {meta.lastSyncedAt
-                      ? new Date(meta.lastSyncedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+                      ? new Date(meta.lastSyncedAt).toLocaleTimeString(undefined, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
                       : '—'}
                   </span>
                 </div>
@@ -166,18 +185,28 @@ export default function OfflineTab(): React.ReactElement {
         )}
       </div>
     </Section>
-  )
+  );
 }
 
 function Stat({ label, value, danger }: { label: string; value: number; danger?: boolean }) {
   return (
-    <div className="border border-edge bg-surface-secondary" style={{
-      padding: '8px 14px', borderRadius: 8,
-      minWidth: 100,
-    }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: danger ? '#ef4444' : undefined }}
-        className={danger ? undefined : 'text-content'}>{value}</div>
-      <div className="text-content-muted" style={{ fontSize: 11 }}>{label}</div>
+    <div
+      className="border border-edge bg-surface-secondary"
+      style={{
+        padding: '8px 14px',
+        borderRadius: 8,
+        minWidth: 100,
+      }}
+    >
+      <div
+        style={{ fontSize: 20, fontWeight: 700, color: danger ? '#ef4444' : undefined }}
+        className={danger ? undefined : 'text-content'}
+      >
+        {value}
+      </div>
+      <div className="text-content-muted" style={{ fontSize: 11 }}>
+        {label}
+      </div>
     </div>
-  )
+  );
 }

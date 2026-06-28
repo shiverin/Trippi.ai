@@ -53,7 +53,7 @@ The journey detail page includes a map on the right (desktop) or an integrated m
 
 ## Public sharing
 
-You can share a journey with a read-only public link. When creating the link you can independently toggle which sections are visible to visitors: **Timeline** (entries and stories), **Gallery** (photos), and **Map**. Visitors can only see the sections you have enabled, and no TRIPPI account is required. See [Public-Share-Links](Public-Share-Links) for details on the separate journey share token mechanism.
+You can share a journey with a read-only public link. When creating the link you can independently toggle which sections are visible to visitors: **Timeline** (entries and stories), **Gallery** (photos), and **Map**. Visitors can only see the sections you have enabled, and no trippi.ai account is required. See [Public-Share-Links](Public-Share-Links) for details on the separate journey share token mechanism.
 
 ## See also
 

@@ -1,8 +1,8 @@
 # Reverse Proxy
 
-Putting TRIPPI behind a TLS-terminating reverse proxy is strongly recommended for production.
+Putting trippi.ai behind a TLS-terminating reverse proxy is strongly recommended for production.
 
-## Why HTTPS Matters for TRIPPI
+## Why HTTPS Matters for trippi.ai
 
 - **PWA install** requires HTTPS — browsers block "Add to Home Screen" on plain HTTP.
 - **Session cookies** — the `trippi_session` cookie is marked `secure` in production, so it won't be sent over HTTP.
@@ -13,7 +13,7 @@ Putting TRIPPI behind a TLS-terminating reverse proxy is strongly recommended fo
 
 Whatever proxy you use, it must satisfy two constraints:
 
-1. **WebSocket upgrades on `/ws`** — TRIPPI uses WebSockets for real-time sync. Set `proxy_read_timeout 86400` (Nginx) or rely on Caddy's automatic upgrade handling.
+1. **WebSocket upgrades on `/ws`** — trippi.ai uses WebSockets for real-time sync. Set `proxy_read_timeout 86400` (Nginx) or rely on Caddy's automatic upgrade handling.
 2. **Body size ≥ 500 MB** — backup restore ZIPs can include the full uploads directory. Set `client_max_body_size 500m` (Nginx) or `request_body_max_size 500mb` (Caddy) if you restore large backups.
 
 ## Nginx
@@ -62,7 +62,7 @@ server {
 Key lines:
 - `proxy_read_timeout 86400` — keeps WebSocket connections alive (86400 s = 24 h).
 - `client_max_body_size 500m` — allows large backup restore uploads; set in both locations.
-- `X-Forwarded-Proto $scheme` — tells TRIPPI whether the original request was HTTPS; required for `FORCE_HTTPS` redirect and cookie security to work correctly.
+- `X-Forwarded-Proto $scheme` — tells trippi.ai whether the original request was HTTPS; required for `FORCE_HTTPS` redirect and cookie security to work correctly.
 
 ## Caddy
 
@@ -85,7 +85,7 @@ trippi.yourdomain.com {
 
 ## HTTPS Environment Variables
 
-Four variables control how TRIPPI behaves behind a proxy. They work as a group:
+Four variables control how trippi.ai behaves behind a proxy. They work as a group:
 
 | Variable | Purpose | Default |
 |---|---|---|
@@ -96,7 +96,7 @@ Four variables control how TRIPPI behaves behind a proxy. They work as a group:
 
 > **Note on `FORCE_HTTPS` and proxy headers:** The HTTPS redirect reads `X-Forwarded-Proto` directly from the incoming headers — it does not depend on Express's `trust proxy` setting. If you set `FORCE_HTTPS=true` and your reverse proxy correctly sends `X-Forwarded-Proto: https`, the redirect will work regardless of `TRUST_PROXY`. However, you still need `TRUST_PROXY` set so Express resolves the correct client IP from `X-Forwarded-For`.
 
-If you access TRIPPI directly on `http://<host>:3000` without a proxy, leave `FORCE_HTTPS` unset and do not set `TRUST_PROXY`.
+If you access trippi.ai directly on `http://<host>:3000` without a proxy, leave `FORCE_HTTPS` unset and do not set `TRUST_PROXY`.
 
 See [Environment-Variables](Environment-Variables) for full documentation of these and all other variables.
 

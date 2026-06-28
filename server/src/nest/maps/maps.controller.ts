@@ -1,17 +1,8 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpException,
-  Param,
-  Post,
-  Query,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
-import type { Response } from 'express';
-import { createReadStream } from 'node:fs';
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { MapsService } from './maps.service';
+import { Body, Controller, Get, HttpCode, HttpException, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type {
   MapsAutocompleteResult,
   MapsPlaceDetailsResult,
@@ -20,10 +11,9 @@ import type {
   MapsReverseResult,
   MapsSearchResult,
 } from '@trippi/shared';
-import type { User } from '../../types';
-import { MapsService } from './maps.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
+
+import type { Response } from 'express';
+import { createReadStream } from 'node:fs';
 
 type LocationBias = { low: { lat: number; lng: number }; high: { lat: number; lng: number } };
 
@@ -83,7 +73,7 @@ export class MapsController {
   ) {
     if (!category) throw new HttpException({ error: 'A category is required' }, 400);
     const bbox = { south: Number(south), west: Number(west), north: Number(north), east: Number(east) };
-    if (Object.values(bbox).some(v => !Number.isFinite(v))) {
+    if (Object.values(bbox).some((v) => !Number.isFinite(v))) {
       throw new HttpException({ error: 'A valid bbox (south, west, north, east) is required' }, 400);
     }
     try {
@@ -112,9 +102,14 @@ export class MapsController {
     }
     if (locationBias) {
       const { low, high } = locationBias;
-      if (!low || !high
-        || !Number.isFinite(low.lat) || !Number.isFinite(low.lng)
-        || !Number.isFinite(high.lat) || !Number.isFinite(high.lng)) {
+      if (
+        !low ||
+        !high ||
+        !Number.isFinite(low.lat) ||
+        !Number.isFinite(low.lng) ||
+        !Number.isFinite(high.lat) ||
+        !Number.isFinite(high.lng)
+      ) {
         throw new HttpException({ error: 'Invalid locationBias: low and high must have finite lat and lng' }, 400);
       }
     }

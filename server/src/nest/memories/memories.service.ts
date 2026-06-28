@@ -1,14 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import type { Response } from 'express';
-import {
-  listTripPhotos,
-  listTripAlbumLinks,
-  createTripAlbumLink,
-  removeAlbumLink,
-  addTripPhotos,
-  removeTripPhoto,
-  setTripPhotoSharing,
-} from '../../services/memories/unifiedService';
+import { canAccessUserPhoto } from '../../services/memories/helpersService';
+import type { Selection } from '../../services/memories/helpersService';
 import {
   getConnectionSettings,
   saveImmichSettings,
@@ -36,9 +27,19 @@ import {
   getSynologyAssetInfo,
   streamSynologyAsset,
 } from '../../services/memories/synologyService';
-import { canAccessUserPhoto } from '../../services/memories/helpersService';
-import type { Selection } from '../../services/memories/helpersService';
+import {
+  listTripPhotos,
+  listTripAlbumLinks,
+  createTripAlbumLink,
+  removeAlbumLink,
+  addTripPhotos,
+  removeTripPhoto,
+  setTripPhotoSharing,
+} from '../../services/memories/unifiedService';
 import { broadcast } from '../../websocket';
+import { Injectable } from '@nestjs/common';
+
+import type { Response } from 'express';
 
 /**
  * Thin Nest wrapper around the existing memories (photo-providers) services.
@@ -50,7 +51,13 @@ import { broadcast } from '../../websocket';
 @Injectable()
 export class MemoriesService {
   // ── Access check (reused by both provider asset routes) ──────────────────
-  canAccessUserPhoto(requestingUserId: number, ownerUserId: number, tripId: string, assetId: string, provider: string): boolean {
+  canAccessUserPhoto(
+    requestingUserId: number,
+    ownerUserId: number,
+    tripId: string,
+    assetId: string,
+    provider: string,
+  ): boolean {
     return canAccessUserPhoto(requestingUserId, ownerUserId, tripId, assetId, provider);
   }
 
@@ -79,7 +86,14 @@ export class MemoriesService {
     return listTripAlbumLinks(tripId, userId);
   }
 
-  createTripAlbumLink(tripId: string, userId: number, provider: unknown, albumId: unknown, albumName: unknown, passphrase?: string) {
+  createTripAlbumLink(
+    tripId: string,
+    userId: number,
+    provider: unknown,
+    albumId: unknown,
+    albumName: unknown,
+    passphrase?: string,
+  ) {
     return createTripAlbumLink(tripId, userId, provider, albumId, albumName, passphrase);
   }
 
@@ -92,7 +106,12 @@ export class MemoriesService {
     return getConnectionSettings(userId);
   }
 
-  immichSaveSettings(userId: number, immichUrl: string | undefined, immichApiKey: string | undefined, clientIp: string | null) {
+  immichSaveSettings(
+    userId: number,
+    immichUrl: string | undefined,
+    immichApiKey: string | undefined,
+    clientIp: string | null,
+  ) {
     return saveImmichSettings(userId, immichUrl, immichApiKey, clientIp);
   }
 
@@ -153,7 +172,14 @@ export class MemoriesService {
     return getSynologyStatus(userId);
   }
 
-  synologyTestConnection(userId: number, url: string, username: string, password: string, otp: string, skipSsl: boolean) {
+  synologyTestConnection(
+    userId: number,
+    url: string,
+    username: string,
+    password: string,
+    otp: string,
+    skipSsl: boolean,
+  ) {
     return testSynologyConnection(userId, url, username, password, otp, skipSsl);
   }
 
@@ -169,7 +195,13 @@ export class MemoriesService {
     return syncSynologyAlbumLink(userId, tripId, linkId, sid);
   }
 
-  synologySearchPhotos(userId: number, from: string | undefined, to: string | undefined, offset: number, limit: number) {
+  synologySearchPhotos(
+    userId: number,
+    from: string | undefined,
+    to: string | undefined,
+    offset: number,
+    limit: number,
+  ) {
     return searchSynologyPhotos(userId, from, to, offset, limit);
   }
 
@@ -177,7 +209,15 @@ export class MemoriesService {
     return getSynologyAssetInfo(userId, photoId, ownerId, passphrase);
   }
 
-  synologyStreamAsset(res: Response, userId: number, ownerId: number, photoId: string, kind: 'thumbnail' | 'original', size: string, passphrase?: string) {
+  synologyStreamAsset(
+    res: Response,
+    userId: number,
+    ownerId: number,
+    photoId: string,
+    kind: 'thumbnail' | 'original',
+    size: string,
+    passphrase?: string,
+  ) {
     return streamSynologyAsset(res, userId, ownerId, photoId, kind, size, passphrase);
   }
 }

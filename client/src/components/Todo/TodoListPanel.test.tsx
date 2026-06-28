@@ -1,12 +1,12 @@
 // FE-COMP-TODO-001 to FE-COMP-TODO-015
-import { render, screen, waitFor, fireEvent } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { buildTodoItem, buildTrip, buildUser } from '../../../tests/helpers/factories';
 import { server } from '../../../tests/helpers/msw/server';
+import { fireEvent, render, screen, waitFor } from '../../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../../tests/helpers/store';
 import { useAuthStore } from '../../store/authStore';
 import { useTripStore } from '../../store/tripStore';
-import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import { buildUser, buildTrip, buildTodoItem } from '../../../tests/helpers/factories';
 import TodoListPanel from './TodoListPanel';
 
 beforeEach(() => {
@@ -14,9 +14,7 @@ beforeEach(() => {
   // Simulate desktop width so sidebar labels are rendered (not mobile icon-only mode)
   Object.defineProperty(window, 'innerWidth', { value: 1024, writable: true, configurable: true });
   server.use(
-    http.get('/api/trips/:id/members', () =>
-      HttpResponse.json({ owner: null, members: [], current_user_id: 1 })
-    ),
+    http.get('/api/trips/:id/members', () => HttpResponse.json({ owner: null, members: [], current_user_id: 1 }))
   );
   seedStore(useAuthStore, { user: buildUser(), isAuthenticated: true });
   seedStore(useTripStore, { trip: buildTrip({ id: 1 }) });
@@ -47,11 +45,11 @@ describe('TodoListPanel', () => {
     render(<TodoListPanel tripId={1} items={[]} />);
     // Filter buttons exist — match by title (mobile mode, jsdom innerWidth=0) or text (desktop)
     const allButtons = screen.getAllByRole('button');
-    const buttonTitlesAndTexts = allButtons.map(b => (b.textContent || '') + (b.getAttribute('title') || ''));
-    expect(buttonTitlesAndTexts.some(t => t.includes('All'))).toBe(true);
-    expect(buttonTitlesAndTexts.some(t => t.includes('My Tasks'))).toBe(true);
-    expect(buttonTitlesAndTexts.some(t => t.includes('Done'))).toBe(true);
-    expect(buttonTitlesAndTexts.some(t => t.includes('Overdue'))).toBe(true);
+    const buttonTitlesAndTexts = allButtons.map((b) => (b.textContent || '') + (b.getAttribute('title') || ''));
+    expect(buttonTitlesAndTexts.some((t) => t.includes('All'))).toBe(true);
+    expect(buttonTitlesAndTexts.some((t) => t.includes('My Tasks'))).toBe(true);
+    expect(buttonTitlesAndTexts.some((t) => t.includes('Done'))).toBe(true);
+    expect(buttonTitlesAndTexts.some((t) => t.includes('Overdue'))).toBe(true);
   });
 
   it('FE-COMP-TODO-004: unchecked items are shown in All filter', () => {
@@ -61,10 +59,7 @@ describe('TodoListPanel', () => {
   });
 
   it('FE-COMP-TODO-005: checked items are hidden in All filter (All shows unchecked)', () => {
-    const items = [
-      buildTodoItem({ name: 'Done Task', checked: 1 }),
-      buildTodoItem({ name: 'Open Task', checked: 0 }),
-    ];
+    const items = [buildTodoItem({ name: 'Done Task', checked: 1 }), buildTodoItem({ name: 'Open Task', checked: 0 })];
     render(<TodoListPanel tripId={1} items={items} />);
     // All filter by default shows only unchecked
     expect(screen.queryByText('Done Task')).not.toBeInTheDocument();
@@ -79,9 +74,8 @@ describe('TodoListPanel', () => {
     ];
     render(<TodoListPanel tripId={1} items={items} />);
     // Find the Done filter button by title (mobile mode) or text (desktop)
-    const doneBtn = screen.queryByTitle('Done') || screen.getAllByRole('button').find(
-      b => b.textContent?.trim() === 'Done'
-    );
+    const doneBtn =
+      screen.queryByTitle('Done') || screen.getAllByRole('button').find((b) => b.textContent?.trim() === 'Done');
     if (doneBtn) {
       await user.click(doneBtn);
       await screen.findByText('Completed Task');
@@ -110,10 +104,7 @@ describe('TodoListPanel', () => {
   });
 
   it('FE-COMP-TODO-010: progress bar shows completion percentage', () => {
-    const items = [
-      buildTodoItem({ name: 'Done Task', checked: 1 }),
-      buildTodoItem({ name: 'Open Task', checked: 0 }),
-    ];
+    const items = [buildTodoItem({ name: 'Done Task', checked: 1 }), buildTodoItem({ name: 'Open Task', checked: 0 })];
     render(<TodoListPanel tripId={1} items={items} />);
     // 1/2 = 50% completed
     expect(screen.getByText(/50%/)).toBeInTheDocument();
@@ -140,7 +131,7 @@ describe('TodoListPanel', () => {
     // Click the checkbox button (Square icon)
     const checkboxes = screen.getAllByRole('button');
     // Find the checkbox button near the item
-    const checkboxBtn = checkboxes.find(btn => {
+    const checkboxBtn = checkboxes.find((btn) => {
       const parent = btn.closest('[style*="cursor: pointer"]');
       return parent && parent.textContent?.includes('Toggle Me');
     });
@@ -192,9 +183,9 @@ describe('TodoListPanel', () => {
       buildTodoItem({ name: 'Future Task', checked: 0, due_date: '2099-12-31' }),
     ];
     render(<TodoListPanel tripId={1} items={items} />);
-    const overdueBtn = screen.getAllByRole('button').find(
-      b => b.textContent?.includes('Overdue') || b.getAttribute('title') === 'Overdue'
-    );
+    const overdueBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('Overdue') || b.getAttribute('title') === 'Overdue');
     expect(overdueBtn).toBeTruthy();
     fireEvent.click(overdueBtn!);
     expect(screen.getByText('Overdue Task')).toBeInTheDocument();
@@ -209,14 +200,17 @@ describe('TodoListPanel', () => {
     ];
     render(<TodoListPanel tripId={1} items={items} />);
     // Wait for members API to resolve and set currentUserId=1 (My Tasks count badge shows 1)
-    await waitFor(() => {
-      const btns = screen.getAllByRole('button');
-      const btn = btns.find(b => b.textContent?.includes('My Tasks'));
-      expect(btn?.textContent).toMatch(/1/);
-    }, { timeout: 3000 });
-    const myBtn = screen.getAllByRole('button').find(
-      b => b.textContent?.includes('My Tasks') || b.getAttribute('title') === 'My Tasks'
+    await waitFor(
+      () => {
+        const btns = screen.getAllByRole('button');
+        const btn = btns.find((b) => b.textContent?.includes('My Tasks'));
+        expect(btn?.textContent).toMatch(/1/);
+      },
+      { timeout: 3000 }
     );
+    const myBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('My Tasks') || b.getAttribute('title') === 'My Tasks');
     expect(myBtn).toBeTruthy();
     fireEvent.click(myBtn!);
     expect(screen.getByText('Mine')).toBeInTheDocument();
@@ -230,9 +224,9 @@ describe('TodoListPanel', () => {
       buildTodoItem({ name: 'High Prio', priority: 1, checked: 0 }),
     ];
     render(<TodoListPanel tripId={1} items={items} />);
-    const sortBtn = screen.getAllByRole('button').find(
-      b => b.textContent?.includes('Priority') || b.getAttribute('title') === 'Priority'
-    );
+    const sortBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('Priority') || b.getAttribute('title') === 'Priority');
     expect(sortBtn).toBeTruthy();
     await user.click(sortBtn!);
     const html = document.body.innerHTML;
@@ -258,7 +252,7 @@ describe('TodoListPanel', () => {
       http.put('/api/trips/1/todo/11', () => {
         putCalled = true;
         return HttpResponse.json({ item: buildTodoItem({ id: 11, name: 'Renamed' }) });
-      }),
+      })
     );
     const items = [buildTodoItem({ id: 11, name: 'Edit Me', checked: 0 })];
     render(<TodoListPanel tripId={1} items={items} />);
@@ -268,9 +262,9 @@ describe('TodoListPanel', () => {
     await user.clear(nameInput);
     await user.type(nameInput, 'Renamed');
     // Click Save changes button
-    const saveBtn = screen.getAllByRole('button').find(
-      b => b.textContent?.includes('Save changes') || b.textContent?.includes('Save')
-    );
+    const saveBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('Save changes') || b.textContent?.includes('Save'));
     if (saveBtn) {
       await user.click(saveBtn);
       await waitFor(() => expect(putCalled).toBe(true));
@@ -290,7 +284,7 @@ describe('TodoListPanel', () => {
       http.delete('/api/trips/1/todo/20', () => {
         deleteCalled = true;
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
     const items = [buildTodoItem({ id: 20, name: 'Delete Me', checked: 0 })];
     render(<TodoListPanel tripId={1} items={items} />);
@@ -328,7 +322,7 @@ describe('TodoListPanel', () => {
     // It appears after the task row, so find buttons near the detail pane header
     // The detail pane has a header with title "Task" and an X button
     // We look for a button that closes the pane by finding ones with no text
-    const closeBtn = allButtons.find(b => {
+    const closeBtn = allButtons.find((b) => {
       const text = b.textContent?.trim();
       return text === '' && b.closest('[style*="border-left"]');
     });
@@ -342,9 +336,9 @@ describe('TodoListPanel', () => {
     const user = userEvent.setup();
     render(<TodoListPanel tripId={1} items={[]} />);
     // Find and click the "Add category" button
-    const addCatBtn = screen.getAllByRole('button').find(
-      b => b.textContent?.includes('Add category') || b.getAttribute('title') === 'Add category'
-    );
+    const addCatBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('Add category') || b.getAttribute('title') === 'Add category');
     expect(addCatBtn).toBeTruthy();
     await user.click(addCatBtn!);
     // A text input for category name should appear
@@ -359,12 +353,12 @@ describe('TodoListPanel', () => {
     server.use(
       http.post('/api/trips/1/todo', () =>
         HttpResponse.json({ item: buildTodoItem({ category: 'Errands', name: 'New Item' }) })
-      ),
+      )
     );
     render(<TodoListPanel tripId={1} items={[]} />);
-    const addCatBtn = screen.getAllByRole('button').find(
-      b => b.textContent?.includes('Add category') || b.getAttribute('title') === 'Add category'
-    );
+    const addCatBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('Add category') || b.getAttribute('title') === 'Add category');
     await user.click(addCatBtn!);
     const categoryInput = await screen.findByPlaceholderText('Category name');
     await user.type(categoryInput, 'Errands');
@@ -380,9 +374,9 @@ describe('TodoListPanel', () => {
     const items = [buildTodoItem({ name: 'Old Task', checked: 0, due_date: '2020-01-01' })];
     render(<TodoListPanel tripId={1} items={items} />);
     // The overdue count badge '1' should appear near the Overdue filter button
-    const overdueArea = screen.getAllByRole('button').find(
-      b => b.textContent?.includes('Overdue') || b.getAttribute('title') === 'Overdue'
-    );
+    const overdueArea = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('Overdue') || b.getAttribute('title') === 'Overdue');
     expect(overdueArea).toBeTruthy();
     // The count badge with '1' should be in the DOM (rendered inside the sidebar button)
     expect(overdueArea!.textContent).toMatch(/1/);
@@ -395,7 +389,7 @@ describe('TodoListPanel', () => {
       http.post('/api/trips/1/todo', () => {
         postCalled = true;
         return HttpResponse.json({ item: buildTodoItem({ id: 99, name: 'Brand New Task' }) });
-      }),
+      })
     );
     const { rerender } = render(<TodoListPanel tripId={1} items={[]} addItemSignal={0} />);
     // Raising the signal opens the new task pane (simulates the toolbar button click)
@@ -408,11 +402,13 @@ describe('TodoListPanel', () => {
   });
 
   it('FE-COMP-TODO-029: Task with description shows description preview in list', () => {
-    const items = [buildTodoItem({
-      name: 'Described Task',
-      description: 'This is a task description',
-      checked: 0,
-    })];
+    const items = [
+      buildTodoItem({
+        name: 'Described Task',
+        description: 'This is a task description',
+        checked: 0,
+      }),
+    ];
     render(<TodoListPanel tripId={1} items={items} />);
     expect(screen.getByText('This is a task description')).toBeInTheDocument();
   });

@@ -15,15 +15,15 @@ import { z } from 'zod';
 export const AIRTRAIL_KEY_MASK = '••••••••';
 
 export const airtrailSettingsSchema = z.object({
-  /** Instance origin, e.g. https://flights.example.com — TRIPPI appends /api itself. */
+  /** Instance origin, e.g. https://flights.example.com — trippi.ai appends /api itself. */
   url: z.string().trim().max(2048),
   /** Bearer API key. Omitted / blank / the mask keeps the stored key unchanged. */
   apiKey: z.string().max(512).optional(),
   /** Allow self-signed TLS certs (common on LAN instances). */
   allowInsecureTls: z.boolean().optional().default(false),
   /**
-   * Opt in to writing TRIPPI edits back to AirTrail (#1240). Off by default:
-   * AirTrail is the source of truth and TRIPPI only reads from it.
+   * Opt in to writing trippi.ai edits back to AirTrail (#1240). Off by default:
+   * AirTrail is the source of truth and trippi.ai only reads from it.
    */
   writeEnabled: z.boolean().optional().default(false),
 });

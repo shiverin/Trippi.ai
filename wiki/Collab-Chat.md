@@ -38,7 +38,7 @@ Hover a message to reveal the action buttons. Click **Reply** to quote that mess
 
 ## URL link previews
 
-When a message contains a URL, TRIPPI automatically fetches an Open Graph preview (title, description, and thumbnail image) and displays it below the message text. Only the first URL in a message generates a preview.
+When a message contains a URL, trippi.ai automatically fetches an Open Graph preview (title, description, and thumbnail image) and displays it below the message text. Only the first URL in a message generates a preview.
 
 ## Message styling
 

@@ -43,7 +43,7 @@ export async function getRates(base: string): Promise<Record<string, number> | n
   // Coalesce concurrent fetches for the same base.
   let p = inflight.get(key);
   if (!p) {
-    p = fetchRates(key).then(rates => {
+    p = fetchRates(key).then((rates) => {
       if (rates) cache.set(key, { rates, ts: Date.now() });
       inflight.delete(key);
       return rates;

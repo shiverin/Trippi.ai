@@ -27,7 +27,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Logowanie...',
   'login.signIn': 'Zaloguj się',
   'login.createAdmin': 'Utwórz konto administratora',
-  'login.createAdminHint': 'Skonfiguruj pierwsze konto administratora dla TRIPPI.',
+  'login.createAdminHint': 'Skonfiguruj pierwsze konto administratora dla trippi.ai.',
   'login.createAccount': 'Utwórz konto',
   'login.createAccountHint': 'Zarejestruj nowe konto.',
   'login.creating': 'Tworzenie...',

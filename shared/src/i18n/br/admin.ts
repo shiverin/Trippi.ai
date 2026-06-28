@@ -157,7 +157,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': 'Falha ao salvar',
   'admin.tabs.addons': 'Complementos',
   'admin.addons.title': 'Complementos',
-  'admin.addons.subtitle': 'Ative ou desative recursos para personalizar sua experiência no TRIPPI.',
+  'admin.addons.subtitle': 'Ative ou desative recursos para personalizar sua experiência no trippi.ai.',
   'admin.addons.catalog.memories.name': 'Memórias',
   'admin.addons.catalog.memories.description': 'Álbuns de fotos compartilhados em cada viagem',
   'admin.addons.catalog.packing.name': 'Listas',
@@ -190,7 +190,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Dados meteorológicos',
   'admin.weather.badge': 'Desde 24 de março de 2026',
   'admin.weather.description':
-    'O TRIPPI usa Open-Meteo como fonte de clima. Open-Meteo é um serviço gratuito e de código aberto — sem chave de API.',
+    'O trippi.ai usa Open-Meteo como fonte de clima. Open-Meteo é um serviço gratuito e de código aberto — sem chave de API.',
   'admin.weather.forecast': 'Previsão de 16 dias',
   'admin.weather.forecastDesc': 'Antes eram 5 dias (OpenWeatherMap)',
   'admin.weather.climate': 'Dados climáticos históricos',
@@ -222,14 +222,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Carregando...',
   'admin.github.error': 'Falha ao carregar versões',
   'admin.github.by': 'por',
-  'admin.github.support': 'Ajuda a continuar desenvolvendo o TRIPPI',
+  'admin.github.support': 'Ajuda a continuar desenvolvendo o trippi.ai',
   'admin.update.available': 'Atualização disponível',
-  'admin.update.text': 'O TRIPPI {version} está disponível. Você está na {current}.',
+  'admin.update.text': 'O trippi.ai {version} está disponível. Você está na {current}.',
   'admin.update.button': 'Ver no GitHub',
   'admin.update.install': 'Instalar atualização',
   'admin.update.confirmTitle': 'Instalar atualização?',
   'admin.update.confirmText':
-    'O TRIPPI será atualizado de {current} para {version}. O servidor reiniciará automaticamente em seguida.',
+    'O trippi.ai será atualizado de {current} para {version}. O servidor reiniciará automaticamente em seguida.',
   'admin.update.dataInfo':
     'Todos os seus dados (viagens, usuários, chaves de API, envios, Vacay, Atlas, orçamentos) serão preservados.',
   'admin.update.warning': 'O app ficará brevemente indisponível durante o reinício.',
@@ -240,9 +240,10 @@ const admin: TranslationStrings = {
   'admin.update.backupHint': 'Recomendamos criar um backup antes de atualizar.',
   'admin.update.backupLink': 'Ir para Backup',
   'admin.update.howTo': 'Como atualizar',
-  'admin.update.dockerText': 'Sua instância TRIPPI roda no Docker. Para atualizar para {version}, execute no servidor:',
+  'admin.update.dockerText':
+    'Sua instância trippi.ai roda no Docker. Para atualizar para {version}, execute no servidor:',
   'admin.update.nonDockerText':
-    'Esta instância do TRIPPI não está rodando no Docker. Para atualizar para {version}, execute novamente o método de instalação ou atualização que você usou — por exemplo, no Proxmox Community Scripts, execute a atualização a partir do console do LXC:',
+    'Esta instância do trippi.ai não está rodando no Docker. Para atualizar para {version}, execute novamente o método de instalação ou atualização que você usou — por exemplo, no Proxmox Community Scripts, execute a atualização a partir do console do LXC:',
   'admin.update.wikiLink': 'Abrir o guia de atualização',
   'admin.update.reloadHint': 'Recarregue a página em alguns segundos.',
   'admin.tabs.permissions': 'Permissões',

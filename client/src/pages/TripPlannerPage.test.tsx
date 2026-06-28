@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
 import React from 'react';
-import { render, screen, waitFor, act, fireEvent } from '../../tests/helpers/render';
-import { Routes, Route } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildAssignment, buildDay, buildPlace, buildTrip, buildUser } from '../../tests/helpers/factories';
+import { server } from '../../tests/helpers/msw/server';
+import { act, fireEvent, render, screen, waitFor } from '../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../tests/helpers/store';
-import { buildUser, buildTrip, buildDay, buildPlace, buildAssignment } from '../../tests/helpers/factories';
 import { useAuthStore } from '../store/authStore';
 import { useTripStore } from '../store/tripStore';
 import TripPlannerPage from './TripPlannerPage';
-import { server } from '../../tests/helpers/msw/server';
-import { http, HttpResponse } from 'msw';
 
 // Mock Leaflet-dependent components
 vi.mock('../components/Map/MapView', () => ({
@@ -214,7 +214,7 @@ function renderPlannerPage(tripId: number | string) {
     <Routes>
       <Route path="/trips/:id" element={<TripPlannerPage />} />
     </Routes>,
-    { initialEntries: [`/trips/${tripId}`] },
+    { initialEntries: [`/trips/${tripId}`] }
   );
 }
 
@@ -312,7 +312,9 @@ describe('TripPlannerPage', () => {
       renderPlannerPage(7);
 
       // Run all pending timers (including the 1500ms splash timeout) synchronously
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -330,7 +332,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(3);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -348,7 +352,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(5);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -378,7 +384,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -396,7 +404,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -411,11 +421,7 @@ describe('TripPlannerPage', () => {
 
   describe('FE-PAGE-PLANNER-011: Packing tab renders PackingListPanel', () => {
     it('shows PackingListPanel after clicking the Lists tab with packing addon enabled', async () => {
-      server.use(
-        http.get('/api/addons', () =>
-          HttpResponse.json({ addons: [{ id: 'packing', type: 'packing' }] })
-        )
-      );
+      server.use(http.get('/api/addons', () => HttpResponse.json({ addons: [{ id: 'packing', type: 'packing' }] })));
 
       vi.useFakeTimers();
 
@@ -423,7 +429,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -438,11 +446,7 @@ describe('TripPlannerPage', () => {
 
   describe('FE-PAGE-PLANNER-012: Costs tab renders CostsPanel', () => {
     it('shows CostsPanel after clicking the Costs tab with budget addon enabled', async () => {
-      server.use(
-        http.get('/api/addons', () =>
-          HttpResponse.json({ addons: [{ id: 'budget', type: 'budget' }] })
-        )
-      );
+      server.use(http.get('/api/addons', () => HttpResponse.json({ addons: [{ id: 'budget', type: 'budget' }] })));
 
       vi.useFakeTimers();
 
@@ -450,7 +454,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -466,9 +472,7 @@ describe('TripPlannerPage', () => {
   describe('FE-PAGE-PLANNER-013: Files tab renders FileManager', () => {
     it('shows FileManager after clicking the Files tab with documents addon enabled', async () => {
       server.use(
-        http.get('/api/addons', () =>
-          HttpResponse.json({ addons: [{ id: 'documents', type: 'documents' }] })
-        )
+        http.get('/api/addons', () => HttpResponse.json({ addons: [{ id: 'documents', type: 'documents' }] }))
       );
 
       vi.useFakeTimers();
@@ -477,7 +481,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -492,11 +498,7 @@ describe('TripPlannerPage', () => {
 
   describe('FE-PAGE-PLANNER-014: Collab tab renders CollabPanel', () => {
     it('shows CollabPanel after clicking the Collab tab with collab addon enabled', async () => {
-      server.use(
-        http.get('/api/addons', () =>
-          HttpResponse.json({ addons: [{ id: 'collab', type: 'collab' }] })
-        )
-      );
+      server.use(http.get('/api/addons', () => HttpResponse.json({ addons: [{ id: 'collab', type: 'collab' }] })));
 
       vi.useFakeTimers();
 
@@ -504,7 +506,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -525,7 +529,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -546,7 +552,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -583,7 +591,7 @@ describe('TripPlannerPage', () => {
           <Route path="/trips/:id" element={<TripPlannerPage />} />
           <Route path="/dashboard" element={<div data-testid="dashboard-page" />} />
         </Routes>,
-        { initialEntries: ['/trips/999'] },
+        { initialEntries: ['/trips/999'] }
       );
 
       await waitFor(() => {
@@ -596,11 +604,7 @@ describe('TripPlannerPage', () => {
 
   describe('FE-PAGE-PLANNER-019: Todo subtab in ListsContainer', () => {
     it('shows TodoListPanel after switching to the Todo subtab inside Lists', async () => {
-      server.use(
-        http.get('/api/addons', () =>
-          HttpResponse.json({ addons: [{ id: 'packing', type: 'packing' }] })
-        )
-      );
+      server.use(http.get('/api/addons', () => HttpResponse.json({ addons: [{ id: 'packing', type: 'packing' }] })));
 
       vi.useFakeTimers();
 
@@ -608,7 +612,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -623,7 +629,9 @@ describe('TripPlannerPage', () => {
 
       // Click the Todo subtab
       const todoButtons = screen.getAllByRole('button');
-      const todoSubtab = todoButtons.find(btn => btn.textContent?.includes('Todo') || btn.textContent?.includes('todo'));
+      const todoSubtab = todoButtons.find(
+        (btn) => btn.textContent?.includes('Todo') || btn.textContent?.includes('todo')
+      );
       if (todoSubtab) {
         fireEvent.click(todoSubtab);
         await waitFor(() => {
@@ -641,7 +649,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -666,7 +676,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -695,7 +707,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -719,7 +733,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -748,7 +764,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -775,7 +793,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -799,7 +819,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -821,7 +843,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -843,7 +867,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -868,7 +894,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -898,7 +926,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -931,7 +961,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -941,7 +973,11 @@ describe('TripPlannerPage', () => {
 
       // Call onSave with editingReservation=null (add path)
       await act(async () => {
-        await capturedReservationModalProps.current.onSave?.({ name: 'Test Booking', type: 'restaurant', status: 'confirmed' });
+        await capturedReservationModalProps.current.onSave?.({
+          name: 'Test Booking',
+          type: 'restaurant',
+          status: 'confirmed',
+        });
       });
     });
   });
@@ -954,7 +990,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -979,7 +1017,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1002,7 +1042,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1012,7 +1054,10 @@ describe('TripPlannerPage', () => {
 
       await act(async () => {
         capturedDayPlanSidebarProps.current.onRouteCalculated?.({
-          coordinates: [[1, 2], [3, 4]],
+          coordinates: [
+            [1, 2],
+            [3, 4],
+          ],
           distanceText: '1 km',
           durationText: '10 min',
           walkingText: '15 min',
@@ -1034,7 +1079,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1061,7 +1108,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1083,7 +1132,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1121,7 +1172,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1144,7 +1197,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1170,7 +1225,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1211,7 +1268,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1234,7 +1293,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1257,9 +1318,7 @@ describe('TripPlannerPage', () => {
   describe('FE-PAGE-PLANNER-044: FileManager callbacks cover file operation lambdas', () => {
     it('calls FileManager onUpload/onDelete/onUpdate to cover inline lambda bodies', async () => {
       server.use(
-        http.get('/api/addons', () =>
-          HttpResponse.json({ addons: [{ id: 'documents', type: 'documents' }] })
-        )
+        http.get('/api/addons', () => HttpResponse.json({ addons: [{ id: 'documents', type: 'documents' }] }))
       );
 
       vi.useFakeTimers();
@@ -1268,7 +1327,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1303,7 +1364,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 
@@ -1353,7 +1416,9 @@ describe('TripPlannerPage', () => {
       } as any);
 
       renderPlannerPage(42);
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
       vi.useRealTimers();
 
       await waitFor(() => {
@@ -1382,7 +1447,9 @@ describe('TripPlannerPage', () => {
       seedStore(useTripStore, { places: [place] } as any);
 
       renderPlannerPage(42);
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
       vi.useRealTimers();
 
       // Mobile portal renders the PlaceInspector (lines 830-879)
@@ -1413,7 +1480,9 @@ describe('TripPlannerPage', () => {
       seedTripStore({ id: 42 });
 
       renderPlannerPage(42);
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
       vi.useRealTimers();
 
       await waitFor(() => {
@@ -1423,11 +1492,13 @@ describe('TripPlannerPage', () => {
       // The mobile portal buttons are rendered to document.body.
       // The "Plan" tab button has title="Plan"; the mobile portal button does not.
       const mobilePlanBtn = Array.from(document.body.querySelectorAll('button')).find(
-        b => b.textContent === 'Plan' && !b.getAttribute('title'),
+        (b) => b.textContent === 'Plan' && !b.getAttribute('title')
       );
 
       if (mobilePlanBtn) {
-        await act(async () => { fireEvent.click(mobilePlanBtn); });
+        await act(async () => {
+          fireEvent.click(mobilePlanBtn);
+        });
 
         // Mobile sidebar portal renders DayPlanSidebar — now two instances
         await waitFor(() => {
@@ -1436,10 +1507,12 @@ describe('TripPlannerPage', () => {
 
         // Close the mobile sidebar via the X button inside the portal header
         const closeButtons = Array.from(document.body.querySelectorAll('button')).filter(
-          b => !b.textContent || b.textContent.trim() === '',
+          (b) => !b.textContent || b.textContent.trim() === ''
         );
         if (closeButtons.length > 0) {
-          await act(async () => { fireEvent.click(closeButtons[0]); });
+          await act(async () => {
+            fireEvent.click(closeButtons[0]);
+          });
         }
       }
 
@@ -1456,7 +1529,9 @@ describe('TripPlannerPage', () => {
       seedTripStore({ id: 42 });
 
       renderPlannerPage(42);
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
       vi.useRealTimers();
 
       await waitFor(() => {
@@ -1465,11 +1540,13 @@ describe('TripPlannerPage', () => {
 
       // "Places" tab doesn't exist; the mobile portal "Places" button has no title
       const mobilePlacesBtn = Array.from(document.body.querySelectorAll('button')).find(
-        b => b.textContent === 'Places' && !b.getAttribute('title'),
+        (b) => b.textContent === 'Places' && !b.getAttribute('title')
       );
 
       if (mobilePlacesBtn) {
-        await act(async () => { fireEvent.click(mobilePlacesBtn); });
+        await act(async () => {
+          fireEvent.click(mobilePlacesBtn);
+        });
 
         // PlacesSidebar renders in mobile sidebar portal
         await waitFor(() => {
@@ -1495,7 +1572,9 @@ describe('TripPlannerPage', () => {
       } as any);
 
       renderPlannerPage(42);
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
       vi.useRealTimers();
 
       await waitFor(() => {
@@ -1504,10 +1583,12 @@ describe('TripPlannerPage', () => {
 
       // Open the mobile Plan portal via the bottom-nav Plan button (selector mirrors FE-PAGE-PLANNER-049).
       const mobilePlanBtn = Array.from(document.body.querySelectorAll('button')).find(
-        b => b.textContent === 'Plan' && !b.getAttribute('title'),
+        (b) => b.textContent === 'Plan' && !b.getAttribute('title')
       );
       expect(mobilePlanBtn).toBeTruthy();
-      await act(async () => { fireEvent.click(mobilePlanBtn!); });
+      await act(async () => {
+        fireEvent.click(mobilePlanBtn!);
+      });
 
       await waitFor(() => {
         expect(screen.getAllByTestId('day-plan-sidebar').length).toBe(2);
@@ -1545,7 +1626,9 @@ describe('TripPlannerPage', () => {
 
       renderPlannerPage(42);
 
-      act(() => { vi.runAllTimers(); });
+      act(() => {
+        vi.runAllTimers();
+      });
 
       vi.useRealTimers();
 

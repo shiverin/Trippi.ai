@@ -1,39 +1,33 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/logo-trippi-light.gif" />
-  <source media="(prefers-color-scheme: light)" srcset="docs/logo-trippi-dark.gif" />
-  <img src="docs/logo-trippi-dark.gif" alt="TRIPPI" height="96" />
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/trippi-wordmark-light.png" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/brand/trippi-wordmark.png" />
+  <img src="docs/brand/trippi-wordmark.png" alt="trippi.ai" height="88" />
 </picture>
 
 <br />
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/subtitle-light.png" />
-  <source media="(prefers-color-scheme: light)" srcset="docs/subtitle-dark.png" />
-  <img src="docs/subtitle-dark.png" alt="Your trips. Your plan. Your server." height="28" />
-</picture>
+<strong>Your trips. Your plan. Your AI travel workspace.</strong>
 
-A self-hosted, real-time collaborative travel planner — with maps, budgets, packing lists, a journal, and AI built in.
+trippi.ai is a self-hosted, real-time collaborative travel planner with maps, budgets, packing lists, a journal, and AI built in.
 
 <br />
 
-<a href="https://demo.liketrippi.com"><img alt="Demo" src="https://img.shields.io/badge/Demo-try-111827?style=for-the-badge" /></a>
-&nbsp;
-<a href="https://hub.docker.com/r/mauriceboe/trippi"><img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?style=for-the-badge" /></a>
+<a href="https://hub.docker.com/r/shiverin/trippi.ai"><img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?style=for-the-badge" /></a>
 &nbsp;
 <a href="https://discord.gg/NhZBDSd4qW"><img alt="Discord" src="https://img.shields.io/badge/Discord-join-5865F2?style=for-the-badge" /></a>
 &nbsp;
 <a href="https://kanban.pakulat.org/shared/I4wxF6inOOMB0C6hH6kQm3efyNxFjwyI"><img alt="Roadmap" src="https://img.shields.io/badge/Roadmap-view-0EA5E9?style=for-the-badge" /></a>
 <br />
-<a href="https://ko-fi.com/mauriceboe"><img alt="Ko-fi" src="https://img.shields.io/badge/Ko--fi-support-FF5E5B?style=for-the-badge" /></a>
+<a href="https://github.com/shiverin/Trippi.ai"><img alt="Source" src="https://img.shields.io/badge/Source-GitHub-0F2A56?style=for-the-badge" /></a>
 &nbsp;
-<a href="https://www.buymeacoffee.com/mauriceboe"><img alt="BMAC" src="https://img.shields.io/badge/BMAC-support-FFDD00?style=for-the-badge" /></a>
+<a href="https://github.com/shiverin/Trippi.ai/issues/new?template=bug_report.yml"><img alt="Issues" src="https://img.shields.io/badge/Issues-report-2F6FED?style=for-the-badge" /></a>
 <br />
 <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL_v3-6B7280?style=flat-square" /></a>
-<a href="https://github.com/mauriceboe/TRIPPI/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/mauriceboe/TRIPPI?include_prereleases&style=flat-square&color=6B7280" /></a>
-<a href="https://hub.docker.com/r/mauriceboe/trippi"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/mauriceboe/trippi?style=flat-square&color=6B7280" /></a>
-<a href="https://github.com/mauriceboe/TRIPPI"><img alt="Stars" src="https://img.shields.io/github/stars/mauriceboe/TRIPPI?style=flat-square&color=6B7280" /></a>
+<a href="https://github.com/shiverin/Trippi.ai/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/shiverin/Trippi.ai?include_prereleases&style=flat-square&color=6B7280" /></a>
+<a href="https://hub.docker.com/r/shiverin/trippi.ai"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/shiverin/trippi.ai?style=flat-square&color=6B7280" /></a>
+<a href="https://github.com/shiverin/Trippi.ai"><img alt="Stars" src="https://img.shields.io/github/stars/shiverin/Trippi.ai?style=flat-square&color=6B7280" /></a>
 
 </div>
 
@@ -41,7 +35,7 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 
 <div align="center">
 
-<img src="https://github.com/mauriceboe/trippi-media/releases/download/readme-assets/TRIPPI1.gif" alt="TRIPPI — 60-second tour" width="100%" />
+<img src="docs/screenshots/dashboard.png" alt="trippi.ai dashboard" width="100%" />
 
 </div>
 
@@ -64,7 +58,7 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 
 <picture>
   <source media="(max-width: 700px)" srcset="docs/tiles/grid-mobile.svg" />
-  <img src="docs/tiles/grid-desktop.svg" alt="TRIPPI feature tiles" width="100%" />
+  <img src="docs/tiles/grid-desktop.svg" alt="trippi.ai feature tiles" width="100%" />
 </picture>
 
 <details>
@@ -137,7 +131,7 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 - **Atlas** — world map of visited countries, bucket list, travel stats, streak tracking, liquid-glass UI
 - **Journey** — magazine-style travel journal with entries, photos (Immich/Synology), maps, moods
 - **AirTrail** — connect a self-hosted AirTrail instance to import and sync flights into reservations
-- **MCP** — expose TRIPPI to AI assistants via OAuth 2.1
+- **MCP** — expose trippi.ai to AI assistants via OAuth 2.1
 
 </td>
 <td width="50%" valign="top">
@@ -176,10 +170,10 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 ```bash
 ENCRYPTION_KEY=$(openssl rand -hex 32) docker run -d -p 3000:3000 \
   -e ENCRYPTION_KEY=$ENCRYPTION_KEY \
-  -v ./data:/app/data -v ./uploads:/app/uploads mauriceboe/trippi
+  -v ./data:/app/data -v ./uploads:/app/uploads shiverin/trippi.ai
 ```
 
-Open `http://localhost:3000`. On first boot TRIPPI seeds an admin account — if you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` those are used, otherwise the credentials are printed to the container log (`docker logs trippi`).
+Open `http://localhost:3000`. On first boot trippi.ai seeds an admin account — if you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` those are used, otherwise the credentials are printed to the container log (`docker logs trek`).
 
 <div align="center">
 
@@ -217,8 +211,8 @@ Real-time sync via WebSocket (`ws`). Backend on NestJS 11. State with Zustand. A
 ```yaml
 services:
   app:
-    image: mauriceboe/trippi:latest
-    container_name: trippi
+    image: shiverin/trippi.ai:latest
+    container_name: trek
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -275,22 +269,22 @@ docker compose up -d
 <h2 id="helm-kubernetes">Helm (Kubernetes)</h2>
 
 ```bash
-helm repo add trippi https://mauriceboe.github.io/TRIPPI
+helm repo add trek https://github.com/shiverin/Trippi.ai
 helm repo update
 helm install trippi trippi/trippi
 ```
 
-See [`charts/README.md`](https://github.com/mauriceboe/TRIPPI/blob/main/charts/README.md) for values.
+See [`charts/README.md`](charts/README.md) for values.
 
 <h2 id="install-as-app-pwa">Install as App (PWA)</h2>
 
-TRIPPI works as a Progressive Web App — no App Store needed.
+trippi.ai works as a Progressive Web App — no App Store needed.
 
-1. Open TRIPPI in the browser (HTTPS required)
+1. Open trippi.ai in the browser (HTTPS required)
 2. **iOS**: Share ▸ *Add to Home Screen*
 3. **Android**: Menu ▸ *Install app* (or *Add to Home Screen*)
 
-TRIPPI then launches fullscreen with its own icon, just like a native app.
+trippi.ai then launches fullscreen with its own icon, just like a native app.
 
 <br />
 
@@ -305,9 +299,9 @@ docker compose pull && docker compose up -d
 **Docker run** — reuse the original volume paths:
 
 ```bash
-docker pull mauriceboe/trippi
-docker rm -f trippi
-docker run -d --name trippi -p 3000:3000 -v ./data:/app/data -v ./uploads:/app/uploads --restart unless-stopped mauriceboe/trippi
+docker pull shiverin/trippi.ai
+docker rm -f trek
+docker run -d --name trek -p 3000:3000 -v ./data:/app/data -v ./uploads:/app/uploads --restart unless-stopped shiverin/trippi.ai
 ```
 
 > Not sure which paths you used? `docker inspect trippi --format '{{json .Mounts}}'` before removing the container.
@@ -329,7 +323,7 @@ The script creates a timestamped DB backup before making changes and prompts for
 
 <h2 id="reverse-proxy">Reverse Proxy</h2>
 
-For production, put TRIPPI behind a TLS-terminating reverse proxy. TRIPPI uses WebSockets for real-time sync, so the proxy **must** support WebSocket upgrades on `/ws`.
+For production, put trippi.ai behind a TLS-terminating reverse proxy. trippi.ai uses WebSockets for real-time sync, so the proxy **must** support WebSocket upgrades on `/ws`.
 
 <details>
 <summary>Nginx</summary>
@@ -454,5 +448,4 @@ for full third-party attributions.
 
 ## License
 
-TRIPPI is [AGPL v3](LICENSE). Self-host freely for personal or internal company use. If you modify and offer TRIPPI as a network service to third parties, your modifications must be open-sourced under the same licence.
-
+trippi.ai is [AGPL v3](LICENSE). Self-host freely for personal or internal company use. If you modify and offer trippi.ai as a network service to third parties, your modifications must be open-sourced under the same licence.

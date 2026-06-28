@@ -1,7 +1,8 @@
-import { Request, Response } from 'express';
 import { SESSION_DURATION_MS, SESSION_DURATION_REMEMBER_MS } from '../config';
 
-const COOKIE_NAME = 'trippi_session';
+import { Request, Response } from 'express';
+
+const COOKIE_NAME = 'trek_session';
 
 /**
  * Controls the cookie lifetime for a login:
@@ -17,12 +18,12 @@ export type RememberOption = boolean | undefined;
  *
  * We previously only derived this from `NODE_ENV=production` or
  * `FORCE_HTTPS=true`. That left behind a common self-host setup:
- * TRIPPI running behind Traefik / Caddy / Cloudflare Tunnel with
+ * trippi.ai running behind Traefik / Caddy / Cloudflare Tunnel with
  * `NODE_ENV=development` locally and no `FORCE_HTTPS` — the cookie
  * went out without `Secure`, even though the public leg was https.
  *
  * Now we also honour `req.secure`, which Express derives from
- * `X-Forwarded-Proto` once `trust proxy` is set (TRIPPI sets it to `1`
+ * `X-Forwarded-Proto` once `trust proxy` is set (trippi.ai sets it to `1`
  * in production automatically). If Express sees the request was TLS
  * on the outermost hop, the cookie is `Secure`. `COOKIE_SECURE=false`
  * remains the explicit escape hatch for plain-HTTP LAN testing.
@@ -31,7 +32,8 @@ export function cookieOptions(clear = false, req?: Request, remember?: RememberO
   if (process.env.COOKIE_SECURE?.toLowerCase() === 'false') {
     return buildOptions(clear, false, remember);
   }
-  const envSecure = process.env.NODE_ENV?.toLowerCase() === 'production' || process.env.FORCE_HTTPS?.toLowerCase() === 'true';
+  const envSecure =
+    process.env.NODE_ENV?.toLowerCase() === 'production' || process.env.FORCE_HTTPS?.toLowerCase() === 'true';
   const requestSecure = req?.secure === true;
   return buildOptions(clear, envSecure || requestSecure, remember);
 }

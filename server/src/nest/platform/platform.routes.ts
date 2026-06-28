@@ -1,19 +1,19 @@
-import express, { Request, Response, NextFunction } from 'express';
-import path from 'node:path';
-import fs from 'node:fs';
-
-import { verifyJwtAndLoadUser } from '../../middleware/auth';
+import { ADDON_IDS } from '../../addons';
 import { db } from '../../db/database';
 import { mcpHandler } from '../../mcp';
-import { trippiOAuthProvider, trippiClientsStore } from '../../mcp/oauthProvider';
-import { isAddonEnabled } from '../../services/adminService';
-import { ADDON_IDS } from '../../addons';
+import { trekOAuthProvider, trekClientsStore } from '../../mcp/oauthProvider';
 import { ALL_SCOPES } from '../../mcp/scopes';
-import { mcpAuthMetadataRouter } from '@modelcontextprotocol/sdk/server/auth/router';
+import { verifyJwtAndLoadUser } from '../../middleware/auth';
+import { isAddonEnabled } from '../../services/adminService';
+import { getMcpSafeUrl } from '../../services/notifications';
 import { authorizationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize';
 import { clientRegistrationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/register';
+import { mcpAuthMetadataRouter } from '@modelcontextprotocol/sdk/server/auth/router';
 import type { OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth';
-import { getMcpSafeUrl } from '../../services/notifications';
+
+import express, { Request, Response, NextFunction } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // Platform / transport routes extracted verbatim from createApp() (app.ts) so they can be
 // mounted on either the legacy Express app or the NestJS Express instance (strangler A6/A8).
@@ -83,12 +83,16 @@ export function applyPlatformUploads(app: express.Application): void {
 
     // Share-token path: require the token to cover the exact trip the
     // photo belongs to. Expired tokens fall through to 401.
-    const photo = db.prepare('SELECT trip_id FROM photos WHERE filename = ?').get(safeName) as { trip_id: number } | undefined;
+    const photo = db.prepare('SELECT trip_id FROM photos WHERE filename = ?').get(safeName) as
+      | { trip_id: number }
+      | undefined;
     if (!photo) return res.status(401).send('Authentication required');
 
-    const share = db.prepare(
-        "SELECT trip_id FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))"
-    ).get(rawToken) as { trip_id: number } | undefined;
+    const share = db
+      .prepare(
+        "SELECT trip_id FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))",
+      )
+      .get(rawToken) as { trip_id: number } | undefined;
     if (!share || share.trip_id !== photo.trip_id) {
       return res.status(401).send('Authentication required');
     }
@@ -113,8 +117,8 @@ export function applyPlatformUploads(app: express.Application): void {
  */
 export function applyPlatformTransport(app: express.Application): void {
   app.get('/api/health', (_req: Request, res: Response) => {
-    res.setHeader('Cache-Control', 'no-store, must-revalidate')
-    res.json({ status: 'ok' })
+    res.setHeader('Cache-Control', 'no-store, must-revalidate');
+    res.json({ status: 'ok' });
   });
 
   // OAuth 2.1 — public endpoints
@@ -136,16 +140,16 @@ export function applyPlatformTransport(app: express.Application): void {
     if (_oauthMetadata) return _oauthMetadata;
     const base = getMcpSafeUrl().replace(/\/+$/, '');
     _oauthMetadata = {
-      issuer:                                base,
-      authorization_endpoint:                `${base}/oauth/authorize`,
-      token_endpoint:                        `${base}/oauth/token`,
-      revocation_endpoint:                   `${base}/oauth/revoke`,
-      registration_endpoint:                 `${base}/oauth/register`,
-      response_types_supported:              ['code'],
-      grant_types_supported:                 ['authorization_code', 'refresh_token', 'client_credentials'],
-      code_challenge_methods_supported:      ['S256'],
+      issuer: base,
+      authorization_endpoint: `${base}/oauth/authorize`,
+      token_endpoint: `${base}/oauth/token`,
+      revocation_endpoint: `${base}/oauth/revoke`,
+      registration_endpoint: `${base}/oauth/register`,
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code', 'refresh_token', 'client_credentials'],
+      code_challenge_methods_supported: ['S256'],
       token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
-      scopes_supported:                      ALL_SCOPES,
+      scopes_supported: ALL_SCOPES,
     };
     return _oauthMetadata;
   }
@@ -157,7 +161,7 @@ export function applyPlatformTransport(app: express.Application): void {
       oauthMetadata: metadata,
       resourceServerUrl: new URL(`${metadata.issuer}/mcp`),
       scopesSupported: ALL_SCOPES as string[],
-      resourceName: 'TRIPPI MCP',
+      resourceName: 'trippi.ai MCP',
     });
     return _sdkMetaRouter;
   }
@@ -186,25 +190,25 @@ export function applyPlatformTransport(app: express.Application): void {
   // Clients like ChatGPT probe /.well-known/oauth-protected-resource (no path suffix) on every
   // fresh discovery. Without this, they get 404, fall back to the issuer URL as the resource
   // parameter, and the authorize handler rejects them with invalid_target — showing the user
-  // the TRIPPI home page instead of the consent form.
+  // the trippi.ai home page instead of the consent form.
   app.get('/.well-known/oauth-protected-resource', (_req: Request, res: Response) => {
     if (!isAddonEnabled(ADDON_IDS.MCP)) return res.status(404).end();
     const meta = getOAuthMetadata();
     res.json({
-      resource:                 `${meta.issuer}/mcp`,
-      authorization_servers:    [meta.issuer],
+      resource: `${meta.issuer}/mcp`,
+      authorization_servers: [meta.issuer],
       bearer_methods_supported: ['header'],
-      scopes_supported:         ALL_SCOPES,
-      resource_name:            'TRIPPI MCP',
+      scopes_supported: ALL_SCOPES,
+      resource_name: 'trippi.ai MCP',
     });
   });
 
   // SDK authorize handler: validates OAuth params, calls provider.authorize() which redirects
   // to the SPA consent page at /oauth/consent
-  app.use('/oauth/authorize', mcpAddonGate, authorizationHandler({ provider: trippiOAuthProvider }));
+  app.use('/oauth/authorize', mcpAddonGate, authorizationHandler({ provider: trekOAuthProvider }));
 
   // SDK DCR handler: accepts registrations without scope (fixes issue #959 bug 2)
-  app.use('/oauth/register', mcpAddonGate, clientRegistrationHandler({ clientsStore: trippiClientsStore }));
+  app.use('/oauth/register', mcpAddonGate, clientRegistrationHandler({ clientsStore: trekClientsStore }));
 
   // MCP endpoint
   app.post('/mcp', mcpHandler);

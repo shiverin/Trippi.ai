@@ -1,3 +1,7 @@
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { NotificationsService } from './notifications.service';
 import {
   Body,
   Controller,
@@ -12,10 +16,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { ChannelTestResult, UnreadCountResult } from '@trippi/shared';
-import type { User } from '../../types';
-import { NotificationsService } from './notifications.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
 
 // The masked placeholder the client sends instead of a stored secret (8× U+2022).
 const MASKED = '••••••••';
@@ -93,9 +93,7 @@ export class NotificationsController {
     const resolvedTopic = topic || userCfg?.topic || undefined;
     const resolvedServer = server || userCfg?.server || adminCfg.server || undefined;
     // Reuse the saved token when the request sends null, empty, or the masked placeholder.
-    const resolvedToken = (token && token !== MASKED)
-      ? token
-      : (userCfg?.token ?? adminCfg.token ?? null);
+    const resolvedToken = token && token !== MASKED ? token : (userCfg?.token ?? adminCfg.token ?? null);
 
     if (!resolvedTopic) {
       throw new HttpException({ error: 'No ntfy topic configured' }, 400);

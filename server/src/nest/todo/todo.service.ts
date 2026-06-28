@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { broadcast } from '../../websocket';
 import { checkPermission } from '../../services/permissions';
-import type { User } from '../../types';
 import * as svc from '../../services/todoService';
+import type { User } from '../../types';
+import { broadcast } from '../../websocket';
+import { Injectable } from '@nestjs/common';
 
 type Trip = NonNullable<ReturnType<typeof svc.verifyTripAccess>>;
 

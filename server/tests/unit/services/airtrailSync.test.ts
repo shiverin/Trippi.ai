@@ -17,7 +17,7 @@ function airport(over: Partial<AirtrailAirport> = {}): AirtrailAirport {
 }
 
 /**
- * An AirTrail flight as GET returns it, including the fields TRIPPI doesn't model.
+ * An AirTrail flight as GET returns it, including the fields trippi.ai doesn't model.
  * Typed as the raw object (known shape + arbitrary passthrough keys) because the
  * push spreads it wholesale rather than mapping each field — see buildSavePayload.
  */
@@ -39,7 +39,7 @@ function existingFlight(
     flightReason: 'leisure',
     note: 'window seat',
     seats: [{ userId: 'u1', guestName: null, seat: 'window', seatNumber: '12A', seatClass: 'economy' }],
-    // AirTrail-owned detail TRIPPI never surfaces — must survive a writeback (#1240).
+    // AirTrail-owned detail trippi.ai never surfaces — must survive a writeback (#1240).
     departureScheduled: '2021-09-01',
     departureScheduledTime: '18:45',
     arrivalScheduled: '2021-09-02',
@@ -58,7 +58,7 @@ function existingFlight(
   };
 }
 
-/** A linked TRIPPI reservation (the shape getReservationWithJoins returns). */
+/** A linked trippi.ai reservation (the shape getReservationWithJoins returns). */
 function reservation(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     external_id: '42',
@@ -75,7 +75,7 @@ function reservation(over: Record<string, unknown> = {}): Record<string, unknown
 }
 
 describe('airtrailSync.buildSavePayload', () => {
-  it('round-trips the AirTrail-owned fields TRIPPI does not model (issue #1240)', () => {
+  it('round-trips the AirTrail-owned fields trippi.ai does not model (issue #1240)', () => {
     const payload = buildSavePayload(reservation(), existingFlight());
     expect(payload).not.toBeNull();
     expect(payload).toMatchObject({
@@ -92,8 +92,8 @@ describe('airtrailSync.buildSavePayload', () => {
     });
   });
 
-  it('writes the TRIPPI time to the SCHEDULED fields so it round-trips on the next pull', () => {
-    // Import reads the scheduled time, so a TRIPPI edit must be pushed back there
+  it('writes the trippi.ai time to the SCHEDULED fields so it round-trips on the next pull', () => {
+    // Import reads the scheduled time, so a trippi.ai edit must be pushed back there
     // (mirroring the read), overwriting AirTrail's stored scheduled value.
     const payload = buildSavePayload(reservation(), existingFlight());
     expect(payload).toMatchObject({
@@ -104,7 +104,7 @@ describe('airtrailSync.buildSavePayload', () => {
     });
   });
 
-  it('blanks the scheduled time when the TRIPPI reservation has only a date', () => {
+  it('blanks the scheduled time when the trippi.ai reservation has only a date', () => {
     const payload = buildSavePayload(reservation({ reservation_time: '2021-09-01', reservation_end_time: null }), existingFlight());
     // A date carrier with no HH:MM leaves AirTrail's scheduled instant unset.
     expect(payload?.departureScheduledTime).toBeNull();
@@ -117,11 +117,11 @@ describe('airtrailSync.buildSavePayload', () => {
     expect(payload?.datePrecision).toBe('month');
   });
 
-  it('still applies the TRIPPI-owned edits on top of the preserved fields', () => {
+  it('still applies the trippi.ai-owned edits on top of the preserved fields', () => {
     const payload = buildSavePayload(
       reservation({
         reservation_time: '2021-09-01T20:30',
-        notes: 'changed in TRIPPI',
+        notes: 'changed in trippi.ai',
         metadata: JSON.stringify({ airline: 'BAW', flight_number: 'BA999', seat: '3C' }),
       }),
       existingFlight(),
@@ -135,7 +135,7 @@ describe('airtrailSync.buildSavePayload', () => {
       departureScheduled: '2021-09-01T00:00:00.000Z',
       departureScheduledTime: '20:30',
       flightNumber: 'BA999',
-      note: 'changed in TRIPPI',
+      note: 'changed in trippi.ai',
     });
     // The user's seat number is pushed onto their own AirTrail seat.
     expect(payload?.seats[0].seatNumber).toBe('3C');
@@ -143,8 +143,8 @@ describe('airtrailSync.buildSavePayload', () => {
     expect(payload?.departureTerminal).toBe('7');
   });
 
-  it('preserves AirTrail aircraft/airline/reason when TRIPPI metadata omits them (#1240)', () => {
-    // A TRIPPI edit can drop these AirTrail-owned fields from metadata; the writeback
+  it('preserves AirTrail aircraft/airline/reason when trippi.ai metadata omits them (#1240)', () => {
+    // A trippi.ai edit can drop these AirTrail-owned fields from metadata; the writeback
     // must fall back to AirTrail's current values rather than nulling them.
     const payload = buildSavePayload(reservation({ metadata: JSON.stringify({}) }), existingFlight());
     expect(payload).toMatchObject({

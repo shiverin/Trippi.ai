@@ -23,7 +23,7 @@ function flight(over: Partial<AirtrailFlightRaw> = {}): AirtrailFlightRaw {
     to: airport({ id: 2, icao: 'EGLL', iata: 'LHR', name: 'London Heathrow', lat: 51.4706, lon: -0.4619, tz: 'Europe/London' }),
     date: '2021-09-01',
     datePrecision: 'day',
-    // Actual times (delayed) — TRIPPI must IGNORE these and read the scheduled times.
+    // Actual times (delayed) — trippi.ai must IGNORE these and read the scheduled times.
     departure: '2021-09-01T23:42:00.000+00:00',
     arrival: '2021-09-02T07:42:00.000+00:00',
     departureScheduled: '2021-09-01T23:00:00.000+00:00', // 19:00 local at JFK (EDT, UTC-4)
@@ -160,11 +160,11 @@ describe('airtrailMapper.canonicalHash', () => {
   });
 
   it('tracks the scheduled time and ignores actual-time changes', () => {
-    // A scheduled-time change is what TRIPPI imports, so it must re-sync...
+    // A scheduled-time change is what trippi.ai imports, so it must re-sync...
     expect(canonicalHash(flight())).not.toBe(
       canonicalHash(flight({ departureScheduled: '2021-09-01T22:00:00.000+00:00' })),
     );
-    // ...but a change to the actual time alone must not (TRIPPI never shows it).
+    // ...but a change to the actual time alone must not (trippi.ai never shows it).
     expect(canonicalHash(flight())).toBe(
       canonicalHash(flight({ departure: '2021-09-01T20:00:00.000+00:00', arrival: '2021-09-02T05:00:00.000+00:00' })),
     );

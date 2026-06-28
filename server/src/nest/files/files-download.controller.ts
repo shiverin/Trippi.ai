@@ -1,8 +1,9 @@
-import { Controller, Get, HttpException, Param, Req, Res } from '@nestjs/common';
-import type { Request, Response } from 'express';
-import path from 'path';
-import fs from 'fs';
 import { FilesService } from './files.service';
+import { Controller, Get, HttpException, Param, Req, Res } from '@nestjs/common';
+
+import type { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * GET /api/trips/:tripId/files/:id/download — authenticated file download.

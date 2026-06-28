@@ -1,12 +1,12 @@
 // FE-COMP-RES-001 to FE-COMP-RES-040
-import { render, screen, waitFor, within } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
-import { useAuthStore } from '../../store/authStore';
-import { useTripStore } from '../../store/tripStore';
-import { useSettingsStore } from '../../store/settingsStore';
-import { usePermissionsStore } from '../../store/permissionsStore';
+import { buildDay, buildPlace, buildReservation, buildTrip, buildUser } from '../../../tests/helpers/factories';
+import { render, screen, waitFor } from '../../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import { buildUser, buildTrip, buildReservation, buildDay, buildPlace } from '../../../tests/helpers/factories';
+import { useAuthStore } from '../../store/authStore';
+import { usePermissionsStore } from '../../store/permissionsStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useTripStore } from '../../store/tripStore';
 import ReservationsPanel from './ReservationsPanel';
 
 vi.mock('../../api/authUrl', () => ({ getAuthUrl: vi.fn().mockResolvedValue('http://test/file') }));
@@ -27,7 +27,21 @@ beforeEach(() => {
   resetAllStores();
   seedStore(useAuthStore, { user: buildUser(), isAuthenticated: true });
   seedStore(useTripStore, { trip: buildTrip({ id: 1 }) });
-  seedStore(useSettingsStore, { settings: { time_format: '24h', blur_booking_codes: false, temperature_unit: 'celsius', language: 'en', dark_mode: false, default_currency: 'USD', default_lat: 48.8566, default_lng: 2.3522, default_zoom: 10, map_tile_url: '', show_place_description: false } });
+  seedStore(useSettingsStore, {
+    settings: {
+      time_format: '24h',
+      blur_booking_codes: false,
+      temperature_unit: 'celsius',
+      language: 'en',
+      dark_mode: false,
+      default_currency: 'USD',
+      default_lat: 48.8566,
+      default_lng: 2.3522,
+      default_zoom: 10,
+      map_tile_url: '',
+      show_place_description: false,
+    },
+  });
 });
 
 describe('ReservationsPanel', () => {
@@ -154,7 +168,7 @@ describe('ReservationsPanel', () => {
     // Click the "Pending" section header button (the one with count badge)
     const pendingButtons = screen.getAllByText('Pending');
     // The section header button contains "Pending" text
-    const sectionHeaderBtn = pendingButtons.find(el => el.closest('button'));
+    const sectionHeaderBtn = pendingButtons.find((el) => el.closest('button'));
     await user.click(sectionHeaderBtn!.closest('button')!);
     // Card should no longer be visible
     expect(screen.queryByText('Pending Hotel')).not.toBeInTheDocument();
@@ -165,13 +179,13 @@ describe('ReservationsPanel', () => {
     const res = buildReservation({ title: 'Pending Train', type: 'train', status: 'pending' });
     render(<ReservationsPanel {...defaultProps} reservations={[res]} />);
     const pendingButtons = screen.getAllByText('Pending');
-    const sectionHeaderBtn = pendingButtons.find(el => el.closest('button'));
+    const sectionHeaderBtn = pendingButtons.find((el) => el.closest('button'));
     // Collapse
     await user.click(sectionHeaderBtn!.closest('button')!);
     expect(screen.queryByText('Pending Train')).not.toBeInTheDocument();
     // Re-query after collapse
     const pendingButtons2 = screen.getAllByText('Pending');
-    const sectionHeaderBtn2 = pendingButtons2.find(el => el.closest('button'));
+    const sectionHeaderBtn2 = pendingButtons2.find((el) => el.closest('button'));
     // Expand
     await user.click(sectionHeaderBtn2!.closest('button')!);
     expect(screen.getByText('Pending Train')).toBeInTheDocument();
@@ -211,7 +225,21 @@ describe('ReservationsPanel', () => {
   });
 
   it('FE-PLANNER-RESP-022: confirmation number is blurred when blur_booking_codes=true', () => {
-    seedStore(useSettingsStore, { settings: { time_format: '24h', blur_booking_codes: true, temperature_unit: 'celsius', language: 'en', dark_mode: false, default_currency: 'USD', default_lat: 48.8566, default_lng: 2.3522, default_zoom: 10, map_tile_url: '', show_place_description: false } });
+    seedStore(useSettingsStore, {
+      settings: {
+        time_format: '24h',
+        blur_booking_codes: true,
+        temperature_unit: 'celsius',
+        language: 'en',
+        dark_mode: false,
+        default_currency: 'USD',
+        default_lat: 48.8566,
+        default_lng: 2.3522,
+        default_zoom: 10,
+        map_tile_url: '',
+        show_place_description: false,
+      },
+    });
     const res = buildReservation({ confirmation_number: 'ABC123', status: 'confirmed' });
     render(<ReservationsPanel {...defaultProps} reservations={[res]} />);
     const codeEl = screen.getByText('ABC123');
@@ -220,7 +248,21 @@ describe('ReservationsPanel', () => {
 
   it('FE-PLANNER-RESP-023: confirmation code revealed on hover when blurred', async () => {
     const user = userEvent.setup();
-    seedStore(useSettingsStore, { settings: { time_format: '24h', blur_booking_codes: true, temperature_unit: 'celsius', language: 'en', dark_mode: false, default_currency: 'USD', default_lat: 48.8566, default_lng: 2.3522, default_zoom: 10, map_tile_url: '', show_place_description: false } });
+    seedStore(useSettingsStore, {
+      settings: {
+        time_format: '24h',
+        blur_booking_codes: true,
+        temperature_unit: 'celsius',
+        language: 'en',
+        dark_mode: false,
+        default_currency: 'USD',
+        default_lat: 48.8566,
+        default_lng: 2.3522,
+        default_zoom: 10,
+        map_tile_url: '',
+        show_place_description: false,
+      },
+    });
     const res = buildReservation({ confirmation_number: 'ABC123', status: 'confirmed' });
     render(<ReservationsPanel {...defaultProps} reservations={[res]} />);
     const codeEl = screen.getByText('ABC123');
@@ -245,7 +287,12 @@ describe('ReservationsPanel', () => {
     const res = buildReservation({
       type: 'flight',
       status: 'confirmed',
-      metadata: JSON.stringify({ airline: 'Air France', flight_number: 'AF001', departure_airport: 'CDG', arrival_airport: 'JFK' }),
+      metadata: JSON.stringify({
+        airline: 'Air France',
+        flight_number: 'AF001',
+        departure_airport: 'CDG',
+        arrival_airport: 'JFK',
+      }),
     });
     render(<ReservationsPanel {...defaultProps} reservations={[res]} />);
     expect(screen.getByText('Air France')).toBeInTheDocument();
@@ -279,7 +326,9 @@ describe('ReservationsPanel', () => {
     const place = buildPlace({ name: 'Eiffel Tower', place_time: '10:00' });
     const assignmentId = 55;
     const day = { ...buildDay({ id: 1, title: 'Day 1', date: '2025-06-01' }), day_number: 1 } as any;
-    const assignments = { '1': [{ id: assignmentId, order_index: 0, day_id: 1, place_id: place.id, notes: null, place }] };
+    const assignments = {
+      '1': [{ id: assignmentId, order_index: 0, day_id: 1, place_id: place.id, notes: null, place }],
+    };
     const res = buildReservation({ assignment_id: assignmentId, status: 'confirmed' });
     render(<ReservationsPanel {...defaultProps} reservations={[res]} days={[day]} assignments={assignments} />);
     expect(screen.getByText(/Day 1/)).toBeInTheDocument();
@@ -292,9 +341,9 @@ describe('ReservationsPanel', () => {
     const res = buildReservation({ title: 'My Booking', status: 'pending' });
     render(<ReservationsPanel {...defaultProps} reservations={[res]} />);
     const pendingEls = screen.getAllByText('Pending');
-    const statusSpan = pendingEls.find(el => el.tagName === 'SPAN');
+    const statusSpan = pendingEls.find((el) => el.tagName === 'SPAN');
     expect(statusSpan).toBeDefined();
-    const statusBtn = pendingEls.find(el => el.tagName === 'BUTTON');
+    const statusBtn = pendingEls.find((el) => el.tagName === 'BUTTON');
     expect(statusBtn).toBeUndefined();
   });
 
@@ -305,9 +354,9 @@ describe('ReservationsPanel', () => {
     const res = buildReservation({ title: 'Read Only', status: 'pending' });
     render(<ReservationsPanel {...defaultProps} reservations={[res]} />);
     const pendingEls = screen.getAllByText('Pending');
-    const statusSpan = pendingEls.find(el => el.tagName === 'SPAN');
+    const statusSpan = pendingEls.find((el) => el.tagName === 'SPAN');
     expect(statusSpan).toBeDefined();
-    const statusBtn = pendingEls.find(el => el.tagName === 'BUTTON');
+    const statusBtn = pendingEls.find((el) => el.tagName === 'BUTTON');
     expect(statusBtn).toBeUndefined();
   });
 
@@ -360,14 +409,37 @@ describe('ReservationsPanel', () => {
 
   it('FE-PLANNER-RESP-037: attached files section appears for reservation with files', () => {
     const res = buildReservation({ id: 77, status: 'confirmed' });
-    const files = [{ id: 1, trip_id: 1, reservation_id: 77, original_name: 'boarding_pass.pdf', url: '/uploads/bp.pdf', filename: 'bp.pdf', mime_type: 'application/pdf', created_at: '2025-01-01T00:00:00.000Z' }];
+    const files = [
+      {
+        id: 1,
+        trip_id: 1,
+        reservation_id: 77,
+        original_name: 'boarding_pass.pdf',
+        url: '/uploads/bp.pdf',
+        filename: 'bp.pdf',
+        mime_type: 'application/pdf',
+        created_at: '2025-01-01T00:00:00.000Z',
+      },
+    ];
     render(<ReservationsPanel {...defaultProps} reservations={[res]} files={files} />);
     expect(screen.getByText('boarding_pass.pdf')).toBeInTheDocument();
   });
 
   it('FE-PLANNER-RESP-038: linked file (via linked_reservation_ids) also appears', () => {
     const res = buildReservation({ id: 77, status: 'confirmed' });
-    const files = [{ id: 2, trip_id: 1, reservation_id: null, linked_reservation_ids: [77], original_name: 'voucher.pdf', url: '/uploads/v.pdf', filename: 'v.pdf', mime_type: 'application/pdf', created_at: '2025-01-01T00:00:00.000Z' }];
+    const files = [
+      {
+        id: 2,
+        trip_id: 1,
+        reservation_id: null,
+        linked_reservation_ids: [77],
+        original_name: 'voucher.pdf',
+        url: '/uploads/v.pdf',
+        filename: 'v.pdf',
+        mime_type: 'application/pdf',
+        created_at: '2025-01-01T00:00:00.000Z',
+      },
+    ];
     render(<ReservationsPanel {...defaultProps} reservations={[res]} files={files as any} />);
     expect(screen.getByText('voucher.pdf')).toBeInTheDocument();
   });

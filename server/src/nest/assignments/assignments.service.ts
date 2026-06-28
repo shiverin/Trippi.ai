@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { broadcast } from '../../websocket';
 import { canAccessTrip } from '../../db/database';
-import { checkPermission } from '../../services/permissions';
-import type { User } from '../../types';
 import * as svc from '../../services/assignmentService';
 import { onPlaceCreated } from '../../services/journeyService';
+import { checkPermission } from '../../services/permissions';
+import type { User } from '../../types';
+import { broadcast } from '../../websocket';
+import { Injectable } from '@nestjs/common';
 
 type Trip = { user_id: number };
 
@@ -46,7 +46,11 @@ export class AssignmentsService {
 
   /** Mirrors the legacy POST hook; non-fatal, like the route's try/catch. */
   notifyPlaceCreated(tripId: string, placeId: unknown): void {
-    try { onPlaceCreated(Number(tripId), Number(placeId)); } catch { /* non-fatal */ }
+    try {
+      onPlaceCreated(Number(tripId), Number(placeId));
+    } catch {
+      /* non-fatal */
+    }
   }
 
   assignmentExistsInDay(id: string, dayId: string, tripId: string) {

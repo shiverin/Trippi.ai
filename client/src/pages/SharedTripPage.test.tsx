@@ -1,18 +1,16 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '../../tests/helpers/render';
-import { Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
-import { server } from '../../tests/helpers/msw/server';
-import { resetAllStores, seedStore } from '../../tests/helpers/store';
+import { Route, Routes } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildSettings } from '../../tests/helpers/factories';
+import { server } from '../../tests/helpers/msw/server';
+import { fireEvent, render, screen, waitFor } from '../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../tests/helpers/store';
 import { useSettingsStore } from '../store/settingsStore';
 import SharedTripPage from './SharedTripPage';
 
 // Mock react-leaflet (SharedTripPage renders a map)
 vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="map-container">{children}</div>
-  ),
+  MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map-container">{children}</div>,
   TileLayer: () => null,
   Marker: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   Tooltip: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -45,7 +43,7 @@ function renderSharedTrip(token: string) {
     <Routes>
       <Route path="/shared/:token" element={<SharedTripPage />} />
     </Routes>,
-    { initialEntries: [`/shared/${token}`] },
+    { initialEntries: [`/shared/${token}`] }
   );
 }
 
@@ -61,9 +59,9 @@ describe('SharedTripPage', () => {
       // Use a token that will delay or we just check initial state before response
       server.use(
         http.get('/api/shared/:token', async () => {
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
           return HttpResponse.json({ trips: [] });
-        }),
+        })
       );
 
       renderSharedTrip('test-token');
@@ -187,7 +185,7 @@ describe('SharedTripPage', () => {
             permissions: { share_bookings: false, share_packing: true, share_budget: false, share_collab: false },
             collab: [],
           });
-        }),
+        })
       );
 
       renderSharedTrip('packing-token');
@@ -213,7 +211,13 @@ describe('SharedTripPage', () => {
         http.get('/api/shared/:token', ({ params }) => {
           if (params.token !== 'budget-token') return;
           return HttpResponse.json({
-            trip: { id: 1, title: 'Shared Paris Trip', start_date: '2026-07-01', end_date: '2026-07-05', currency: 'EUR' },
+            trip: {
+              id: 1,
+              title: 'Shared Paris Trip',
+              start_date: '2026-07-01',
+              end_date: '2026-07-05',
+              currency: 'EUR',
+            },
             days: [],
             assignments: {},
             dayNotes: {},
@@ -226,7 +230,7 @@ describe('SharedTripPage', () => {
             permissions: { share_bookings: false, share_packing: false, share_budget: true, share_collab: false },
             collab: [],
           });
-        }),
+        })
       );
 
       renderSharedTrip('budget-token');
@@ -264,9 +268,11 @@ describe('SharedTripPage', () => {
             budget: [],
             categories: [],
             permissions: { share_bookings: false, share_packing: false, share_budget: false, share_collab: true },
-            collab: [{ id: 1, username: 'alice', text: 'Hello team!', created_at: '2025-01-01T10:00:00Z', avatar: null }],
+            collab: [
+              { id: 1, username: 'alice', text: 'Hello team!', created_at: '2025-01-01T10:00:00Z', avatar: null },
+            ],
           });
-        }),
+        })
       );
 
       renderSharedTrip('collab-token');
@@ -289,7 +295,16 @@ describe('SharedTripPage', () => {
   describe('FE-PAGE-SHARED-013: Day card expands when clicked', () => {
     it('reveals place names after clicking a collapsed day card header', async () => {
       const day = { id: 101, trip_id: 1, day_number: 1, date: '2026-07-01', title: 'Day One', notes: null };
-      const place = { id: 201, trip_id: 1, name: 'Eiffel Tower', lat: 48.8584, lng: 2.2945, category_id: null, image_url: null, address: null };
+      const place = {
+        id: 201,
+        trip_id: 1,
+        name: 'Eiffel Tower',
+        lat: 48.8584,
+        lng: 2.2945,
+        category_id: null,
+        image_url: null,
+        address: null,
+      };
 
       server.use(
         http.get('/api/shared/:token', ({ params }) => {
@@ -310,7 +325,7 @@ describe('SharedTripPage', () => {
             permissions: { share_bookings: false, share_packing: false, share_budget: false, share_collab: false },
             collab: [],
           });
-        }),
+        })
       );
 
       renderSharedTrip('expand-token');
@@ -358,8 +373,8 @@ describe('SharedTripPage', () => {
     });
   });
 
-  describe('FE-PAGE-SHARED-015: TRIPPI branding footer is rendered', () => {
-    it('renders the Shared via TRIPPI footer', async () => {
+  describe('FE-PAGE-SHARED-015: trippi.ai branding footer is rendered', () => {
+    it('renders the Shared via trippi.ai footer', async () => {
       renderSharedTrip('test-token');
 
       await waitFor(() => {
@@ -382,7 +397,14 @@ describe('SharedTripPage', () => {
             dayNotes: {},
             places: [],
             reservations: [
-              { id: 1, title: 'Flight to Paris', type: 'flight', status: 'confirmed', reservation_time: '2026-07-01T10:00:00', metadata: '{}' },
+              {
+                id: 1,
+                title: 'Flight to Paris',
+                type: 'flight',
+                status: 'confirmed',
+                reservation_time: '2026-07-01T10:00:00',
+                metadata: '{}',
+              },
             ],
             accommodations: [],
             packing: [],
@@ -391,7 +413,7 @@ describe('SharedTripPage', () => {
             permissions: { share_bookings: true, share_packing: false, share_budget: false, share_collab: false },
             collab: [],
           });
-        }),
+        })
       );
 
       renderSharedTrip('bookings-token');
@@ -411,15 +433,42 @@ describe('SharedTripPage', () => {
   describe('FE-PAGE-SHARED-017: Multi-leg flight shows each leg in the Day Plan', () => {
     const day = { id: 101, trip_id: 1, day_number: 1, date: '2026-07-01', title: 'Day One', notes: null };
     const multiLegFlight = {
-      id: 9, trip_id: 1, title: 'Flight', type: 'flight', status: 'confirmed',
-      day_id: 101, end_day_id: 101,
-      reservation_time: '2026-07-01T08:00:00', reservation_end_time: '2026-07-01T20:00:00',
+      id: 9,
+      trip_id: 1,
+      title: 'Flight',
+      type: 'flight',
+      status: 'confirmed',
+      day_id: 101,
+      end_day_id: 101,
+      reservation_time: '2026-07-01T08:00:00',
+      reservation_end_time: '2026-07-01T20:00:00',
       metadata: JSON.stringify({
         legs: [
-          { from: 'FRA', to: 'BER', airline: 'Lufthansa', flight_number: 'LH1', dep_day_id: 101, dep_time: '08:00', arr_day_id: 101, arr_time: '09:00' },
-          { from: 'BER', to: 'HND', airline: 'Lufthansa', flight_number: 'LH2', dep_day_id: 101, dep_time: '10:00', arr_day_id: 101, arr_time: '20:00' },
+          {
+            from: 'FRA',
+            to: 'BER',
+            airline: 'Lufthansa',
+            flight_number: 'LH1',
+            dep_day_id: 101,
+            dep_time: '08:00',
+            arr_day_id: 101,
+            arr_time: '09:00',
+          },
+          {
+            from: 'BER',
+            to: 'HND',
+            airline: 'Lufthansa',
+            flight_number: 'LH2',
+            dep_day_id: 101,
+            dep_time: '10:00',
+            arr_day_id: 101,
+            arr_time: '20:00',
+          },
         ],
-        departure_airport: 'FRA', arrival_airport: 'HND', airline: 'Lufthansa', flight_number: 'LH1',
+        departure_airport: 'FRA',
+        arrival_airport: 'HND',
+        airline: 'Lufthansa',
+        flight_number: 'LH1',
       }),
     };
 
@@ -441,7 +490,7 @@ describe('SharedTripPage', () => {
             permissions: { share_bookings: true, share_packing: false, share_budget: false, share_collab: false },
             collab: [],
           });
-        }),
+        })
       );
     }
 
@@ -488,20 +537,22 @@ describe('SharedTripPage', () => {
       seedStore(useSettingsStore, { settings: buildSettings({ language: 'de' }) });
       const day = { id: 101, trip_id: 1, day_number: 1, date: '2026-07-01', title: null, notes: null };
       server.use(
-        http.get('/api/shared/:token', () => HttpResponse.json({
-          trip: { id: 1, title: 'Shared Paris Trip', start_date: '2026-07-01', end_date: '2026-07-05' },
-          days: [day],
-          assignments: {},
-          dayNotes: {},
-          places: [],
-          reservations: [],
-          accommodations: [],
-          packing: [],
-          budget: [],
-          categories: [],
-          permissions: { share_bookings: false, share_packing: false, share_budget: false, share_collab: false },
-          collab: [],
-        })),
+        http.get('/api/shared/:token', () =>
+          HttpResponse.json({
+            trip: { id: 1, title: 'Shared Paris Trip', start_date: '2026-07-01', end_date: '2026-07-05' },
+            days: [day],
+            assignments: {},
+            dayNotes: {},
+            places: [],
+            reservations: [],
+            accommodations: [],
+            packing: [],
+            budget: [],
+            categories: [],
+            permissions: { share_bookings: false, share_packing: false, share_budget: false, share_collab: false },
+            collab: [],
+          })
+        )
       );
       renderSharedTrip('test-token');
       // The untitled day shows the German label "Tag 1", proving the hardcoded English

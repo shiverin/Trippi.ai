@@ -1,13 +1,27 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpException, Param, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
-import type { Request, Response } from 'express';
-import { RateLimitService } from './rate-limit.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { PasskeyEnabledGuard } from './passkey-enabled.guard';
-import { CurrentUser } from './current-user.decorator';
-import { setAuthCookie } from '../../services/cookie';
 import { writeAudit, getClientIp } from '../../services/auditLog';
+import { setAuthCookie } from '../../services/cookie';
 import * as passkey from '../../services/passkeyService';
 import type { User } from '../../types';
+import { CurrentUser } from './current-user.decorator';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { PasskeyEnabledGuard } from './passkey-enabled.guard';
+import { RateLimitService } from './rate-limit.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpException,
+  Param,
+  Patch,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+
+import type { Request, Response } from 'express';
 
 const WINDOW = 15 * 60 * 1000;
 const LOGIN_MIN_LATENCY_MS = 350;
@@ -50,7 +64,10 @@ export class PasskeyController {
   @HttpCode(200)
   @UseGuards(PasskeyEnabledGuard, JwtAuthGuard)
   async registerVerify(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
-    const result = await passkey.passkeyRegisterVerify(user.id, body as Parameters<typeof passkey.passkeyRegisterVerify>[1]);
+    const result = await passkey.passkeyRegisterVerify(
+      user.id,
+      body as Parameters<typeof passkey.passkeyRegisterVerify>[1],
+    );
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
     writeAudit({ userId: user.id, action: 'user.passkey_register', ip: getClientIp(req) });
     return { success: true, credential: result.credential };
@@ -82,7 +99,12 @@ export class PasskeyController {
     const elapsed = Date.now() - started;
     if (elapsed < LOGIN_MIN_LATENCY_MS) await delay(LOGIN_MIN_LATENCY_MS - elapsed);
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
-    writeAudit({ userId: result.auditUserId!, action: 'user.login', ip: getClientIp(req), details: { method: 'passkey' } });
+    writeAudit({
+      userId: result.auditUserId!,
+      action: 'user.login',
+      ip: getClientIp(req),
+      details: { method: 'passkey' },
+    });
     setAuthCookie(res, result.token!, req);
     return { token: result.token, user: result.user };
   }

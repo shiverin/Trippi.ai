@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Affectation bagages',
   'notif.packing_tagged.text': '{actor} vous a assigné à {category} dans {trip}',
   'notif.version_available.title': 'Nouvelle version disponible',
-  'notif.version_available.text': 'TRIPPI {version} est maintenant disponible',
+  'notif.version_available.text': 'trippi.ai {version} est maintenant disponible',
   'notif.action.view_trip': 'Voir le voyage',
   'notif.action.view_collab': 'Voir les messages',
   'notif.action.view_packing': 'Voir les bagages',

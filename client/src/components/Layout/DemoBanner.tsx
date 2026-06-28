@@ -1,32 +1,49 @@
-import React, { useState, useEffect } from 'react'
-import { Info, Github, Shield, Key, Users, Database, Upload, Clock, Puzzle, CalendarDays, Globe, ArrowRightLeft, Map, Briefcase, ListChecks, Wallet, FileText, Plane } from 'lucide-react'
-import { useTranslation } from '../../i18n'
+import {
+  ArrowRightLeft,
+  CalendarDays,
+  Clock,
+  Database,
+  FileText,
+  Github,
+  Globe,
+  Key,
+  ListChecks,
+  Map,
+  Puzzle,
+  Shield,
+  Upload,
+  Users,
+  Wallet,
+} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from '../../i18n';
 
 interface DemoTexts {
-  titleBefore: string
-  titleAfter: string
-  title: string
-  description: string
-  resetIn: string
-  minutes: string
-  uploadNote: string
-  fullVersionTitle: string
-  features: string[]
-  addonsTitle: string
-  addons: [string, string][]
-  whatIs: string
-  whatIsDesc: string
-  selfHost: string
-  selfHostLink: string
-  close: string
+  titleBefore: string;
+  titleAfter: string;
+  title: string;
+  description: string;
+  resetIn: string;
+  minutes: string;
+  uploadNote: string;
+  fullVersionTitle: string;
+  features: string[];
+  addonsTitle: string;
+  addons: [string, string][];
+  whatIs: string;
+  whatIsDesc: string;
+  selfHost: string;
+  selfHostLink: string;
+  close: string;
 }
 
 const texts: Record<string, DemoTexts> = {
   de: {
     titleBefore: 'Willkommen bei ',
     titleAfter: '',
-    title: 'Willkommen zur TRIPPI Demo',
-    description: 'Du kannst Reisen ansehen, bearbeiten und eigene erstellen. Alle Aenderungen werden jede Stunde automatisch zurueckgesetzt.',
+    title: 'Willkommen zur trippi.ai Demo',
+    description:
+      'Du kannst Reisen ansehen, bearbeiten und eigene erstellen. Alle Aenderungen werden jede Stunde automatisch zurueckgesetzt.',
     resetIn: 'Naechster Reset in',
     minutes: 'Minuten',
     uploadNote: 'Datei-Uploads (Fotos, Dokumente, Cover) sind in der Demo deaktiviert.',
@@ -48,8 +65,9 @@ const texts: Record<string, DemoTexts> = {
       ['Dokumente', 'Dateien an Reisen anhaengen'],
       ['Widgets', 'Waehrungsrechner & Zeitzonen'],
     ],
-    whatIs: 'Was ist TRIPPI?',
-    whatIsDesc: 'Ein selbst-gehosteter Reiseplaner mit Echtzeit-Kollaboration, interaktiver Karte, OIDC Login und Dark Mode.',
+    whatIs: 'Was ist trippi.ai?',
+    whatIsDesc:
+      'Ein selbst-gehosteter Reiseplaner mit Echtzeit-Kollaboration, interaktiver Karte, OIDC Login und Dark Mode.',
     selfHost: 'Open Source — ',
     selfHostLink: 'selbst hosten',
     close: 'Verstanden',
@@ -57,7 +75,7 @@ const texts: Record<string, DemoTexts> = {
   en: {
     titleBefore: 'Welcome to ',
     titleAfter: '',
-    title: 'Welcome to the TRIPPI Demo',
+    title: 'Welcome to the trippi.ai Demo',
     description: 'You can view, edit and create trips. All changes are automatically reset every hour.',
     resetIn: 'Next reset in',
     minutes: 'minutes',
@@ -80,8 +98,9 @@ const texts: Record<string, DemoTexts> = {
       ['Documents', 'Attach files to trips'],
       ['Widgets', 'Currency converter & timezones'],
     ],
-    whatIs: 'What is TRIPPI?',
-    whatIsDesc: 'A self-hosted travel planner with real-time collaboration, interactive maps, OIDC login and dark mode.',
+    whatIs: 'What is trippi.ai?',
+    whatIsDesc:
+      'A self-hosted travel planner with real-time collaboration, interactive maps, OIDC login and dark mode.',
     selfHost: 'Open source — ',
     selfHostLink: 'self-host it',
     close: 'Got it',
@@ -89,7 +108,7 @@ const texts: Record<string, DemoTexts> = {
   es: {
     titleBefore: 'Bienvenido a ',
     titleAfter: '',
-    title: 'Bienvenido a la demo de TRIPPI',
+    title: 'Bienvenido a la demo de trippi.ai',
     description: 'Puedes ver, editar y crear viajes. Todos los cambios se restablecen automáticamente cada hora.',
     resetIn: 'Próximo reinicio en',
     minutes: 'minutos',
@@ -112,8 +131,9 @@ const texts: Record<string, DemoTexts> = {
       ['Documentos', 'Adjunta archivos a los viajes'],
       ['Widgets', 'Conversor de divisas y zonas horarias'],
     ],
-    whatIs: '¿Qué es TRIPPI?',
-    whatIsDesc: 'Un planificador de viajes autohospedado con colaboración en tiempo real, mapas interactivos, inicio de sesión OIDC y modo oscuro.',
+    whatIs: '¿Qué es trippi.ai?',
+    whatIsDesc:
+      'Un planificador de viajes autohospedado con colaboración en tiempo real, mapas interactivos, inicio de sesión OIDC y modo oscuro.',
     selfHost: 'Código abierto — ',
     selfHostLink: 'alójalo tú mismo',
     close: 'Entendido',
@@ -121,7 +141,7 @@ const texts: Record<string, DemoTexts> = {
   zh: {
     titleBefore: '欢迎来到 ',
     titleAfter: '',
-    title: '欢迎来到 TRIPPI 演示版',
+    title: '欢迎来到 trippi.ai 演示版',
     description: '你可以查看、编辑和创建旅行。所有更改都会在每小时自动重置。',
     resetIn: '下次重置将在',
     minutes: '分钟后',
@@ -144,7 +164,7 @@ const texts: Record<string, DemoTexts> = {
       ['Documents', '将文件附加到旅行'],
       ['Widgets', '货币换算和时区工具'],
     ],
-    whatIs: '什么是 TRIPPI？',
+    whatIs: '什么是 trippi.ai？',
     whatIsDesc: '一个支持实时协作、交互式地图、OIDC 登录和深色模式的自托管旅行规划器。',
     selfHost: '开源项目 - ',
     selfHostLink: '自行部署',
@@ -153,7 +173,7 @@ const texts: Record<string, DemoTexts> = {
   'zh-TW': {
     titleBefore: '歡迎來到 ',
     titleAfter: '',
-    title: '歡迎來到 TRIPPI 展示版',
+    title: '歡迎來到 trippi.ai 展示版',
     description: '你可以檢視、編輯和建立行程。所有變更都會在每小時自動重設。',
     resetIn: '下次重設將在',
     minutes: '分鐘後',
@@ -176,7 +196,7 @@ const texts: Record<string, DemoTexts> = {
       ['Documents', '將檔案附加到行程'],
       ['Widgets', '貨幣換算與時區工具'],
     ],
-    whatIs: 'TRIPPI 是什麼？',
+    whatIs: 'trippi.ai 是什麼？',
     whatIsDesc: '一個支援即時協作、互動式地圖、OIDC 登入和深色模式的自架旅行規劃器。',
     selfHost: '開源專案 - ',
     selfHostLink: '自行架設',
@@ -185,7 +205,7 @@ const texts: Record<string, DemoTexts> = {
   ar: {
     titleBefore: 'مرحبًا بك في ',
     titleAfter: '',
-    title: 'مرحبًا بك في النسخة التجريبية من TRIPPI',
+    title: 'مرحبًا بك في النسخة التجريبية من trippi.ai',
     description: 'يمكنك عرض الرحلات وتعديلها وإنشاء رحلات جديدة. تتم إعادة ضبط جميع التغييرات تلقائيًا كل ساعة.',
     resetIn: 'إعادة الضبط التالية خلال',
     minutes: 'دقيقة',
@@ -208,7 +228,7 @@ const texts: Record<string, DemoTexts> = {
       ['Documents', 'إرفاق الملفات بالرحلات'],
       ['Widgets', 'محول عملات ومناطق زمنية'],
     ],
-    whatIs: 'ما هو TRIPPI؟',
+    whatIs: 'ما هو trippi.ai؟',
     whatIsDesc: 'مخطط رحلات مستضاف ذاتيًا مع تعاون لحظي وخرائط تفاعلية وتسجيل دخول OIDC ووضع داكن.',
     selfHost: 'مفتوح المصدر — ',
     selfHostLink: 'استضفه بنفسك',
@@ -217,8 +237,9 @@ const texts: Record<string, DemoTexts> = {
   id: {
     titleBefore: 'Selamat datang di ',
     titleAfter: '',
-    title: 'Selamat datang di Demo TRIPPI',
-    description: 'Anda dapat melihat, mengedit, dan membuat perjalanan. Semua perubahan akan diatur ulang secara otomatis setiap jam.',
+    title: 'Selamat datang di Demo trippi.ai',
+    description:
+      'Anda dapat melihat, mengedit, dan membuat perjalanan. Semua perubahan akan diatur ulang secara otomatis setiap jam.',
     resetIn: 'Atur ulang berikutnya dalam',
     minutes: 'menit',
     uploadNote: 'Unggah file (foto, dokumen, sampul) dinonaktifkan dalam mode demo.',
@@ -240,90 +261,144 @@ const texts: Record<string, DemoTexts> = {
       ['Dokumen', 'Lampirkan file ke perjalanan'],
       ['Widget', 'Konverter mata uang & zona waktu'],
     ],
-    whatIs: 'Apa itu TRIPPI?',
-    whatIsDesc: 'Perencana perjalanan yang di-host sendiri dengan kolaborasi real-time, peta interaktif, login OIDC, dan mode gelap.',
+    whatIs: 'Apa itu trippi.ai?',
+    whatIsDesc:
+      'Perencana perjalanan yang di-host sendiri dengan kolaborasi real-time, peta interaktif, login OIDC, dan mode gelap.',
     selfHost: 'Buka sumber — ',
     selfHostLink: 'host mandiri',
     close: 'Mengerti',
   },
-}
+};
 
-const featureIcons = [Upload, Key, Users, Database, Puzzle, Shield]
-const addonIcons = [CalendarDays, Globe, ListChecks, Wallet, FileText, ArrowRightLeft]
+const featureIcons = [Upload, Key, Users, Database, Puzzle, Shield];
+const addonIcons = [CalendarDays, Globe, ListChecks, Wallet, FileText, ArrowRightLeft];
 
 export default function DemoBanner(): React.ReactElement | null {
-  const [dismissed, setDismissed] = useState<boolean>(false)
-  const [minutesLeft, setMinutesLeft] = useState<number>(59 - new Date().getMinutes())
-  const { language } = useTranslation()
-  const t = texts[language] || texts.en
+  const [dismissed, setDismissed] = useState<boolean>(false);
+  const [minutesLeft, setMinutesLeft] = useState<number>(59 - new Date().getMinutes());
+  const { language } = useTranslation();
+  const t = texts[language] || texts.en;
 
   useEffect(() => {
-    const interval = setInterval(() => setMinutesLeft(59 - new Date().getMinutes()), 10000)
-    return () => clearInterval(interval)
-  }, [])
+    const interval = setInterval(() => setMinutesLeft(59 - new Date().getMinutes()), 10000);
+    return () => clearInterval(interval);
+  }, []);
 
-  if (dismissed) return null
+  if (dismissed) return null;
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 99999,
-      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      paddingTop: 'max(16px, env(safe-area-inset-top))',
-      paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 80px))',
-      paddingLeft: 16, paddingRight: 16,
-      overflow: 'auto',
-      fontFamily: "var(--font-system)",
-    }} onClick={() => setDismissed(true)}>
-      <div style={{
-        background: 'white', borderRadius: 20, padding: '28px 24px 0',
-        maxWidth: 480, width: '100%',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-        maxHeight: 'min(90vh, calc(100dvh - 96px))',
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 'max(16px, env(safe-area-inset-top))',
+        paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 80px))',
+        paddingLeft: 16,
+        paddingRight: 16,
         overflow: 'auto',
-        display: 'flex', flexDirection: 'column',
-      }} onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
-
+        fontFamily: 'var(--font-system)',
+      }}
+      onClick={() => setDismissed(true)}
+    >
+      <div
+        style={{
+          background: 'white',
+          borderRadius: 20,
+          padding: '28px 24px 0',
+          maxWidth: 480,
+          width: '100%',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          maxHeight: 'min(90vh, calc(100dvh - 96px))',
+          overflow: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+      >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <img src="/icons/icon-dark.svg" alt="" style={{ width: 36, height: 36, borderRadius: 10 }} />
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#111827', display: 'flex', alignItems: 'center', gap: 5 }}>
-            {t.titleBefore}<img src="/text-dark.svg" alt="TRIPPI" style={{ height: 18 }} />{t.titleAfter}
+          <img
+            src="/brand/trippi-icon.png"
+            alt=""
+            className="brand-icon"
+            style={{ width: 38, height: 38, borderRadius: 10 }}
+          />
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 17,
+              fontWeight: 700,
+              color: '#111827',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            {t.titleBefore}
+            <img src="/brand/trippi-wordmark.png" alt="trippi.ai" className="brand-wordmark" style={{ height: 20 }} />
+            {t.titleAfter}
           </h2>
         </div>
 
-        <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6, margin: '0 0 12px' }}>
-          {t.description}
-        </p>
+        <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6, margin: '0 0 12px' }}>{t.description}</p>
 
         {/* Timer + Upload note */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <div style={{
-            flex: 1, display: 'flex', alignItems: 'center', gap: 6,
-            background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '8px 10px',
-          }}>
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
+              borderRadius: 10,
+              padding: '8px 10px',
+            }}
+          >
             <Clock size={13} style={{ flexShrink: 0, color: '#0284c7' }} />
             <span style={{ fontSize: 11, color: '#0369a1', fontWeight: 600 }}>
               {t.resetIn} {minutesLeft} {t.minutes}
             </span>
           </div>
-          <div style={{
-            flex: 1, display: 'flex', alignItems: 'center', gap: 6,
-            background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 10px',
-          }}>
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              borderRadius: 10,
+              padding: '8px 10px',
+            }}
+          >
             <Upload size={13} style={{ flexShrink: 0, color: '#b45309' }} />
             <span style={{ fontSize: 11, color: '#b45309' }}>{t.uploadNote}</span>
           </div>
         </div>
 
-        {/* What is TRIPPI */}
-        <div style={{
-          background: '#f8fafc', borderRadius: 12, padding: '12px 14px', marginBottom: 16,
-          border: '1px solid #e2e8f0',
-        }}>
+        {/* What is trippi.ai */}
+        <div
+          style={{
+            background: '#f8fafc',
+            borderRadius: 12,
+            padding: '12px 14px',
+            marginBottom: 16,
+            border: '1px solid #e2e8f0',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <Map size={14} style={{ color: '#111827' }} />
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#111827', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span
+              style={{ fontSize: 12, fontWeight: 700, color: '#111827', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
               {t.whatIs}
             </span>
           </div>
@@ -331,69 +406,128 @@ export default function DemoBanner(): React.ReactElement | null {
         </div>
 
         {/* Addons */}
-        <p style={{ fontSize: 10, fontWeight: 700, color: '#374151', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <p
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: '#374151',
+            margin: '0 0 8px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
           <Puzzle size={12} />
           {t.addonsTitle}
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 16 }}>
           {t.addons.map(([name, desc], i) => {
-            const Icon = addonIcons[i]
+            const Icon = addonIcons[i];
             return (
-              <div key={name} style={{
-                background: '#f8fafc', borderRadius: 10, padding: '8px 10px',
-                border: '1px solid #f1f5f9',
-              }}>
+              <div
+                key={name}
+                style={{
+                  background: '#f8fafc',
+                  borderRadius: 10,
+                  padding: '8px 10px',
+                  border: '1px solid #f1f5f9',
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                   <Icon size={12} style={{ flexShrink: 0, color: '#111827' }} />
                   <span style={{ fontSize: 11, fontWeight: 700, color: '#111827' }}>{name}</span>
                 </div>
                 <p style={{ fontSize: 10, color: '#94a3b8', margin: 0, lineHeight: 1.3, paddingLeft: 18 }}>{desc}</p>
               </div>
-            )
+            );
           })}
         </div>
 
         {/* Full version features */}
-        <p style={{ fontSize: 10, fontWeight: 700, color: '#374151', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <p
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: '#374151',
+            margin: '0 0 8px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
           <Shield size={12} />
           {t.fullVersionTitle}
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 16 }}>
           {t.features.map((text, i) => {
-            const Icon = featureIcons[i]
+            const Icon = featureIcons[i];
             return (
-              <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#4b5563', padding: '4px 0' }}>
+              <div
+                key={text}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 11,
+                  color: '#4b5563',
+                  padding: '4px 0',
+                }}
+              >
                 <Icon size={13} style={{ flexShrink: 0, color: '#9ca3af' }} />
                 <span>{text}</span>
               </div>
-            )
+            );
           })}
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: '14px 0 20px', borderTop: '1px solid #e5e7eb',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          position: 'sticky', bottom: 0, background: 'white',
-          marginTop: 'auto',
-        }}>
+        <div
+          style={{
+            padding: '14px 0 20px',
+            borderTop: '1px solid #e5e7eb',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            position: 'sticky',
+            bottom: 0,
+            background: 'white',
+            marginTop: 'auto',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#9ca3af' }}>
             <Github size={13} />
             <span>{t.selfHost}</span>
-            <a href="https://github.com/mauriceboe/TRIPPI" target="_blank" rel="noopener noreferrer"
-              style={{ color: '#111827', fontWeight: 600, textDecoration: 'none' }}>
+            <a
+              href="https://github.com/shiverin/Trippi.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#111827', fontWeight: 600, textDecoration: 'none' }}
+            >
               {t.selfHostLink}
             </a>
           </div>
-          <button onClick={() => setDismissed(true)} style={{
-            background: '#111827', color: 'white', border: 'none',
-            borderRadius: 10, padding: '8px 20px', fontSize: 12,
-            fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-          }}>
+          <button
+            onClick={() => setDismissed(true)}
+            style={{
+              background: '#111827',
+              color: 'white',
+              border: 'none',
+              borderRadius: 10,
+              padding: '8px 20px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
             {t.close}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }

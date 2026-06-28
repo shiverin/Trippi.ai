@@ -2,7 +2,7 @@
   "name": "@trippi/shared",
   "version": "3.1.2",
   "private": true,
-  "description": "Shared API contracts (Zod schemas) — single source of truth for TRIPPI server and client.",
+  "description": "Shared API contracts (Zod schemas) — single source of truth for trippi.ai server and client.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",

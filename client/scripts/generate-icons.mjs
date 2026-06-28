@@ -1,5 +1,5 @@
 /**
- * Generates PNG icons for PWA from the master SVG icon.
+ * Generates PNG icons for PWA from the master trippi.ai icon.
  * Run: node scripts/generate-icons.mjs
  * Called automatically via the "prebuild" npm script.
  */
@@ -10,7 +10,7 @@ import sharp from 'sharp';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const iconsDir = join(__dirname, '..', 'public', 'icons');
-const svgBuffer = readFileSync(join(iconsDir, 'icon.svg'));
+const brandIconBuffer = readFileSync(join(__dirname, '..', 'public', 'brand', 'trippi-icon.png'));
 
 const sizes = [
   { name: 'apple-touch-icon-180x180.png', size: 180 },
@@ -19,7 +19,7 @@ const sizes = [
 ];
 
 for (const { name, size } of sizes) {
-  await sharp(svgBuffer, { density: 300 })
+  await sharp(brandIconBuffer)
     .resize(size, size)
     .png({ compressionLevel: 9 })
     .toFile(join(iconsDir, name));

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '../../../tests/helpers/render';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '../../../tests/helpers/render';
 import { resetAllStores } from '../../../tests/helpers/store';
 import AboutTab from './AboutTab';
 
@@ -19,16 +19,16 @@ describe('AboutTab', () => {
     expect(screen.getByText('v2.9.10')).toBeInTheDocument();
   });
 
-  it('FE-COMP-ABOUT-003: displays Ko-fi link with correct href', () => {
+  it('FE-COMP-ABOUT-003: displays source code link with correct href', () => {
     render(<AboutTab appVersion="2.9.10" />);
-    const link = screen.getByText('Ko-fi').closest('a');
-    expect(link).toHaveAttribute('href', 'https://ko-fi.com/mauriceboe');
+    const link = screen.getByText('Source Code').closest('a');
+    expect(link).toHaveAttribute('href', 'https://github.com/shiverin/Trippi.ai');
   });
 
-  it('FE-COMP-ABOUT-004: displays Buy Me a Coffee link with correct href', () => {
+  it('FE-COMP-ABOUT-004: displays releases link with correct href', () => {
     render(<AboutTab appVersion="2.9.10" />);
-    const link = screen.getByText('Buy Me a Coffee').closest('a');
-    expect(link).toHaveAttribute('href', 'https://buymeacoffee.com/mauriceboe');
+    const link = screen.getByText('Releases').closest('a');
+    expect(link).toHaveAttribute('href', 'https://github.com/shiverin/Trippi.ai/releases');
   });
 
   it('FE-COMP-ABOUT-005: displays Discord link with correct href', () => {
@@ -41,10 +41,7 @@ describe('AboutTab', () => {
     render(<AboutTab appVersion="2.9.10" />);
     const link = document.querySelector('a[href*="issues/new"]');
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute(
-      'href',
-      'https://github.com/mauriceboe/TRIPPI/issues/new?template=bug_report.yml',
-    );
+    expect(link).toHaveAttribute('href', 'https://github.com/shiverin/Trippi.ai/issues/new?template=bug_report.yml');
   });
 
   it('FE-COMP-ABOUT-007: displays feature request link', () => {
@@ -83,22 +80,22 @@ describe('AboutTab', () => {
     expect(screen.queryByText('v2.9.10')).toBeNull();
   });
 
-  it('FE-COMP-ABOUT-012: Ko-fi link hover changes border and box-shadow styles', () => {
+  it('FE-COMP-ABOUT-012: source code link hover changes border and box-shadow styles', () => {
     render(<AboutTab appVersion="1.0.0" />);
-    const link = screen.getByText('Ko-fi').closest('a') as HTMLAnchorElement;
+    const link = screen.getByText('Source Code').closest('a') as HTMLAnchorElement;
     fireEvent.mouseEnter(link);
-    expect(link.style.borderColor).toBe('rgb(255, 94, 91)');
+    expect(link.style.borderColor).toBe('rgb(15, 42, 86)');
     expect(link.style.boxShadow).not.toBe('');
     fireEvent.mouseLeave(link);
     expect(link.style.borderColor).toBe('var(--border-primary)');
     expect(link.style.boxShadow).toBe('none');
   });
 
-  it('FE-COMP-ABOUT-013: Buy Me a Coffee link hover changes border and box-shadow styles', () => {
+  it('FE-COMP-ABOUT-013: releases link hover changes border and box-shadow styles', () => {
     render(<AboutTab appVersion="1.0.0" />);
-    const link = screen.getByText('Buy Me a Coffee').closest('a') as HTMLAnchorElement;
+    const link = screen.getByText('Releases').closest('a') as HTMLAnchorElement;
     fireEvent.mouseEnter(link);
-    expect(link.style.borderColor).toBe('rgb(255, 221, 0)');
+    expect(link.style.borderColor).toBe('rgb(47, 111, 237)');
     expect(link.style.boxShadow).not.toBe('');
     fireEvent.mouseLeave(link);
     expect(link.style.borderColor).toBe('var(--border-primary)');

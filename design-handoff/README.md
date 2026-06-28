@@ -1,4 +1,4 @@
-# TRIPPI Design Handoff
+# trippi.ai Design Handoff
 
 This folder packages the current frontend into Figma-friendly source material for designers.
 
@@ -35,7 +35,7 @@ Outputs are written to:
 - `design-handoff/tokens/runtime-tokens.json`
 - `design-handoff/capture-manifest.json`
 
-The script starts TRIPPI's existing E2E backend and Vite frontend against a throwaway seeded database. It does not use your real production data.
+The script starts trippi.ai's existing E2E backend and Vite frontend against a throwaway seeded database. It does not use your real production data.
 
 ## Seeded Login
 

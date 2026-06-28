@@ -1,10 +1,13 @@
-import 'reflect-metadata';
+import { buildApp } from './bootstrap';
+import * as scheduler from './scheduler';
+import { getAppUrl, getMcpSafeUrl } from './services/notifications';
+import type { INestApplication } from '@nestjs/common';
+
 import 'dotenv/config';
-import path from 'node:path';
 import fs from 'node:fs';
 import http from 'node:http';
-import type { INestApplication } from '@nestjs/common';
-import { buildApp } from './bootstrap';
+import path from 'node:path';
+import 'reflect-metadata';
 
 // Create upload and data directories on startup
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -15,12 +18,9 @@ const avatarsDir = path.join(uploadsDir, 'avatars');
 const backupsDir = path.join(__dirname, '../data/backups');
 const tmpDir = path.join(__dirname, '../data/tmp');
 
-[uploadsDir, photosDir, filesDir, coversDir, avatarsDir, backupsDir, tmpDir].forEach(dir => {
+[uploadsDir, photosDir, filesDir, coversDir, avatarsDir, backupsDir, tmpDir].forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
-
-import * as scheduler from './scheduler';
-import { getAppUrl, getMcpSafeUrl } from './services/notifications';
 
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST;
@@ -35,7 +35,7 @@ const onListen = () => {
   const resolvedAppUrl = getMcpSafeUrl();
   const banner = [
     '──────────────────────────────────────',
-    '  TRIPPI API started',
+    '  trippi.ai API started',
     `  Version         ${APP_VERSION}`,
     ...(HOST ? [`  Host:           ${HOST}`] : []),
     `  Container Port: ${PORT}`,
@@ -49,21 +49,25 @@ const onListen = () => {
     `  User:           uid=${process.getuid?.()} gid=${process.getgid?.()}`,
     '──────────────────────────────────────',
   ];
-  banner.forEach(l => console.log(l));
+  banner.forEach((l) => console.log(l));
   sLogInfo('NestJS serving all routes (Express decommissioned)');
   if (process.env.APP_URL) {
     let parsedAppUrl: URL | null = null;
-    try { parsedAppUrl = new URL(process.env.APP_URL); } catch { /* invalid */ }
+    try {
+      parsedAppUrl = new URL(process.env.APP_URL);
+    } catch {
+      /* invalid */
+    }
 
     if (!parsedAppUrl) {
       sLogWarn(`APP_URL: "${process.env.APP_URL}" is not a valid URL — it will be ignored.`);
     }
 
-    const mcpSafe = parsedAppUrl !== null && (
-      parsedAppUrl.protocol === 'https:' ||
-      parsedAppUrl.hostname === 'localhost' ||
-      parsedAppUrl.hostname === '127.0.0.1'
-    );
+    const mcpSafe =
+      parsedAppUrl !== null &&
+      (parsedAppUrl.protocol === 'https:' ||
+        parsedAppUrl.hostname === 'localhost' ||
+        parsedAppUrl.hostname === '127.0.0.1');
     if (!mcpSafe) {
       sLogWarn(`APP_URL: not MCP-safe (requires https:// or http://localhost) — MCP will use ${resolvedAppUrl}.`);
     }

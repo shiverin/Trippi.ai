@@ -1,6 +1,6 @@
 # Route Optimization
 
-TRIPPI calculates walking and driving times between your places and can reorder them to minimize total travel distance.
+trippi.ai calculates walking and driving times between your places and can reorder them to minimize total travel distance.
 
 <!-- TODO: screenshot: optimized route displayed on map -->
 
@@ -8,7 +8,7 @@ TRIPPI calculates walking and driving times between your places and can reorder 
 
 ## Route calculation
 
-TRIPPI uses **OSRM** (Open Source Routing Machine) to calculate routes between consecutive places in the selected day. No API key is required.
+trippi.ai uses **OSRM** (Open Source Routing Machine) to calculate routes between consecutive places in the selected day. No API key is required.
 
 Segment time pills always show both a **driving** time (fetched from OSRM using the driving profile) and a **walking** time (estimated at 5 km/h from the OSRM driving distance). There is no user-selectable routing profile — the driving profile is used for all OSRM requests.
 

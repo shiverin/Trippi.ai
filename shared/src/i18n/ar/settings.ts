@@ -186,13 +186,13 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'اقترح ميزة جديدة',
   'settings.about.wikiHint': 'التوثيق والأدلة',
   'settings.about.supporters.badge': 'الداعمون الشهريون',
-  'settings.about.supporters.title': 'رفاق رحلة TRIPPI',
+  'settings.about.supporters.title': 'رفاق رحلة trippi.ai',
   'settings.about.supporters.subtitle':
-    'بينما تخطّط لمسارك التالي، يساعد هؤلاء الأشخاص في التخطيط لمستقبل TRIPPI. تذهب مساهمتهم الشهرية مباشرةً إلى التطوير والساعات الفعلية المبذولة — حتى يظلّ TRIPPI مفتوح المصدر.',
+    'بينما تخطّط لمسارك التالي، يساعد هؤلاء الأشخاص في التخطيط لمستقبل trippi.ai. تذهب مساهمتهم الشهرية مباشرةً إلى التطوير والساعات الفعلية المبذولة — حتى يظلّ trippi.ai مفتوح المصدر.',
   'settings.about.supporters.since': 'داعم منذ {date}',
   'settings.about.supporters.tierEmpty': 'كن الأول',
   'settings.about.description':
-    'TRIPPI هو مخطط سفر مستضاف ذاتيًا يساعدك على تنظيم رحلاتك من أول فكرة حتى آخر ذكرى. تخطيط يومي، ميزانية، قوائم تعبئة، صور والمزيد — كل شيء في مكان واحد، على خادمك الخاص.',
+    'trippi.ai هو مخطط سفر مستضاف ذاتيًا يساعدك على تنظيم رحلاتك من أول فكرة حتى آخر ذكرى. تخطيط يومي، ميزانية، قوائم تعبئة، صور والمزيد — كل شيء في مكان واحد، على خادمك الخاص.',
   'settings.about.madeWith': 'صُنع بـ',
   'settings.about.madeBy': 'بواسطة موريس ومجتمع مفتوح المصدر متنامٍ.',
   'settings.username': 'اسم المستخدم',
@@ -307,7 +307,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': 'فعّل هذا فقط لنسخة موثوقة على شبكتك الخاصة.',
   'settings.airtrail.writeBack': 'كتابة التغييرات إلى AirTrail',
   'settings.airtrail.writeBackHint':
-    'مُعطّل افتراضيًا: AirTrail هو مصدر الحقيقة وTRIPPI يقرأ منه فقط. فعّله لإرسال التعديلات التي تجريها في TRIPPI إلى AirTrail.',
+    'مُعطّل افتراضيًا: AirTrail هو مصدر الحقيقة وtrippi.ai يقرأ منه فقط. فعّله لإرسال التعديلات التي تجريها في trippi.ai إلى AirTrail.',
   'settings.airtrail.connected': 'متصل',
   'settings.airtrail.notConnected': 'غير متصل',
   'settings.airtrail.toast.saved': 'تم حفظ اتصال AirTrail',

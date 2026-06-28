@@ -1,22 +1,26 @@
 // FE-COMP-NAVBAR-001 to FE-COMP-NAVBAR-028
-import { render, screen, waitFor } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { buildSettings, buildUser } from '../../../tests/helpers/factories';
 import { server } from '../../../tests/helpers/msw/server';
+import { render, screen, waitFor } from '../../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../../tests/helpers/store';
+import { useAddonStore } from '../../store/addonStore';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { useAddonStore } from '../../store/addonStore';
-import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import { buildUser, buildSettings } from '../../../tests/helpers/factories';
 import Navbar from './Navbar';
 
 beforeEach(() => {
   resetAllStores();
   server.use(
     http.get('/api/auth/app-config', () => HttpResponse.json({ version: '2.9.10' })),
-    http.get('/api/addons', () => HttpResponse.json({ addons: [] })),
+    http.get('/api/addons', () => HttpResponse.json({ addons: [] }))
   );
-  seedStore(useAuthStore, { user: buildUser({ username: 'testuser', role: 'user' }), isAuthenticated: true, appVersion: '2.9.10' });
+  seedStore(useAuthStore, {
+    user: buildUser({ username: 'testuser', role: 'user' }),
+    isAuthenticated: true,
+    appVersion: '2.9.10',
+  });
   seedStore(useSettingsStore, { settings: buildSettings() });
 });
 
@@ -26,7 +30,7 @@ describe('Navbar', () => {
     expect(document.body).toBeInTheDocument();
   });
 
-  it('FE-COMP-NAVBAR-002: shows TRIPPI logo/brand', () => {
+  it('FE-COMP-NAVBAR-002: shows trippi.ai logo/brand', () => {
     render(<Navbar />);
     // The Navbar shows the app icon — check for presence of the nav element
     expect(document.querySelector('nav') || document.body).toBeTruthy();
@@ -205,9 +209,11 @@ describe('Navbar', () => {
 
   it('FE-COMP-NAVBAR-024: global addon nav links appear when addons enabled', () => {
     server.use(
-      http.get('/api/addons', () => HttpResponse.json({
-        addons: [{ id: 'vacay', name: 'Vacay', icon: 'CalendarDays', type: 'global', enabled: true }],
-      })),
+      http.get('/api/addons', () =>
+        HttpResponse.json({
+          addons: [{ id: 'vacay', name: 'Vacay', icon: 'CalendarDays', type: 'global', enabled: true }],
+        })
+      )
     );
     seedStore(useAddonStore, {
       addons: [{ id: 'vacay', name: 'Vacay', icon: 'CalendarDays', type: 'global', enabled: true }],

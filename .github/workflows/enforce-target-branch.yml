@@ -6,7 +6,7 @@ on:
 
 jobs:
   check-target:
-    if: github.repository == 'mauriceboe/TREK'
+    if: github.repository == 'shiverin/Trippi.ai'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

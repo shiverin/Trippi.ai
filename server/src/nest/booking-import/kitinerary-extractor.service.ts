@@ -1,12 +1,13 @@
+import type { KiReservation } from './kitinerary.types';
 import { Injectable, OnModuleInit } from '@nestjs/common';
+
 import { execFile } from 'node:child_process';
+import { execSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync, readdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, extname } from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { execSync } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { KiReservation } from './kitinerary.types';
 
 const execFileAsync = promisify(execFile);
 const TIMEOUT_MS = 30_000;
@@ -51,8 +52,10 @@ export class KitineraryExtractorService implements OnModuleInit {
         // most won't match the current document).
         const unexpected = stderr
           .split('\n')
-          .filter(l => l.trim())
-          .filter(l => !l.includes('Ambig') && !l.includes('JS ERROR') && !l.includes('Invalid result type from script'));
+          .filter((l) => l.trim())
+          .filter(
+            (l) => !l.includes('Ambig') && !l.includes('JS ERROR') && !l.includes('Invalid result type from script'),
+          );
         if (unexpected.length) {
           console.warn(`[KItinerary] stderr for "${fileName}":`, unexpected.join('\n'));
         }
@@ -73,7 +76,9 @@ export class KitineraryExtractorService implements OnModuleInit {
       if (typeof parsed === 'object' && parsed !== null) return [parsed as KiReservation];
       return [];
     } finally {
-      try { unlinkSync(tmpFile); } catch {}
+      try {
+        unlinkSync(tmpFile);
+      } catch {}
     }
   }
 
@@ -91,13 +96,17 @@ export class KitineraryExtractorService implements OnModuleInit {
         const candidate = join('/usr/lib', dir, 'libexec', 'kf6', 'kitinerary-extractor');
         if (existsSync(candidate)) return candidate;
       }
-    } catch { /* not a Debian system */ }
+    } catch {
+      /* not a Debian system */
+    }
 
     // Fallback: binary in PATH
     try {
       execSync('kitinerary-extractor --version', { stdio: 'pipe', timeout: 3000 });
       return 'kitinerary-extractor';
-    } catch { /* not in PATH */ }
+    } catch {
+      /* not in PATH */
+    }
 
     return null;
   }

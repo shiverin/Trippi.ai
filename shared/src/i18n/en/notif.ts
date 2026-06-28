@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Packing Assignment',
   'notif.packing_tagged.text': '{actor} assigned you to {category} in {trip}',
   'notif.version_available.title': 'New Version Available',
-  'notif.version_available.text': 'TRIPPI {version} is now available',
+  'notif.version_available.text': 'trippi.ai {version} is now available',
   'notif.action.view_trip': 'View Trip',
   'notif.action.view_collab': 'View Messages',
   'notif.action.view_packing': 'View Packing',

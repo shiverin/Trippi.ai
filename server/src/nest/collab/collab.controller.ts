@@ -1,3 +1,8 @@
+import { BLOCKED_EXTENSIONS } from '../../services/fileService';
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CollabService } from './collab.service';
 import {
   Body,
   Controller,
@@ -15,28 +20,32 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+
+import fs from 'fs';
 import { diskStorage } from 'multer';
 import path from 'path';
-import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import type { User } from '../../types';
-import { CollabService } from './collab.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { BLOCKED_EXTENSIONS } from '../../services/fileService';
 
 const MAX_NOTE_FILE_SIZE = 50 * 1024 * 1024;
 const filesDir = path.join(__dirname, '../../../uploads/files');
 const NOTE_UPLOAD = {
   storage: diskStorage({
-    destination: (_req, _file, cb) => { if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true }); cb(null, filesDir); },
+    destination: (_req, _file, cb) => {
+      if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
+      cb(null, filesDir);
+    },
     filename: (_req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
   }),
   limits: { fileSize: MAX_NOTE_FILE_SIZE },
   defParamCharset: 'utf8', // parity with legacy routes/collab.ts — preserve non-ASCII original filenames
   fileFilter: (_req: unknown, file: Express.Multer.File, cb: (err: Error | null, accept: boolean) => void) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (BLOCKED_EXTENSIONS.includes(ext) || file.mimetype.includes('svg') || file.mimetype.includes('html') || file.mimetype.includes('javascript')) {
+    if (
+      BLOCKED_EXTENSIONS.includes(ext) ||
+      file.mimetype.includes('svg') ||
+      file.mimetype.includes('html') ||
+      file.mimetype.includes('javascript')
+    ) {
       const err: Error & { statusCode?: number } = new Error('File type not allowed');
       err.statusCode = 400;
       return cb(err, false);
@@ -82,7 +91,12 @@ export class CollabController {
   }
 
   @Post('notes')
-  createNote(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body() body: { title?: string; content?: string; category?: string; color?: string; website?: string }, @Headers('x-socket-id') socketId?: string) {
+  createNote(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Body() body: { title?: string; content?: string; category?: string; color?: string; website?: string },
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!body.title) {
@@ -101,7 +115,21 @@ export class CollabController {
   }
 
   @Put('notes/:id')
-  updateNote(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Body() body: { title?: string; content?: string; category?: string; color?: string; pinned?: number | boolean; website?: string }, @Headers('x-socket-id') socketId?: string) {
+  updateNote(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      title?: string;
+      content?: string;
+      category?: string;
+      color?: string;
+      pinned?: number | boolean;
+      website?: string;
+    },
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const note = this.collab.updateNote(tripId, id, {
@@ -120,7 +148,12 @@ export class CollabController {
   }
 
   @Delete('notes/:id')
-  deleteNote(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Headers('x-socket-id') socketId?: string) {
+  deleteNote(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.collab.deleteNote(tripId, id)) {
@@ -132,7 +165,13 @@ export class CollabController {
 
   @Post('notes/:id/files')
   @UseInterceptors(FileInterceptor('file', NOTE_UPLOAD))
-  addNoteFile(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined, @Headers('x-socket-id') socketId?: string) {
+  addNoteFile(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     if (!this.collab.canUploadFiles(trip, user)) {
       throw new HttpException({ error: 'No permission to upload files' }, 403);
@@ -149,7 +188,13 @@ export class CollabController {
   }
 
   @Delete('notes/:id/files/:fileId')
-  deleteNoteFile(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Param('fileId') fileId: string, @Headers('x-socket-id') socketId?: string) {
+  deleteNoteFile(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.collab.deleteNoteFile(id, fileId)) {
@@ -167,7 +212,13 @@ export class CollabController {
   }
 
   @Post('polls')
-  createPoll(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body() body: { question?: string; options?: unknown[]; multiple?: boolean; multiple_choice?: boolean; deadline?: string }, @Headers('x-socket-id') socketId?: string) {
+  createPoll(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Body()
+    body: { question?: string; options?: unknown[]; multiple?: boolean; multiple_choice?: boolean; deadline?: string },
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!body.question) {
@@ -189,7 +240,13 @@ export class CollabController {
 
   @Post('polls/:id/vote')
   @HttpCode(200)
-  votePoll(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Body('option_index') optionIndex: number, @Headers('x-socket-id') socketId?: string) {
+  votePoll(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Body('option_index') optionIndex: number,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const result = this.collab.votePoll(tripId, id, user.id, optionIndex);
@@ -201,7 +258,12 @@ export class CollabController {
   }
 
   @Put('polls/:id/close')
-  closePoll(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Headers('x-socket-id') socketId?: string) {
+  closePoll(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const poll = this.collab.closePoll(tripId, id);
@@ -213,7 +275,12 @@ export class CollabController {
   }
 
   @Delete('polls/:id')
-  deletePoll(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Headers('x-socket-id') socketId?: string) {
+  deletePoll(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.collab.deletePoll(tripId, id)) {
@@ -231,7 +298,12 @@ export class CollabController {
   }
 
   @Post('messages')
-  createMessage(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body() body: { text?: string; reply_to?: number | null }, @Headers('x-socket-id') socketId?: string) {
+  createMessage(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Body() body: { text?: string; reply_to?: number | null },
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     if (body.text && body.text.length > 5000) {
       throw new HttpException({ error: 'text must be 5000 characters or less' }, 400);
     }
@@ -252,7 +324,13 @@ export class CollabController {
 
   @Post('messages/:id/react')
   @HttpCode(200)
-  react(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Body('emoji') emoji: string, @Headers('x-socket-id') socketId?: string) {
+  react(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Body('emoji') emoji: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!emoji) {
@@ -262,18 +340,33 @@ export class CollabController {
     if (!result.found) {
       throw new HttpException({ error: 'Message not found' }, 404);
     }
-    this.collab.broadcast(tripId, 'collab:message:reacted', { messageId: Number(id), reactions: result.reactions }, socketId);
+    this.collab.broadcast(
+      tripId,
+      'collab:message:reacted',
+      { messageId: Number(id), reactions: result.reactions },
+      socketId,
+    );
     return { reactions: result.reactions };
   }
 
   @Delete('messages/:id')
-  deleteMessage(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Headers('x-socket-id') socketId?: string) {
+  deleteMessage(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const result = this.collab.deleteMessage(tripId, id, user.id);
     if (result.error === 'not_found') throw new HttpException({ error: 'Message not found' }, 404);
     if (result.error === 'not_owner') throw new HttpException({ error: 'You can only delete your own messages' }, 403);
-    this.collab.broadcast(tripId, 'collab:message:deleted', { messageId: Number(id), username: result.username || user.username }, socketId);
+    this.collab.broadcast(
+      tripId,
+      'collab:message:deleted',
+      { messageId: Number(id), username: result.username || user.username },
+      socketId,
+    );
     return { success: true };
   }
 
@@ -281,7 +374,8 @@ export class CollabController {
   @Get('link-preview')
   async linkPreview(@CurrentUser() user: User, @Param('tripId') tripId: string, @Query('url') url?: string) {
     // NB: the legacy route does not verify trip access on link-preview; kept 1:1.
-    void user; void tripId;
+    void user;
+    void tripId;
     if (!url) {
       throw new HttpException({ error: 'URL is required' }, 400);
     }

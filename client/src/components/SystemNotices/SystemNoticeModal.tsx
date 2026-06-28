@@ -1,18 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import * as LucideIcons from 'lucide-react';
+import { AlertOctagon, AlertTriangle, ChevronLeft, ChevronRight, Info, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Info, AlertTriangle, AlertOctagon, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
-import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
-import { useSystemNoticeStore } from '../../store/systemNoticeStore.js';
+import remarkGfm from 'remark-gfm';
+import { isRtlLanguage, useTranslation } from '../../i18n/index.js';
 import type { SystemNoticeDTO } from '../../store/systemNoticeStore.js';
-import { useTranslation, isRtlLanguage } from '../../i18n/index.js';
+import { useSystemNoticeStore } from '../../store/systemNoticeStore.js';
 import { runNoticeAction } from './noticeActions.js';
 
-const ReactMarkdown = React.lazy(() =>
-  import('react-markdown').then(m => ({ default: m.default }))
-);
+const ReactMarkdown = React.lazy(() => import('react-markdown').then((m) => ({ default: m.default })));
 
 /** Safe rAF shim — falls back to setTimeout(0) in environments without rAF (e.g. jsdom). */
 function scheduleFrame(cb: () => void): () => void {
@@ -31,8 +29,8 @@ const SEVERITY_ICONS: Record<string, React.ElementType> = {
 };
 
 const SEVERITY_ACCENT: Record<string, string> = {
-  info:     'text-blue-500  dark:text-blue-400  bg-blue-50  dark:bg-blue-950',
-  warn:     'text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-950',
+  info: 'text-blue-500  dark:text-blue-400  bg-blue-50  dark:bg-blue-950',
+  warn: 'text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-950',
   critical: 'text-rose-600  dark:text-rose-400  bg-rose-50  dark:bg-rose-950',
 };
 
@@ -61,22 +59,39 @@ interface ContentProps {
   onGoto: (i: number) => void;
 }
 
-function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark, onDismiss, onDismissAll, onCTA, total, currentPage, canPage, onPrev, onNext, onGoto }: ContentProps) {
+function NoticeContent({
+  notice,
+  title,
+  body,
+  ctaLabel,
+  titleId,
+  bodyId,
+  isDark,
+  onDismiss,
+  onDismissAll,
+  onCTA,
+  total,
+  currentPage,
+  canPage,
+  onPrev,
+  onNext,
+  onGoto,
+}: ContentProps) {
   const { t } = useTranslation();
   const isLastPage = total <= 1 || currentPage === total - 1;
 
   const DefaultIcon = SEVERITY_ICONS[notice.severity] ?? Info;
   const LucideIcon: React.ElementType = notice.icon
-    ? ((LucideIcons as Record<string, unknown>)[notice.icon] as React.ElementType) ?? DefaultIcon
+    ? (((LucideIcons as Record<string, unknown>)[notice.icon] as React.ElementType) ?? DefaultIcon)
     : DefaultIcon;
 
   return (
-    <div className="flex flex-col relative" style={{ flex: '1 1 0', minHeight: '100%' }}>
+    <div className="relative flex flex-col" style={{ flex: '1 1 0', minHeight: '100%' }}>
       {/* Dismiss X button — only on last page so users read all notices */}
       {notice.dismissible && isLastPage && (
         <button
           onClick={onDismissAll}
-          className="absolute top-4 right-4 z-10 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="absolute right-4 top-4 z-10 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
           aria-label="Dismiss"
         >
           <X size={18} />
@@ -87,17 +102,16 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
       <div className="flex flex-col justify-center" style={{ flex: '1 1 0' }}>
         {/* Hero image (not inline) */}
         {notice.media && notice.media.placement !== 'inline' && (
-          <div
-            className="w-full overflow-hidden"
-            style={{ aspectRatio: notice.media.aspectRatio ?? '16/9' }}
-          >
+          <div className="w-full overflow-hidden" style={{ aspectRatio: notice.media.aspectRatio ?? '16/9' }}>
             <img
               src={isDark && notice.media.srcDark ? notice.media.srcDark : notice.media.src}
               alt={t(notice.media.altKey)}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
               fetchPriority="high"
               decoding="async"
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           </div>
         )}
@@ -105,14 +119,23 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
         {/* Special warm header for Heart icon (thank-you notice) */}
         {notice.icon === 'Heart' && !notice.media && (
           <div className="relative overflow-hidden bg-gradient-to-br from-rose-500 via-pink-500 to-indigo-500 px-8 py-5 text-center">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px), radial-gradient(circle at 60% 80%, white 1px, transparent 1px)', backgroundSize: '60px 60px, 80px 80px, 40px 40px' }} />
+            <div
+              className="absolute inset-0 opacity-10"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px), radial-gradient(circle at 60% 80%, white 1px, transparent 1px)',
+                backgroundSize: '60px 60px, 80px 80px, 40px 40px',
+              }}
+            />
             <div className="relative flex items-center justify-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/10">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 ring-2 ring-white/10 backdrop-blur-sm">
                 <LucideIcon size={20} className="text-white" />
               </div>
               <div className="text-left">
-                <h2 id={titleId} className="text-lg font-bold text-white leading-tight">{title}</h2>
-                <p className="text-xs text-white/60 font-medium">TRIPPI 3.0</p>
+                <h2 id={titleId} className="text-lg font-bold leading-tight text-white">
+                  {title}
+                </h2>
+                <p className="text-xs font-medium text-white/60">trippi.ai 3.0</p>
               </div>
             </div>
           </div>
@@ -121,17 +144,16 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
         <div className={`${notice.icon === 'Heart' && !notice.media ? 'px-8 py-6' : 'p-8'} flex flex-col`}>
           {/* Severity icon (when no hero and not Heart) */}
           {!notice.media && notice.icon !== 'Heart' && (
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${SEVERITY_ACCENT[notice.severity] ?? ''}`}>
+            <div
+              className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${SEVERITY_ACCENT[notice.severity] ?? ''}`}
+            >
               <LucideIcon size={28} />
             </div>
           )}
 
           {/* Title (not for Heart — rendered in gradient header) */}
           {(notice.icon !== 'Heart' || notice.media) && (
-            <h2
-              id={titleId}
-              className="text-xl font-semibold text-center text-slate-900 dark:text-slate-100 mb-3"
-            >
+            <h2 id={titleId} className="mb-3 text-center text-xl font-semibold text-slate-900 dark:text-slate-100">
               {title}
             </h2>
           )}
@@ -139,7 +161,7 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
           {/* Body — markdown */}
           <div
             id={bodyId}
-            className="text-sm leading-relaxed text-slate-600 dark:text-slate-400 mx-auto mb-4 text-center"
+            className="mx-auto mb-4 text-center text-sm leading-relaxed text-slate-600 dark:text-slate-400"
           >
             <React.Suspense fallback={<p className="text-sm text-slate-500">{body}</p>}>
               <ReactMarkdown
@@ -149,7 +171,7 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
                   a: ({ href, children }) => (
                     <a
                       href={href}
-                      className="text-indigo-600 dark:text-indigo-400 underline decoration-indigo-300 dark:decoration-indigo-700 hover:decoration-indigo-500 dark:hover:decoration-indigo-400 underline-offset-2 transition-colors"
+                      className="text-indigo-600 underline decoration-indigo-300 underline-offset-2 transition-colors hover:decoration-indigo-500 dark:text-indigo-400 dark:decoration-indigo-700 dark:hover:decoration-indigo-400"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -157,23 +179,34 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
                     </a>
                   ),
                   p: ({ children }) => {
-                    // Signature line styling (e.g. "— Maurice")
-                    const text = typeof children === 'string' ? children : Array.isArray(children) ? children.find(c => typeof c === 'string') : '';
+                    // Signature line styling (e.g. "— trippi.ai")
+                    const text =
+                      typeof children === 'string'
+                        ? children
+                        : Array.isArray(children)
+                          ? children.find((c) => typeof c === 'string')
+                          : '';
                     if (typeof text === 'string' && text.trim().startsWith('—') && text.trim().length < 30) {
-                      return <p className="mt-4 mb-3 text-base font-semibold text-slate-800 dark:text-slate-200 italic">{children}</p>;
+                      return (
+                        <p className="mb-3 mt-4 text-base font-semibold italic text-slate-800 dark:text-slate-200">
+                          {children}
+                        </p>
+                      );
                     }
                     return <p className="mb-3 last:mb-0">{children}</p>;
                   },
                   hr: () => (
                     <div className="my-5 flex items-center gap-3">
                       <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
-                      <span className="text-slate-300 dark:text-slate-600 text-xs">♡</span>
+                      <span className="text-xs text-slate-300 dark:text-slate-600">♡</span>
                       <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
                     </div>
                   ),
-                  strong: ({ children }) => <strong className="font-semibold text-slate-800 dark:text-slate-200">{children}</strong>,
-                  ul: ({ children }) => <ul className="list-disc list-inside text-left">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal list-inside text-left">{children}</ol>,
+                  strong: ({ children }) => (
+                    <strong className="font-semibold text-slate-800 dark:text-slate-200">{children}</strong>
+                  ),
+                  ul: ({ children }) => <ul className="list-inside list-disc text-left">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-inside list-decimal text-left">{children}</ol>,
                 }}
               >
                 {body}
@@ -184,15 +217,17 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
           {/* Inline image */}
           {notice.media?.placement === 'inline' && (
             <div
-              className="w-full overflow-hidden rounded-lg mb-4 mx-auto"
+              className="mx-auto mb-4 w-full overflow-hidden rounded-lg"
               style={{ aspectRatio: notice.media.aspectRatio ?? '16/9' }}
             >
               <img
                 src={isDark && notice.media.srcDark ? notice.media.srcDark : notice.media.src}
                 alt={t(notice.media.altKey)}
-                className="w-full h-full object-cover"
+                className="h-full w-full object-cover"
                 decoding="async"
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
               />
             </div>
           )}
@@ -202,14 +237,15 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
             <ul className="mx-auto mb-4 space-y-2">
               {notice.highlights.map((h, i) => {
                 const HIcon: React.ElementType | null = h.iconName
-                  ? ((LucideIcons as Record<string, unknown>)[h.iconName] as React.ElementType) ?? null
+                  ? (((LucideIcons as Record<string, unknown>)[h.iconName] as React.ElementType) ?? null)
                   : null;
                 return (
                   <li key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                    {HIcon
-                      ? <HIcon size={16} className="text-blue-500 shrink-0" />
-                      : <span className="text-blue-500 shrink-0">✓</span>
-                    }
+                    {HIcon ? (
+                      <HIcon size={16} className="shrink-0 text-blue-500" />
+                    ) : (
+                      <span className="shrink-0 text-blue-500">✓</span>
+                    )}
                     {t(h.labelKey)}
                   </li>
                 );
@@ -221,7 +257,7 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
 
       {/* Sticky footer — pager + CTA, always anchored at the bottom of the slot */}
       <div
-        className="sticky bottom-0 px-8 pt-4 flex flex-col gap-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800"
+        className="sticky bottom-0 flex flex-col gap-3 border-t border-slate-100 bg-white px-8 pt-4 dark:border-slate-800 dark:bg-slate-900"
         style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1rem)' }}
       >
         {/* Pager — dots, arrows, counter (only when multiple notices) */}
@@ -232,7 +268,7 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
                 onClick={onPrev}
                 disabled={!canPage || currentPage === 0}
                 aria-label={t('system_notice.pager.prev')}
-                className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="rounded border border-slate-200 px-2 py-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
               >
                 <ChevronLeft size={14} />
               </button>
@@ -240,14 +276,16 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
               {Array.from({ length: total }, (_, i) => (
                 <button
                   key={i}
-                  onClick={() => { if (canPage) onGoto(i); }}
+                  onClick={() => {
+                    if (canPage) onGoto(i);
+                  }}
                   aria-label={t('system_notice.pager.goto').replace('{n}', String(i + 1))}
                   aria-current={i === currentPage ? 'true' : undefined}
                   disabled={!canPage && i !== currentPage}
-                  className={`w-2 h-2 rounded-full transition-colors ${
+                  className={`h-2 w-2 rounded-full transition-colors ${
                     i === currentPage
                       ? 'bg-blue-500 dark:bg-blue-400'
-                      : 'bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500 disabled:cursor-not-allowed'
+                      : 'bg-slate-300 hover:bg-slate-400 disabled:cursor-not-allowed dark:bg-slate-600 dark:hover:bg-slate-500'
                   }`}
                 />
               ))}
@@ -256,13 +294,13 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
                 onClick={onNext}
                 disabled={!canPage || currentPage === total - 1}
                 aria-label={t('system_notice.pager.next')}
-                className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="rounded border border-slate-200 px-2 py-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
               >
                 <ChevronRight size={14} />
               </button>
             </div>
 
-            <span className="text-xs text-slate-400 tabular-nums">
+            <span className="text-xs tabular-nums text-slate-400">
               {t('system_notice.pager.counter')
                 .replace('{current}', String(currentPage + 1))
                 .replace('{total}', String(total))}
@@ -276,23 +314,25 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
             <button
               id={`notice-cta-${notice.id}`}
               onClick={onCTA}
-              className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+              className="h-11 w-full rounded-lg bg-blue-600 font-medium text-white transition-colors hover:bg-blue-700"
             >
               {ctaLabel}
             </button>
-          ) : (notice.dismissible || isLastPage) && (
-            <button
-              id={`notice-cta-${notice.id}`}
-              onClick={isLastPage ? onDismissAll : onNext}
-              className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
-            >
-              {t('common.ok')}
-            </button>
+          ) : (
+            (notice.dismissible || isLastPage) && (
+              <button
+                id={`notice-cta-${notice.id}`}
+                onClick={isLastPage ? onDismissAll : onNext}
+                className="h-11 w-full rounded-lg bg-blue-600 font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                {t('common.ok')}
+              </button>
+            )
           )}
           {notice.dismissible && isLastPage && ctaLabel && (
             <button
               onClick={onDismiss}
-              className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+              className="text-sm text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
             >
               Not now
             </button>
@@ -302,7 +342,6 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
     </div>
   );
 }
-
 
 /**
  * Drives the system-notice modal: pager index + visibility, mobile/dark/reduced-
@@ -327,8 +366,7 @@ function useSystemNoticeModal(notices: SystemNoticeDTO[]) {
   );
 
   const prefersReducedMotion =
-    typeof window !== 'undefined' &&
-    (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false);
+    typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false);
 
   const notice = notices[idx] ?? null;
 
@@ -352,16 +390,16 @@ function useSystemNoticeModal(notices: SystemNoticeDTO[]) {
   // slideDirRef: 'right' = new content enters from the right (Next), 'left' = from the left (Prev).
   // contentWrapperRef: the div wrapping NoticeContent — we animate its transform directly.
   const isPageNavRef = useRef(false);
-  const slideDirRef  = useRef<'left' | 'right'>('right');
+  const slideDirRef = useRef<'left' | 'right'>('right');
   // Mobile drag strip — wraps all 3 slots and is translated to reveal prev/current/next
   const stripRef = useRef<HTMLDivElement>(null);
   // The sheet element itself — animated on vertical drag-to-dismiss
   const sheetRef = useRef<HTMLDivElement>(null);
   const clipRef = useRef<HTMLDivElement>(null);
   // Individual slot scroll containers (prev / center / next)
-  const prevSlotRef  = useRef<HTMLDivElement>(null);
+  const prevSlotRef = useRef<HTMLDivElement>(null);
   const contentWrapperRef = useRef<HTMLDivElement>(null); // center slot
-  const nextSlotRef  = useRef<HTMLDivElement>(null);
+  const nextSlotRef = useRef<HTMLDivElement>(null);
 
   // Mobile breakpoint
   useEffect(() => {
@@ -474,7 +512,9 @@ function useSystemNoticeModal(notices: SystemNoticeDTO[]) {
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [visible, notice]);
 
   // Reset center slot scroll to top on navigation (keyboard / pager buttons).
@@ -487,7 +527,7 @@ function useSystemNoticeModal(notices: SystemNoticeDTO[]) {
     setPageAnnouncement(
       t('system_notice.pager.position')
         .replace('{current}', String(newIdx + 1))
-        .replace('{total}', String(total)),
+        .replace('{total}', String(total))
     );
   }
 
@@ -507,7 +547,7 @@ function useSystemNoticeModal(notices: SystemNoticeDTO[]) {
   // Dismiss every notice in the current modal list — used by the X button and ESC.
   function handleDismissAll() {
     setVisible(false);
-    notices.forEach(n => dismiss(n.id));
+    notices.forEach((n) => dismiss(n.id));
   }
 
   function handleCTA() {
@@ -528,13 +568,20 @@ function useSystemNoticeModal(notices: SystemNoticeDTO[]) {
 
   function animatedDismissAll() {
     const sheet = sheetRef.current;
-    if (!sheet || prefersReducedMotion) { handleDismissAll(); return; }
+    if (!sheet || prefersReducedMotion) {
+      handleDismissAll();
+      return;
+    }
     sheet.style.transition = 'transform 300ms ease-out';
     sheet.style.transform = 'translateY(110%)';
-    sheet.addEventListener('transitionend', function onDone() {
-      sheet.removeEventListener('transitionend', onDone);
-      handleDismissAll();
-    }, { once: true });
+    sheet.addEventListener(
+      'transitionend',
+      function onDone() {
+        sheet.removeEventListener('transitionend', onDone);
+        handleDismissAll();
+      },
+      { once: true }
+    );
   }
 
   // Sets up the content wrapper's start transform SYNCHRONOUSLY (before React
@@ -580,12 +627,39 @@ function useSystemNoticeModal(notices: SystemNoticeDTO[]) {
   const ease = visible ? 'ease-out' : 'ease-in';
 
   return {
-    notices, idx, setIdx, visible, pageAnnouncement, isMobile, isDark, prefersReducedMotion,
-    notice, canPage, isLastPage, language, t, dur, ease,
-    touchStartX, touchStartY, dragLockRef, scrollTopAtTouchStart, isPageNavRef,
-    stripRef, sheetRef, prevSlotRef, contentWrapperRef, nextSlotRef,
-    announceIndex, handleDismiss, handleDismissAll, handleCTA, animatedDismissAll,
-    handlePrev, handleNext, handleGoto,
+    notices,
+    idx,
+    setIdx,
+    visible,
+    pageAnnouncement,
+    isMobile,
+    isDark,
+    prefersReducedMotion,
+    notice,
+    canPage,
+    isLastPage,
+    language,
+    t,
+    dur,
+    ease,
+    touchStartX,
+    touchStartY,
+    dragLockRef,
+    scrollTopAtTouchStart,
+    isPageNavRef,
+    stripRef,
+    sheetRef,
+    prevSlotRef,
+    contentWrapperRef,
+    nextSlotRef,
+    announceIndex,
+    handleDismiss,
+    handleDismissAll,
+    handleCTA,
+    animatedDismissAll,
+    handlePrev,
+    handleNext,
+    handleGoto,
   };
 }
 
@@ -593,13 +667,21 @@ type NoticeState = ReturnType<typeof useSystemNoticeModal>;
 
 // Build the NoticeContent props for a given notice + pager slot index.
 function makeContentProps(S: NoticeState, n: SystemNoticeDTO, slotIdx: number): ContentProps {
-  const { t, isDark, canPage, notices, handleDismiss, handleDismissAll, handleCTA, handlePrev, handleNext, handleGoto } = S;
+  const {
+    t,
+    isDark,
+    canPage,
+    notices,
+    handleDismiss,
+    handleDismissAll,
+    handleCTA,
+    handlePrev,
+    handleNext,
+    handleGoto,
+  } = S;
   const rawBody = t(n.bodyKey);
   const body = n.bodyParams
-    ? Object.entries(n.bodyParams).reduce(
-        (s, [k, v]) => s.replace(new RegExp(`\\{${k}\\}`, 'g'), v),
-        rawBody
-      )
+    ? Object.entries(n.bodyParams).reduce((s, [k, v]) => s.replace(new RegExp(`\\{${k}\\}`, 'g'), v), rawBody)
     : rawBody;
   return {
     notice: n,
@@ -623,17 +705,40 @@ function makeContentProps(S: NoticeState, n: SystemNoticeDTO, slotIdx: number): 
 
 function MobileNoticeSheet(S: NoticeState) {
   const {
-    notice, idx, notices, visible, dur, ease, prefersReducedMotion, pageAnnouncement,
-    language, canPage, setIdx, announceIndex, isPageNavRef, animatedDismissAll,
-    touchStartX, touchStartY, dragLockRef, scrollTopAtTouchStart,
-    stripRef, sheetRef, prevSlotRef, contentWrapperRef, nextSlotRef,
+    notice,
+    idx,
+    notices,
+    visible,
+    dur,
+    ease,
+    prefersReducedMotion,
+    pageAnnouncement,
+    language,
+    canPage,
+    setIdx,
+    announceIndex,
+    isPageNavRef,
+    animatedDismissAll,
+    touchStartX,
+    touchStartY,
+    dragLockRef,
+    scrollTopAtTouchStart,
+    stripRef,
+    sheetRef,
+    prevSlotRef,
+    contentWrapperRef,
+    nextSlotRef,
   } = S;
   if (!notice) return null;
   const titleId = `notice-title-${notice.id}`;
-  const bodyId  = `notice-body-${notice.id}`;
+  const bodyId = `notice-body-${notice.id}`;
   const mobileMotion = prefersReducedMotion
-    ? (visible ? 'opacity-100' : 'opacity-0')
-    : (visible ? 'opacity-100 translate-y-0' : 'opacity-100 translate-y-full');
+    ? visible
+      ? 'opacity-100'
+      : 'opacity-0'
+    : visible
+      ? 'opacity-100 translate-y-0'
+      : 'opacity-100 translate-y-full';
 
   const prevNotice = notices[idx - 1] ?? null;
   const nextNotice = notices[idx + 1] ?? null;
@@ -641,7 +746,9 @@ function MobileNoticeSheet(S: NoticeState) {
   return (
     <div className="fixed inset-0 z-50" role="presentation">
       {/* Screen-reader page announcements */}
-      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{pageAnnouncement}</span>
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {pageAnnouncement}
+      </span>
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-slate-950/40 backdrop-blur-[2px] transition-opacity ${dur} ${ease} ${visible ? 'opacity-100' : 'opacity-0'}`}
@@ -654,15 +761,15 @@ function MobileNoticeSheet(S: NoticeState) {
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
-        className={`absolute bottom-0 left-0 right-0 rounded-t-3xl overflow-hidden h-[85dvh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl transition-[opacity,transform] ${dur} ${ease} ${mobileMotion}`}
+        className={`absolute bottom-0 left-0 right-0 flex h-[85dvh] flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-xl transition-[opacity,transform] dark:border-slate-800 dark:bg-slate-900 ${dur} ${ease} ${mobileMotion}`}
         style={{ touchAction: 'pan-y' }}
-        onTouchStart={e => {
+        onTouchStart={(e) => {
           touchStartX.current = e.touches[0].clientX;
           touchStartY.current = e.touches[0].clientY;
           dragLockRef.current = null;
           scrollTopAtTouchStart.current = contentWrapperRef.current?.scrollTop ?? 0;
         }}
-        onTouchMove={e => {
+        onTouchMove={(e) => {
           if (prefersReducedMotion) return;
           const startX = touchStartX.current;
           const startY = touchStartY.current;
@@ -697,7 +804,7 @@ function MobileNoticeSheet(S: NoticeState) {
             sheet.style.transform = `translateY(${dy}px)`;
           }
         }}
-        onTouchEnd={e => {
+        onTouchEnd={(e) => {
           const startX = touchStartX.current;
           const startY = touchStartY.current;
           touchStartX.current = null;
@@ -720,32 +827,40 @@ function MobileNoticeSheet(S: NoticeState) {
               // Animate strip to the adjacent slot (-66.666% = next, 0% = prev)
               strip.style.transition = 'transform 200ms ease-out';
               strip.style.transform = goNext ? 'translateX(-66.666%)' : 'translateX(0%)';
-              strip.addEventListener('transitionend', function onDone() {
-                strip.removeEventListener('transitionend', onDone);
-                strip.style.transition = 'none';
-                // Render new content into the center slot BEFORE moving the strip,
-                // so the browser never paints old content at the center position.
-                const newIdx = goNext ? idx + 1 : idx - 1;
-                flushSync(() => {
-                  isPageNavRef.current = true;
-                  setIdx(newIdx);
-                  announceIndex(newIdx, notices.length);
-                });
-                // Reset all slot scrolls so the new center starts at top.
-                prevSlotRef.current?.scrollTo({ top: 0 });
-                contentWrapperRef.current?.scrollTo({ top: 0 });
-                nextSlotRef.current?.scrollTo({ top: 0 });
-                strip.style.transform = 'translateX(-33.333%)';
-              }, { once: true });
+              strip.addEventListener(
+                'transitionend',
+                function onDone() {
+                  strip.removeEventListener('transitionend', onDone);
+                  strip.style.transition = 'none';
+                  // Render new content into the center slot BEFORE moving the strip,
+                  // so the browser never paints old content at the center position.
+                  const newIdx = goNext ? idx + 1 : idx - 1;
+                  flushSync(() => {
+                    isPageNavRef.current = true;
+                    setIdx(newIdx);
+                    announceIndex(newIdx, notices.length);
+                  });
+                  // Reset all slot scrolls so the new center starts at top.
+                  prevSlotRef.current?.scrollTo({ top: 0 });
+                  contentWrapperRef.current?.scrollTo({ top: 0 });
+                  nextSlotRef.current?.scrollTo({ top: 0 });
+                  strip.style.transform = 'translateX(-33.333%)';
+                },
+                { once: true }
+              );
             } else {
               // Spring back to center
               strip.style.transition = 'transform 300ms cubic-bezier(0.34,1.56,0.64,1)';
               strip.style.transform = 'translateX(-33.333%)';
-              strip.addEventListener('transitionend', function onSnap() {
-                strip.removeEventListener('transitionend', onSnap);
-                strip.style.transition = '';
-                strip.style.transform = 'translateX(-33.333%)';
-              }, { once: true });
+              strip.addEventListener(
+                'transitionend',
+                function onSnap() {
+                  strip.removeEventListener('transitionend', onSnap);
+                  strip.style.transition = '';
+                  strip.style.transform = 'translateX(-33.333%)';
+                },
+                { once: true }
+              );
             }
             return;
           }
@@ -759,33 +874,52 @@ function MobileNoticeSheet(S: NoticeState) {
             } else if (sheet && deltaY > 0) {
               sheet.style.transition = 'transform 300ms cubic-bezier(0.34,1.56,0.64,1)';
               sheet.style.transform = 'translateY(0)';
-              sheet.addEventListener('transitionend', function onSnap() {
-                sheet.removeEventListener('transitionend', onSnap);
-                sheet.style.transition = '';
-                sheet.style.transform = '';
-              }, { once: true });
+              sheet.addEventListener(
+                'transitionend',
+                function onSnap() {
+                  sheet.removeEventListener('transitionend', onSnap);
+                  sheet.style.transition = '';
+                  sheet.style.transform = '';
+                },
+                { once: true }
+              );
             }
           }
         }}
       >
         {/* Drag handle — fixed, does not scroll */}
-        <div className="pt-3 pb-1 flex justify-center shrink-0">
-          <div className="w-9 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+        <div className="flex shrink-0 justify-center pb-1 pt-3">
+          <div className="h-1 w-9 rounded-full bg-slate-300 dark:bg-slate-600" />
         </div>
         {/* Clip container — fills remaining sheet height, hides adjacent slots */}
         <div style={{ flex: '1 1 0', minHeight: 0, overflow: 'hidden', width: '100%' }}>
           {/* 3-slot strip: [prev][current][next] — starts at -33.333% to show current */}
           <div
             ref={stripRef}
-            style={{ display: 'flex', width: '300%', height: '100%', alignItems: 'stretch', transform: 'translateX(-33.333%)' }}
+            style={{
+              display: 'flex',
+              width: '300%',
+              height: '100%',
+              alignItems: 'stretch',
+              transform: 'translateX(-33.333%)',
+            }}
           >
-            <div ref={prevSlotRef} style={{ width: '33.333%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <div
+              ref={prevSlotRef}
+              style={{ width: '33.333%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+            >
               {prevNotice && <NoticeContent {...makeContentProps(S, prevNotice, idx - 1)} />}
             </div>
-            <div ref={contentWrapperRef} style={{ width: '33.333%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <div
+              ref={contentWrapperRef}
+              style={{ width: '33.333%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+            >
               <NoticeContent {...makeContentProps(S, notice, idx)} />
             </div>
-            <div ref={nextSlotRef} style={{ width: '33.333%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <div
+              ref={nextSlotRef}
+              style={{ width: '33.333%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+            >
               {nextNotice && <NoticeContent {...makeContentProps(S, nextNotice, idx + 1)} />}
             </div>
           </div>
@@ -796,14 +930,29 @@ function MobileNoticeSheet(S: NoticeState) {
 }
 
 function DesktopNoticeModal(S: NoticeState) {
-  const { notice, idx, visible, dur, ease, prefersReducedMotion, pageAnnouncement, isLastPage, handleDismissAll, contentWrapperRef } = S;
+  const {
+    notice,
+    idx,
+    visible,
+    dur,
+    ease,
+    prefersReducedMotion,
+    pageAnnouncement,
+    isLastPage,
+    handleDismissAll,
+    contentWrapperRef,
+  } = S;
   if (!notice) return null;
   const titleId = `notice-title-${notice.id}`;
-  const bodyId  = `notice-body-${notice.id}`;
+  const bodyId = `notice-body-${notice.id}`;
   const maxWidth = notice.severity === 'critical' ? 'max-w-[680px]' : 'max-w-[620px]';
   const desktopMotion = prefersReducedMotion
-    ? (visible ? 'opacity-100' : 'opacity-0')
-    : (visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.97]');
+    ? visible
+      ? 'opacity-100'
+      : 'opacity-0'
+    : visible
+      ? 'opacity-100 scale-100'
+      : 'opacity-0 scale-[0.97]';
 
   return (
     <div
@@ -812,15 +961,17 @@ function DesktopNoticeModal(S: NoticeState) {
       onClick={notice.dismissible && isLastPage ? handleDismissAll : undefined}
     >
       {/* Screen-reader page announcements */}
-      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{pageAnnouncement}</span>
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {pageAnnouncement}
+      </span>
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
           aria-describedby={bodyId}
-          className={`w-full ${maxWidth} rounded-2xl overflow-hidden overflow-y-auto max-h-[90vh] shadow-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all ${dur} ${ease} ${desktopMotion}`}
-          onClick={e => e.stopPropagation()}
+          className={`w-full ${maxWidth} max-h-[90vh] overflow-hidden overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl transition-all dark:border-slate-800 dark:bg-slate-900 ${dur} ${ease} ${desktopMotion}`}
+          onClick={(e) => e.stopPropagation()}
         >
           <div ref={contentWrapperRef}>
             <NoticeContent {...makeContentProps(S, notice, idx)} />

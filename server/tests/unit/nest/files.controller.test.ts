@@ -51,7 +51,7 @@ describe('FilesController (parity with the legacy /api/trips/:tripId/files route
     it('403 in demo mode for a demo email', () => {
       process.env.DEMO_MODE = 'true';
       vi.mocked(isDemoEmail).mockReturnValue(true);
-      expect(thrown(() => new FilesController(fsvc()).upload(user, '5', file, {}))).toEqual({ status: 403, body: { error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' } });
+      expect(thrown(() => new FilesController(fsvc()).upload(user, '5', file, {}))).toEqual({ status: 403, body: { error: 'Uploads are disabled in demo mode. Self-host trippi.ai for full functionality.' } });
     });
     it('403 without file_upload, 400 without a file, else creates + broadcasts', () => {
       expect(thrown(() => new FilesController(fsvc({ can: vi.fn().mockReturnValue(false) })).upload(user, '5', file, {}))).toEqual({ status: 403, body: { error: 'No permission to upload files' } });

@@ -26,7 +26,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Sedang masuk…',
   'login.signIn': 'Masuk',
   'login.createAdmin': 'Buat Akun Admin',
-  'login.createAdminHint': 'Siapkan akun admin pertama untuk TRIPPI.',
+  'login.createAdminHint': 'Siapkan akun admin pertama untuk trippi.ai.',
   'login.setNewPassword': 'Atur Kata Sandi Baru',
   'login.setNewPasswordHint': 'Kamu harus mengganti kata sandi sebelum melanjutkan.',
   'login.createAccount': 'Buat Akun',

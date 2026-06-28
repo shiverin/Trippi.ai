@@ -209,7 +209,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Geteilt über',
   'journey.public.madeWith': 'Erstellt mit',
   'journey.pdf.journeyBook': 'Reisebuch',
-  'journey.pdf.madeWith': 'Erstellt mit TRIPPI',
+  'journey.pdf.madeWith': 'Erstellt mit trippi.ai',
   'journey.pdf.day': 'Tag',
   'journey.pdf.theEnd': 'Ende',
   'journey.pdf.saveAsPdf': 'Als PDF speichern',

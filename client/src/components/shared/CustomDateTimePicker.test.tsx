@@ -1,7 +1,7 @@
-import { render, screen, fireEvent, act } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
-import { CustomDatePicker, CustomDateTimePicker } from './CustomDateTimePicker';
+import { act, fireEvent, render, screen } from '../../../tests/helpers/render';
 import { useSettingsStore } from '../../store/settingsStore';
+import { CustomDatePicker, CustomDateTimePicker } from './CustomDateTimePicker';
 
 // ─── CustomDatePicker ─────────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ describe('CustomDatePicker', () => {
     const user = userEvent.setup();
     render(<CustomDatePicker value="2026-03-15" onChange={onChange} />);
     await user.click(screen.getByRole('button'));
-    const dayBtns = screen.getAllByRole('button').filter(b => /^\d+$/.test(b.textContent?.trim() ?? ''));
+    const dayBtns = screen.getAllByRole('button').filter((b) => /^\d+$/.test(b.textContent?.trim() ?? ''));
     expect(dayBtns.length).toBeGreaterThan(0);
   });
 
@@ -41,7 +41,7 @@ describe('CustomDatePicker', () => {
     const user = userEvent.setup();
     render(<CustomDatePicker value="2026-03-01" onChange={onChange} />);
     await user.click(screen.getByRole('button')); // open March 2026
-    const dayBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '15');
+    const dayBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '15');
     await user.click(dayBtn!);
     expect(onChange).toHaveBeenCalledWith('2026-03-15');
   });
@@ -51,7 +51,7 @@ describe('CustomDatePicker', () => {
     render(<CustomDatePicker value="2026-03-01" onChange={onChange} />);
     await user.click(screen.getByRole('button')); // open March 2026
     // Nav buttons have no text content (only SVG icons)
-    const emptyBtns = screen.getAllByRole('button').filter(b => b.textContent?.trim() === '');
+    const emptyBtns = screen.getAllByRole('button').filter((b) => b.textContent?.trim() === '');
     await user.click(emptyBtns[0]); // left chevron = prev month
     expect(screen.getByText(/february 2026/i)).toBeTruthy();
   });
@@ -60,7 +60,7 @@ describe('CustomDatePicker', () => {
     const user = userEvent.setup();
     render(<CustomDatePicker value="2026-03-01" onChange={onChange} />);
     await user.click(screen.getByRole('button')); // open March 2026
-    const emptyBtns = screen.getAllByRole('button').filter(b => b.textContent?.trim() === '');
+    const emptyBtns = screen.getAllByRole('button').filter((b) => b.textContent?.trim() === '');
     await user.click(emptyBtns[emptyBtns.length - 1]); // right chevron = next month
     expect(screen.getByText(/april 2026/i)).toBeTruthy();
   });
@@ -86,7 +86,9 @@ describe('CustomDatePicker', () => {
     render(<CustomDatePicker value="2026-03-15" onChange={onChange} />);
     await user.click(screen.getByRole('button')); // open
     // Verify calendar is open (day buttons present)
-    expect(screen.getAllByRole('button').filter(b => /^\d+$/.test(b.textContent?.trim() ?? '')).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole('button').filter((b) => /^\d+$/.test(b.textContent?.trim() ?? '')).length
+    ).toBeGreaterThan(0);
     // Fire mousedown outside both the component div and the portal
     const outsideEl = document.createElement('div');
     document.body.appendChild(outsideEl);
@@ -95,7 +97,7 @@ describe('CustomDatePicker', () => {
     });
     document.body.removeChild(outsideEl);
     // Day buttons should be gone
-    expect(screen.getAllByRole('button').filter(b => /^\d+$/.test(b.textContent?.trim() ?? '')).length).toBe(0);
+    expect(screen.getAllByRole('button').filter((b) => /^\d+$/.test(b.textContent?.trim() ?? '')).length).toBe(0);
   });
 
   it('FE-COMP-DATEPICKER-011: double-click activates text input mode', async () => {
@@ -164,7 +166,7 @@ describe('CustomDateTimePicker', () => {
     const dateTrigger = screen.getAllByRole('button')[0];
     await user.click(dateTrigger); // open calendar
     // Click day 1
-    const day1 = screen.getAllByRole('button').find(b => b.textContent?.trim() === '1');
+    const day1 = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '1');
     await user.click(day1!);
     // onChange should have been called with T12:00 suffix
     expect(onChange).toHaveBeenCalledWith(expect.stringMatching(/T12:00$/));

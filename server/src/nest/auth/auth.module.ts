@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
 import { AuthPublicController } from './auth-public.controller';
 import { AuthController } from './auth.controller';
-import { PasskeyController } from './passkey.controller';
 import { AuthService } from './auth.service';
+import { PasskeyController } from './passkey.controller';
 import { RateLimitService } from './rate-limit.service';
+import { Module } from '@nestjs/common';
 
 /**
  * Auth module — public flows (login/register/reset/mfa-verify/logout) and the

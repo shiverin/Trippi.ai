@@ -20,8 +20,16 @@ export const sessions = new Map<string, McpSession>();
 export function revokeUserSessions(userId: number): void {
   for (const [sid, session] of sessions) {
     if (session.userId === userId) {
-      try { session.server.close(); } catch { /* ignore */ }
-      try { session.transport.close(); } catch { /* ignore */ }
+      try {
+        session.server.close();
+      } catch {
+        /* ignore */
+      }
+      try {
+        session.transport.close();
+      } catch {
+        /* ignore */
+      }
       sessions.delete(sid);
     }
   }
@@ -33,8 +41,16 @@ export function revokeUserSessions(userId: number): void {
 export function revokeUserSessionsForClient(userId: number, clientId: string): void {
   for (const [sid, session] of sessions) {
     if (session.userId === userId && session.clientId === clientId) {
-      try { session.server.close(); } catch { /* ignore */ }
-      try { session.transport.close(); } catch { /* ignore */ }
+      try {
+        session.server.close();
+      } catch {
+        /* ignore */
+      }
+      try {
+        session.transport.close();
+      } catch {
+        /* ignore */
+      }
       sessions.delete(sid);
     }
   }

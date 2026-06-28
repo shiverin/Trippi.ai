@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
-import type { Category, CategoryListResponse } from '@trippi/shared';
 import type { User } from '../../types';
-import { CategoriesService } from './categories.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CategoriesService } from './categories.service';
+import { Body, Controller, Delete, Get, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
+import type { Category, CategoryListResponse } from '@trippi/shared';
 
 /**
  * /api/categories — place-category palette CRUD.

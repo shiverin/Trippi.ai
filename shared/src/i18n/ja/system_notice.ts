@@ -3,7 +3,7 @@ import type { TranslationStrings } from '../types';
 const system_notice: TranslationStrings = {
   'system_notice.v3_photos.title': '写真の場所が3.0で変更されました',
   'system_notice.v3_photos.body':
-    '旅行プランナー内の写真は削除されましたが、写真データは安全です。TRIPPIがImmichやSynologyのライブラリを変更することはありません。\n\n写真は現在日記アドオンにあります。日記は任意機能です。未有効の場合は、管理画面 → アドオンで有効にしてください。',
+    '旅行プランナー内の写真は削除されましたが、写真データは安全です。trippi.aiがImmichやSynologyのライブラリを変更することはありません。\n\n写真は現在日記アドオンにあります。日記は任意機能です。未有効の場合は、管理画面 → アドオンで有効にしてください。',
   'system_notice.v3_journey.title': '日記登場 — 旅の日記',
   'system_notice.v3_journey.body': 'タイムライン、写真ギャラリー、インタラクティブな地図で旅を物語に。',
   'system_notice.v3_journey.cta_label': '日記を開く',
@@ -26,14 +26,14 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'ツールとプロンプトを拡張',
   'system_notice.v3_thankyou.title': '開発者より一言',
   'system_notice.v3_thankyou.body':
-    '少しだけお時間をください。\n\nTRIPPIは、自分の旅のために作った小さな個人プロジェクトでした。それが今では4,000人以上に使ってもらえるとは思ってもいませんでした。スターも、Issueも、機能要望も、すべて目を通しています。\n\nTRIPPIはこれからもオープンソース、自分でホストでき、あなたのものです。トラッキングなし、サブスクなし。旅が好きな人が作ったツールです。\n\nhttps://github.com/jubnlにも感謝を。3.0の多くはあなたのおかげです。\n\nバグ報告、翻訳、共有、利用してくれたすべての方へ—本当にありがとうございます。\n\nこれからも一緒に旅を。\n\n— Maurice',
+    '少しだけお時間をください。\n\ntrippi.aiは、自分の旅のために作った小さな個人プロジェクトでした。それが今では4,000人以上に使ってもらえるとは思ってもいませんでした。スターも、Issueも、機能要望も、すべて目を通しています。\n\ntrippi.aiはこれからもオープンソース、自分でホストでき、あなたのものです。トラッキングなし、サブスクなし。旅が好きな人が作ったツールです。\n\nhttps://github.com/jubnlにも感謝を。3.0の多くはあなたのおかげです。\n\nバグ報告、翻訳、共有、利用してくれたすべての方へ—本当にありがとうございます。\n\nこれからも一緒に旅を。\n\n— trippi.ai',
   'system_notice.v3014_whitespace_collision.title': '対応が必要：ユーザーアカウントの競合',
   'system_notice.v3014_whitespace_collision.body':
     '3.0.14 へのアップグレードにより、保存されているアカウントの先頭または末尾の空白が原因で、ユーザー名またはメールアドレスの競合が1件以上検出されました。影響を受けたアカウントは自動的にリネームされています。対象となるアカウントを特定するには、サーバーログで **[migration] WHITESPACE COLLISION** で始まる行を確認してください。',
-  'system_notice.welcome_v1.title': 'TRIPPIへようこそ',
+  'system_notice.welcome_v1.title': 'trippi.aiへようこそ',
   'system_notice.welcome_v1.body': 'オールインワンの旅行プランナー。旅程作成、共有、整理をオンライン・オフラインで。',
   'system_notice.welcome_v1.cta_label': '旅行を計画',
-  'system_notice.welcome_v1.hero_alt': 'TRIPPIのUIが重なった風景写真',
+  'system_notice.welcome_v1.hero_alt': 'trippi.aiのUIが重なった風景写真',
   'system_notice.welcome_v1.highlight_plan': '日ごとの旅程作成',
   'system_notice.welcome_v1.highlight_share': '仲間と共同編集',
   'system_notice.welcome_v1.highlight_offline': 'モバイルでオフライン対応',

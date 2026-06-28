@@ -210,7 +210,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Dela via',
   'journey.public.madeWith': 'Gjord med',
   'journey.pdf.journeyBook': 'Journey bok',
-  'journey.pdf.madeWith': 'Gjord med TRIPPI',
+  'journey.pdf.madeWith': 'Gjord med trippi.ai',
   'journey.pdf.day': 'Dag',
   'journey.pdf.theEnd': 'Slut',
   'journey.pdf.saveAsPdf': 'Spara som PDF',

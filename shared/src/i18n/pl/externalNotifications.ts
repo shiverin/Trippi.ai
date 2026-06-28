@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const pl: NotificationLocale = {
   email: {
-    footer: 'Otrzymałeś/aś tę wiadomość, ponieważ masz włączone powiadomienia w TRIPPI.',
+    footer: 'Otrzymałeś/aś tę wiadomość, ponieważ masz włączone powiadomienia w trippi.ai.',
     manage: 'Zarządzaj preferencjami w ustawieniach',
     madeWith: 'Made with',
-    openTrippi: 'Otwórz TRIPPI',
+    openTrippi: 'Otwórz trippi.ai',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const pl: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Zaproszenie Vacay Fusion',
-      body: `${p.actor} zaprosił Cię do połączenia planów urlopowych. Otwórz TRIPPI, aby zaakceptować lub odrzucić.`,
+      body: `${p.actor} zaprosił Cię do połączenia planów urlopowych. Otwórz trippi.ai, aby zaakceptować lub odrzucić.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} zdjęć udostępnionych`,
@@ -41,8 +41,8 @@ const pl: NotificationLocale = {
       body: `${p.actor} przypisał Cię do kategorii "${p.category}" w "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Nowa wersja TRIPPI dostępna',
-      body: `TRIPPI ${p.version} jest teraz dostępny. Odwiedź panel administracyjny, aby zaktualizować.`,
+      title: 'Nowa wersja trippi.ai dostępna',
+      body: `trippi.ai ${p.version} jest teraz dostępny. Odwiedź panel administracyjny, aby zaktualizować.`,
     }),
     synology_session_cleared: () => ({
       title: 'Sesja Synology wyczyszczona',
@@ -52,7 +52,7 @@ const pl: NotificationLocale = {
   passwordReset: {
     subject: 'Zresetuj hasło',
     greeting: 'Cześć',
-    body: 'Otrzymaliśmy prośbę o zresetowanie hasła do Twojego konta TRIPPI. Kliknij przycisk poniżej, aby ustawić nowe hasło.',
+    body: 'Otrzymaliśmy prośbę o zresetowanie hasła do Twojego konta trippi.ai. Kliknij przycisk poniżej, aby ustawić nowe hasło.',
     ctaIntro: 'Zresetuj hasło',
     expiry: 'Link wygaśnie za 60 minut.',
     ignore: 'Jeśli to nie Ty, zignoruj tę wiadomość — Twoje hasło pozostanie bez zmian.',

@@ -1,6 +1,6 @@
 # Admin — GitHub Releases
 
-The **GitHub** tab shows the TRIPPI release history fetched from GitHub and provides links to community resources and support options.
+The **GitHub** tab shows the trippi.ai release history fetched from GitHub and provides links to community resources and support options.
 
 <!-- TODO: screenshot: GitHub releases panel with release timeline -->
 
@@ -14,14 +14,14 @@ Six cards at the top of the tab link to external resources:
 |------|------|
 | **Ko-fi** | Support the project financially |
 | **Buy Me a Coffee** | Alternative support link |
-| **Discord** | Join the TRIPPI community |
+| **Discord** | Join the trippi.ai community |
 | **Report a Bug** | Open a GitHub issue with the bug report template |
 | **Feature Request** | Open a GitHub Discussion in the feature requests category |
 | **Wiki** | Open the GitHub Wiki |
 
 ## Release timeline
 
-Below the support cards, a chronological timeline lists GitHub releases for the `mauriceboe/TRIPPI` repository. Each entry shows:
+Below the support cards, a chronological timeline lists GitHub releases for the `shiverin/Trippi.ai` repository. Each entry shows:
 
 - **Version tag** (e.g., `v2.9.14`)
 - A **Latest** badge on the first (most recent) entry in the displayed list

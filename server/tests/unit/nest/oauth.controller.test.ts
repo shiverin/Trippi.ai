@@ -241,7 +241,7 @@ describe('OauthPublicController /userinfo + /revoke', () => {
     const r1 = makeRes();
     new OauthPublicController(osvc(), rl()).userinfo(undefined, r1);
     expect(r1.statusCode).toBe(401);
-    expect(r1.headers['WWW-Authenticate']).toBe('Bearer realm="TRIPPI MCP"');
+    expect(r1.headers['WWW-Authenticate']).toBe('Bearer realm="trippi.ai MCP"');
     const r2 = makeRes();
     new OauthPublicController(osvc({ getUserByAccessToken: vi.fn().mockReturnValue({ user: { id: 1, email: 'a@b.c', username: 'u' } }) }), rl()).userinfo('Bearer tok', r2);
     expect(r2.body).toEqual({ sub: '1', email: 'a@b.c', email_verified: true, preferred_username: 'u' });
@@ -258,7 +258,7 @@ describe('OauthPublicController /userinfo + /revoke', () => {
     const res = makeRes();
     new OauthPublicController(osvc({ getUserByAccessToken: vi.fn().mockReturnValue(null) }), rl()).userinfo('Bearer tok', res);
     expect(res.statusCode).toBe(401);
-    expect(res.headers['WWW-Authenticate']).toBe('Bearer realm="TRIPPI MCP", error="invalid_token"');
+    expect(res.headers['WWW-Authenticate']).toBe('Bearer realm="trippi.ai MCP", error="invalid_token"');
     expect(res.body).toEqual({ error: 'invalid_token' });
   });
 

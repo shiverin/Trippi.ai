@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common';
 import {
   getStats,
   getCountryPlaces,
@@ -14,6 +13,7 @@ import {
   updateBucketItem,
   deleteBucketItem,
 } from '../../services/atlasService';
+import { Injectable } from '@nestjs/common';
 
 type CreateBucketData = Parameters<typeof createBucketItem>[1];
 type UpdateBucketData = Parameters<typeof updateBucketItem>[2];

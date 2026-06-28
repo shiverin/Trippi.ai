@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from '@testing-library/react';
-import { render, screen, fireEvent } from '../../../tests/helpers/render';
 import { http, HttpResponse } from 'msw';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { server } from '../../../tests/helpers/msw/server';
+import { fireEvent, render, screen } from '../../../tests/helpers/render';
+import type { SystemNoticeDTO } from '../../store/systemNoticeStore';
 import { useSystemNoticeStore } from '../../store/systemNoticeStore';
 import { ModalRenderer } from './SystemNoticeModal';
-import type { SystemNoticeDTO } from '../../store/systemNoticeStore';
 
 // Stub react-markdown to avoid async chunk issues in tests
 vi.mock('react-markdown', () => ({
@@ -42,7 +42,7 @@ describe('ModalRenderer', () => {
     server.use(
       http.post('/api/system-notices/:id/dismiss', () => {
         return new HttpResponse(null, { status: 204 });
-      }),
+      })
     );
     useSystemNoticeStore.setState({ notices: [], loaded: true });
     vi.useFakeTimers();
@@ -114,7 +114,11 @@ describe('ModalRenderer', () => {
   it('FE-SN-MODAL-005: CTA nav button dismisses all notices (not just current)', async () => {
     // CTA is only shown on the last page; navigate there first
     const noticeA = makeNotice({ id: 'n-a', titleKey: 'Notice A' });
-    const noticeB = makeNotice({ id: 'n-b', titleKey: 'Notice B', cta: { kind: 'nav', labelKey: 'Go to trips', href: '/trips' } });
+    const noticeB = makeNotice({
+      id: 'n-b',
+      titleKey: 'Notice B',
+      cta: { kind: 'nav', labelKey: 'Go to trips', href: '/trips' },
+    });
     useSystemNoticeStore.setState({ notices: [noticeA, noticeB], loaded: true });
 
     const dismissSpy = vi.spyOn(useSystemNoticeStore.getState(), 'dismiss');
@@ -151,13 +155,13 @@ describe('ModalRenderer', () => {
   it('FE-SN-MODAL-007: body params are interpolated before rendering', async () => {
     const notice = makeNotice({
       bodyKey: 'Hello {name}, welcome to {app}',
-      bodyParams: { name: 'Alice', app: 'TRIPPI' },
+      bodyParams: { name: 'Alice', app: 'trippi.ai' },
     });
     render(<ModalRenderer notices={[notice]} />);
 
     await flushGraceDelay();
 
-    expect(screen.getByText('Hello Alice, welcome to TRIPPI')).toBeTruthy();
+    expect(screen.getByText('Hello Alice, welcome to trippi.ai')).toBeTruthy();
   });
 
   it('FE-SN-MODAL-008: empty notices renders nothing', () => {
@@ -225,10 +229,7 @@ describe('ModalRenderer', () => {
   });
 
   it('FE-SN-MODAL-012: ArrowRight / ArrowLeft keys navigate between pages', async () => {
-    const notices = [
-      makeNotice({ id: 'n1', titleKey: 'Notice A' }),
-      makeNotice({ id: 'n2', titleKey: 'Notice B' }),
-    ];
+    const notices = [makeNotice({ id: 'n1', titleKey: 'Notice A' }), makeNotice({ id: 'n2', titleKey: 'Notice B' })];
     render(<ModalRenderer notices={notices} />);
     await flushGraceDelay();
 

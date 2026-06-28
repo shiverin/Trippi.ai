@@ -1,3 +1,7 @@
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PackingService } from './packing.service';
 import {
   Body,
   Controller,
@@ -11,10 +15,6 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import type { User } from '../../types';
-import { PackingService } from './packing.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
 
 /**
  * /api/trips/:tripId/packing — trip-scoped packing list (items, bags, templates,
@@ -113,7 +113,12 @@ export class PackingController {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const { name, checked, category, weight_grams, bag_id, quantity } = body as Record<string, never>;
-    const updated = this.packing.updateItem(tripId, id, { name, checked, category, weight_grams, bag_id, quantity }, Object.keys(body));
+    const updated = this.packing.updateItem(
+      tripId,
+      id,
+      { name, checked, category, weight_grams, bag_id, quantity },
+      Object.keys(body),
+    );
     if (!updated) {
       throw new HttpException({ error: 'Item not found' }, 404);
     }
@@ -171,7 +176,12 @@ export class PackingController {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const { name, color, weight_limit_grams, user_id } = body as Record<string, never>;
-    const updated = this.packing.updateBag(tripId, bagId, { name, color, weight_limit_grams, user_id }, Object.keys(body));
+    const updated = this.packing.updateBag(
+      tripId,
+      bagId,
+      { name, color, weight_limit_grams, user_id },
+      Object.keys(body),
+    );
     if (!updated) {
       throw new HttpException({ error: 'Bag not found' }, 404);
     }
@@ -238,11 +248,7 @@ export class PackingController {
   }
 
   @Post('save-as-template')
-  saveAsTemplate(
-    @CurrentUser() user: User,
-    @Param('tripId') tripId: string,
-    @Body('name') name?: string,
-  ) {
+  saveAsTemplate(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body('name') name?: string) {
     this.requireTrip(tripId, user);
     if (user.role !== 'admin') {
       throw new HttpException({ error: 'Admin access required' }, 403);

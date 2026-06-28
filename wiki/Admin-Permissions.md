@@ -8,7 +8,7 @@ The Permissions panel, located at the bottom of the **Users** tab, controls whic
 
 ## Role model
 
-TRIPPI uses four permission levels, ordered from most to least privileged:
+trippi.ai uses four permission levels, ordered from most to least privileged:
 
 | Level | Who it includes |
 |-------|----------------|

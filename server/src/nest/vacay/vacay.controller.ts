@@ -1,3 +1,7 @@
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { VacayService } from './vacay.service';
 import {
   Body,
   Controller,
@@ -11,10 +15,6 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import type { User } from '../../types';
-import { VacayService } from './vacay.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
 
 /**
  * /api/addons/vacay — shared vacation-day planner.
@@ -36,7 +36,11 @@ export class VacayController {
   }
 
   @Put('plan')
-  async updatePlan(@CurrentUser() user: User, @Body() body: Record<string, unknown>, @Headers('x-socket-id') socketId?: string) {
+  async updatePlan(
+    @CurrentUser() user: User,
+    @Body() body: Record<string, unknown>,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const planId = this.vacay.getActivePlanId(user.id);
     return this.vacay.updatePlan(planId, body, socketId);
   }
@@ -52,7 +56,14 @@ export class VacayController {
       throw new HttpException({ error: 'region required' }, 400);
     }
     const planId = this.vacay.getActivePlanId(user.id);
-    const calendar = this.vacay.addHolidayCalendar(planId, body.region, body.label ?? null, body.color, body.sort_order, socketId);
+    const calendar = this.vacay.addHolidayCalendar(
+      planId,
+      body.region,
+      body.label ?? null,
+      body.color,
+      body.sort_order,
+      socketId,
+    );
     return { calendar };
   }
 
@@ -73,7 +84,11 @@ export class VacayController {
   }
 
   @Delete('plan/holiday-calendars/:id')
-  deleteHolidayCalendar(@CurrentUser() user: User, @Param('id') idParam: string, @Headers('x-socket-id') socketId?: string) {
+  deleteHolidayCalendar(
+    @CurrentUser() user: User,
+    @Param('id') idParam: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const id = parseInt(idParam);
     const planId = this.vacay.getActivePlanId(user.id);
     if (!this.vacay.deleteHolidayCalendar(id, planId, socketId)) {

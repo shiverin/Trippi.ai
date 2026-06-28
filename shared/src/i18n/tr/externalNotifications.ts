@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const tr: NotificationLocale = {
   email: {
-    footer: "TRIPPI'te bildirimleri etkinleştirdiğiniz için bunu aldınız.",
+    footer: "trippi.ai'te bildirimleri etkinleştirdiğiniz için bunu aldınız.",
     manage: 'Ayarlarda tercihleri yönetin',
     madeWith: 'Made with',
-    openTrippi: "TRIPPI'i aç",
+    openTrippi: "trippi.ai'i aç",
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const tr: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Vacay Fusion Daveti',
-      body: `${p.actor} sizi tatil planlarını birleştirmeye davet etti. Kabul etmek veya reddetmek için TRIPPI'i açın.`,
+      body: `${p.actor} sizi tatil planlarını birleştirmeye davet etti. Kabul etmek veya reddetmek için trippi.ai'i açın.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} fotoğraf paylaşıldı`,
@@ -41,8 +41,8 @@ const tr: NotificationLocale = {
       body: `${p.actor}, sizi "${p.trip}" içindeki "${p.category}" bagaj kategorisine atadı.`,
     }),
     version_available: (p) => ({
-      title: 'Yeni TRIPPI sürümü mevcut',
-      body: `TRIPPI ${p.version} artık mevcut. Güncellemek için yönetici panelini ziyaret edin.`,
+      title: 'Yeni trippi.ai sürümü mevcut',
+      body: `trippi.ai ${p.version} artık mevcut. Güncellemek için yönetici panelini ziyaret edin.`,
     }),
     synology_session_cleared: () => ({
       title: 'Synology oturumu temizlendi',
@@ -52,7 +52,7 @@ const tr: NotificationLocale = {
   passwordReset: {
     subject: 'Şifrenizi sıfırlayın',
     greeting: 'Merhaba',
-    body: 'TRIPPI hesabınızın şifresini sıfırlamak için bir istek aldık. Yeni bir şifre belirlemek için aşağıdaki butona tıklayın.',
+    body: 'trippi.ai hesabınızın şifresini sıfırlamak için bir istek aldık. Yeni bir şifre belirlemek için aşağıdaki butona tıklayın.',
     ctaIntro: 'Şifreyi sıfırla',
     expiry: 'Bu bağlantı 60 dakika içinde sona erer.',
     ignore: 'Bu isteği siz yapmadıysanız, bu e-postayı güvenle yok sayabilirsiniz — şifreniz değişmeyecektir.',

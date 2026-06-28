@@ -1,10 +1,10 @@
-import type { AirtrailFlight } from '@trippi/shared';
 import { db } from '../../db/database';
-import { maybe_encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
 import { checkSsrf } from '../../utils/ssrfGuard';
+import { maybe_encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
 import { writeAudit } from '../auditLog';
 import { AirtrailAuthError, AirtrailCreds, AirtrailRequestError, listFlights } from './airtrailClient';
 import { normalizeFlight } from './airtrailMapper';
+import type { AirtrailFlight } from '@trippi/shared';
 
 const KEY_MASK = '••••••••';
 
@@ -23,7 +23,7 @@ function readRow(userId: number): UserConnRow | undefined {
     .get(userId) as UserConnRow | undefined;
 }
 
-/** Has this user opted in to TRIPPI writing their flight edits back to AirTrail? (#1240) */
+/** Has this user opted in to trippi.ai writing their flight edits back to AirTrail? (#1240) */
 export function isAirtrailWriteEnabled(userId: number): boolean {
   const row = db.prepare('SELECT airtrail_write_enabled FROM users WHERE id = ?').get(userId) as
     | { airtrail_write_enabled?: number | null }

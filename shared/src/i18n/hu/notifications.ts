@@ -30,7 +30,7 @@ const notifications: TranslationStrings = {
   'notifications.test.tripTitle': '{actor} üzenetet küldött az utazásodba',
   'notifications.test.tripText': 'Teszt értesítés a(z) "{trip}" utazáshoz.',
   'notifications.versionAvailable.title': 'Elérhető frissítés',
-  'notifications.versionAvailable.text': 'A TRIPPI {version} már elérhető.',
+  'notifications.versionAvailable.text': 'A trippi.ai {version} már elérhető.',
   'notifications.versionAvailable.button': 'Részletek megtekintése',
 };
 export default notifications;

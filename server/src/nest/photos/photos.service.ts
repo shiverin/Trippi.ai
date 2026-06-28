@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import type { Response } from 'express';
-import { streamPhoto, getPhotoInfo } from '../../services/memories/photoResolverService';
 import { canAccessTrippiPhoto } from '../../services/memories/helpersService';
+import { streamPhoto, getPhotoInfo } from '../../services/memories/photoResolverService';
+import { Injectable } from '@nestjs/common';
+
+import type { Response } from 'express';
 
 /**
  * Thin Nest wrapper around the existing photo resolver/helper services. Access

@@ -88,9 +88,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Sugira um novo recurso',
   'settings.about.wikiHint': 'Documentação e guias',
   'settings.about.supporters.badge': 'Apoiadores Mensais',
-  'settings.about.supporters.title': 'Companheiros de viagem do TRIPPI',
+  'settings.about.supporters.title': 'Companheiros de viagem do trippi.ai',
   'settings.about.supporters.subtitle':
-    'Enquanto você planeja sua próxima rota, essas pessoas planejam junto o futuro do TRIPPI. A contribuição mensal delas vai direto para o desenvolvimento e horas reais investidas — para o TRIPPI continuar Open Source.',
+    'Enquanto você planeja sua próxima rota, essas pessoas planejam junto o futuro do trippi.ai. A contribuição mensal delas vai direto para o desenvolvimento e horas reais investidas — para o trippi.ai continuar Open Source.',
   'settings.about.supporters.since': 'apoiador desde {date}',
   'settings.about.supporters.tierEmpty': 'Seja o primeiro',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -99,9 +99,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'TRIPPI é um planejador de viagens auto-hospedado que ajuda você a organizar suas viagens da primeira ideia à última lembrança. Planejamento diário, orçamento, listas de bagagem, fotos e muito mais — tudo em um só lugar, no seu próprio servidor.',
+    'trippi.ai é um planejador de viagens auto-hospedado que ajuda você a organizar suas viagens da primeira ideia à última lembrança. Planejamento diário, orçamento, listas de bagagem, fotos e muito mais — tudo em um só lugar, no seu próprio servidor.',
   'settings.about.madeWith': 'Feito com',
-  'settings.about.madeBy': 'por Maurice e uma crescente comunidade open-source.',
+  'settings.about.madeBy': 'por trippi.ai e uma crescente comunidade open-source.',
   'settings.username': 'Nome de usuário',
   'settings.email': 'E-mail',
   'settings.role': 'Função',
@@ -318,7 +318,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': 'Ative apenas para uma instância confiável na sua própria rede.',
   'settings.airtrail.writeBack': 'Gravar alterações de volta no AirTrail',
   'settings.airtrail.writeBackHint':
-    'Desativado por padrão: o AirTrail é a fonte da verdade e o TRIPPI apenas lê dele. Ative para enviar ao AirTrail as alterações feitas no TRIPPI.',
+    'Desativado por padrão: o AirTrail é a fonte da verdade e o trippi.ai apenas lê dele. Ative para enviar ao AirTrail as alterações feitas no trippi.ai.',
   'settings.airtrail.connected': 'Conectado',
   'settings.airtrail.notConnected': 'Não conectado',
   'settings.airtrail.toast.saved': 'Conexão com o AirTrail salva',

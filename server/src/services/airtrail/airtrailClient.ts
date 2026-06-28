@@ -69,7 +69,7 @@ export interface AirtrailNamedCode {
   name?: string | null;
 }
 
-/** A flight as returned by list/get (the fields TRIPPI consumes). */
+/** A flight as returned by list/get (the fields trippi.ai consumes). */
 export interface AirtrailFlightRaw {
   id: number;
   from: AirtrailAirport | null;
@@ -120,7 +120,10 @@ export interface AirtrailSavePayload {
 
 function apiBase(baseUrl: string): string {
   // Tolerate a pasted trailing slash or '/api' suffix so we never build '/api/api'.
-  const origin = baseUrl.trim().replace(/\/+$/, '').replace(/\/api$/i, '');
+  const origin = baseUrl
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/api$/i, '');
   return origin + '/api';
 }
 

@@ -1,9 +1,9 @@
-# TRIPPI Helm Chart
+# trippi.ai Helm Chart
 
-This is a minimal Helm chart for deploying the TRIPPI app.
+This is a minimal Helm chart for deploying the trippi.ai app.
 
 ## Features
-- Deploys the TRIPPI container
+- Deploys the trippi.ai container
 - Exposes port 3000 via Service
 - Optional persistent storage for `/app/data` and `/app/uploads`
 - Configurable environment variables and secrets
@@ -15,9 +15,9 @@ This is a minimal Helm chart for deploying the TRIPPI app.
 A hosted Helm repository is available:
 
 ```sh
-helm repo add trippi https://mauriceboe.github.io/TRIPPI
+helm repo add trippi-ai https://github.com/shiverin/Trippi.ai
 helm repo update
-helm install trippi trippi/trippi
+helm install trippi-ai trippi-ai/trek
 ```
 
 ## Usage
@@ -25,7 +25,7 @@ helm install trippi trippi/trippi
 Or install directly from the local chart:
 
 ```sh
-helm install trippi ./chart \
+helm install trippi-ai ./charts/trek \
   --set ingress.enabled=true \
   --set ingress.hosts[0].host=yourdomain.com
 ```

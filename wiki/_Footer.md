@@ -1,1 +1,1 @@
-[AGPL-3.0 License](https://github.com/mauriceboe/TRIPPI/blob/main/LICENSE) · [GitHub](https://github.com/mauriceboe/TRIPPI) · [Discord](https://discord.gg/NhZBDSd4qW) · [Security Hardening](Security-Hardening)
+[AGPL-3.0 License](https://github.com/shiverin/Trippi.ai/blob/main/LICENSE) · [GitHub](https://github.com/shiverin/Trippi.ai) · [Discord](https://discord.gg/NhZBDSd4qW) · [Security Hardening](Security-Hardening)

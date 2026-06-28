@@ -1,6 +1,7 @@
+import { db } from '../db/database';
+
 import fs from 'node:fs';
 import path from 'node:path';
-import { db } from '../db/database';
 
 export interface Airport {
   iata: string;
@@ -27,7 +28,7 @@ function load(): Airport[] {
   }
   const raw = fs.readFileSync(file, 'utf8');
   cache = JSON.parse(raw) as Airport[];
-  byIata = new Map(cache.map(a => [a.iata, a]));
+  byIata = new Map(cache.map((a) => [a.iata, a]));
   return cache;
 }
 
@@ -60,16 +61,25 @@ export function searchAirports(query: string, limit = 12): Airport[] {
     if (score > 0) matches.push({ a, score });
   }
   matches.sort((x, y) => y.score - x.score || x.a.iata.localeCompare(y.a.iata));
-  return matches.slice(0, limit).map(m => m.a);
+  return matches.slice(0, limit).map((m) => m.a);
 }
 
 export function backfillFlightEndpoints(): void {
-  const pending = db.prepare(`
+  const pending = db
+    .prepare(
+      `
     SELECT r.id, r.metadata, r.reservation_time, r.reservation_end_time
     FROM reservations r
     WHERE r.type = 'flight'
       AND NOT EXISTS (SELECT 1 FROM reservation_endpoints e WHERE e.reservation_id = r.id)
-  `).all() as { id: number; metadata: string | null; reservation_time: string | null; reservation_end_time: string | null }[];
+  `,
+    )
+    .all() as {
+    id: number;
+    metadata: string | null;
+    reservation_time: string | null;
+    reservation_end_time: string | null;
+  }[];
 
   if (pending.length === 0) return;
 
@@ -83,14 +93,28 @@ export function backfillFlightEndpoints(): void {
   let filled = 0;
   let flagged = 0;
   for (const r of pending) {
-    if (!r.metadata) { markReview.run(r.id); flagged++; continue; }
+    if (!r.metadata) {
+      markReview.run(r.id);
+      flagged++;
+      continue;
+    }
     let meta: any;
-    try { meta = JSON.parse(r.metadata); } catch { markReview.run(r.id); flagged++; continue; }
+    try {
+      meta = JSON.parse(r.metadata);
+    } catch {
+      markReview.run(r.id);
+      flagged++;
+      continue;
+    }
 
     const dep = meta.departure_airport ? findByIata(String(meta.departure_airport).slice(0, 3)) : null;
     const arr = meta.arrival_airport ? findByIata(String(meta.arrival_airport).slice(0, 3)) : null;
 
-    if (!dep || !arr) { markReview.run(r.id); flagged++; continue; }
+    if (!dep || !arr) {
+      markReview.run(r.id);
+      flagged++;
+      continue;
+    }
 
     const split = (iso: string | null) => {
       if (!iso) return { date: null as string | null, time: null as string | null };
@@ -100,8 +124,30 @@ export function backfillFlightEndpoints(): void {
     const depParts = split(r.reservation_time);
     const arrParts = split(r.reservation_end_time);
 
-    insert.run(r.id, 'from', 0, dep.city ? `${dep.city} (${dep.iata})` : dep.name, dep.iata, dep.lat, dep.lng, dep.tz, depParts.time, depParts.date);
-    insert.run(r.id, 'to', 1, arr.city ? `${arr.city} (${arr.iata})` : arr.name, arr.iata, arr.lat, arr.lng, arr.tz, arrParts.time, arrParts.date);
+    insert.run(
+      r.id,
+      'from',
+      0,
+      dep.city ? `${dep.city} (${dep.iata})` : dep.name,
+      dep.iata,
+      dep.lat,
+      dep.lng,
+      dep.tz,
+      depParts.time,
+      depParts.date,
+    );
+    insert.run(
+      r.id,
+      'to',
+      1,
+      arr.city ? `${arr.city} (${arr.iata})` : arr.name,
+      arr.iata,
+      arr.lat,
+      arr.lng,
+      arr.tz,
+      arrParts.time,
+      arrParts.date,
+    );
     filled++;
   }
 

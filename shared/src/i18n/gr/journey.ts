@@ -212,7 +212,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Κοινοποιήθηκε μέσω',
   'journey.public.madeWith': 'Φτιαγμένο με',
   'journey.pdf.journeyBook': 'Βιβλίο Ταξιδιού',
-  'journey.pdf.madeWith': 'Φτιαγμένο με TRIPPI',
+  'journey.pdf.madeWith': 'Φτιαγμένο με trippi.ai',
   'journey.pdf.day': 'Ημέρα',
   'journey.pdf.theEnd': 'Τέλος',
   'journey.pdf.saveAsPdf': 'Αποθήκευση ως PDF',

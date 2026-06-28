@@ -12,53 +12,53 @@
  * viewport so it never competes with top navigation or sticky modal
  * headers. On mobile it hovers just above the bottom tab bar.
  */
-import React, { useState, useEffect } from 'react'
-import { WifiOff, RefreshCw, AlertTriangle } from 'lucide-react'
-import { mutationQueue } from '../../sync/mutationQueue'
+import { AlertTriangle, RefreshCw, WifiOff } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { mutationQueue } from '../../sync/mutationQueue';
 
-const POLL_MS = 3_000
+const POLL_MS = 3_000;
 
 export default function OfflineBanner(): React.ReactElement | null {
-  const [isOnline, setIsOnline] = useState(navigator.onLine)
-  const [pendingCount, setPendingCount] = useState(0)
-  const [failedCount, setFailedCount] = useState(0)
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
 
   useEffect(() => {
-    const onOnline  = () => setIsOnline(true)
-    const onOffline = () => setIsOnline(false)
-    window.addEventListener('online',  onOnline)
-    window.addEventListener('offline', onOffline)
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
     return () => {
-      window.removeEventListener('online',  onOnline)
-      window.removeEventListener('offline', onOffline)
-    }
-  }, [])
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
     async function poll() {
-      const [n, failed] = await Promise.all([
-        mutationQueue.pendingCount(),
-        mutationQueue.failedCount(),
-      ])
+      const [n, failed] = await Promise.all([mutationQueue.pendingCount(), mutationQueue.failedCount()]);
       if (!cancelled) {
-        setPendingCount(n)
-        setFailedCount(failed)
+        setPendingCount(n);
+        setFailedCount(failed);
       }
     }
-    poll()
-    const id = setInterval(poll, POLL_MS)
-    return () => { cancelled = true; clearInterval(id) }
-  }, [])
+    poll();
+    const id = setInterval(poll, POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
 
-  const hidden = isOnline && pendingCount === 0 && failedCount === 0
-  if (hidden) return null
+  const hidden = isOnline && pendingCount === 0 && failedCount === 0;
+  if (hidden) return null;
 
-  const offline = !isOnline
+  const offline = !isOnline;
   // Failed mutations are the most important signal — they mean data was dropped.
-  const failed = failedCount > 0
-  const bg    = failed ? '#b91c1c' : offline ? '#92400e' : '#1e40af'
-  const text  = '#fff'
+  const failed = failedCount > 0;
+  const bg = failed ? '#b91c1c' : offline ? '#92400e' : '#1e40af';
+  const text = '#fff';
 
   const label = failed
     ? `${failedCount} change${failedCount !== 1 ? 's' : ''} failed to sync`
@@ -66,7 +66,7 @@ export default function OfflineBanner(): React.ReactElement | null {
       ? pendingCount > 0
         ? `Offline · ${pendingCount} queued`
         : 'Offline'
-      : `Syncing ${pendingCount}…`
+      : `Syncing ${pendingCount}…`;
 
   return (
     <div
@@ -94,13 +94,14 @@ export default function OfflineBanner(): React.ReactElement | null {
         pointerEvents: 'none',
       }}
     >
-      {failed
-        ? <AlertTriangle size={12} />
-        : offline
-          ? <WifiOff size={12} />
-          : <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />
-      }
+      {failed ? (
+        <AlertTriangle size={12} />
+      ) : offline ? (
+        <WifiOff size={12} />
+      ) : (
+        <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />
+      )}
       {label}
     </div>
-  )
+  );
 }

@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
 import * as svc from '../../services/vacayService';
+import { Injectable } from '@nestjs/common';
 
 type UpdatePlanBody = Parameters<typeof svc.updatePlan>[1];
 
@@ -26,11 +26,23 @@ export class VacayService {
     return svc.updatePlan(planId, body, socketId);
   }
 
-  addHolidayCalendar(planId: number, region: string, label: string | null, color: string | undefined, sortOrder: number | undefined, socketId: string | undefined) {
+  addHolidayCalendar(
+    planId: number,
+    region: string,
+    label: string | null,
+    color: string | undefined,
+    sortOrder: number | undefined,
+    socketId: string | undefined,
+  ) {
     return svc.addHolidayCalendar(planId, region, label, color, sortOrder, socketId);
   }
 
-  updateHolidayCalendar(id: number, planId: number, body: Parameters<typeof svc.updateHolidayCalendar>[2], socketId: string | undefined) {
+  updateHolidayCalendar(
+    id: number,
+    planId: number,
+    body: Parameters<typeof svc.updateHolidayCalendar>[2],
+    socketId: string | undefined,
+  ) {
     return svc.updateHolidayCalendar(id, planId, body, socketId);
   }
 

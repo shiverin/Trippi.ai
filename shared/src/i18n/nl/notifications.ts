@@ -30,7 +30,7 @@ const notifications: TranslationStrings = {
   'notifications.test.tripTitle': '{actor} heeft gepost in uw reis',
   'notifications.test.tripText': 'Testmelding voor reis "{trip}".',
   'notifications.versionAvailable.title': 'Update beschikbaar',
-  'notifications.versionAvailable.text': 'TRIPPI {version} is nu beschikbaar.',
+  'notifications.versionAvailable.text': 'trippi.ai {version} is nu beschikbaar.',
   'notifications.versionAvailable.button': 'Details bekijken',
 };
 export default notifications;

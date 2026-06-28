@@ -1,70 +1,116 @@
-import { useState, useEffect, useRef } from 'react'
-import { useParams } from 'react-router-dom'
-import { Plane, Train, Car, Ship, Bus, Sailboat, Bike, CarTaxiFront, Route, Paperclip, FileText, X, ExternalLink, Link2, Plus, Trash2 } from 'lucide-react'
-import Modal from '../shared/Modal'
-import CustomSelect from '../shared/CustomSelect'
-import CustomTimePicker from '../shared/CustomTimePicker'
-import AirportSelect, { type Airport } from './AirportSelect'
-import LocationSelect, { type LocationPoint } from './LocationSelect'
-import { useTranslation } from '../../i18n'
-import { useToast } from '../shared/Toast'
-import { useTripStore } from '../../store/tripStore'
-import { useAddonStore } from '../../store/addonStore'
-import { formatDate, splitReservationDateTime } from '../../utils/formatters'
-import { openFile } from '../../utils/fileDownload'
-import apiClient from '../../api/client'
-import type { Day, Reservation, ReservationEndpoint, TripFile, BudgetItem } from '../../types'
-import { parseReservationMetadata, orderedEndpoints } from '../../utils/flightLegs'
-import { BookingCostsSection } from './BookingCostsSection'
-import type { BookingExpenseRequest } from './BookingCostsSection.types'
-import { typeToCostCategory } from '@trippi/shared'
+import { typeToCostCategory } from '@trippi/shared';
+import {
+  Bike,
+  Bus,
+  Car,
+  CarTaxiFront,
+  ExternalLink,
+  FileText,
+  Link2,
+  Paperclip,
+  Plane,
+  Plus,
+  Route,
+  Sailboat,
+  Ship,
+  Train,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import apiClient from '../../api/client';
+import { useTranslation } from '../../i18n';
+import { useAddonStore } from '../../store/addonStore';
+import { useTripStore } from '../../store/tripStore';
+import type { BudgetItem, Day, Reservation, ReservationEndpoint, TripFile } from '../../types';
+import { openFile } from '../../utils/fileDownload';
+import { orderedEndpoints, parseReservationMetadata } from '../../utils/flightLegs';
+import { formatDate, splitReservationDateTime } from '../../utils/formatters';
+import CustomSelect from '../shared/CustomSelect';
+import CustomTimePicker from '../shared/CustomTimePicker';
+import Modal from '../shared/Modal';
+import { useToast } from '../shared/Toast';
+import AirportSelect, { type Airport } from './AirportSelect';
+import { BookingCostsSection } from './BookingCostsSection';
+import type { BookingExpenseRequest } from './BookingCostsSection.types';
+import LocationSelect, { type LocationPoint } from './LocationSelect';
 
-const TRANSPORT_TYPES = ['flight', 'train', 'bus', 'car', 'taxi', 'bicycle', 'cruise', 'ferry', 'transport_other'] as const
-type TransportType = typeof TRANSPORT_TYPES[number]
+const TRANSPORT_TYPES = [
+  'flight',
+  'train',
+  'bus',
+  'car',
+  'taxi',
+  'bicycle',
+  'cruise',
+  'ferry',
+  'transport_other',
+] as const;
+type TransportType = (typeof TRANSPORT_TYPES)[number];
 
 interface EndpointPick {
-  airport?: Airport
-  location?: LocationPoint
+  airport?: Airport;
+  location?: LocationPoint;
 }
 
-function endpointFromAirport(a: Airport, role: 'from' | 'to' | 'stop', sequence: number, date: string | null, time: string | null): Omit<ReservationEndpoint, 'id' | 'reservation_id'> {
+function endpointFromAirport(
+  a: Airport,
+  role: 'from' | 'to' | 'stop',
+  sequence: number,
+  date: string | null,
+  time: string | null
+): Omit<ReservationEndpoint, 'id' | 'reservation_id'> {
   return {
-    role, sequence,
+    role,
+    sequence,
     name: a.city ? `${a.city} (${a.iata})` : a.name,
     code: a.iata,
-    lat: a.lat, lng: a.lng,
+    lat: a.lat,
+    lng: a.lng,
     timezone: a.tz,
     local_date: date,
     local_time: time,
-  }
+  };
 }
 
-function endpointFromLocation(l: LocationPoint, role: 'from' | 'to', sequence: number, date: string | null, time: string | null): Omit<ReservationEndpoint, 'id' | 'reservation_id'> {
+function endpointFromLocation(
+  l: LocationPoint,
+  role: 'from' | 'to',
+  sequence: number,
+  date: string | null,
+  time: string | null
+): Omit<ReservationEndpoint, 'id' | 'reservation_id'> {
   return {
-    role, sequence,
+    role,
+    sequence,
     name: l.name,
     code: null,
-    lat: l.lat, lng: l.lng,
+    lat: l.lat,
+    lng: l.lng,
     timezone: null,
     local_date: date,
     local_time: time,
-  }
+  };
 }
 
 function airportFromEndpoint(e: ReservationEndpoint | undefined): Airport | null {
-  if (!e || !e.code) return null
+  if (!e || !e.code) return null;
   return {
-    iata: e.code, icao: null,
-    name: e.name, city: e.name.replace(/\s*\([A-Z]{3}\)\s*$/, ''),
+    iata: e.code,
+    icao: null,
+    name: e.name,
+    city: e.name.replace(/\s*\([A-Z]{3}\)\s*$/, ''),
     country: '',
-    lat: e.lat, lng: e.lng,
+    lat: e.lat,
+    lng: e.lng,
     tz: e.timezone || '',
-  }
+  };
 }
 
 function locationFromEndpoint(e: ReservationEndpoint | undefined): LocationPoint | null {
-  if (!e) return null
-  return { name: e.name, lat: e.lat, lng: e.lng, address: null }
+  if (!e) return null;
+  return { name: e.name, lat: e.lat, lng: e.lng, address: null };
 }
 
 // ── Multi-leg flight waypoints ─────────────────────────────────────────────
@@ -73,30 +119,39 @@ function locationFromEndpoint(e: ReservationEndpoint | undefined): LocationPoint
 // airline/flight number of the flight LEAVING it. N waypoints = N-1 legs. A
 // single-leg flight is just two waypoints, so it persists exactly as before.
 interface WaypointForm {
-  airport: Airport | null
-  arrDayId: string | number
-  arrTime: string
-  depDayId: string | number
-  depTime: string
-  airline: string
-  flight_number: string
-  seat: string
+  airport: Airport | null;
+  arrDayId: string | number;
+  arrTime: string;
+  depDayId: string | number;
+  depTime: string;
+  airline: string;
+  flight_number: string;
+  seat: string;
 }
 function emptyWaypoint(dayId: string | number = ''): WaypointForm {
-  return { airport: null, arrDayId: dayId, arrTime: '', depDayId: dayId, depTime: '', airline: '', flight_number: '', seat: '' }
+  return {
+    airport: null,
+    arrDayId: dayId,
+    arrTime: '',
+    depDayId: dayId,
+    depTime: '',
+    airline: '',
+    flight_number: '',
+    seat: '',
+  };
 }
 
 const TYPE_OPTIONS = [
-  { value: 'flight',          labelKey: 'reservations.type.flight',          Icon: Plane },
-  { value: 'train',           labelKey: 'reservations.type.train',           Icon: Train },
-  { value: 'bus',             labelKey: 'reservations.type.bus',             Icon: Bus },
-  { value: 'car',             labelKey: 'reservations.type.car',             Icon: Car },
-  { value: 'taxi',            labelKey: 'reservations.type.taxi',            Icon: CarTaxiFront },
-  { value: 'bicycle',         labelKey: 'reservations.type.bicycle',         Icon: Bike },
-  { value: 'cruise',          labelKey: 'reservations.type.cruise',          Icon: Ship },
-  { value: 'ferry',           labelKey: 'reservations.type.ferry',           Icon: Sailboat },
+  { value: 'flight', labelKey: 'reservations.type.flight', Icon: Plane },
+  { value: 'train', labelKey: 'reservations.type.train', Icon: Train },
+  { value: 'bus', labelKey: 'reservations.type.bus', Icon: Bus },
+  { value: 'car', labelKey: 'reservations.type.car', Icon: Car },
+  { value: 'taxi', labelKey: 'reservations.type.taxi', Icon: CarTaxiFront },
+  { value: 'bicycle', labelKey: 'reservations.type.bicycle', Icon: Bike },
+  { value: 'cruise', labelKey: 'reservations.type.cruise', Icon: Ship },
+  { value: 'ferry', labelKey: 'reservations.type.ferry', Icon: Sailboat },
   { value: 'transport_other', labelKey: 'reservations.type.transport_other', Icon: Route },
-]
+];
 
 const defaultForm = {
   title: '',
@@ -113,56 +168,68 @@ const defaultForm = {
   meta_train_number: '',
   meta_platform: '',
   meta_seat: '',
-}
+};
 
 interface TransportModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (data: Record<string, any> & { title: string }) => Promise<Reservation | undefined>
-  reservation: Reservation | null
-  days: Day[]
-  selectedDayId: number | null
-  files?: TripFile[]
-  onFileUpload?: (fd: FormData) => Promise<unknown>
-  onFileDelete?: (fileId: number) => Promise<void>
-  onOpenExpense?: (req: BookingExpenseRequest) => void
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: Record<string, any> & { title: string }) => Promise<Reservation | undefined>;
+  reservation: Reservation | null;
+  days: Day[];
+  selectedDayId: number | null;
+  files?: TripFile[];
+  onFileUpload?: (fd: FormData) => Promise<unknown>;
+  onFileDelete?: (fileId: number) => Promise<void>;
+  onOpenExpense?: (req: BookingExpenseRequest) => void;
 }
 
-export function TransportModal({ isOpen, onClose, onSave, reservation, days, selectedDayId, files = [], onFileUpload, onFileDelete, onOpenExpense }: TransportModalProps) {
-  const { t, locale } = useTranslation()
-  const toast = useToast()
-  const isBudgetEnabled = useAddonStore(s => s.isEnabled('budget'))
-  const budgetItems = useTripStore(s => s.budgetItems)
-  const deleteBudgetItem = useTripStore(s => s.deleteBudgetItem)
-  const loadFiles = useTripStore(s => s.loadFiles)
-  const { id: tripId } = useParams<{ id: string }>()
+export function TransportModal({
+  isOpen,
+  onClose,
+  onSave,
+  reservation,
+  days,
+  selectedDayId,
+  files = [],
+  onFileUpload,
+  onFileDelete,
+  onOpenExpense,
+}: TransportModalProps) {
+  const { t, locale } = useTranslation();
+  const toast = useToast();
+  const isBudgetEnabled = useAddonStore((s) => s.isEnabled('budget'));
+  const budgetItems = useTripStore((s) => s.budgetItems);
+  const deleteBudgetItem = useTripStore((s) => s.deleteBudgetItem);
+  const loadFiles = useTripStore((s) => s.loadFiles);
+  const { id: tripId } = useParams<{ id: string }>();
   // Set right before submitting when the user clicked "create/edit expense", so
   // the post-save handler knows to open the Costs editor for the saved booking.
-  const expenseIntentRef = useRef<{ editItem?: BudgetItem; create?: boolean } | null>(null)
-  const [form, setForm] = useState({ ...defaultForm })
-  const [isSaving, setIsSaving] = useState(false)
-  const [fromPick, setFromPick] = useState<EndpointPick>({})
-  const [toPick, setToPick] = useState<EndpointPick>({})
+  const expenseIntentRef = useRef<{ editItem?: BudgetItem; create?: boolean } | null>(null);
+  const [form, setForm] = useState({ ...defaultForm });
+  const [isSaving, setIsSaving] = useState(false);
+  const [fromPick, setFromPick] = useState<EndpointPick>({});
+  const [toPick, setToPick] = useState<EndpointPick>({});
   // Flight route as an ordered list of airports (origin .. stops .. destination).
-  const [waypoints, setWaypoints] = useState<WaypointForm[]>([emptyWaypoint(), emptyWaypoint()])
-  const [uploadingFile, setUploadingFile] = useState(false)
-  const [pendingFiles, setPendingFiles] = useState<File[]>([])
-  const [showFilePicker, setShowFilePicker] = useState(false)
-  const [linkedFileIds, setLinkedFileIds] = useState<number[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [waypoints, setWaypoints] = useState<WaypointForm[]>([emptyWaypoint(), emptyWaypoint()]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [showFilePicker, setShowFilePicker] = useState(false);
+  const [linkedFileIds, setLinkedFileIds] = useState<number[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) return;
     if (reservation) {
-      const meta = typeof reservation.metadata === 'string'
-        ? JSON.parse(reservation.metadata || '{}')
-        : (reservation.metadata || {})
-      const eps = reservation.endpoints || []
-      const from = eps.find(e => e.role === 'from')
-      const to = eps.find(e => e.role === 'to')
+      const meta =
+        typeof reservation.metadata === 'string'
+          ? JSON.parse(reservation.metadata || '{}')
+          : reservation.metadata || {};
+      const eps = reservation.endpoints || [];
+      const from = eps.find((e) => e.role === 'from');
+      const to = eps.find((e) => e.role === 'to');
       const type = (TRANSPORT_TYPES as readonly string[]).includes(reservation.type)
-        ? reservation.type as TransportType
-        : 'flight'
+        ? (reservation.type as TransportType)
+        : 'flight';
       setForm({
         title: reservation.title || '',
         type,
@@ -178,17 +245,17 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
         meta_train_number: meta.train_number || '',
         meta_platform: meta.platform || '',
         meta_seat: meta.seat || '',
-      })
+      });
       if (type === 'flight') {
-        const orderedEps = orderedEndpoints(reservation)
-        const metaLegs: any[] = Array.isArray(meta.legs) ? meta.legs : []
-        let wps: WaypointForm[]
+        const orderedEps = orderedEndpoints(reservation);
+        const metaLegs: any[] = Array.isArray(meta.legs) ? meta.legs : [];
+        let wps: WaypointForm[];
         if (orderedEps.length >= 2) {
           wps = orderedEps.map((ep, i) => {
-            const legInto = metaLegs[i - 1] // leg arriving INTO waypoint i
-            const legOut = metaLegs[i] // leg departing FROM waypoint i
-            const isFirst = i === 0
-            const isLast = i === orderedEps.length - 1
+            const legInto = metaLegs[i - 1]; // leg arriving INTO waypoint i
+            const legOut = metaLegs[i]; // leg departing FROM waypoint i
+            const isFirst = i === 0;
+            const isLast = i === orderedEps.length - 1;
             return {
               airport: airportFromEndpoint(ep),
               arrDayId: legInto?.arr_day_id ?? (isLast ? (reservation.end_day_id ?? '') : ''),
@@ -198,76 +265,76 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
               airline: legOut?.airline ?? (isFirst ? (meta.airline ?? '') : ''),
               flight_number: legOut?.flight_number ?? (isFirst ? (meta.flight_number ?? '') : ''),
               seat: legOut?.seat ?? (isFirst ? (meta.seat ?? '') : ''),
-            }
-          })
+            };
+          });
         } else {
           // Legacy flight with no (or partial) endpoints — seed two waypoints.
-          const dep = emptyWaypoint(reservation.day_id ?? '')
-          dep.airport = airportFromEndpoint(from)
-          dep.depTime = splitReservationDateTime(reservation.reservation_time).time ?? ''
-          dep.airline = meta.airline ?? ''
-          dep.flight_number = meta.flight_number ?? ''
-          dep.seat = meta.seat ?? ''
-          const arr = emptyWaypoint(reservation.end_day_id ?? reservation.day_id ?? '')
-          arr.airport = airportFromEndpoint(to)
-          arr.arrTime = splitReservationDateTime(reservation.reservation_end_time).time ?? ''
-          wps = [dep, arr]
+          const dep = emptyWaypoint(reservation.day_id ?? '');
+          dep.airport = airportFromEndpoint(from);
+          dep.depTime = splitReservationDateTime(reservation.reservation_time).time ?? '';
+          dep.airline = meta.airline ?? '';
+          dep.flight_number = meta.flight_number ?? '';
+          dep.seat = meta.seat ?? '';
+          const arr = emptyWaypoint(reservation.end_day_id ?? reservation.day_id ?? '');
+          arr.airport = airportFromEndpoint(to);
+          arr.arrTime = splitReservationDateTime(reservation.reservation_end_time).time ?? '';
+          wps = [dep, arr];
         }
-        setWaypoints(wps)
+        setWaypoints(wps);
       } else {
-        setFromPick({ location: locationFromEndpoint(from) || undefined })
-        setToPick({ location: locationFromEndpoint(to) || undefined })
+        setFromPick({ location: locationFromEndpoint(from) || undefined });
+        setToPick({ location: locationFromEndpoint(to) || undefined });
       }
     } else {
-      setForm({ ...defaultForm, start_day_id: selectedDayId ?? '', end_day_id: selectedDayId ?? '' })
-      setFromPick({})
-      setToPick({})
-      setWaypoints([emptyWaypoint(selectedDayId ?? ''), emptyWaypoint(selectedDayId ?? '')])
+      setForm({ ...defaultForm, start_day_id: selectedDayId ?? '', end_day_id: selectedDayId ?? '' });
+      setFromPick({});
+      setToPick({});
+      setWaypoints([emptyWaypoint(selectedDayId ?? ''), emptyWaypoint(selectedDayId ?? '')]);
     }
-  }, [isOpen, reservation, selectedDayId, budgetItems])
+  }, [isOpen, reservation, selectedDayId, budgetItems]);
 
-  const set = (field: string, value: any) => setForm(prev => ({ ...prev, [field]: value }))
+  const set = (field: string, value: any) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    if (!form.title.trim()) return
-    setIsSaving(true)
+    e?.preventDefault();
+    if (!form.title.trim()) return;
+    setIsSaving(true);
     try {
-      const startDay = days.find(d => d.id === Number(form.start_day_id))
-      const endDay = days.find(d => d.id === Number(form.end_day_id))
+      const startDay = days.find((d) => d.id === Number(form.start_day_id));
+      const endDay = days.find((d) => d.id === Number(form.end_day_id));
 
       const buildTime = (day: Day | undefined, time: string): string | null => {
-        if (!time) return null
-        return day?.date ? `${day.date}T${time}` : time
-      }
+        if (!time) return null;
+        return day?.date ? `${day.date}T${time}` : time;
+      };
 
-      const dayDate = (id: string | number): string | null => days.find(d => d.id === Number(id))?.date ?? null
+      const dayDate = (id: string | number): string | null => days.find((d) => d.id === Number(id))?.date ?? null;
       // Flight route as an ordered list of airports (origin .. stops .. destination).
-      const flightWps = form.type === 'flight' ? waypoints.filter(w => w.airport) : []
-      const firstWp = flightWps[0]
-      const lastWp = flightWps[flightWps.length - 1]
+      const flightWps = form.type === 'flight' ? waypoints.filter((w) => w.airport) : [];
+      const firstWp = flightWps[0];
+      const lastWp = flightWps[flightWps.length - 1];
       // Per-leg day-plan positions are owned by the day planner, not this form — keep
       // them when re-saving so editing a flight doesn't reset where its legs sit.
-      const origLegs: any[] = reservation ? (parseReservationMetadata(reservation).legs || []) : []
+      const origLegs: any[] = reservation ? parseReservationMetadata(reservation).legs || [] : [];
 
-      const metadata: Record<string, any> = {}
+      const metadata: Record<string, any> = {};
       if (form.type === 'flight') {
         // Top-level keys mirror the first/last leg so legacy readers keep working.
-        if (firstWp?.airline) metadata.airline = firstWp.airline
-        if (firstWp?.flight_number) metadata.flight_number = firstWp.flight_number
+        if (firstWp?.airline) metadata.airline = firstWp.airline;
+        if (firstWp?.flight_number) metadata.flight_number = firstWp.flight_number;
         if (firstWp?.airport) {
-          metadata.departure_airport = firstWp.airport.iata
-          metadata.departure_timezone = firstWp.airport.tz
+          metadata.departure_airport = firstWp.airport.iata;
+          metadata.departure_timezone = firstWp.airport.tz;
         }
         if (lastWp?.airport) {
-          metadata.arrival_airport = lastWp.airport.iata
-          metadata.arrival_timezone = lastWp.airport.tz
+          metadata.arrival_airport = lastWp.airport.iata;
+          metadata.arrival_timezone = lastWp.airport.tz;
         }
         // Per-leg detail only for true multi-leg flights — a single-leg flight
         // keeps the exact same (flat) metadata it had before this feature.
         if (flightWps.length > 2) {
           metadata.legs = flightWps.slice(0, -1).map((w, i) => {
-            const next = flightWps[i + 1]
+            const next = flightWps[i + 1];
             return {
               from: w.airport!.iata,
               to: next.airport!.iata,
@@ -279,133 +346,158 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
               arr_day_id: next.arrDayId ? Number(next.arrDayId) : null,
               arr_time: next.arrTime || null,
               ...(origLegs[i]?.day_positions ? { day_positions: origLegs[i].day_positions } : {}),
-            }
-          })
+            };
+          });
         }
-        if (firstWp?.seat) metadata.seat = firstWp.seat
+        if (firstWp?.seat) metadata.seat = firstWp.seat;
       } else if (form.type === 'train') {
-        if (form.meta_train_number) metadata.train_number = form.meta_train_number
-        if (form.meta_platform) metadata.platform = form.meta_platform
-        if (form.meta_seat) metadata.seat = form.meta_seat
+        if (form.meta_train_number) metadata.train_number = form.meta_train_number;
+        if (form.meta_platform) metadata.platform = form.meta_platform;
+        if (form.meta_seat) metadata.seat = form.meta_seat;
       }
-      const startDate = startDay?.date ?? null
-      const endDate = (endDay ?? startDay)?.date ?? null
-      const endpoints: ReturnType<typeof endpointFromAirport>[] = []
+      const startDate = startDay?.date ?? null;
+      const endDate = (endDay ?? startDay)?.date ?? null;
+      const endpoints: ReturnType<typeof endpointFromAirport>[] = [];
       if (form.type === 'flight') {
         flightWps.forEach((w, i) => {
-          const isFirst = i === 0
-          const isLast = i === flightWps.length - 1
-          const role: 'from' | 'to' | 'stop' = isFirst ? 'from' : isLast ? 'to' : 'stop'
-          const dId = isLast ? w.arrDayId : w.depDayId
-          const time = isLast ? w.arrTime : w.depTime
-          endpoints.push(endpointFromAirport(w.airport!, role, i, dayDate(dId), time || null))
-        })
+          const isFirst = i === 0;
+          const isLast = i === flightWps.length - 1;
+          const role: 'from' | 'to' | 'stop' = isFirst ? 'from' : isLast ? 'to' : 'stop';
+          const dId = isLast ? w.arrDayId : w.depDayId;
+          const time = isLast ? w.arrTime : w.depTime;
+          endpoints.push(endpointFromAirport(w.airport!, role, i, dayDate(dId), time || null));
+        });
       } else {
-        if (fromPick.location) endpoints.push(endpointFromLocation(fromPick.location, 'from', 0, startDate, form.departure_time || null))
-        if (toPick.location) endpoints.push(endpointFromLocation(toPick.location, 'to', 1, endDate, form.arrival_time || null))
+        if (fromPick.location)
+          endpoints.push(endpointFromLocation(fromPick.location, 'from', 0, startDate, form.departure_time || null));
+        if (toPick.location)
+          endpoints.push(endpointFromLocation(toPick.location, 'to', 1, endDate, form.arrival_time || null));
       }
 
       // Flights derive their span from the first/last waypoint; other transports
       // keep using the single departure/arrival form fields unchanged.
-      const flightDepDay = firstWp && firstWp.depDayId ? Number(firstWp.depDayId) : null
-      const flightArrDay = lastWp && lastWp.arrDayId ? Number(lastWp.arrDayId) : null
+      const flightDepDay = firstWp && firstWp.depDayId ? Number(firstWp.depDayId) : null;
+      const flightArrDay = lastWp && lastWp.arrDayId ? Number(lastWp.arrDayId) : null;
       const payload = {
         title: form.title,
         type: form.type,
         status: form.status,
-        day_id: form.type === 'flight' ? flightDepDay : (form.start_day_id ? Number(form.start_day_id) : null),
-        end_day_id: form.type === 'flight' ? flightArrDay : (form.end_day_id ? Number(form.end_day_id) : null),
-        reservation_time: form.type === 'flight'
-          ? buildTime(days.find(d => d.id === flightDepDay), firstWp?.depTime || '')
-          : buildTime(startDay, form.departure_time),
-        reservation_end_time: form.type === 'flight'
-          ? buildTime(days.find(d => d.id === flightArrDay), lastWp?.arrTime || '')
-          : buildTime(endDay ?? startDay, form.arrival_time),
+        day_id: form.type === 'flight' ? flightDepDay : form.start_day_id ? Number(form.start_day_id) : null,
+        end_day_id: form.type === 'flight' ? flightArrDay : form.end_day_id ? Number(form.end_day_id) : null,
+        reservation_time:
+          form.type === 'flight'
+            ? buildTime(
+                days.find((d) => d.id === flightDepDay),
+                firstWp?.depTime || ''
+              )
+            : buildTime(startDay, form.departure_time),
+        reservation_end_time:
+          form.type === 'flight'
+            ? buildTime(
+                days.find((d) => d.id === flightArrDay),
+                lastWp?.arrTime || ''
+              )
+            : buildTime(endDay ?? startDay, form.arrival_time),
         location: null,
         confirmation_number: form.confirmation_number || null,
         notes: form.notes || null,
         metadata: Object.keys(metadata).length > 0 ? metadata : null,
         endpoints,
         needs_review: false,
-      }
-      const saved = await onSave(payload)
+      };
+      const saved = await onSave(payload);
       if (!reservation?.id && saved?.id && pendingFiles.length > 0 && onFileUpload) {
         for (const file of pendingFiles) {
-          const fd = new FormData()
-          fd.append('file', file)
-          fd.append('reservation_id', String(saved.id))
-          fd.append('description', form.title)
-          await onFileUpload(fd)
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('reservation_id', String(saved.id));
+          fd.append('description', form.title);
+          await onFileUpload(fd);
         }
       }
       // The user asked to create/edit the linked expense — open the Costs editor
       // for the now-saved booking. Gated on saved?.id so a failed save doesn't.
-      const intent = expenseIntentRef.current
-      expenseIntentRef.current = null
+      const intent = expenseIntentRef.current;
+      expenseIntentRef.current = null;
       if (intent && onOpenExpense && saved?.id) {
-        if (intent.editItem) onOpenExpense({ editItem: intent.editItem })
-        else onOpenExpense({ prefill: { reservationId: saved.id, name: form.title, category: typeToCostCategory(form.type) } })
+        if (intent.editItem) onOpenExpense({ editItem: intent.editItem });
+        else
+          onOpenExpense({
+            prefill: { reservationId: saved.id, name: form.title, category: typeToCostCategory(form.type) },
+          });
       }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : t('common.unknownError'))
+      toast.error(err instanceof Error ? err.message : t('common.unknownError'));
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
-  const handleCreateExpense = () => { expenseIntentRef.current = { create: true }; handleSubmit() }
-  const handleEditExpense = (item: BudgetItem) => { expenseIntentRef.current = { editItem: item }; handleSubmit() }
+  const handleCreateExpense = () => {
+    expenseIntentRef.current = { create: true };
+    handleSubmit();
+  };
+  const handleEditExpense = (item: BudgetItem) => {
+    expenseIntentRef.current = { editItem: item };
+    handleSubmit();
+  };
   const handleRemoveExpense = async (item: BudgetItem) => {
-    try { await deleteBudgetItem(Number(tripId), item.id) } catch { toast.error(t('common.unknownError')) }
-  }
+    try {
+      await deleteBudgetItem(Number(tripId), item.id);
+    } catch {
+      toast.error(t('common.unknownError'));
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
     if (reservation?.id) {
-      setUploadingFile(true)
+      setUploadingFile(true);
       try {
-        const fd = new FormData()
-        fd.append('file', file)
-        fd.append('reservation_id', String(reservation.id))
-        fd.append('description', reservation.title)
-        await onFileUpload!(fd)
-        toast.success(t('reservations.toast.fileUploaded'))
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('reservation_id', String(reservation.id));
+        fd.append('description', reservation.title);
+        await onFileUpload!(fd);
+        toast.success(t('reservations.toast.fileUploaded'));
       } catch {
-        toast.error(t('reservations.toast.uploadError'))
+        toast.error(t('reservations.toast.uploadError'));
       } finally {
-        setUploadingFile(false)
-        e.target.value = ''
+        setUploadingFile(false);
+        e.target.value = '';
       }
     } else {
-      setPendingFiles(prev => [...prev, file])
-      e.target.value = ''
+      setPendingFiles((prev) => [...prev, file]);
+      e.target.value = '';
     }
-  }
+  };
 
   const attachedFiles = reservation?.id
-    ? files.filter(f =>
-        f.reservation_id === reservation.id ||
-        linkedFileIds.includes(f.id) ||
-        (f.linked_reservation_ids && f.linked_reservation_ids.includes(reservation.id))
+    ? files.filter(
+        (f) =>
+          f.reservation_id === reservation.id ||
+          linkedFileIds.includes(f.id) ||
+          (f.linked_reservation_ids && f.linked_reservation_ids.includes(reservation.id))
       )
-    : []
+    : [];
 
-  const inputClass = 'w-full border border-edge rounded-[10px] px-[12px] py-[8px] text-[13px] font-[inherit] outline-none box-border text-content bg-surface-input'
-  const labelClass = 'block text-[11px] font-semibold text-content-faint mb-[5px] uppercase tracking-[0.03em]'
+  const inputClass =
+    'w-full border border-edge rounded-[10px] px-[12px] py-[8px] text-[13px] font-[inherit] outline-none box-border text-content bg-surface-input';
+  const labelClass = 'block text-[11px] font-semibold text-content-faint mb-[5px] uppercase tracking-[0.03em]';
 
   const dayOptions = [
     { value: '', label: '—' },
-    ...days.map(d => {
-      const dateBadge = d.date ? (formatDate(d.date, locale) ?? undefined) : undefined
-      const dayBadge = d.title ? t('dayplan.dayN', { n: d.day_number }) : undefined
+    ...days.map((d) => {
+      const dateBadge = d.date ? (formatDate(d.date, locale) ?? undefined) : undefined;
+      const dayBadge = d.title ? t('dayplan.dayN', { n: d.day_number }) : undefined;
       return {
         value: d.id,
         label: d.title || t('dayplan.dayN', { n: d.day_number }),
         badge: dateBadge ?? dayBadge,
-      }
+      };
     }),
-  ]
+  ];
 
   return (
     <Modal
@@ -415,28 +507,73 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
       size="2xl"
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button type="button" onClick={onClose} className="text-content-muted" style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid var(--border-primary)', background: 'none', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-content-muted"
+            style={{
+              padding: '8px 16px',
+              borderRadius: 10,
+              border: '1px solid var(--border-primary)',
+              background: 'none',
+              fontSize: 12,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
             {t('common.cancel')}
           </button>
-          <button type="button" onClick={handleSubmit} disabled={isSaving || !form.title.trim()} className="bg-[var(--text-primary)] text-[var(--bg-primary)]" style={{ padding: '8px 20px', borderRadius: 10, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: isSaving || !form.title.trim() ? 0.5 : 1 }}>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSaving || !form.title.trim()}
+            className="bg-[var(--text-primary)] text-[var(--bg-primary)]"
+            style={{
+              padding: '8px 20px',
+              borderRadius: 10,
+              border: 'none',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              opacity: isSaving || !form.title.trim() ? 0.5 : 1,
+            }}
+          >
             {isSaving ? t('common.saving') : reservation ? t('common.update') : t('common.add')}
           </button>
         </div>
       }
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
         {/* Type selector */}
         <div>
           <label className={labelClass}>{t('reservations.bookingType')}</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
             {TYPE_OPTIONS.map(({ value, labelKey, Icon }) => (
-              <button key={value} type="button" onClick={() => set('type', value)} className={form.type === value ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]' : 'bg-surface-card text-content-muted'} style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                padding: '5px 10px', borderRadius: 99, border: '1px solid',
-                fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                borderColor: form.type === value ? 'var(--text-primary)' : 'var(--border-primary)',
-              }}>
+              <button
+                key={value}
+                type="button"
+                onClick={() => set('type', value)}
+                className={
+                  form.type === value
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                    : 'bg-surface-card text-content-muted'
+                }
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '5px 10px',
+                  borderRadius: 99,
+                  border: '1px solid',
+                  fontSize: 11,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.12s',
+                  borderColor: form.type === value ? 'var(--text-primary)' : 'var(--border-primary)',
+                }}
+              >
                 <Icon size={11} /> {t(labelKey)}
               </button>
             ))}
@@ -446,8 +583,14 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
         {/* Title */}
         <div>
           <label className={labelClass}>{t('reservations.titleLabel')} *</label>
-          <input type="text" value={form.title} onChange={e => set('title', e.target.value)} required
-            placeholder={t('reservations.titlePlaceholder')} className={inputClass} />
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => set('title', e.target.value)}
+            required
+            placeholder={t('reservations.titlePlaceholder')}
+            className={inputClass}
+          />
         </div>
 
         {form.type === 'flight' ? (
@@ -455,20 +598,59 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label className={labelClass}>{t('reservations.layover.route')}</label>
             {waypoints.map((wp, i) => {
-              const isFirst = i === 0
-              const isLast = i === waypoints.length - 1
-              const updateWp = (patch: Partial<WaypointForm>) => setWaypoints(prev => prev.map((w, j) => (j === i ? { ...w, ...patch } : w)))
-              const roleLabel = isFirst ? t('reservations.meta.from') : isLast ? t('reservations.meta.to') : t('reservations.layover.stop')
+              const isFirst = i === 0;
+              const isLast = i === waypoints.length - 1;
+              const updateWp = (patch: Partial<WaypointForm>) =>
+                setWaypoints((prev) => prev.map((w, j) => (j === i ? { ...w, ...patch } : w)));
+              const roleLabel = isFirst
+                ? t('reservations.meta.from')
+                : isLast
+                  ? t('reservations.meta.to')
+                  : t('reservations.layover.stop');
               return (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div className="bg-surface-card" style={{ border: '1px solid var(--border-primary)', borderRadius: 10, padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div
+                    className="bg-surface-card"
+                    style={{
+                      border: '1px solid var(--border-primary)',
+                      borderRadius: 10,
+                      padding: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="text-content-faint" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', flexShrink: 0 }}>{roleLabel}</span>
+                      <span
+                        className="text-content-faint"
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.03em',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {roleLabel}
+                      </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <AirportSelect value={wp.airport} onChange={a => updateWp({ airport: a || null })} />
+                        <AirportSelect value={wp.airport} onChange={(a) => updateWp({ airport: a || null })} />
                       </div>
                       {!isFirst && !isLast && (
-                        <button type="button" onClick={() => setWaypoints(prev => prev.filter((_, j) => j !== i))} aria-label={t('common.delete')} className="text-content-faint" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 4, flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => setWaypoints((prev) => prev.filter((_, j) => j !== i))}
+                          aria-label={t('common.delete')}
+                          className="text-content-faint"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            padding: 4,
+                            flexShrink: 0,
+                          }}
+                        >
                           <Trash2 size={14} />
                         </button>
                       )}
@@ -477,16 +659,32 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
                       <div style={{ display: 'flex', gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <label className={labelClass}>{t('reservations.arrivalDate')}</label>
-                          <CustomSelect value={wp.arrDayId} onChange={v => updateWp({ arrDayId: v })} placeholder={t('dayplan.dayN', { n: '?' })} options={dayOptions} size="sm" />
+                          <CustomSelect
+                            value={wp.arrDayId}
+                            onChange={(v) => updateWp({ arrDayId: v })}
+                            placeholder={t('dayplan.dayN', { n: '?' })}
+                            options={dayOptions}
+                            size="sm"
+                          />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <label className={labelClass}>{t('reservations.arrivalTime')}</label>
-                          <CustomTimePicker value={wp.arrTime} onChange={v => updateWp({ arrTime: v })} />
+                          <CustomTimePicker value={wp.arrTime} onChange={(v) => updateWp({ arrTime: v })} />
                         </div>
                         {wp.airport && (
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <label className={labelClass}>{t('reservations.meta.arrivalTimezone')}</label>
-                            <div className={inputClass} style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12, background: 'var(--bg-tertiary)' }}>{wp.airport.tz}</div>
+                            <div
+                              className={inputClass}
+                              style={{
+                                padding: '8px 12px',
+                                color: 'var(--text-muted)',
+                                fontSize: 12,
+                                background: 'var(--bg-tertiary)',
+                              }}
+                            >
+                              {wp.airport.tz}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -496,81 +694,164 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
                         <div style={{ display: 'flex', gap: 8 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <label className={labelClass}>{t('reservations.departureDate')}</label>
-                            <CustomSelect value={wp.depDayId} onChange={v => updateWp({ depDayId: v })} placeholder={t('dayplan.dayN', { n: '?' })} options={dayOptions} size="sm" />
+                            <CustomSelect
+                              value={wp.depDayId}
+                              onChange={(v) => updateWp({ depDayId: v })}
+                              placeholder={t('dayplan.dayN', { n: '?' })}
+                              options={dayOptions}
+                              size="sm"
+                            />
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <label className={labelClass}>{t('reservations.departureTime')}</label>
-                            <CustomTimePicker value={wp.depTime} onChange={v => updateWp({ depTime: v })} />
+                            <CustomTimePicker value={wp.depTime} onChange={(v) => updateWp({ depTime: v })} />
                           </div>
                           {wp.airport && (
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <label className={labelClass}>{t('reservations.meta.departureTimezone')}</label>
-                              <div className={inputClass} style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12, background: 'var(--bg-tertiary)' }}>{wp.airport.tz}</div>
+                              <div
+                                className={inputClass}
+                                style={{
+                                  padding: '8px 12px',
+                                  color: 'var(--text-muted)',
+                                  fontSize: 12,
+                                  background: 'var(--bg-tertiary)',
+                                }}
+                              >
+                                {wp.airport.tz}
+                              </div>
                             </div>
                           )}
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                           <div>
                             <label className={labelClass}>{t('reservations.meta.airline')}</label>
-                            <input type="text" value={wp.airline} onChange={e => updateWp({ airline: e.target.value })} placeholder="Lufthansa" className={inputClass} />
+                            <input
+                              type="text"
+                              value={wp.airline}
+                              onChange={(e) => updateWp({ airline: e.target.value })}
+                              placeholder="Lufthansa"
+                              className={inputClass}
+                            />
                           </div>
                           <div>
                             <label className={labelClass}>{t('reservations.meta.flightNumber')}</label>
-                            <input type="text" value={wp.flight_number} onChange={e => updateWp({ flight_number: e.target.value })} placeholder="LH 123" className={inputClass} />
+                            <input
+                              type="text"
+                              value={wp.flight_number}
+                              onChange={(e) => updateWp({ flight_number: e.target.value })}
+                              placeholder="LH 123"
+                              className={inputClass}
+                            />
                           </div>
                           <div>
                             <label className={labelClass}>{t('reservations.meta.seat')}</label>
-                            <input type="text" value={wp.seat} onChange={e => updateWp({ seat: e.target.value })} placeholder="12A" className={inputClass} />
+                            <input
+                              type="text"
+                              value={wp.seat}
+                              onChange={(e) => updateWp({ seat: e.target.value })}
+                              placeholder="12A"
+                              className={inputClass}
+                            />
                           </div>
                         </div>
                       </>
                     )}
                   </div>
                   {!isLast && (
-                    <button type="button" onClick={() => setWaypoints(prev => [...prev.slice(0, i + 1), emptyWaypoint(prev[i]?.depDayId || ''), ...prev.slice(i + 1)])}
-                      className="text-content-faint hover:text-content-secondary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px 10px', border: '1px dashed var(--border-primary)', borderRadius: 8, background: 'none', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setWaypoints((prev) => [
+                          ...prev.slice(0, i + 1),
+                          emptyWaypoint(prev[i]?.depDayId || ''),
+                          ...prev.slice(i + 1),
+                        ])
+                      }
+                      className="text-content-faint hover:text-content-secondary"
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 5,
+                        padding: '6px 10px',
+                        border: '1px dashed var(--border-primary)',
+                        borderRadius: 8,
+                        background: 'none',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
                       <Plus size={12} /> {t('reservations.layover.addStop')}
                     </button>
                   )}
                 </div>
-              )
+              );
             })}
           </div>
         ) : (
           <>
             {/* From / To endpoints (non-flight) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>{t('reservations.meta.from')}</label>
-                <LocationSelect value={fromPick.location || null} onChange={l => setFromPick({ location: l || undefined })} />
+                <LocationSelect
+                  value={fromPick.location || null}
+                  onChange={(l) => setFromPick({ location: l || undefined })}
+                />
               </div>
               <div>
                 <label className={labelClass}>{t('reservations.meta.to')}</label>
-                <LocationSelect value={toPick.location || null} onChange={l => setToPick({ location: l || undefined })} />
+                <LocationSelect
+                  value={toPick.location || null}
+                  onChange={(l) => setToPick({ location: l || undefined })}
+                />
               </div>
             </div>
 
             {/* Departure row */}
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <label className={labelClass}>{form.type === 'car' ? t('reservations.pickupDate') : t('reservations.date')}</label>
-                <CustomSelect value={form.start_day_id} onChange={value => set('start_day_id', value)} placeholder={t('dayplan.dayN', { n: '?' })} options={dayOptions} size="sm" />
+                <label className={labelClass}>
+                  {form.type === 'car' ? t('reservations.pickupDate') : t('reservations.date')}
+                </label>
+                <CustomSelect
+                  value={form.start_day_id}
+                  onChange={(value) => set('start_day_id', value)}
+                  placeholder={t('dayplan.dayN', { n: '?' })}
+                  options={dayOptions}
+                  size="sm"
+                />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <label className={labelClass}>{form.type === 'car' ? t('reservations.pickupTime') : t('reservations.startTime')}</label>
-                <CustomTimePicker value={form.departure_time} onChange={v => set('departure_time', v)} />
+                <label className={labelClass}>
+                  {form.type === 'car' ? t('reservations.pickupTime') : t('reservations.startTime')}
+                </label>
+                <CustomTimePicker value={form.departure_time} onChange={(v) => set('departure_time', v)} />
               </div>
             </div>
 
             {/* Arrival row */}
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <label className={labelClass}>{form.type === 'car' ? t('reservations.returnDate') : t('reservations.endDate')}</label>
-                <CustomSelect value={form.end_day_id} onChange={value => set('end_day_id', value)} placeholder={t('dayplan.dayN', { n: '?' })} options={dayOptions} size="sm" />
+                <label className={labelClass}>
+                  {form.type === 'car' ? t('reservations.returnDate') : t('reservations.endDate')}
+                </label>
+                <CustomSelect
+                  value={form.end_day_id}
+                  onChange={(value) => set('end_day_id', value)}
+                  placeholder={t('dayplan.dayN', { n: '?' })}
+                  options={dayOptions}
+                  size="sm"
+                />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <label className={labelClass}>{form.type === 'car' ? t('reservations.returnTime') : t('reservations.endTime')}</label>
-                <CustomTimePicker value={form.arrival_time} onChange={v => set('arrival_time', v)} />
+                <label className={labelClass}>
+                  {form.type === 'car' ? t('reservations.returnTime') : t('reservations.endTime')}
+                </label>
+                <CustomTimePicker value={form.arrival_time} onChange={(v) => set('arrival_time', v)} />
               </div>
             </div>
           </>
@@ -581,34 +862,54 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className={labelClass}>{t('reservations.meta.trainNumber')}</label>
-              <input type="text" value={form.meta_train_number} onChange={e => set('meta_train_number', e.target.value)}
-                placeholder="ICE 123" className={inputClass} />
+              <input
+                type="text"
+                value={form.meta_train_number}
+                onChange={(e) => set('meta_train_number', e.target.value)}
+                placeholder="ICE 123"
+                className={inputClass}
+              />
             </div>
             <div>
               <label className={labelClass}>{t('reservations.meta.platform')}</label>
-              <input type="text" value={form.meta_platform} onChange={e => set('meta_platform', e.target.value)}
-                placeholder="12" className={inputClass} />
+              <input
+                type="text"
+                value={form.meta_platform}
+                onChange={(e) => set('meta_platform', e.target.value)}
+                placeholder="12"
+                className={inputClass}
+              />
             </div>
             <div>
               <label className={labelClass}>{t('reservations.meta.seat')}</label>
-              <input type="text" value={form.meta_seat} onChange={e => set('meta_seat', e.target.value)}
-                placeholder="42A" className={inputClass} />
+              <input
+                type="text"
+                value={form.meta_seat}
+                onChange={(e) => set('meta_seat', e.target.value)}
+                placeholder="42A"
+                className={inputClass}
+              />
             </div>
           </div>
         )}
 
         {/* Booking Code + Status */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className={labelClass}>{t('reservations.confirmationCode')}</label>
-            <input type="text" value={form.confirmation_number} onChange={e => set('confirmation_number', e.target.value)}
-              placeholder={t('reservations.confirmationPlaceholder')} className={inputClass} />
+            <input
+              type="text"
+              value={form.confirmation_number}
+              onChange={(e) => set('confirmation_number', e.target.value)}
+              placeholder={t('reservations.confirmationPlaceholder')}
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass}>{t('reservations.status')}</label>
             <CustomSelect
               value={form.status}
-              onChange={value => set('status', value)}
+              onChange={(value) => set('status', value)}
               options={[
                 { value: 'pending', label: t('reservations.pending') },
                 { value: 'confirmed', label: t('reservations.confirmed') },
@@ -621,96 +922,225 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
         {/* Notes */}
         <div>
           <label className={labelClass}>{t('reservations.notes')}</label>
-          <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2}
+          <textarea
+            value={form.notes}
+            onChange={(e) => set('notes', e.target.value)}
+            rows={2}
             placeholder={t('reservations.notesPlaceholder')}
-            className={inputClass} style={{ resize: 'none', lineHeight: 1.5 }} />
+            className={inputClass}
+            style={{ resize: 'none', lineHeight: 1.5 }}
+          />
         </div>
 
         {/* Files */}
         <div>
           <label className={labelClass}>{t('files.title')}</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {attachedFiles.map(f => (
-              <div key={f.id} className="bg-surface-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', borderRadius: 8 }}>
+            {attachedFiles.map((f) => (
+              <div
+                key={f.id}
+                className="bg-surface-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', borderRadius: 8 }}
+              >
                 <FileText size={12} className="text-content-muted" style={{ flexShrink: 0 }} />
-                <span className="text-content-secondary" style={{ flex: 1, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.original_name}</span>
-                <a href="#" onClick={(e) => { e.preventDefault(); openFile(f.url).catch(() => {}) }} className="text-content-faint" style={{ display: 'flex', flexShrink: 0, cursor: 'pointer' }}><ExternalLink size={11} /></a>
-                <button type="button" onClick={async () => {
-                  if (f.reservation_id === reservation?.id) {
-                    try { await apiClient.put(`/trips/${tripId}/files/${f.id}`, { reservation_id: null }) } catch { toast.error(t('reservations.toast.updateError')) }
-                  }
-                  try {
-                    const linksRes = await apiClient.get(`/trips/${tripId}/files/${f.id}/links`)
-                    const link = (linksRes.data.links || []).find((l: any) => l.reservation_id === reservation?.id)
-                    if (link) await apiClient.delete(`/trips/${tripId}/files/${f.id}/link/${link.id}`)
-                  } catch { toast.error(t('reservations.toast.updateError')) }
-                  setLinkedFileIds(prev => prev.filter(id => id !== f.id))
-                  if (tripId) loadFiles(tripId)
-                }} className="text-content-faint" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 0, flexShrink: 0 }}>
+                <span
+                  className="text-content-secondary"
+                  style={{ flex: 1, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {f.original_name}
+                </span>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    openFile(f.url).catch(() => {});
+                  }}
+                  className="text-content-faint"
+                  style={{ display: 'flex', flexShrink: 0, cursor: 'pointer' }}
+                >
+                  <ExternalLink size={11} />
+                </a>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (f.reservation_id === reservation?.id) {
+                      try {
+                        await apiClient.put(`/trips/${tripId}/files/${f.id}`, { reservation_id: null });
+                      } catch {
+                        toast.error(t('reservations.toast.updateError'));
+                      }
+                    }
+                    try {
+                      const linksRes = await apiClient.get(`/trips/${tripId}/files/${f.id}/links`);
+                      const link = (linksRes.data.links || []).find((l: any) => l.reservation_id === reservation?.id);
+                      if (link) await apiClient.delete(`/trips/${tripId}/files/${f.id}/link/${link.id}`);
+                    } catch {
+                      toast.error(t('reservations.toast.updateError'));
+                    }
+                    setLinkedFileIds((prev) => prev.filter((id) => id !== f.id));
+                    if (tripId) loadFiles(tripId);
+                  }}
+                  className="text-content-faint"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    padding: 0,
+                    flexShrink: 0,
+                  }}
+                >
                   <X size={11} />
                 </button>
               </div>
             ))}
             {pendingFiles.map((f, i) => (
-              <div key={i} className="bg-surface-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', borderRadius: 8 }}>
+              <div
+                key={i}
+                className="bg-surface-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', borderRadius: 8 }}
+              >
                 <FileText size={12} className="text-content-muted" style={{ flexShrink: 0 }} />
-                <span className="text-content-secondary" style={{ flex: 1, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                <button type="button" onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))}
-                  className="text-content-faint" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 0, flexShrink: 0 }}>
+                <span
+                  className="text-content-secondary"
+                  style={{ flex: 1, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {f.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                  className="text-content-faint"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    padding: 0,
+                    flexShrink: 0,
+                  }}
+                >
                   <X size={11} />
                 </button>
               </div>
             ))}
-            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,image/*"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {onFileUpload && <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="text-content-faint" style={{
-                display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px',
-                border: '1px dashed var(--border-primary)', borderRadius: 8, background: 'none',
-                fontSize: 11, cursor: uploadingFile ? 'default' : 'pointer', fontFamily: 'inherit',
-              }}>
-                <Paperclip size={11} />
-                {uploadingFile ? t('reservations.uploading') : t('reservations.attachFile')}
-              </button>}
-              {reservation?.id && files.filter(f => !f.deleted_at && !attachedFiles.some(af => af.id === f.id)).length > 0 && (
-                <div style={{ position: 'relative' }}>
-                  <button type="button" onClick={() => setShowFilePicker(v => !v)} className="text-content-faint" style={{
-                    display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px',
-                    border: '1px dashed var(--border-primary)', borderRadius: 8, background: 'none',
-                    fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
-                  }}>
-                    <Link2 size={11} /> {t('reservations.linkExisting')}
-                  </button>
-                  {showFilePicker && (
-                    <div className="bg-surface-card" style={{
-                      position: 'absolute', bottom: '100%', left: 0, marginBottom: 4, zIndex: 50,
-                      border: '1px solid var(--border-primary)', borderRadius: 10,
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: 4, minWidth: 220, maxHeight: 200, overflowY: 'auto',
-                    }}>
-                      {files.filter(f => !f.deleted_at && !attachedFiles.some(af => af.id === f.id)).map(f => (
-                        <button key={f.id} type="button" onClick={async () => {
-                          try {
-                            await apiClient.post(`/trips/${tripId}/files/${f.id}/link`, { reservation_id: reservation.id })
-                            setLinkedFileIds(prev => [...prev, f.id])
-                            setShowFilePicker(false)
-                            if (tripId) loadFiles(tripId)
-                          } catch { toast.error(t('reservations.toast.updateError')) }
-                        }}
-                          className="text-content-secondary"
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 10px',
-                            background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
-                            borderRadius: 7, textAlign: 'left',
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                          <FileText size={12} className="text-content-faint" style={{ flexShrink: 0 }} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.original_name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {onFileUpload && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                  className="text-content-faint"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '6px 10px',
+                    border: '1px dashed var(--border-primary)',
+                    borderRadius: 8,
+                    background: 'none',
+                    fontSize: 11,
+                    cursor: uploadingFile ? 'default' : 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <Paperclip size={11} />
+                  {uploadingFile ? t('reservations.uploading') : t('reservations.attachFile')}
+                </button>
               )}
+              {reservation?.id &&
+                files.filter((f) => !f.deleted_at && !attachedFiles.some((af) => af.id === f.id)).length > 0 && (
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowFilePicker((v) => !v)}
+                      className="text-content-faint"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        padding: '6px 10px',
+                        border: '1px dashed var(--border-primary)',
+                        borderRadius: 8,
+                        background: 'none',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      <Link2 size={11} /> {t('reservations.linkExisting')}
+                    </button>
+                    {showFilePicker && (
+                      <div
+                        className="bg-surface-card"
+                        style={{
+                          position: 'absolute',
+                          bottom: '100%',
+                          left: 0,
+                          marginBottom: 4,
+                          zIndex: 50,
+                          border: '1px solid var(--border-primary)',
+                          borderRadius: 10,
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                          padding: 4,
+                          minWidth: 220,
+                          maxHeight: 200,
+                          overflowY: 'auto',
+                        }}
+                      >
+                        {files
+                          .filter((f) => !f.deleted_at && !attachedFiles.some((af) => af.id === f.id))
+                          .map((f) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await apiClient.post(`/trips/${tripId}/files/${f.id}/link`, {
+                                    reservation_id: reservation.id,
+                                  });
+                                  setLinkedFileIds((prev) => [...prev, f.id]);
+                                  setShowFilePicker(false);
+                                  if (tripId) loadFiles(tripId);
+                                } catch {
+                                  toast.error(t('reservations.toast.updateError'));
+                                }
+                              }}
+                              className="text-content-secondary"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                width: '100%',
+                                padding: '6px 10px',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: 12,
+                                fontFamily: 'inherit',
+                                borderRadius: 7,
+                                textAlign: 'left',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                            >
+                              <FileText size={12} className="text-content-faint" style={{ flexShrink: 0 }} />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {f.original_name}
+                              </span>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -724,8 +1154,7 @@ export function TransportModal({ isOpen, onClose, onSave, reservation, days, sel
             onRemove={handleRemoveExpense}
           />
         )}
-
       </form>
     </Modal>
-  )
+  );
 }

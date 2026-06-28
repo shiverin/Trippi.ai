@@ -1,9 +1,10 @@
-import path from 'node:path';
+import { db } from '../../db/database';
+
+import { Response } from 'express';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
-import crypto from 'node:crypto';
-import { Response } from 'express';
-import { db } from '../../db/database';
+import path from 'node:path';
 
 const TRIPPI_PHOTO_DIR = path.join(__dirname, '../../../uploads/photos/trippi');
 export const CACHE_TTL = 60 * 60 * 1000; // 1 hour
@@ -25,9 +26,9 @@ function cachedFilePath(key: string): string {
 }
 
 export function getFresh(key: string): { filePath: string; contentType: string } | null {
-  const row = db.prepare(
-    'SELECT content_type, fetched_at FROM trippi_photo_cache_meta WHERE cache_key = ?'
-  ).get(key) as { content_type: string; fetched_at: number } | undefined;
+  const row = db.prepare('SELECT content_type, fetched_at FROM trek_photo_cache_meta WHERE cache_key = ?').get(key) as
+    | { content_type: string; fetched_at: number }
+    | undefined;
 
   if (!row) return null;
 
@@ -53,9 +54,11 @@ export async function put(key: string, bytes: Buffer, contentType: string): Prom
   await fsPromises.writeFile(tmp, bytes);
   await fsPromises.rename(tmp, fp);
 
-  db.prepare(
-    'INSERT OR REPLACE INTO trippi_photo_cache_meta (cache_key, content_type, fetched_at) VALUES (?, ?, ?)'
-  ).run(key, contentType, Date.now());
+  db.prepare('INSERT OR REPLACE INTO trek_photo_cache_meta (cache_key, content_type, fetched_at) VALUES (?, ?, ?)').run(
+    key,
+    contentType,
+    Date.now(),
+  );
 }
 
 export function serveFresh(res: Response, key: string): boolean {
@@ -79,9 +82,9 @@ export function setInFlight(key: string, promise: Promise<Buffer | null>): void 
 
 export function sweepExpired(): void {
   const cutoff = Date.now() - CACHE_TTL * 2;
-  const stale = db.prepare(
-    'SELECT cache_key FROM trippi_photo_cache_meta WHERE fetched_at < ?'
-  ).all(cutoff) as { cache_key: string }[];
+  const stale = db.prepare('SELECT cache_key FROM trek_photo_cache_meta WHERE fetched_at < ?').all(cutoff) as {
+    cache_key: string;
+  }[];
 
   for (const row of stale) {
     db.prepare('DELETE FROM trippi_photo_cache_meta WHERE cache_key = ?').run(row.cache_key);

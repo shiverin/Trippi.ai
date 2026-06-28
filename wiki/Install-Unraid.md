@@ -1,6 +1,6 @@
 # Install: Unraid
 
-Install TRIPPI on Unraid via Community Applications or a direct template import.
+Install trippi.ai on Unraid via Community Applications or a direct template import.
 
 <!-- TODO: screenshot: Unraid container template settings -->
 
@@ -11,13 +11,13 @@ Docker must be enabled in Unraid (**Settings → Docker → Enable Docker: Yes**
 ## Install via Community Applications
 
 1. Open the **Apps** tab in Unraid.
-2. Search for **TRIPPI**.
-3. Click **Install** on the TRIPPI result.
+2. Search for **trippi.ai**.
+3. Click **Install** on the trippi.ai result.
 
 If the app does not appear, you can install directly from the template URL. In **Docker → Add Container**, paste the template URL:
 
 ```
-https://raw.githubusercontent.com/mauriceboe/TRIPPI/main/unraid-template.xml
+https://raw.githubusercontent.com/shiverin/Trippi.ai/main/unraid-template.xml
 ```
 
 ## Template Fields
@@ -41,7 +41,7 @@ The Unraid template exposes the following fields in the container UI:
 | `ALLOWED_ORIGINS` | *(empty)* | Comma-separated origins for CORS and email notification links, e.g. `https://trippi.example.com` |
 | `APP_URL` | *(empty)* | Public base URL; required when OIDC is enabled (must match the redirect URI registered with your IdP) |
 | `ADMIN_EMAIL` | *(empty)* | Email for the first admin account (first-boot only; no effect once any user exists). Must be set together with `ADMIN_PASSWORD`. |
-| `ADMIN_PASSWORD` | *(empty)* | Password for the first admin account (first-boot only). Must be set together with `ADMIN_EMAIL`. If either is omitted, TRIPPI creates the account with email `admin@trippi.local` and a random password printed to the container log. |
+| `ADMIN_PASSWORD` | *(empty)* | Password for the first admin account (first-boot only). Must be set together with `ADMIN_EMAIL`. If either is omitted, trippi.ai creates the account with email `admin@trek.local` and a random password printed to the container log. |
 
 ### Advanced Variables
 
@@ -55,7 +55,7 @@ Generate a key in the Unraid terminal (**Tools → Terminal**):
 openssl rand -hex 32
 ```
 
-Copy the output into the `ENCRYPTION_KEY` field before starting the container for the first time. If you skip this, TRIPPI auto-generates a key and saves it to `data/.encryption_key` — your data is still protected, but you should record that file in your backups.
+Copy the output into the `ENCRYPTION_KEY` field before starting the container for the first time. If you skip this, trippi.ai auto-generates a key and saves it to `data/.encryption_key` — your data is still protected, but you should record that file in your backups.
 
 ## After Install
 
@@ -65,7 +65,7 @@ Once the container starts, open your browser at:
 http://<unraid-ip>:<port>
 ```
 
-On first boot, TRIPPI automatically creates an admin account. The credentials are printed to the container log — check **Docker → trippi → Log** in the Unraid UI. If you set both `ADMIN_EMAIL` and `ADMIN_PASSWORD`, those values are used; otherwise the email is `admin@trippi.local` and a random password is generated.
+On first boot, trippi.ai automatically creates an admin account. The credentials are printed to the container log — check **Docker → trek → Log** in the Unraid UI. If you set both `ADMIN_EMAIL` and `ADMIN_PASSWORD`, those values are used; otherwise the email is `admin@trek.local` and a random password is generated.
 
 ## Next Steps
 

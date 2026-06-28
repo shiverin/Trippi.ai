@@ -1,6 +1,6 @@
 # Tags and Categories
 
-TRIPPI has two independent labelling systems for places:
+trippi.ai has two independent labelling systems for places:
 
 - **Global Place Categories** — admin-managed, shared across every user on the instance (e.g. `Restaurant`, `Museum`).
 - **Personal Tags** — user-scoped, private labels (e.g. `hidden gem`, `kid-friendly`).

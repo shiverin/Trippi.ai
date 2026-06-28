@@ -1,14 +1,3 @@
-import { Injectable } from '@nestjs/common';
-import type { ChannelTestResult } from '@trippi/shared';
-import {
-  testSmtp,
-  testWebhook,
-  testNtfy,
-  getAdminWebhookUrl,
-  getUserWebhookUrl,
-  getUserNtfyConfig,
-  getAdminNtfyConfig,
-} from '../../services/notifications';
 import {
   getNotifications,
   getUnreadCount,
@@ -20,6 +9,17 @@ import {
   respondToBoolean,
 } from '../../services/inAppNotifications';
 import { getPreferencesMatrix, setPreferences } from '../../services/notificationPreferencesService';
+import {
+  testSmtp,
+  testWebhook,
+  testNtfy,
+  getAdminWebhookUrl,
+  getUserWebhookUrl,
+  getUserNtfyConfig,
+  getAdminNtfyConfig,
+} from '../../services/notifications';
+import { Injectable } from '@nestjs/common';
+import type { ChannelTestResult } from '@trippi/shared';
 
 type NtfyConfig = ReturnType<typeof getAdminNtfyConfig>;
 type RespondResult = Awaited<ReturnType<typeof respondToBoolean>>;

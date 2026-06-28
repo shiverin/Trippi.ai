@@ -1,3 +1,7 @@
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { BudgetService } from './budget.service';
 import {
   Body,
   Controller,
@@ -11,10 +15,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type { User } from '../../types';
-import { BudgetService } from './budget.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
 
 /**
  * /api/trips/:tripId/budget — trip-scoped expense planner.
@@ -58,11 +58,7 @@ export class BudgetController {
   }
 
   @Get('settlement')
-  settlement(
-    @CurrentUser() user: User,
-    @Param('tripId') tripId: string,
-    @Query('base') base?: string,
-  ) {
+  settlement(@CurrentUser() user: User, @Param('tripId') tripId: string, @Query('base') base?: string) {
     const trip = this.requireTrip(tripId, user);
     return this.budget.settlement(tripId, base, (trip as { currency?: string }).currency || 'EUR');
   }
@@ -139,7 +135,17 @@ export class BudgetController {
   async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
-    @Body() body: { name?: string; category?: string; total_price?: number; persons?: number | null; days?: number | null; note?: string | null; expense_date?: string | null; reservation_id?: number },
+    @Body()
+    body: {
+      name?: string;
+      category?: string;
+      total_price?: number;
+      persons?: number | null;
+      days?: number | null;
+      note?: string | null;
+      expense_date?: string | null;
+      reservation_id?: number;
+    },
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = this.requireTrip(tripId, user);
@@ -218,7 +224,12 @@ export class BudgetController {
     if (!result) {
       throw new HttpException({ error: 'Budget item not found' }, 404);
     }
-    this.budget.broadcast(tripId, 'budget:members-updated', { itemId: Number(id), members: result.members, persons: result.item.persons }, socketId);
+    this.budget.broadcast(
+      tripId,
+      'budget:members-updated',
+      { itemId: Number(id), members: result.members, persons: result.item.persons },
+      socketId,
+    );
     return { members: result.members, item: result.item };
   }
 
@@ -255,7 +266,12 @@ export class BudgetController {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const member = this.budget.toggleMemberPaid(id, tripId, userId, paid);
-    this.budget.broadcast(tripId, 'budget:member-paid-updated', { itemId: Number(id), userId: Number(userId), paid: paid ? 1 : 0 }, socketId);
+    this.budget.broadcast(
+      tripId,
+      'budget:member-paid-updated',
+      { itemId: Number(id), userId: Number(userId), paid: paid ? 1 : 0 },
+      socketId,
+    );
     return { member };
   }
 

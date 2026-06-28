@@ -5,6 +5,6 @@ import { test, expect } from '@playwright/test'
 test('authenticated session reaches the dashboard', async ({ page }) => {
   await page.goto('/dashboard')
   await expect(page).toHaveURL(/\/dashboard/)
-  // The shared Navbar shows the TRIPPI brand once authenticated.
-  await expect(page.getByRole('img', { name: 'TRIPPI' }).first()).toBeVisible()
+  // The shared Navbar shows the trippi.ai brand once authenticated.
+  await expect(page.getByRole('img', { name: 'trippi.ai' }).first()).toBeVisible()
 })

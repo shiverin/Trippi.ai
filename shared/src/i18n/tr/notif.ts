@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Paket listesi ataması',
   'notif.packing_tagged.text': '{actor} sizi {trip} içinde {category} kategorisine atadı',
   'notif.version_available.title': 'Yeni Sürüm Mevcut',
-  'notif.version_available.text': 'TRIPPI {version} artık kullanılabilir',
+  'notif.version_available.text': 'trippi.ai {version} artık kullanılabilir',
   'notif.action.view_trip': 'Seyahati Görüntüle',
   'notif.action.view_collab': 'Mesajları Görüntüle',
   'notif.action.view_packing': 'Paket listesini görüntüle',

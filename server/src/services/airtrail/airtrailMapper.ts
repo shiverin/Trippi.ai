@@ -1,6 +1,7 @@
-import * as crypto from 'node:crypto';
 import type { AirtrailAirport, AirtrailFlightRaw, AirtrailNamedCode } from './airtrailClient';
 import type { AirtrailFlight } from '@trippi/shared';
+
+import * as crypto from 'node:crypto';
 
 /** Preferred display/lookup code for an airport. */
 function airportCode(a: AirtrailAirport | null): string | null {
@@ -17,7 +18,7 @@ export function entityCode(e: AirtrailNamedCode | null | undefined): string | nu
 
 /**
  * Human-readable name for an airline/aircraft (e.g. "Lufthansa"), falling back to the
- * code when AirTrail doesn't provide a name. Used for what TRIPPI displays/stores; the
+ * code when AirTrail doesn't provide a name. Used for what trippi.ai displays/stores; the
  * raw code stays available via entityCode for the writeback payload (#1334).
  */
 export function entityName(e: AirtrailNamedCode | null | undefined): string | null {
@@ -27,7 +28,7 @@ export function entityName(e: AirtrailNamedCode | null | undefined): string | nu
 /**
  * Local calendar date + clock time for an instant at a given IANA zone.
  * AirTrail stores `departure`/`arrival` as instants (ISO w/ offset) plus a local
- * `date`; the airport-local wall time is what TRIPPI shows and files days by.
+ * `date`; the airport-local wall time is what trippi.ai shows and files days by.
  */
 function localParts(iso: string | null, tz: string | null): { date: string | null; time: string | null } {
   if (!iso) return { date: null, time: null };
@@ -44,7 +45,7 @@ function localParts(iso: string | null, tz: string | null): { date: string | nul
       hour12: false,
     });
     const parts = fmt.formatToParts(d);
-    const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
     const date = `${get('year')}-${get('month')}-${get('day')}`;
     let hh = get('hour');
     if (hh === '24') hh = '00'; // some ICU builds emit 24:00 for midnight
@@ -69,7 +70,7 @@ export function normalizeFlight(raw: AirtrailFlightRaw): AirtrailFlight {
     airline: entityName(raw.airline),
     flightNumber: raw.flightNumber ?? null,
     aircraft: entityCode(raw.aircraft),
-    seatClass: (raw.seats?.find(s => s.userId) ?? raw.seats?.[0])?.seatClass ?? null,
+    seatClass: (raw.seats?.find((s) => s.userId) ?? raw.seats?.[0])?.seatClass ?? null,
   };
 }
 
@@ -103,7 +104,7 @@ function hasCoords(a: AirtrailAirport | null): a is AirtrailAirport & { lat: num
 
 /** Raw AirTrail flight → the data createReservation() expects (type:'flight'). */
 export function mapFlightToReservation(raw: AirtrailFlightRaw): MappedReservation {
-  // Read the SCHEDULED times only — TRIPPI plans against the scheduled (booked) time,
+  // Read the SCHEDULED times only — trippi.ai plans against the scheduled (booked) time,
   // not the actual/estimated `departure`/`arrival`. When a flight has no scheduled
   // time, the clock is left blank (date preserved) rather than fabricated.
   const dep = localParts(raw.departureScheduled, raw.from?.tz ?? null);
@@ -150,7 +151,7 @@ export function mapFlightToReservation(raw: AirtrailFlightRaw): MappedReservatio
     needsReview = 1;
   }
 
-  const seat = raw.seats?.find(s => s.userId) ?? raw.seats?.[0];
+  const seat = raw.seats?.find((s) => s.userId) ?? raw.seats?.[0];
   const airlineName = entityName(raw.airline);
   const airlineCode = entityCode(raw.airline);
   const aircraftCode = entityCode(raw.aircraft);
@@ -184,7 +185,7 @@ export function mapFlightToReservation(raw: AirtrailFlightRaw): MappedReservatio
 
 /**
  * Stable snapshot hash of an AirTrail flight, used by the sync engine to detect
- * remote changes (AirTrail exposes no updated_at/etag) and to suppress TRIPPI's own
+ * remote changes (AirTrail exposes no updated_at/etag) and to suppress trippi.ai's own
  * writes from re-triggering a pull. Only fields that can meaningfully change are
  * included, in a fixed key order.
  */
@@ -203,7 +204,7 @@ export function canonicalHash(raw: AirtrailFlightRaw): string {
     flightReason: raw.flightReason ?? null,
     note: raw.note ?? null,
     seats: (raw.seats ?? [])
-      .map(s => ({
+      .map((s) => ({
         userId: s.userId ?? null,
         guestName: s.guestName ?? null,
         seat: s.seat ?? null,

@@ -202,7 +202,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': 'Gagal menyimpan',
   'admin.tabs.addons': 'Addon',
   'admin.addons.title': 'Addon',
-  'admin.addons.subtitle': 'Aktifkan atau nonaktifkan fitur untuk menyesuaikan pengalaman TRIPPI kamu.',
+  'admin.addons.subtitle': 'Aktifkan atau nonaktifkan fitur untuk menyesuaikan pengalaman trippi.ai kamu.',
   'admin.addons.catalog.packing.name': 'Daftar',
   'admin.addons.catalog.packing.description': 'Daftar packing dan tugas to-do untuk perjalananmu',
   'admin.addons.catalog.budget.name': 'Anggaran',
@@ -235,7 +235,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Data Cuaca',
   'admin.weather.badge': 'Sejak 24 Maret 2026',
   'admin.weather.description':
-    'TRIPPI menggunakan Open-Meteo sebagai sumber data cuaca. Open-Meteo adalah layanan cuaca gratis dan open-source — tidak perlu kunci API.',
+    'trippi.ai menggunakan Open-Meteo sebagai sumber data cuaca. Open-Meteo adalah layanan cuaca gratis dan open-source — tidak perlu kunci API.',
   'admin.weather.forecast': 'Prakiraan 16 hari',
   'admin.weather.forecastDesc': 'Sebelumnya 5 hari (OpenWeatherMap)',
   'admin.weather.climate': 'Data iklim historis',
@@ -293,14 +293,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Memuat...',
   'admin.github.error': 'Gagal memuat rilis',
   'admin.github.by': 'oleh',
-  'admin.github.support': 'Bantu saya terus mengembangkan TRIPPI',
+  'admin.github.support': 'Bantu saya terus mengembangkan trippi.ai',
   'admin.update.available': 'Pembaruan tersedia',
-  'admin.update.text': 'TRIPPI {version} tersedia. Kamu menggunakan {current}.',
+  'admin.update.text': 'trippi.ai {version} tersedia. Kamu menggunakan {current}.',
   'admin.update.button': 'Lihat di GitHub',
   'admin.update.install': 'Pasang Pembaruan',
   'admin.update.confirmTitle': 'Pasang Pembaruan?',
   'admin.update.confirmText':
-    'TRIPPI akan diperbarui dari {current} ke {version}. Server akan restart otomatis setelahnya.',
+    'trippi.ai akan diperbarui dari {current} ke {version}. Server akan restart otomatis setelahnya.',
   'admin.update.dataInfo':
     'Semua datamu (perjalanan, pengguna, kunci API, unggahan, Vacay, Atlas, anggaran) akan dipertahankan.',
   'admin.update.warning': 'Aplikasi akan tidak tersedia sebentar selama restart.',
@@ -312,9 +312,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Pergi ke Backup',
   'admin.update.howTo': 'Cara Memperbarui',
   'admin.update.dockerText':
-    'Instans TRIPPI kamu berjalan di Docker. Untuk memperbarui ke {version}, jalankan perintah berikut di servermu:',
+    'Instans trippi.ai kamu berjalan di Docker. Untuk memperbarui ke {version}, jalankan perintah berikut di servermu:',
   'admin.update.nonDockerText':
-    'Instans TRIPPI ini tidak berjalan di Docker. Untuk memperbarui ke {version}, jalankan ulang metode instalasi atau pembaruan yang kamu gunakan — misalnya, pada Proxmox Community Scripts jalankan pembaruan dari konsol LXC:',
+    'Instans trippi.ai ini tidak berjalan di Docker. Untuk memperbarui ke {version}, jalankan ulang metode instalasi atau pembaruan yang kamu gunakan — misalnya, pada Proxmox Community Scripts jalankan pembaruan dari konsol LXC:',
   'admin.update.wikiLink': 'Buka panduan pembaruan',
   'admin.update.reloadHint': 'Muat ulang halaman dalam beberapa detik.',
   'admin.tabs.permissions': 'Izin',

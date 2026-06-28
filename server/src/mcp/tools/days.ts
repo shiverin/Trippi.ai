@@ -1,23 +1,39 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
-import { z } from 'zod';
 import { canAccessTrip, db } from '../../db/database';
 import { isDemoUser } from '../../services/authService';
 import {
-  getDay, updateDay, validateAccommodationRefs,
-  createDay, deleteDay,
-  createAccommodation, getAccommodation, updateAccommodation, deleteAccommodation,
-} from '../../services/dayService';
-import { createPlace } from '../../services/placeService';
-import {
-  createNote as createDayNote, getNote as getDayNote, updateNote as updateDayNote,
-  deleteNote as deleteDayNote, dayExists as dayNoteExists,
+  createNote as createDayNote,
+  getNote as getDayNote,
+  updateNote as updateDayNote,
+  deleteNote as deleteDayNote,
+  dayExists as dayNoteExists,
 } from '../../services/dayNoteService';
 import {
-  safeBroadcast, TOOL_ANNOTATIONS_WRITE, TOOL_ANNOTATIONS_DELETE,
-  TOOL_ANNOTATIONS_NON_IDEMPOTENT,
-  demoDenied, noAccess, ok, hasTripPermission, permissionDenied,
-} from './_shared';
+  getDay,
+  updateDay,
+  validateAccommodationRefs,
+  createDay,
+  deleteDay,
+  createAccommodation,
+  getAccommodation,
+  updateAccommodation,
+  deleteAccommodation,
+} from '../../services/dayService';
+import { createPlace } from '../../services/placeService';
 import { canWrite } from '../scopes';
+import {
+  safeBroadcast,
+  TOOL_ANNOTATIONS_WRITE,
+  TOOL_ANNOTATIONS_DELETE,
+  TOOL_ANNOTATIONS_NON_IDEMPOTENT,
+  demoDenied,
+  noAccess,
+  ok,
+  hasTripPermission,
+  permissionDenied,
+} from './_shared';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
+
+import { z } from 'zod';
 
 export function registerDayTools(server: McpServer, userId: number, scopes: string[] | null): void {
   if (!canWrite(scopes, 'trips')) return;
@@ -44,7 +60,7 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       const updated = updateDay(dayId, current, title !== undefined ? { title } : {});
       safeBroadcast(tripId, 'day:updated', { day: updated });
       return ok({ day: updated });
-    }
+    },
   );
 
   server.registerTool(
@@ -65,7 +81,7 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       const day = createDay(tripId, date, notes);
       safeBroadcast(tripId, 'day:created', { day });
       return ok({ day });
-    }
+    },
   );
 
   server.registerTool(
@@ -82,11 +98,12 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       if (isDemoUser(userId)) return demoDenied();
       if (!canAccessTrip(tripId, userId)) return noAccess();
       if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      if (!getDay(dayId, tripId)) return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
+      if (!getDay(dayId, tripId))
+        return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
       deleteDay(dayId);
       safeBroadcast(tripId, 'day:deleted', { id: dayId });
       return ok({ success: true });
-    }
+    },
   );
 
   server.registerTool(
@@ -111,17 +128,28 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       if (!canAccessTrip(tripId, userId)) return noAccess();
       if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
       const errors = validateAccommodationRefs(tripId, place_id, start_day_id, end_day_id);
-      if (errors.length > 0) return { content: [{ type: 'text' as const, text: errors.map(e => e.message).join(', ') }], isError: true };
-      const accommodation = createAccommodation(tripId, { place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes });
+      if (errors.length > 0)
+        return { content: [{ type: 'text' as const, text: errors.map((e) => e.message).join(', ') }], isError: true };
+      const accommodation = createAccommodation(tripId, {
+        place_id,
+        start_day_id,
+        end_day_id,
+        check_in,
+        check_in_end,
+        check_out,
+        confirmation,
+        notes,
+      });
       safeBroadcast(tripId, 'accommodation:created', { accommodation });
       return ok({ accommodation });
-    }
+    },
   );
 
   server.registerTool(
     'create_place_accommodation',
     {
-      description: 'Create a new place and immediately set it as an accommodation for a date range in one atomic operation. Use place details from search_place results. Only use when the place does not yet exist — if it already exists, use create_accommodation directly. Set price + currency to record the accommodation cost so it shows on the item.',
+      description:
+        'Create a new place and immediately set it as an accommodation for a date range in one atomic operation. Use place details from search_place results. Only use when the place does not yet exist — if it already exists, use create_accommodation directly. Set price + currency to record the accommodation cost so it shows on the item.',
       inputSchema: {
         tripId: z.number().int().positive(),
         name: z.string().min(1).max(200),
@@ -129,9 +157,20 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
         lat: z.number().optional(),
         lng: z.number().optional(),
         address: z.string().max(500).optional(),
-        category_id: z.number().int().positive().optional().describe('Category ID — use list_categories to see available options'),
-        google_place_id: z.string().optional().describe('Google Place ID from search_place — enables opening hours display'),
-        google_ftid: z.string().optional().describe('Google Maps feature ID from search_place — enables direct Google Maps links'),
+        category_id: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe('Category ID — use list_categories to see available options'),
+        google_place_id: z
+          .string()
+          .optional()
+          .describe('Google Place ID from search_place — enables opening hours display'),
+        google_ftid: z
+          .string()
+          .optional()
+          .describe('Google Maps feature ID from search_place — enables direct Google Maps links'),
         osm_id: z.string().optional().describe('OpenStreetMap ID from search_place (e.g. "way:12345")'),
         place_notes: z.string().max(2000).optional().describe('Notes for the place'),
         website: z.string().max(500).optional(),
@@ -148,16 +187,67 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       },
       annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,
     },
-    async ({ tripId, name, description, lat, lng, address, category_id, google_place_id, google_ftid, osm_id, place_notes, website, phone, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, accommodation_notes, price, currency }) => {
+    async ({
+      tripId,
+      name,
+      description,
+      lat,
+      lng,
+      address,
+      category_id,
+      google_place_id,
+      google_ftid,
+      osm_id,
+      place_notes,
+      website,
+      phone,
+      start_day_id,
+      end_day_id,
+      check_in,
+      check_in_end,
+      check_out,
+      confirmation,
+      accommodation_notes,
+      price,
+      currency,
+    }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!canAccessTrip(tripId, userId)) return noAccess();
       if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
       const dayErrors = validateAccommodationRefs(tripId, undefined, start_day_id, end_day_id);
-      if (dayErrors.length > 0) return { content: [{ type: 'text' as const, text: dayErrors.map(e => e.message).join(', ') }], isError: true };
+      if (dayErrors.length > 0)
+        return {
+          content: [{ type: 'text' as const, text: dayErrors.map((e) => e.message).join(', ') }],
+          isError: true,
+        };
       try {
         const run = db.transaction(() => {
-          const place = createPlace(String(tripId), { name, description, lat, lng, address, category_id, google_place_id, google_ftid, osm_id, notes: place_notes, website, phone, price, currency });
-          const accommodation = createAccommodation(tripId, { place_id: place.id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes: accommodation_notes });
+          const place = createPlace(String(tripId), {
+            name,
+            description,
+            lat,
+            lng,
+            address,
+            category_id,
+            google_place_id,
+            google_ftid,
+            osm_id,
+            notes: place_notes,
+            website,
+            phone,
+            price,
+            currency,
+          });
+          const accommodation = createAccommodation(tripId, {
+            place_id: place.id,
+            start_day_id,
+            end_day_id,
+            check_in,
+            check_in_end,
+            check_out,
+            confirmation,
+            notes: accommodation_notes,
+          });
           return { place, accommodation };
         });
         const result = run();
@@ -165,9 +255,12 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
         safeBroadcast(tripId, 'accommodation:created', { accommodation: result.accommodation });
         return ok(result);
       } catch {
-        return { content: [{ type: 'text' as const, text: 'Failed to create place and accommodation.' }], isError: true };
+        return {
+          content: [{ type: 'text' as const, text: 'Failed to create place and accommodation.' }],
+          isError: true,
+        };
       }
-    }
+    },
   );
 
   server.registerTool(
@@ -188,16 +281,36 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       },
       annotations: TOOL_ANNOTATIONS_WRITE,
     },
-    async ({ tripId, accommodationId, place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes }) => {
+    async ({
+      tripId,
+      accommodationId,
+      place_id,
+      start_day_id,
+      end_day_id,
+      check_in,
+      check_in_end,
+      check_out,
+      confirmation,
+      notes,
+    }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!canAccessTrip(tripId, userId)) return noAccess();
       if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
       const existing = getAccommodation(accommodationId, tripId);
       if (!existing) return { content: [{ type: 'text' as const, text: 'Accommodation not found.' }], isError: true };
-      const accommodation = updateAccommodation(accommodationId, existing, { place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes });
+      const accommodation = updateAccommodation(accommodationId, existing, {
+        place_id,
+        start_day_id,
+        end_day_id,
+        check_in,
+        check_in_end,
+        check_out,
+        confirmation,
+        notes,
+      });
       safeBroadcast(tripId, 'accommodation:updated', { accommodation });
       return ok({ accommodation });
-    }
+    },
   );
 
   server.registerTool(
@@ -214,11 +327,12 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       if (isDemoUser(userId)) return demoDenied();
       if (!canAccessTrip(tripId, userId)) return noAccess();
       if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      if (!getAccommodation(accommodationId, tripId)) return { content: [{ type: 'text' as const, text: 'Accommodation not found.' }], isError: true };
+      if (!getAccommodation(accommodationId, tripId))
+        return { content: [{ type: 'text' as const, text: 'Accommodation not found.' }], isError: true };
       const { linkedReservationId } = deleteAccommodation(accommodationId);
       safeBroadcast(tripId, 'accommodation:deleted', { id: accommodationId, linkedReservationId });
       return ok({ success: true, linkedReservationId });
-    }
+    },
   );
 
   // --- DAY NOTES ---
@@ -240,11 +354,12 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       if (isDemoUser(userId)) return demoDenied();
       if (!canAccessTrip(tripId, userId)) return noAccess();
       if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      if (!dayNoteExists(dayId, tripId)) return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
+      if (!dayNoteExists(dayId, tripId))
+        return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
       const note = createDayNote(dayId, tripId, text, time, icon);
       safeBroadcast(tripId, 'dayNote:created', { dayId, note });
       return ok({ note });
-    }
+    },
   );
 
   server.registerTool(
@@ -256,7 +371,12 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
         dayId: z.number().int().positive(),
         noteId: z.number().int().positive(),
         text: z.string().min(1).max(500).optional(),
-        time: z.string().max(250).nullable().optional().describe('Time label (e.g. "09:00" or "Morning"), or null to clear'),
+        time: z
+          .string()
+          .max(250)
+          .nullable()
+          .optional()
+          .describe('Time label (e.g. "09:00" or "Morning"), or null to clear'),
         icon: z.string().optional().describe('Emoji icon for the note'),
       },
       annotations: TOOL_ANNOTATIONS_WRITE,
@@ -270,7 +390,7 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       const note = updateDayNote(noteId, existing, { text, time: time !== undefined ? time : undefined, icon });
       safeBroadcast(tripId, 'dayNote:updated', { dayId, note });
       return ok({ note });
-    }
+    },
   );
 
   server.registerTool(
@@ -293,6 +413,6 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       deleteDayNote(noteId);
       safeBroadcast(tripId, 'dayNote:deleted', { noteId, dayId });
       return ok({ success: true });
-    }
+    },
   );
 }

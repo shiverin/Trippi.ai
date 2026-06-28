@@ -3007,7 +3007,7 @@ function runMigrations(db: Database.Database): void {
       }
     },
     () => {
-      // AirTrail flight linkage on reservations (#214) — lets a TRIPPI transport
+      // AirTrail flight linkage on reservations (#214) — lets a trippi.ai transport
       // remember its AirTrail origin so the two-way sync can match + update it.
       // sync_enabled flips to 0 when the AirTrail flight is deleted (row kept).
       try {
@@ -3046,8 +3046,8 @@ function runMigrations(db: Database.Database): void {
       );
     },
     () => {
-      // Per-user opt-in for writing TRIPPI edits back to AirTrail (#1240). Default
-      // off: AirTrail is the source of truth and TRIPPI never writes unless asked.
+      // Per-user opt-in for writing trippi.ai edits back to AirTrail (#1240). Default
+      // off: AirTrail is the source of truth and trippi.ai never writes unless asked.
       try {
         db.exec('ALTER TABLE users ADD COLUMN airtrail_write_enabled INTEGER DEFAULT 0');
       } catch (err: any) {

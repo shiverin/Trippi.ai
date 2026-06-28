@@ -1,6 +1,6 @@
 # System Notices — Technical Documentation & Dev Guide
 
-System notices are server-evaluated, user-targeted messages shown in the TRIPPI UI as modals, banners, or toasts. They are used for onboarding, upgrade announcements, breaking change warnings, and time-boxed campaigns. Every aspect — targeting, display, copy, and dismissal — is controlled from one place: the server-side registry.
+System notices are server-evaluated, user-targeted messages shown in the trippi.ai UI as modals, banners, or toasts. They are used for onboarding, upgrade announcements, breaking change warnings, and time-boxed campaigns. Every aspect — targeting, display, copy, and dismissal — is controlled from one place: the server-side registry.
 
 ---
 
@@ -465,7 +465,7 @@ bodyKey: 'system_notice.my_notice.body',
 bodyParams: { version: '3.1.0', date: '1 May 2026' },
 
 // In en.ts:
-'system_notice.my_notice.body': 'TRIPPI {version} was released on {date}.',
+'system_notice.my_notice.body': 'trippi.ai {version} was released on {date}.',
 ```
 
 **Never hardcode dynamic values directly in translation strings.** The interpolation runs client-side in `ModalRenderer` before rendering.

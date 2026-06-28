@@ -1,5 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
 import { db } from '../db/database';
+
+import { Request, Response, NextFunction } from 'express';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 // Reject pathological client-supplied keys outright instead of hashing
@@ -48,9 +49,11 @@ export function applyIdempotency(req: Request, res: Response, next: NextFunction
   // Return cached response only if the same key was seen for the same
   // user AND the same method+path — avoids a POST's cached body leaking
   // into an unrelated PATCH that reused the idempotency-key string.
-  const existing = db.prepare(
-    'SELECT status_code, response_body FROM idempotency_keys WHERE key = ? AND user_id = ? AND method = ? AND path = ?'
-  ).get(key, userId, req.method, req.path) as IdempotencyRow | undefined;
+  const existing = db
+    .prepare(
+      'SELECT status_code, response_body FROM idempotency_keys WHERE key = ? AND user_id = ? AND method = ? AND path = ?',
+    )
+    .get(key, userId, req.method, req.path) as IdempotencyRow | undefined;
 
   if (existing) {
     res.status(existing.status_code).json(JSON.parse(existing.response_body));
@@ -66,7 +69,7 @@ export function applyIdempotency(req: Request, res: Response, next: NextFunction
         if (serialized.length <= MAX_CACHED_BODY_BYTES) {
           db.prepare(
             `INSERT OR IGNORE INTO idempotency_keys (key, user_id, method, path, status_code, response_body, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
           ).run(key, userId, req.method, req.path, res.statusCode, serialized, Math.floor(Date.now() / 1000));
         }
       } catch {

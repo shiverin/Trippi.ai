@@ -1,6 +1,6 @@
-import { CanActivate, HttpException, Injectable } from '@nestjs/common';
-import { isAddonEnabled } from '../../services/adminService';
 import { ADDON_IDS } from '../../addons';
+import { isAddonEnabled } from '../../services/adminService';
+import { CanActivate, HttpException, Injectable } from '@nestjs/common';
 
 /**
  * Gates the AirTrail integration routes on the global `airtrail` addon. When the

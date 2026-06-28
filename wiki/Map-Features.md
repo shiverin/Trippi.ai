@@ -8,7 +8,7 @@ The trip planner map shows your places, route lines, transport overlays, and you
 
 ## Map renderer
 
-TRIPPI uses **Leaflet** by default. If you configure a Mapbox access token in Settings → Map, the map upgrades to **Mapbox GL** with higher-quality tiles, 3D buildings, and terrain. If Mapbox GL is selected but no access token is present, TRIPPI falls back to Leaflet automatically so the map is never blank.
+trippi.ai uses **Leaflet** by default. If you configure a Mapbox access token in Settings → Map, the map upgrades to **Mapbox GL** with higher-quality tiles, 3D buildings, and terrain. If Mapbox GL is selected but no access token is present, trippi.ai falls back to Leaflet automatically so the map is never blank.
 
 The scopes required for Mapbox GL are:
 - STYLES:TILES
@@ -36,7 +36,7 @@ When you have a day selected, a dark dashed line connects consecutive places in 
 
 At zoom level 12 or higher, small pill-shaped labels appear between consecutive places and show the estimated **walking time** and **driving time** for each segment. Below zoom 12 they are hidden to keep the map clean.
 
-> **Requires:** Settings → Display → **Route calculation** must be ON. When this setting is OFF, TRIPPI never queries the routing service, so no pills are calculated or drawn at any zoom level.
+> **Requires:** Settings → Display → **Route calculation** must be ON. When this setting is OFF, trippi.ai never queries the routing service, so no pills are calculated or drawn at any zoom level.
 
 ## Reservation and transport overlay
 

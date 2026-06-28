@@ -205,7 +205,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Dibagikan melalui',
   'journey.public.madeWith': 'Dibuat dengan',
   'journey.pdf.journeyBook': 'Buku Journey',
-  'journey.pdf.madeWith': 'Dibuat dengan TRIPPI',
+  'journey.pdf.madeWith': 'Dibuat dengan trippi.ai',
   'journey.pdf.day': 'Hari',
   'journey.pdf.theEnd': 'Tamat',
   'journey.pdf.saveAsPdf': 'Simpan sebagai PDF',

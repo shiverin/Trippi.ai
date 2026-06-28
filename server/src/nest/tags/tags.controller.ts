@@ -1,9 +1,9 @@
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TagsService } from './tags.service';
 import { Body, Controller, Delete, Get, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
 import type { Tag, TagListResponse } from '@trippi/shared';
-import type { User } from '../../types';
-import { TagsService } from './tags.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
 
 /**
  * /api/tags — per-user place-tag CRUD.
@@ -25,11 +25,7 @@ export class TagsController {
   }
 
   @Post()
-  create(
-    @CurrentUser() user: User,
-    @Body('name') name?: string,
-    @Body('color') color?: string,
-  ): { tag: Tag } {
+  create(@CurrentUser() user: User, @Body('name') name?: string, @Body('color') color?: string): { tag: Tag } {
     if (!name) {
       throw new HttpException({ error: 'Tag name is required' }, 400);
     }

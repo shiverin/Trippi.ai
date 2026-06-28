@@ -2,32 +2,32 @@
 
 ## Introduction
 
-This is the TRIPPI project's policy for the use of our trademarks. While TRIPPI is
+This is the trippi.ai project's policy for the use of our trademarks. While trippi.ai is
 available under the GNU Affero General Public License v3.0 (AGPL-3.0), that
 license does not include a license to use our trademarks.
 
 This policy describes how you may use our trademarks. Our goal is to strike a
 balance between: 1) our need to ensure that our trademarks remain reliable
 indicators of the software we release; and 2) our community members' desire to
-be full participants in the TRIPPI project.
+be full participants in the trippi.ai project.
 
 ## Our trademarks
 
-This policy covers the name "TRIPPI" as well as any associated logos, trade dress,
+This policy covers the name "trippi.ai" as well as any associated logos, trade dress,
 goodwill, or designs (our "Marks").
 
 ## In general
 
 Whenever you use our Marks, you must always do so in a way that does not mislead
 anyone about exactly who is the source of the software. For example, you cannot
-say you are distributing TRIPPI when you're distributing a modified version of it,
+say you are distributing trippi.ai when you're distributing a modified version of it,
 because people would think they would be getting the same software that they
 can get directly from us when they aren't. You also cannot use our Marks on
-your website in a way that suggests that your website is an official TRIPPI
+your website in a way that suggests that your website is an official trippi.ai
 website or that we endorse your website. But, if true, you can say you like
-TRIPPI, that you participate in the TRIPPI community, that you are providing an
-unmodified version of TRIPPI, or that you wrote a guide describing how to use
-TRIPPI.
+trippi.ai, that you participate in the trippi.ai community, that you are providing an
+unmodified version of trippi.ai, or that you wrote a guide describing how to use
+trippi.ai.
 
 This fundamental requirement, that it is always clear to people what they are
 getting and from whom, is reflected throughout this policy. It should also
@@ -48,18 +48,18 @@ In addition:
 
 ## Distribution of unmodified source code or unmodified executable code we have compiled
 
-When you redistribute an unmodified copy of TRIPPI, you are not changing the
+When you redistribute an unmodified copy of trippi.ai, you are not changing the
 quality or nature of it. Therefore, you may retain the Marks we have placed on
 the software to identify your redistribution. This kind of use only applies if
-you are redistributing an official TRIPPI distribution that has not been changed
+you are redistributing an official trippi.ai distribution that has not been changed
 in any way.
 
 ## Distribution of executable code that you have compiled, or modified code
 
-You may use the word mark "TRIPPI", but not any TRIPPI logos, to truthfully
+You may use the word mark "trippi.ai", but not any trippi.ai logos, to truthfully
 describe the origin of the software that you are providing, that is, that the
-code you are distributing is a modification of TRIPPI. You may say, for example,
-that "this software is derived from the source code for TRIPPI."
+code you are distributing is a modification of trippi.ai. You may say, for example,
+that "this software is derived from the source code for trippi.ai."
 
 Of course, you can place your own trademarks or logos on versions of the
 software to which you have made substantive modifications, because by modifying
@@ -67,7 +67,7 @@ the software, you have become the origin of that exact version. In that case,
 you should not use our Marks.
 
 However, you may use our Marks for the distribution of code (source or
-executable) on the condition that any executable is built from an official TRIPPI
+executable) on the condition that any executable is built from an official trippi.ai
 source code release and that any modifications are limited to switching on or
 off features already included in the software, translations into other
 languages, and incorporating minor bug-fix patches. Use of our Marks on any
@@ -75,42 +75,42 @@ further modification is not permitted.
 
 ## Mobile wrappers, hosted instances, and forks
 
-The following clarifications apply specifically to common ways TRIPPI is
+The following clarifications apply specifically to common ways trippi.ai is
 redistributed:
 
-* **Self-hosted instances of unmodified TRIPPI.** You may refer to your instance
-  as "a TRIPPI instance" or "running TRIPPI." You may not name the service itself
-  in a way that suggests it is the official TRIPPI ("TRIPPI Cloud," "TRIPPI
+* **Self-hosted instances of unmodified trippi.ai.** You may refer to your instance
+  as "a trippi.ai instance" or "running trippi.ai." You may not name the service itself
+  in a way that suggests it is the official trippi.ai ("trippi.ai Cloud," "trippi.ai
   Official," etc.).
 * **Mobile wrappers (WebView shells, Capacitor apps, native apps) pointing at
-  TRIPPI.** You may describe your app as "a mobile client for TRIPPI" or "for use
-  with TRIPPI." You may not publish it on app stores under the name "TRIPPI" or a
-  confusingly similar name, and you may not use the TRIPPI logo as the app icon
-  unless your wrapper distributes only an unmodified, official TRIPPI instance
+  trippi.ai.** You may describe your app as "a mobile client for trippi.ai" or "for use
+  with trippi.ai." You may not publish it on app stores under the name "trippi.ai" or a
+  confusingly similar name, and you may not use the trippi.ai logo as the app icon
+  unless your wrapper distributes only an unmodified, official trippi.ai instance
   and you have obtained permission.
-* **Forks of the TRIPPI source code.** Forks that diverge from upstream must use
-  a different name. You may state that your fork is "based on TRIPPI" or "a fork
-  of TRIPPI," but the project name itself must be your own.
+* **Forks of the trippi.ai source code.** Forks that diverge from upstream must use
+  a different name. You may state that your fork is "based on trippi.ai" or "a fork
+  of trippi.ai," but the project name itself must be your own.
 
-## Statements about your software's relation to TRIPPI
+## Statements about your software's relation to trippi.ai
 
-You may use the word mark, but not TRIPPI logos, to truthfully describe the
-relationship between your software and ours. The word mark "TRIPPI" should be
+You may use the word mark, but not trippi.ai logos, to truthfully describe the
+relationship between your software and ours. The word mark "trippi.ai" should be
 used after a verb or preposition that describes the relationship between your
-software and ours. So you may say, for example, "Bob's app for TRIPPI" but may
-not say "Bob's TRIPPI app." Some other examples that may work for you are:
+software and ours. So you may say, for example, "Bob's app for trippi.ai" but may
+not say "Bob's trippi.ai app." Some other examples that may work for you are:
 
-* [Your software] uses TRIPPI
-* [Your software] is powered by TRIPPI
-* [Your software] runs on TRIPPI
-* [Your software] for use with TRIPPI
-* [Your software] for TRIPPI
+* [Your software] uses trippi.ai
+* [Your software] is powered by trippi.ai
+* [Your software] runs on trippi.ai
+* [Your software] for use with trippi.ai
+* [Your software] for trippi.ai
 
 ## Questions and permission requests
 
 If you are not sure whether your intended use of the Marks is permitted under
 this policy, or if you would like to request explicit permission for a use that
-is not covered, please open an issue on the TRIPPI GitHub repository or contact
+is not covered, please open an issue on the trippi.ai GitHub repository or contact
 the maintainers directly.
 
 ---

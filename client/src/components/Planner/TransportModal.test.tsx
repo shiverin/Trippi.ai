@@ -1,19 +1,13 @@
 // FE-PLANNER-TRANSMODAL-001 to FE-PLANNER-TRANSMODAL-021
-import { render, screen, waitFor, fireEvent } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { buildReservation, buildTrip, buildTripFile, buildUser } from '../../../tests/helpers/factories';
 import { server } from '../../../tests/helpers/msw/server';
+import { fireEvent, render, screen, waitFor } from '../../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../../tests/helpers/store';
+import { useAddonStore } from '../../store/addonStore';
 import { useAuthStore } from '../../store/authStore';
 import { useTripStore } from '../../store/tripStore';
-import { useAddonStore } from '../../store/addonStore';
-import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import {
-  buildUser,
-  buildTrip,
-  buildDay,
-  buildReservation,
-  buildTripFile,
-} from '../../../tests/helpers/factories';
 import { TransportModal } from './TransportModal';
 
 vi.mock('react-router-dom', async (importActual) => {
@@ -23,19 +17,38 @@ vi.mock('react-router-dom', async (importActual) => {
 
 vi.mock('../shared/CustomTimePicker', () => ({
   default: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <input data-testid="time-picker" type="text" value={value} onChange={e => onChange(e.target.value)} />
+    <input data-testid="time-picker" type="text" value={value} onChange={(e) => onChange(e.target.value)} />
   ),
 }));
 
 vi.mock('./AirportSelect', () => ({
   default: ({ onChange }: { onChange: (a: any) => void }) => (
-    <input data-testid="airport-select" type="text" onChange={e => onChange({ iata: e.target.value, name: e.target.value, city: '', country: '', lat: 0, lng: 0, tz: 'UTC', icao: null })} />
+    <input
+      data-testid="airport-select"
+      type="text"
+      onChange={(e) =>
+        onChange({
+          iata: e.target.value,
+          name: e.target.value,
+          city: '',
+          country: '',
+          lat: 0,
+          lng: 0,
+          tz: 'UTC',
+          icao: null,
+        })
+      }
+    />
   ),
 }));
 
 vi.mock('./LocationSelect', () => ({
   default: ({ onChange }: { onChange: (l: any) => void }) => (
-    <input data-testid="location-select" type="text" onChange={e => onChange({ name: e.target.value, lat: 0, lng: 0, address: null })} />
+    <input
+      data-testid="location-select"
+      type="text"
+      onChange={(e) => onChange({ name: e.target.value, lat: 0, lng: 0, address: null })}
+    />
   ),
 }));
 
@@ -233,7 +246,7 @@ describe('TransportModal', () => {
   it('FE-PLANNER-TRANSMODAL-021: clicking file in picker links it and closes picker', async () => {
     server.use(
       http.post('/api/trips/1/files/99/link', () => HttpResponse.json({ success: true })),
-      http.get('/api/trips/1/files', () => HttpResponse.json({ files: [] })),
+      http.get('/api/trips/1/files', () => HttpResponse.json({ files: [] }))
     );
 
     const res = buildReservation({ id: 5, type: 'flight' });
@@ -279,7 +292,7 @@ describe('TransportModal', () => {
       http.post('/api/trips/1/files/42/link', () => HttpResponse.json({ success: true })),
       http.get('/api/trips/1/files/42/links', () => HttpResponse.json({ links: [{ id: 1, reservation_id: 7 }] })),
       http.delete('/api/trips/1/files/42/link/1', () => HttpResponse.json({ success: true })),
-      http.get('/api/trips/1/files', () => HttpResponse.json({ files: [] })),
+      http.get('/api/trips/1/files', () => HttpResponse.json({ files: [] }))
     );
 
     const res = buildReservation({ id: 7, type: 'car' });
@@ -291,9 +304,7 @@ describe('TransportModal', () => {
     await waitFor(() => expect(screen.getByText('rental-agreement.pdf')).toBeInTheDocument());
     await userEvent.click(screen.getByText('rental-agreement.pdf'));
 
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /Link existing file/i })).not.toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Link existing file/i })).not.toBeInTheDocument());
 
     const fileRow = screen.getByText('rental-agreement.pdf').closest('div')!;
     const unlinkBtn = fileRow.querySelector('button[type="button"]')!;

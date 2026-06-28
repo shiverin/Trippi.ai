@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { MemoriesService } from './memories.service';
-import { UnifiedMemoriesController } from './unified.controller';
 import { ImmichMemoriesController } from './immich.controller';
+import { MemoriesService } from './memories.service';
 import { SynologyMemoriesController } from './synology.controller';
+import { UnifiedMemoriesController } from './unified.controller';
+import { Module } from '@nestjs/common';
 
 /**
  * Memories (photo-providers) domain — mounted at /api/integrations/memories.

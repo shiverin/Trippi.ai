@@ -1126,7 +1126,7 @@ describe('getPlaceDetails (fetch stubbed)', () => {
     expect(place.summary).toBeNull();
   });
 
-  it('MAPS-041b2: normalises non-standard TRIPPI language codes for Google (br→pt-BR, gr→el)', async () => {
+  it('MAPS-041b2: normalises non-standard trippi.ai language codes for Google (br→pt-BR, gr→el)', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ id: 'ChIJ1', displayName: { text: 'X' }, location: { latitude: 0, longitude: 0 } }),
@@ -1504,7 +1504,7 @@ describe('googleFtidFromMapsUrl', () => {
 // ── buildUserAgent (instance-specific UA, #1309) ──────────────────────────────
 
 describe('buildUserAgent', () => {
-  const base = 'TRIPPI Travel Planner (https://github.com/mauriceboe/TRIPPI)';
+  const base = 'trippi.ai Travel Planner (https://github.com/shiverin/Trippi.ai)';
 
   it('MAPS-094: returns the bare base UA when no instance URL is configured', () => {
     expect(buildUserAgent(undefined)).toBe(base);

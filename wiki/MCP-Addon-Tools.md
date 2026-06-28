@@ -1,6 +1,6 @@
 # MCP Addon Tools and Resources
 
-This page covers MCP tools and resources that require specific addons to be enabled on your TRIPPI instance. For core tools (trips, places, day planning, accommodations, transport, reservations, budget, tags, maps, and notifications) see [MCP-Tools-and-Resources](MCP-Tools-and-Resources).
+This page covers MCP tools and resources that require specific addons to be enabled on your trippi.ai instance. For core tools (trips, places, day planning, accommodations, transport, reservations, budget, tags, maps, and notifications) see [MCP-Tools-and-Resources](MCP-Tools-and-Resources).
 
 ---
 

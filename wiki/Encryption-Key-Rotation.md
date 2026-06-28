@@ -2,7 +2,7 @@
 
 ## What the encryption key protects
 
-TRIPPI encrypts sensitive settings at rest using AES-256-GCM. The following values are stored encrypted in the database:
+trippi.ai encrypts sensitive settings at rest using AES-256-GCM. The following values are stored encrypted in the database:
 
 - Google Maps API key (per user)
 - Mapbox access token (per user)
@@ -20,7 +20,7 @@ The encryption derives a key from `ENCRYPTION_KEY` using SHA-256 (with a domain 
 
 ## Key resolution order
 
-On startup, TRIPPI resolves the encryption key in this order:
+On startup, trippi.ai resolves the encryption key in this order:
 
 1. **`ENCRYPTION_KEY` environment variable** — explicit, always takes priority. When set, the value is also written to `./data/.encryption_key` so it survives container restarts if the env var is later removed.
 2. **`./data/.encryption_key` file** — present on any install that has started at least once.
@@ -29,7 +29,7 @@ On startup, TRIPPI resolves the encryption key in this order:
 
 ## What happens if the key is lost
 
-All encrypted settings (API keys, SMTP password, OIDC secret, MFA secrets, notification tokens, etc.) become unreadable — TRIPPI cannot decrypt them. They must be re-entered manually after the key is restored or replaced. Unencrypted data (trips, places, users, etc.) is unaffected.
+All encrypted settings (API keys, SMTP password, OIDC secret, MFA secrets, notification tokens, etc.) become unreadable — trippi.ai cannot decrypt them. They must be re-entered manually after the key is restored or replaced. Unencrypted data (trips, places, users, etc.) is unaffected.
 
 ## Backing up the key
 
@@ -69,7 +69,7 @@ The script:
 After a successful migration:
 
 1. Update `ENCRYPTION_KEY` in your environment to the new value.
-2. Restart TRIPPI.
+2. Restart trippi.ai.
 
 If any secrets could not be migrated, the script exits with a non-zero status and the original database backup is retained.
 

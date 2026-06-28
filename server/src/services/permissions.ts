@@ -18,43 +18,43 @@ export interface PermissionAction {
 // All configurable actions with their defaults matching upstream behavior
 export const PERMISSION_ACTIONS: PermissionAction[] = [
   // Trip management
-  { key: 'trip_create',        defaultLevel: 'everybody',   allowedLevels: ['admin', 'everybody'] },
-  { key: 'trip_edit',          defaultLevel: 'trip_owner',   allowedLevels: ['trip_owner', 'trip_member'] },
-  { key: 'trip_delete',        defaultLevel: 'trip_owner',   allowedLevels: ['admin', 'trip_owner'] },
-  { key: 'trip_archive',       defaultLevel: 'trip_owner',   allowedLevels: ['trip_owner', 'trip_member'] },
-  { key: 'trip_cover_upload',  defaultLevel: 'trip_owner',   allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'trip_create', defaultLevel: 'everybody', allowedLevels: ['admin', 'everybody'] },
+  { key: 'trip_edit', defaultLevel: 'trip_owner', allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'trip_delete', defaultLevel: 'trip_owner', allowedLevels: ['admin', 'trip_owner'] },
+  { key: 'trip_archive', defaultLevel: 'trip_owner', allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'trip_cover_upload', defaultLevel: 'trip_owner', allowedLevels: ['trip_owner', 'trip_member'] },
 
   // Member management
-  { key: 'member_manage',      defaultLevel: 'trip_owner',   allowedLevels: ['admin', 'trip_owner', 'trip_member'] },
+  { key: 'member_manage', defaultLevel: 'trip_owner', allowedLevels: ['admin', 'trip_owner', 'trip_member'] },
 
   // Files
-  { key: 'file_upload',        defaultLevel: 'trip_member',  allowedLevels: ['admin', 'trip_owner', 'trip_member'] },
-  { key: 'file_edit',          defaultLevel: 'trip_member',  allowedLevels: ['trip_owner', 'trip_member'] },
-  { key: 'file_delete',        defaultLevel: 'trip_member',  allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'file_upload', defaultLevel: 'trip_member', allowedLevels: ['admin', 'trip_owner', 'trip_member'] },
+  { key: 'file_edit', defaultLevel: 'trip_member', allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'file_delete', defaultLevel: 'trip_member', allowedLevels: ['trip_owner', 'trip_member'] },
 
   // Places
-  { key: 'place_edit',         defaultLevel: 'trip_member',  allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'place_edit', defaultLevel: 'trip_member', allowedLevels: ['trip_owner', 'trip_member'] },
 
   // Budget
-  { key: 'budget_edit',        defaultLevel: 'trip_member',  allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'budget_edit', defaultLevel: 'trip_member', allowedLevels: ['trip_owner', 'trip_member'] },
 
   // Packing
-  { key: 'packing_edit',       defaultLevel: 'trip_member',  allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'packing_edit', defaultLevel: 'trip_member', allowedLevels: ['trip_owner', 'trip_member'] },
 
   // Reservations
-  { key: 'reservation_edit',   defaultLevel: 'trip_member',  allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'reservation_edit', defaultLevel: 'trip_member', allowedLevels: ['trip_owner', 'trip_member'] },
 
   // Day notes & schedule
-  { key: 'day_edit',           defaultLevel: 'trip_member',  allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'day_edit', defaultLevel: 'trip_member', allowedLevels: ['trip_owner', 'trip_member'] },
 
   // Collaboration (notes, polls, messages)
-  { key: 'collab_edit',        defaultLevel: 'trip_member',  allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'collab_edit', defaultLevel: 'trip_member', allowedLevels: ['trip_owner', 'trip_member'] },
 
   // Share link management
-  { key: 'share_manage',       defaultLevel: 'trip_owner',   allowedLevels: ['trip_owner', 'trip_member'] },
+  { key: 'share_manage', defaultLevel: 'trip_owner', allowedLevels: ['trip_owner', 'trip_member'] },
 ];
 
-const ACTIONS_MAP = new Map(PERMISSION_ACTIONS.map(a => [a.key, a]));
+const ACTIONS_MAP = new Map(PERMISSION_ACTIONS.map((a) => [a.key, a]));
 
 // In-memory cache, invalidated on save
 let cache: Map<string, PermissionLevel> | null = null;
@@ -63,14 +63,19 @@ function loadPermissions(): Map<string, PermissionLevel> {
   if (cache) return cache;
   cache = new Map<string, PermissionLevel>();
   try {
-    const rows = db.prepare("SELECT key, value FROM app_settings WHERE key LIKE 'perm_%'").all() as { key: string; value: string }[];
+    const rows = db.prepare("SELECT key, value FROM app_settings WHERE key LIKE 'perm_%'").all() as {
+      key: string;
+      value: string;
+    }[];
     for (const row of rows) {
       const actionKey = row.key.replace('perm_', '');
       if (ACTIONS_MAP.has(actionKey)) {
         cache.set(actionKey, row.value as PermissionLevel);
       }
     }
-  } catch { /* table might not exist yet during init */ }
+  } catch {
+    /* table might not exist yet during init */
+  }
   return cache;
 }
 
@@ -97,7 +102,7 @@ export function getAllPermissions(): Record<string, PermissionLevel> {
 
 export function savePermissions(settings: Record<string, string>): { skipped: string[] } {
   const skipped: string[] = [];
-  const upsert = db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)");
+  const upsert = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
   const txn = db.transaction(() => {
     for (const [actionKey, level] of Object.entries(settings)) {
       const action = ACTIONS_MAP.get(actionKey);
@@ -127,7 +132,7 @@ export function checkPermission(
   userRole: string,
   tripUserId: number | null,
   userId: number,
-  isMember: boolean
+  isMember: boolean,
 ): boolean {
   // Admins always pass
   if (userRole === 'admin') return true;

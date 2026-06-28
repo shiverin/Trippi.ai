@@ -1,12 +1,6 @@
+import { listTags, createTag, getTagByIdAndUser, updateTag, deleteTag } from '../../services/tagService';
 import { Injectable } from '@nestjs/common';
 import type { Tag } from '@trippi/shared';
-import {
-  listTags,
-  createTag,
-  getTagByIdAndUser,
-  updateTag,
-  deleteTag,
-} from '../../services/tagService';
 
 /**
  * Thin Nest wrapper around the existing tag service. Ownership scoping and the

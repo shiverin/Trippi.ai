@@ -1,3 +1,7 @@
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { BookingImportService } from './booking-import.service';
 import {
   Controller,
   Post,
@@ -10,12 +14,13 @@ import {
   UploadedFiles,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import type {
+  BookingImportPreviewItem,
+  BookingImportPreviewResponse,
+  BookingImportConfirmResponse,
+} from '@trippi/shared';
+
 import { memoryStorage } from 'multer';
-import type { User } from '../../types';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { BookingImportService } from './booking-import.service';
-import type { BookingImportPreviewItem, BookingImportPreviewResponse, BookingImportConfirmResponse } from '@trippi/shared';
 
 const ACCEPTED_EXTS = new Set(['.eml', '.pdf', '.pkpass', '.html', '.htm', '.txt']);
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -70,7 +75,10 @@ export class BookingImportController {
     for (const f of files) {
       const ext = f.originalname.toLowerCase().slice(f.originalname.lastIndexOf('.'));
       if (!ACCEPTED_EXTS.has(ext)) {
-        throw new HttpException({ error: `Unsupported file type: ${f.originalname}. Accepted: EML, PDF, PKPass, HTML, TXT` }, 400);
+        throw new HttpException(
+          { error: `Unsupported file type: ${f.originalname}. Accepted: EML, PDF, PKPass, HTML, TXT` },
+          400,
+        );
       }
     }
 

@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { broadcast } from '../../websocket';
 import { canAccessTrip } from '../../db/database';
+import * as dayService from '../../services/dayService';
 import { checkPermission } from '../../services/permissions';
 import type { User } from '../../types';
-import * as dayService from '../../services/dayService';
+import { broadcast } from '../../websocket';
+import { Injectable } from '@nestjs/common';
 
 type Trip = { user_id: number };
 
@@ -44,7 +44,11 @@ export class AccommodationsService {
     return dayService.createAccommodation(tripId, data);
   }
 
-  update(id: string, existing: Parameters<typeof dayService.updateAccommodation>[1], fields: Parameters<typeof dayService.updateAccommodation>[2]) {
+  update(
+    id: string,
+    existing: Parameters<typeof dayService.updateAccommodation>[1],
+    fields: Parameters<typeof dayService.updateAccommodation>[2],
+  ) {
     return dayService.updateAccommodation(id, existing, fields);
   }
 

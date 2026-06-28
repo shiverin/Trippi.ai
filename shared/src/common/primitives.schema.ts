@@ -5,7 +5,7 @@ import { z } from 'zod';
  * Domain schemas (trips, places, ...) live in their own folders and reuse these.
  */
 
-/** TRIPPI uses auto-increment integer primary keys. */
+/** trippi.ai uses auto-increment integer primary keys. */
 export const idSchema = z.number().int().positive();
 export type Id = z.infer<typeof idSchema>;
 
@@ -18,5 +18,5 @@ export const idParamSchema = z.coerce.number().int().positive();
 /** Non-empty, trimmed string. */
 export const nonEmptyString = z.string().trim().min(1);
 
-/** ISO-8601 timestamp string (the shape TRIPPI serialises dates as in JSON). */
+/** ISO-8601 timestamp string (the shape trippi.ai serialises dates as in JSON). */
 export const isoDateTime = z.string().datetime({ offset: true });

@@ -75,7 +75,9 @@ export function resolveRecipients(scope: NotificationScope, target: number, excl
 
   if (scope === 'trip') {
     const owner = db.prepare('SELECT user_id FROM trips WHERE id = ?').get(target) as { user_id: number } | undefined;
-    const members = db.prepare('SELECT user_id FROM trip_members WHERE trip_id = ?').all(target) as { user_id: number }[];
+    const members = db.prepare('SELECT user_id FROM trip_members WHERE trip_id = ?').all(target) as {
+      user_id: number;
+    }[];
     const ids = new Set<number>();
     if (owner) ids.add(owner.user_id);
     for (const m of members) ids.add(m.user_id);
@@ -84,12 +86,12 @@ export function resolveRecipients(scope: NotificationScope, target: number, excl
     userIds = [target];
   } else if (scope === 'admin') {
     const admins = db.prepare('SELECT id FROM users WHERE role = ?').all('admin') as { id: number }[];
-    userIds = admins.map(a => a.id);
+    userIds = admins.map((a) => a.id);
   }
 
   // Only exclude sender for group scopes (trip/admin) — for user scope, the target is explicit
   if (excludeUserId != null && scope !== 'user') {
-    userIds = userIds.filter(id => id !== excludeUserId);
+    userIds = userIds.filter((id) => id !== excludeUserId);
   }
 
   return userIds;
@@ -139,10 +141,21 @@ function createNotification(input: NotificationInput): number[] {
       }
 
       const result = stmt.run(
-        input.type, input.scope, input.target, input.sender_id, recipientId,
-        input.title_key, titleParams, input.text_key, textParams,
-        positiveTextKey, negativeTextKey, positiveCallback, negativeCallback,
-        navigateTextKey, navigateTarget
+        input.type,
+        input.scope,
+        input.target,
+        input.sender_id,
+        recipientId,
+        input.title_key,
+        titleParams,
+        input.text_key,
+        textParams,
+        positiveTextKey,
+        negativeTextKey,
+        positiveCallback,
+        negativeCallback,
+        navigateTextKey,
+        navigateTarget,
       );
 
       insertedPairs.push({ id: result.lastInsertRowid as number, recipientId });
@@ -153,7 +166,9 @@ function createNotification(input: NotificationInput): number[] {
 
   // Fetch sender info once for WS payloads
   const sender = input.sender_id
-    ? (db.prepare('SELECT username, avatar FROM users WHERE id = ?').get(input.sender_id) as { username: string; avatar: string | null } | undefined)
+    ? (db.prepare('SELECT username, avatar FROM users WHERE id = ?').get(input.sender_id) as
+        | { username: string; avatar: string | null }
+        | undefined)
     : null;
 
   // Broadcast to each recipient
@@ -171,7 +186,7 @@ function createNotification(input: NotificationInput): number[] {
     });
   }
 
-  return insertedPairs.map(p => p.id);
+  return insertedPairs.map((p) => p.id);
 }
 
 /**
@@ -181,7 +196,7 @@ function createNotification(input: NotificationInput): number[] {
 export function createNotificationForRecipient(
   input: NotificationInput,
   recipientId: number,
-  sender: { username: string; avatar: string | null } | null
+  sender: { username: string; avatar: string | null } | null,
 ): number | null {
   const titleParams = JSON.stringify(input.title_params ?? {});
   const textParams = JSON.stringify(input.text_params ?? {});
@@ -203,19 +218,34 @@ export function createNotificationForRecipient(
     navigateTarget = input.navigate_target;
   }
 
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     INSERT INTO notifications (
       type, scope, target, sender_id, recipient_id,
       title_key, title_params, text_key, text_params,
       positive_text_key, negative_text_key, positive_callback, negative_callback,
       navigate_text_key, navigate_target
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    input.type, input.scope, input.target, input.sender_id, recipientId,
-    input.title_key, titleParams, input.text_key, textParams,
-    positiveTextKey, negativeTextKey, positiveCallback, negativeCallback,
-    navigateTextKey, navigateTarget
-  );
+  `,
+    )
+    .run(
+      input.type,
+      input.scope,
+      input.target,
+      input.sender_id,
+      recipientId,
+      input.title_key,
+      titleParams,
+      input.text_key,
+      textParams,
+      positiveTextKey,
+      negativeTextKey,
+      positiveCallback,
+      negativeCallback,
+      navigateTextKey,
+      navigateTarget,
+    );
 
   const notificationId = result.lastInsertRowid as number;
   const row = db.prepare('SELECT * FROM notifications WHERE id = ?').get(notificationId) as NotificationRow | undefined;
@@ -236,7 +266,7 @@ export function createNotificationForRecipient(
 
 function getNotifications(
   userId: number,
-  options: { limit?: number; offset?: number; unreadOnly?: boolean } = {}
+  options: { limit?: number; offset?: number; unreadOnly?: boolean } = {},
 ): { notifications: NotificationRow[]; total: number; unread_count: number } {
   const limit = Math.min(options.limit ?? 20, 50);
   const offset = options.offset ?? 0;
@@ -245,19 +275,27 @@ function getNotifications(
   const whereAliased = unreadOnly ? 'WHERE n.recipient_id = ? AND n.is_read = 0' : 'WHERE n.recipient_id = ?';
   const wherePlain = unreadOnly ? 'WHERE recipient_id = ? AND is_read = 0' : 'WHERE recipient_id = ?';
 
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT n.*, u.username AS sender_username, u.avatar AS sender_avatar
     FROM notifications n
     LEFT JOIN users u ON n.sender_id = u.id
     ${whereAliased}
     ORDER BY n.created_at DESC
     LIMIT ? OFFSET ?
-  `).all(userId, limit, offset) as NotificationRow[];
+  `,
+    )
+    .all(userId, limit, offset) as NotificationRow[];
 
-  const { total } = db.prepare(`SELECT COUNT(*) as total FROM notifications ${wherePlain}`).get(userId) as { total: number };
-  const { unread_count } = db.prepare('SELECT COUNT(*) as unread_count FROM notifications WHERE recipient_id = ? AND is_read = 0').get(userId) as { unread_count: number };
+  const { total } = db.prepare(`SELECT COUNT(*) as total FROM notifications ${wherePlain}`).get(userId) as {
+    total: number;
+  };
+  const { unread_count } = db
+    .prepare('SELECT COUNT(*) as unread_count FROM notifications WHERE recipient_id = ? AND is_read = 0')
+    .get(userId) as { unread_count: number };
 
-  const mapped = rows.map(r => ({
+  const mapped = rows.map((r) => ({
     ...r,
     created_at: toUtcIso(r.created_at),
     sender_avatar: r.sender_avatar ? `/uploads/avatars/${r.sender_avatar}` : null,
@@ -267,17 +305,23 @@ function getNotifications(
 }
 
 function getUnreadCount(userId: number): number {
-  const row = db.prepare('SELECT COUNT(*) as count FROM notifications WHERE recipient_id = ? AND is_read = 0').get(userId) as { count: number };
+  const row = db
+    .prepare('SELECT COUNT(*) as count FROM notifications WHERE recipient_id = ? AND is_read = 0')
+    .get(userId) as { count: number };
   return row.count;
 }
 
 function markRead(notificationId: number, userId: number): boolean {
-  const result = db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND recipient_id = ?').run(notificationId, userId);
+  const result = db
+    .prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND recipient_id = ?')
+    .run(notificationId, userId);
   return result.changes > 0;
 }
 
 function markUnread(notificationId: number, userId: number): boolean {
-  const result = db.prepare('UPDATE notifications SET is_read = 0 WHERE id = ? AND recipient_id = ?').run(notificationId, userId);
+  const result = db
+    .prepare('UPDATE notifications SET is_read = 0 WHERE id = ? AND recipient_id = ?')
+    .run(notificationId, userId);
   return result.changes > 0;
 }
 
@@ -299,9 +343,11 @@ function deleteAll(userId: number): number {
 async function respondToBoolean(
   notificationId: number,
   userId: number,
-  response: NotificationResponse
+  response: NotificationResponse,
 ): Promise<{ success: boolean; error?: string; notification?: NotificationRow }> {
-  const notification = db.prepare('SELECT * FROM notifications WHERE id = ? AND recipient_id = ?').get(notificationId, userId) as NotificationRow | undefined;
+  const notification = db
+    .prepare('SELECT * FROM notifications WHERE id = ? AND recipient_id = ?')
+    .get(notificationId, userId) as NotificationRow | undefined;
 
   if (!notification) return { success: false, error: 'Notification not found' };
   if (notification.type !== 'boolean') return { success: false, error: 'Not a boolean notification' };
@@ -327,18 +373,24 @@ async function respondToBoolean(
   }
 
   // Atomic update — only updates if response is still NULL (prevents double-response)
-  const result = db.prepare(
-    'UPDATE notifications SET response = ?, is_read = 1 WHERE id = ? AND recipient_id = ? AND response IS NULL'
-  ).run(response, notificationId, userId);
+  const result = db
+    .prepare(
+      'UPDATE notifications SET response = ?, is_read = 1 WHERE id = ? AND recipient_id = ? AND response IS NULL',
+    )
+    .run(response, notificationId, userId);
 
   if (result.changes === 0) return { success: false, error: 'Already responded' };
 
-  const updated = db.prepare(`
+  const updated = db
+    .prepare(
+      `
     SELECT n.*, u.username AS sender_username, u.avatar AS sender_avatar
     FROM notifications n
     LEFT JOIN users u ON n.sender_id = u.id
     WHERE n.id = ?
-  `).get(notificationId) as NotificationRow;
+  `,
+    )
+    .get(notificationId) as NotificationRow;
 
   const mappedUpdated = {
     ...updated,

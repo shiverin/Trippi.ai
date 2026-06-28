@@ -205,7 +205,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Megosztva a következőn keresztül:',
   'journey.public.madeWith': 'Készítve a következővel:',
   'journey.pdf.journeyBook': 'Útinaplókönyv',
-  'journey.pdf.madeWith': 'Készítve a TRIPPI segítségével',
+  'journey.pdf.madeWith': 'Készítve a trippi.ai segítségével',
   'journey.pdf.day': 'Nap',
   'journey.pdf.theEnd': 'Vége',
   'journey.pdf.saveAsPdf': 'Mentés PDF-ként',

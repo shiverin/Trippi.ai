@@ -1,6 +1,6 @@
 # Weather Forecasts
 
-TRIPPI shows weather forecasts and historical climate estimates for each day in your trip, powered by Open-Meteo — no API key required.
+trippi.ai shows weather forecasts and historical climate estimates for each day in your trip, powered by Open-Meteo — no API key required.
 
 <!-- TODO: screenshot: weather forecast card on a trip day -->
 

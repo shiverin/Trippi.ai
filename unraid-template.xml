@@ -1,25 +1,25 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>TRIPPI</Name>
-  <Repository>mauriceboe/trippi</Repository>
-  <Registry>https://hub.docker.com/r/mauriceboe/trippi</Registry>
+  <Name>trippi.ai</Name>
+  <Repository>shiverin/trippi.ai</Repository>
+  <Registry>https://hub.docker.com/r/shiverin/trippi.ai</Registry>
   <Branch>
     <Tag>latest</Tag>
     <TagDescription>Latest stable release</TagDescription>
   </Branch>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
-  <Support>https://github.com/mauriceboe/TRIPPI/issues</Support>
-  <Project>https://github.com/mauriceboe/TRIPPI</Project>
-  <Overview>TRIPPI is a self-hosted, real-time collaborative travel planner with interactive maps, budgets, bookings, packing lists, file management, and more. Plan trips together with your group — changes sync instantly across all connected users. Includes OIDC/SSO support, dark mode, PWA, and a modular addon system (Vacay, Atlas, Collab, Budget, Packing).</Overview>
+  <Support>https://github.com/shiverin/Trippi.ai/issues</Support>
+  <Project>https://github.com/shiverin/Trippi.ai</Project>
+  <Overview>trippi.ai is a self-hosted, real-time collaborative travel planner with interactive maps, budgets, bookings, packing lists, file management, and more. Plan trips together with your group — changes sync instantly across all connected users. Includes OIDC/SSO support, dark mode, PWA, and a modular addon system (Vacay, Atlas, Collab, Budget, Packing).</Overview>
   <Category>Productivity: Tools:</Category>
   <WebUI>http://[IP]:[PORT:3000]</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/mauriceboe/TRIPPI/main/unraid-template.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/mauriceboe/TRIPPI/main/docs/trippi-icon.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/shiverin/Trippi.ai/main/unraid-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/shiverin/Trippi.ai/main/docs/brand/trippi-icon.png</Icon>
   <ExtraParams/>
   <PostArgs/>
-  <DonateText>Support TRIPPI development</DonateText>
-  <DonateLink>https://ko-fi.com/mauriceboe</DonateLink>
+  <DonateText>Support trippi.ai development</DonateText>
+  <DonateLink>https://github.com/shiverin/Trippi.ai</DonateLink>
   <Requires/>
 
   <!-- Ports & Volumes -->

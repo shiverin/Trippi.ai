@@ -1,9 +1,9 @@
-import { render, screen, fireEvent, act } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
-import CustomTimePicker from './CustomTimePicker';
-import { useSettingsStore } from '../../store/settingsStore';
-import { seedStore, resetAllStores } from '../../../tests/helpers/store';
 import { buildSettings } from '../../../tests/helpers/factories';
+import { act, fireEvent, render, screen } from '../../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../../tests/helpers/store';
+import { useSettingsStore } from '../../store/settingsStore';
+import CustomTimePicker from './CustomTimePicker';
 
 describe('CustomTimePicker', () => {
   const onChange = vi.fn();
@@ -43,7 +43,7 @@ describe('CustomTimePicker', () => {
   it('FE-COMP-TIMEPICKER-005: clicking clock icon opens dropdown', async () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="10:00" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
     // Dropdown should show hour and minute display boxes with "10" and "00"
     expect(screen.getByText('10')).toBeTruthy();
@@ -54,10 +54,10 @@ describe('CustomTimePicker', () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="10:00" onChange={onChange} />);
     // Open dropdown
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
     // The first empty button inside the dropdown is the hour up chevron
-    const chevrons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === '');
+    const chevrons = screen.getAllByRole('button').filter((b) => b.textContent?.trim() === '');
     // chevrons[0] is the clock icon, chevrons after that are up/down for hour, up/down for minute
     await user.click(chevrons[1]); // hour up
     expect(onChange).toHaveBeenCalledWith('11:00');
@@ -66,9 +66,9 @@ describe('CustomTimePicker', () => {
   it('FE-COMP-TIMEPICKER-007: hour decrement button decreases hour', async () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="10:00" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
-    const chevrons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === '');
+    const chevrons = screen.getAllByRole('button').filter((b) => b.textContent?.trim() === '');
     await user.click(chevrons[2]); // hour down
     expect(onChange).toHaveBeenCalledWith('09:00');
   });
@@ -76,9 +76,9 @@ describe('CustomTimePicker', () => {
   it('FE-COMP-TIMEPICKER-008: minute increment steps by 5', async () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="10:00" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
-    const chevrons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === '');
+    const chevrons = screen.getAllByRole('button').filter((b) => b.textContent?.trim() === '');
     await user.click(chevrons[3]); // minute up
     expect(onChange).toHaveBeenCalledWith('10:05');
   });
@@ -86,9 +86,9 @@ describe('CustomTimePicker', () => {
   it('FE-COMP-TIMEPICKER-009: minute increment wraps and carries hour', async () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="10:55" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
-    const chevrons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === '');
+    const chevrons = screen.getAllByRole('button').filter((b) => b.textContent?.trim() === '');
     await user.click(chevrons[3]); // minute up
     expect(onChange).toHaveBeenCalledWith('11:00');
   });
@@ -96,9 +96,9 @@ describe('CustomTimePicker', () => {
   it('FE-COMP-TIMEPICKER-010: hour wraps at 23→0', async () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="23:00" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
-    const chevrons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === '');
+    const chevrons = screen.getAllByRole('button').filter((b) => b.textContent?.trim() === '');
     await user.click(chevrons[1]); // hour up
     expect(onChange).toHaveBeenCalledWith('00:00');
   });
@@ -106,7 +106,7 @@ describe('CustomTimePicker', () => {
   it('FE-COMP-TIMEPICKER-011: clear button calls onChange with empty string', async () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="10:30" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
     const clearBtn = screen.getByText('✕');
     await user.click(clearBtn);
@@ -116,7 +116,7 @@ describe('CustomTimePicker', () => {
   it('FE-COMP-TIMEPICKER-012: clear button absent when no value', async () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
     expect(screen.queryByText('✕')).toBeNull();
   });
@@ -125,7 +125,7 @@ describe('CustomTimePicker', () => {
     seedStore(useSettingsStore, { settings: buildSettings({ time_format: '12h' }) });
     const user = userEvent.setup();
     render(<CustomTimePicker value="14:00" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
     expect(screen.getByText('PM')).toBeTruthy();
   });
@@ -133,7 +133,7 @@ describe('CustomTimePicker', () => {
   it('FE-COMP-TIMEPICKER-014: AM/PM toggle hidden in 24h mode', async () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="14:00" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
     expect(screen.queryByText('AM')).toBeNull();
     expect(screen.queryByText('PM')).toBeNull();
@@ -143,10 +143,10 @@ describe('CustomTimePicker', () => {
     seedStore(useSettingsStore, { settings: buildSettings({ time_format: '12h' }) });
     const user = userEvent.setup();
     render(<CustomTimePicker value="14:00" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
     // In 12h mode with value "14:00", there are AM/PM chevrons after hour and minute chevrons
-    const chevrons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === '');
+    const chevrons = screen.getAllByRole('button').filter((b) => b.textContent?.trim() === '');
     // chevrons: [0]=clock, [1]=hour up, [2]=hour down, [3]=min up, [4]=min down, [5]=ampm up, [6]=ampm down
     await user.click(chevrons[5]); // AM/PM toggle
     expect(onChange).toHaveBeenCalledWith('02:00');
@@ -189,7 +189,7 @@ describe('CustomTimePicker', () => {
   it('FE-COMP-TIMEPICKER-020: clicking outside dropdown closes it', async () => {
     const user = userEvent.setup();
     render(<CustomTimePicker value="10:00" onChange={onChange} />);
-    const clockBtn = screen.getAllByRole('button').find(b => b.textContent?.trim() === '');
+    const clockBtn = screen.getAllByRole('button').find((b) => b.textContent?.trim() === '');
     await user.click(clockBtn!);
     // Verify dropdown is open
     expect(screen.getByText('10')).toBeTruthy();
@@ -201,7 +201,7 @@ describe('CustomTimePicker', () => {
     });
     document.body.removeChild(outsideEl);
     // Hour display should be gone (only visible in dropdown)
-    const allText = Array.from(document.querySelectorAll('div')).map(d => d.textContent);
+    const allText = Array.from(document.querySelectorAll('div')).map((d) => d.textContent);
     // The "10" in the dropdown display box should no longer be rendered as a standalone element
     expect(screen.queryByText('✕')).toBeNull(); // clear button gone = dropdown closed
   });

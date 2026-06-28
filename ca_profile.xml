@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <CommunityApplications>
-  <Profile>TRIPPI is a self-hosted, real-time collaborative travel planner. Plan trips together with interactive maps, budgets, bookings, packing lists, day-by-day itineraries and file management — every change syncs instantly across everyone in your group. Includes OIDC/SSO, TOTP MFA, dark mode, PWA support, multi-language UI and a modular addon system (Vacay, Atlas, Collab, Budget, Packing, Journey). Maintained by mauriceboe — support and bug reports via GitHub Issues.</Profile>
-  <Icon>https://raw.githubusercontent.com/mauriceboe/TRIPPI/main/docs/trippi-icon.png</Icon>
-  <WebPage>https://github.com/mauriceboe/TRIPPI</WebPage>
-  <Forum>https://github.com/mauriceboe/TRIPPI/issues</Forum>
-  <DonateLink>https://ko-fi.com/mauriceboe</DonateLink>
-  <DonateText>Support TRIPPI development</DonateText>
+  <Profile>trippi.ai is a self-hosted, real-time collaborative travel planner. Plan trips together with interactive maps, budgets, bookings, packing lists, day-by-day itineraries and file management — every change syncs instantly across everyone in your group. Includes OIDC/SSO, TOTP MFA, dark mode, PWA support, multi-language UI and a modular addon system (Vacay, Atlas, Collab, Budget, Packing, Journey). Maintained by shiverin — support and bug reports via GitHub Issues.</Profile>
+  <Icon>https://raw.githubusercontent.com/shiverin/Trippi.ai/main/docs/brand/trippi-icon.png</Icon>
+  <WebPage>https://github.com/shiverin/Trippi.ai</WebPage>
+  <Forum>https://github.com/shiverin/Trippi.ai/issues</Forum>
+  <DonateLink>https://github.com/shiverin/Trippi.ai</DonateLink>
+  <DonateText>Support trippi.ai development</DonateText>
 </CommunityApplications>

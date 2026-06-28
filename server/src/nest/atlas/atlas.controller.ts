@@ -1,3 +1,7 @@
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AtlasService } from './atlas.service';
 import {
   Body,
   Controller,
@@ -13,12 +17,9 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Response } from 'express';
 import type { RegionGeo } from '@trippi/shared';
-import type { User } from '../../types';
-import { AtlasService } from './atlas.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
+
+import type { Response } from 'express';
 
 /**
  * /api/addons/atlas — visited countries/regions, region GeoJSON, bucket list.
@@ -115,7 +116,15 @@ export class AtlasController {
   @Post('bucket-list')
   createBucketItem(
     @CurrentUser() user: User,
-    @Body() body: { name?: string; lat?: number | null; lng?: number | null; country_code?: string | null; notes?: string | null; target_date?: string | null },
+    @Body()
+    body: {
+      name?: string;
+      lat?: number | null;
+      lng?: number | null;
+      country_code?: string | null;
+      notes?: string | null;
+      target_date?: string | null;
+    },
   ): { item: unknown } {
     if (!body.name?.trim()) {
       throw new HttpException({ error: 'Name is required' }, 400);
@@ -128,7 +137,15 @@ export class AtlasController {
   updateBucketItem(
     @CurrentUser() user: User,
     @Param('id') id: string,
-    @Body() body: { name?: string; notes?: string; lat?: number | null; lng?: number | null; country_code?: string | null; target_date?: string | null },
+    @Body()
+    body: {
+      name?: string;
+      notes?: string;
+      lat?: number | null;
+      lng?: number | null;
+      country_code?: string | null;
+      target_date?: string | null;
+    },
   ): { item: unknown } {
     const { name, notes, lat, lng, country_code, target_date } = body;
     const item = this.atlas.updateBucketItem(user.id, id, { name, notes, lat, lng, country_code, target_date });

@@ -1,14 +1,15 @@
+import { DatabaseService } from '../database/database.service';
 import { CallHandler, ExecutionContext, HttpException, Injectable, NestInterceptor } from '@nestjs/common';
+
 import type { Request, Response } from 'express';
 import { Observable, of } from 'rxjs';
-import { DatabaseService } from '../database/database.service';
 
 /**
  * Nest counterpart of the legacy `applyIdempotency` middleware
  * (server/src/middleware/idempotency.ts), which the Express `authenticate`
  * middleware runs on every authenticated request.
  *
- * The TRIPPI client attaches an `X-Idempotency-Key` to ALL write operations (see
+ * The trippi.ai client attaches an `X-Idempotency-Key` to ALL write operations (see
  * client/src/api/client.ts) and the offline sync queue replays mutations with
  * that key, so a migrated mutating route MUST honour it — otherwise a replayed
  * POST would create a duplicate instead of returning the cached response. This
@@ -58,7 +59,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
     // against a different endpoint can't return an unrelated cached body.
     const existing = this.database.get<IdempotencyRow>(
       'SELECT status_code, response_body FROM idempotency_keys WHERE key = ? AND user_id = ? AND method = ? AND path = ?',
-      key, userId, req.method, req.path,
+      key,
+      userId,
+      req.method,
+      req.path,
     );
     if (existing) {
       res.status(existing.status_code);
@@ -75,7 +79,13 @@ export class IdempotencyInterceptor implements NestInterceptor {
             database.run(
               `INSERT OR IGNORE INTO idempotency_keys (key, user_id, method, path, status_code, response_body, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              key, userId, req.method, req.path, res.statusCode, serialized, Math.floor(Date.now() / 1000),
+              key,
+              userId,
+              req.method,
+              req.path,
+              res.statusCode,
+              serialized,
+              Math.floor(Date.now() / 1000),
             );
           }
         } catch {

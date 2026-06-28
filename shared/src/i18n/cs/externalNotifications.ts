@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const cs: NotificationLocale = {
   email: {
-    footer: 'Toto jsi obdržel/a, protože máš povoleny upozornění v TRIPPI.',
+    footer: 'Toto jsi obdržel/a, protože máš povoleny upozornění v trippi.ai.',
     manage: 'Spravovat předvolby v nastavení',
     madeWith: 'Made with',
-    openTrippi: 'Otevřít TRIPPI',
+    openTrippi: 'Otevřít trippi.ai',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const cs: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Pozvánka Vacay Fusion',
-      body: `${p.actor} vás pozval ke spojení dovolenkových plánů. Otevřete TRIPPI pro přijetí nebo odmítnutí.`,
+      body: `${p.actor} vás pozval ke spojení dovolenkových plánů. Otevřete trippi.ai pro přijetí nebo odmítnutí.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} sdílených fotek`,
@@ -41,8 +41,8 @@ const cs: NotificationLocale = {
       body: `${p.actor} vás přiřadil do kategorie "${p.category}" v "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Nová verze TRIPPI dostupná',
-      body: `TRIPPI ${p.version} je nyní dostupný. Navštivte administrátorský panel pro aktualizaci.`,
+      title: 'Nová verze trippi.ai dostupná',
+      body: `trippi.ai ${p.version} je nyní dostupný. Navštivte administrátorský panel pro aktualizaci.`,
     }),
     synology_session_cleared: () => ({
       title: 'Relace Synology byla zrušena',
@@ -52,7 +52,7 @@ const cs: NotificationLocale = {
   passwordReset: {
     subject: 'Obnovení hesla',
     greeting: 'Ahoj',
-    body: 'Obdrželi jsme žádost o obnovení hesla k tvému účtu TRIPPI. Klikni na tlačítko níže a nastav nové heslo.',
+    body: 'Obdrželi jsme žádost o obnovení hesla k tvému účtu trippi.ai. Klikni na tlačítko níže a nastav nové heslo.',
     ctaIntro: 'Obnovit heslo',
     expiry: 'Odkaz vyprší za 60 minut.',
     ignore: 'Pokud jsi o obnovení nežádal/a, tento e-mail ignoruj — heslo zůstane beze změny.',

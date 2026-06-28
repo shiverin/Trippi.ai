@@ -1,3 +1,10 @@
+import { writeAudit, getClientIp } from '../../services/auditLog';
+import { isDemoEmail } from '../../services/demo';
+import type { User } from '../../types';
+import { AuthService } from './auth.service';
+import { CurrentUser } from './current-user.decorator';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { RateLimitService } from './rate-limit.service';
 import {
   Body,
   Controller,
@@ -15,25 +22,22 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+
 import type { Request, Response } from 'express';
-import path from 'path';
 import fs from 'fs';
+import { diskStorage } from 'multer';
+import path from 'path';
 import { v4 as uuid } from 'uuid';
-import { AuthService } from './auth.service';
-import { RateLimitService } from './rate-limit.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { CurrentUser } from './current-user.decorator';
-import { writeAudit, getClientIp } from '../../services/auditLog';
-import { isDemoEmail } from '../../services/demo';
-import type { User } from '../../types';
 
 const WINDOW = 15 * 60 * 1000;
 const avatarDir = path.join(__dirname, '../../../uploads/avatars');
 const ALLOWED_AVATAR_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const AVATAR_UPLOAD = {
   storage: diskStorage({
-    destination: (_req, _file, cb) => { if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true }); cb(null, avatarDir); },
+    destination: (_req, _file, cb) => {
+      if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
+      cb(null, avatarDir);
+    },
     filename: (_req, file, cb) => cb(null, uuid() + path.extname(file.originalname)),
   }),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -59,7 +63,10 @@ const AVATAR_UPLOAD = {
 @Controller('api/auth')
 @UseGuards(JwtAuthGuard)
 export class AuthController {
-  constructor(private readonly auth: AuthService, private readonly rl: RateLimitService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly rl: RateLimitService,
+  ) {}
 
   private limit(bucket: string, req: Request, max: number): void {
     if (!this.rl.check(bucket, req.ip || 'unknown', max, WINDOW, Date.now())) {
@@ -77,7 +84,12 @@ export class AuthController {
   }
 
   @Put('me/password')
-  changePassword(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  changePassword(
+    @CurrentUser() user: User,
+    @Body() body: unknown,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     this.limit('login', req, 5);
     const result = this.auth.changePassword(user.id, user.email, body);
     if (result.error) {
@@ -133,7 +145,10 @@ export class AuthController {
   @UseInterceptors(FileInterceptor('avatar', AVATAR_UPLOAD))
   async avatar(@CurrentUser() user: User, @UploadedFile() file: Express.Multer.File | undefined) {
     if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(user.email)) {
-      throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' }, 403);
+      throw new HttpException(
+        { error: 'Uploads are disabled in demo mode. Self-host trippi.ai for full functionality.' },
+        403,
+      );
     }
     if (!file) {
       throw new HttpException({ error: 'No image uploaded' }, 400);
@@ -175,7 +190,13 @@ export class AuthController {
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
-    writeAudit({ userId: user.id, action: 'settings.app_update', ip: getClientIp(req), details: result.auditSummary, debugDetails: result.auditDebugDetails });
+    writeAudit({
+      userId: user.id,
+      action: 'settings.app_update',
+      ip: getClientIp(req),
+      details: result.auditSummary,
+      debugDetails: result.auditDebugDetails,
+    });
     return { success: true };
   }
 

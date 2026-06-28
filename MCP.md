@@ -1,10 +1,10 @@
 # MCP Integration
 
-TRIPPI includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that lets AI
+trippi.ai includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that lets AI
 assistants — such as Claude Desktop, Cursor, or any MCP-compatible client — read and modify your trip data through a
 structured API.
 
-> **Note:** MCP is an addon that must be enabled by your TRIPPI administrator before it becomes available.
+> **Note:** MCP is an addon that must be enabled by your trippi.ai administrator before it becomes available.
 
 ## Table of Contents
 
@@ -56,10 +56,10 @@ management required — just provide the server URL:
 1. The client fetches `/.well-known/oauth-protected-resource` (RFC 9728) to discover the authorization server and bind the `/mcp` endpoint.
 2. The client fetches `/.well-known/oauth-authorization-server` for the full AS metadata.
 3. The client registers itself via [Dynamic Client Registration (RFC 7591)](https://www.rfc-editor.org/rfc/rfc7591).
-4. Your browser opens TRIPPI's consent screen, where you choose which scopes (permissions) to grant.
+4. Your browser opens trippi.ai's consent screen, where you choose which scopes (permissions) to grant.
 5. The client receives a short-lived access token audience-bound to `/mcp` (RFC 8707) and a rotating refresh token — no re-authorization needed.
 
-> **Requirement:** The `APP_URL` environment variable must be set to your TRIPPI instance's public URL for OAuth
+> **Requirement:** The `APP_URL` environment variable must be set to your trippi.ai instance's public URL for OAuth
 > discovery to work correctly.
 
 **For more control over scopes or to use confidential client mode**, pre-create an OAuth client in
@@ -99,13 +99,13 @@ Each user can create up to **10 static tokens**.
 
 ## Authentication
 
-TRIPPI's MCP server supports three authentication methods. OAuth 2.1 is the recommended path for all external clients.
+trippi.ai's MCP server supports three authentication methods. OAuth 2.1 is the recommended path for all external clients.
 
 | Method | Token prefix | Access level | TTL | Notes |
 |--------|-------------|-------------|-----|-------|
-| **OAuth 2.1** | `trippioa_` | Scoped (per-consent) | 1 hour | Recommended. Automatically refreshed via 30-day rolling refresh tokens (`trippirf_` prefix). Replay-detected rotation — replayed tokens cascade-revoke the entire chain. |
-| **Static API token** | `trippi_` | Full access | No expiry | **Deprecated.** Triggers deprecation warnings in AI clients. Will be removed in a future release. |
-| **Web session JWT** | — | Full access | Session-based | Used internally by the TRIPPI web UI. Not intended for external clients. |
+| **OAuth 2.1** | `trekoa_` | Scoped (per-consent) | 1 hour | Recommended. Automatically refreshed via 30-day rolling refresh tokens (`trekrf_` prefix). Replay-detected rotation — replayed tokens cascade-revoke the entire chain. |
+| **Static API token** | `trek_` | Full access | No expiry | **Deprecated.** Triggers deprecation warnings in AI clients. Will be removed in a future release. |
+| **Web session JWT** | — | Full access | Session-based | Used internally by the trippi.ai web UI. Not intended for external clients. |
 
 All methods require the `Authorization: Bearer <token>` header (strict scheme enforcement — `Bearer` required).
 
@@ -113,7 +113,7 @@ All methods require the `Authorization: Bearer <token>` header (strict scheme en
 
 ## OAuth Scopes
 
-When connecting via OAuth 2.1, you grant specific scopes during the consent step. TRIPPI registers only the MCP tools
+When connecting via OAuth 2.1, you grant specific scopes during the consent step. trippi.ai registers only the MCP tools
 that match your granted scopes for that session.
 
 | Scope | Permission | Group |
@@ -164,7 +164,7 @@ that match your granted scopes for that session.
 | **Per-user scoping**                    | Each MCP session is scoped to the authenticated user. You can only access trips you own or are a member of.                                      |
 | **No image uploads**                    | Cover images cannot be set through MCP. Use the web UI to upload trip covers.                                                                    |
 | **Reservations are created as pending** | When the AI creates a reservation, it starts with `pending` status. You must confirm it manually or ask the AI to set the status to `confirmed`. |
-| **Demo mode restrictions**              | If TRIPPI is running in demo mode, all write operations through MCP are blocked.                                                                   |
+| **Demo mode restrictions**              | If trippi.ai is running in demo mode, all write operations through MCP are blocked.                                                                   |
 | **Rate limiting**                       | 300 requests per minute per user (configurable via `MCP_RATE_LIMIT`). Exceeding this returns a `429` error.                                     |
 | **Per-client rate limiting**            | Rate limits are tracked per user-client pair, so each OAuth client has its own independent rate limit window.                                    |
 | **Session limits**                      | Maximum 20 concurrent MCP sessions per user (configurable via `MCP_MAX_SESSION_PER_USER`). Sessions expire after 1 hour of inactivity.          |
@@ -179,7 +179,7 @@ that match your granted scopes for that session.
 
 ## Resources (read-only)
 
-Resources provide read-only access to your TRIPPI data. MCP clients can read these to understand the current state before
+Resources provide read-only access to your trippi.ai data. MCP clients can read these to understand the current state before
 making changes.
 
 ### Core Resources
@@ -228,7 +228,7 @@ These resources are only available when the corresponding addon is enabled by an
 
 ## Tools (read-write)
 
-TRIPPI exposes tools organized by feature area. Use `get_trip_summary` as a starting point — it returns everything about a
+trippi.ai exposes tools organized by feature area. Use `get_trip_summary` as a starting point — it returns everything about a
 trip in a single call.
 
 ### Trip Summary
@@ -549,13 +549,13 @@ I'd like to plan a week-long trip to Kyoto, Japan, arriving April 5 2027
 and leaving April 11 2027. It's cherry blossom season so please keep that
 in mind when picking spots.
 
-Before writing anything to TRIPPI, do some research: look up what's worth
+Before writing anything to trippi.ai, do some research: look up what's worth
 visiting, figure out a logical day-by-day flow (group nearby spots together
 to avoid unnecessary travel), find a well-reviewed hotel in a central
 neighbourhood, and think about what kind of food and restaurant experiences
 are worth including.
 
-Once you have a solid plan, write the whole thing to TRIPPI:
+Once you have a solid plan, write the whole thing to trippi.ai:
 - Create the trip
 - Add all the places you've researched with their real coordinates
 - Build out the daily itinerary with sensible visiting times
@@ -572,6 +572,6 @@ Currency: CHF. Use get_trip_summary at the end and give me a quick recap
 of everything that was added.
 ```
 
-PDF of the generated trip: [./docs/TRIPPI-Generated-by-MCP.pdf](./docs/TRIPPI-Generated-by-MCP.pdf)
+PDF of the generated trip: [./docs/trippi-ai-generated-by-mcp.pdf](./docs/trippi-ai-generated-by-mcp.pdf)
 
 ![trip](./docs/screenshot-trip-mcp.png)

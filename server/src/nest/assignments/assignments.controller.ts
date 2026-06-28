@@ -1,19 +1,8 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Headers,
-  HttpException,
-  Param,
-  Post,
-  Put,
-  UseGuards,
-} from '@nestjs/common';
 import type { User } from '../../types';
-import { AssignmentsService } from './assignments.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AssignmentsService } from './assignments.service';
+import { Body, Controller, Delete, Get, Headers, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
 
 type Trip = NonNullable<ReturnType<AssignmentsService['verifyTripAccess']>>;
 
@@ -108,7 +97,12 @@ export class DayAssignmentsController {
       throw new HttpException({ error: 'Assignment not found' }, 404);
     }
     this.assignments.deleteAssignment(id);
-    this.assignments.broadcast(tripId, 'assignment:deleted', { assignmentId: Number(id), dayId: Number(dayId) }, socketId);
+    this.assignments.broadcast(
+      tripId,
+      'assignment:deleted',
+      { assignmentId: Number(id), dayId: Number(dayId) },
+      socketId,
+    );
     return { success: true };
   }
 }
@@ -141,7 +135,12 @@ export class AssignmentOpsController {
     }
     const oldDayId = (existing as { day_id: number }).day_id;
     const { assignment } = this.assignments.moveAssignment(id, body.new_day_id, body.order_index, oldDayId);
-    this.assignments.broadcast(tripId, 'assignment:moved', { assignment, oldDayId: Number(oldDayId), newDayId: Number(body.new_day_id) }, socketId);
+    this.assignments.broadcast(
+      tripId,
+      'assignment:moved',
+      { assignment, oldDayId: Number(oldDayId), newDayId: Number(body.new_day_id) },
+      socketId,
+    );
     return { assignment };
   }
 

@@ -1,10 +1,11 @@
-import { Response } from 'express';
 import { db } from '../../db/database';
-import { maybe_encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
 import { checkSsrf, safeFetch } from '../../utils/ssrfGuard';
+import { maybe_encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
 import { writeAudit } from '../auditLog';
-import { addTripPhotos} from './unifiedService';
 import { getAlbumIdFromLink, updateSyncTimeForAlbumLink, Selection, pipeAsset } from './helpersService';
+import { addTripPhotos } from './unifiedService';
+
+import { Response } from 'express';
 
 // ── Credentials ────────────────────────────────────────────────────────────
 
@@ -25,11 +26,13 @@ export function isValidAssetId(id: string): boolean {
 
 export function getConnectionSettings(userId: number) {
   const creds = getImmichCredentials(userId);
-  const prefs = db.prepare('SELECT immich_auto_upload FROM users WHERE id = ?').get(userId) as { immich_auto_upload?: number } | undefined;
+  const prefs = db.prepare('SELECT immich_auto_upload FROM users WHERE id = ?').get(userId) as
+    | { immich_auto_upload?: number }
+    | undefined;
   return {
     immich_url: creds?.immich_url || '',
     connected: !!(creds?.immich_url && creds?.immich_api_key),
-    auto_upload: !!(prefs?.immich_auto_upload),
+    auto_upload: !!prefs?.immich_auto_upload,
   };
 }
 
@@ -41,7 +44,7 @@ export async function saveImmichSettings(
   userId: number,
   immichUrl: string | undefined,
   immichApiKey: string | undefined,
-  clientIp: string | null
+  clientIp: string | null,
 ): Promise<{ success: boolean; warning?: string; error?: string }> {
   if (immichUrl) {
     const ssrf = await checkSsrf(immichUrl.trim());
@@ -51,7 +54,7 @@ export async function saveImmichSettings(
     db.prepare('UPDATE users SET immich_url = ?, immich_api_key = ? WHERE id = ?').run(
       immichUrl.trim(),
       maybe_encrypt_api_key(immichApiKey),
-      userId
+      userId,
     );
     if (ssrf.isPrivate) {
       writeAudit({
@@ -69,7 +72,7 @@ export async function saveImmichSettings(
     db.prepare('UPDATE users SET immich_url = ?, immich_api_key = ? WHERE id = ?').run(
       null,
       maybe_encrypt_api_key(immichApiKey),
-      userId
+      userId,
     );
   }
   return { success: true };
@@ -79,17 +82,17 @@ export async function saveImmichSettings(
 
 export async function testConnection(
   immichUrl: string,
-  immichApiKey: string
+  immichApiKey: string,
 ): Promise<{ connected: boolean; error?: string; user?: { name?: string; email?: string }; canonicalUrl?: string }> {
   const ssrf = await checkSsrf(immichUrl);
   if (!ssrf.allowed) return { connected: false, error: ssrf.error ?? 'Invalid Immich URL' };
   try {
     const resp = await safeFetch(`${immichUrl}/api/users/me`, {
-      headers: { 'x-api-key': immichApiKey, 'Accept': 'application/json' },
+      headers: { 'x-api-key': immichApiKey, Accept: 'application/json' },
       signal: AbortSignal.timeout(10000) as any,
     });
     if (!resp.ok) return { connected: false, error: `HTTP ${resp.status}` };
-    const data = await resp.json() as { name?: string; email?: string };
+    const data = (await resp.json()) as { name?: string; email?: string };
 
     // Detect http → https upgrade only: same host/port, protocol changed to https
     let canonicalUrl: string | undefined;
@@ -113,17 +116,17 @@ export async function testConnection(
 }
 
 export async function getConnectionStatus(
-  userId: number
+  userId: number,
 ): Promise<{ connected: boolean; error?: string; user?: { name?: string; email?: string } }> {
   const creds = getImmichCredentials(userId);
   if (!creds) return { connected: false, error: 'Not configured' };
   try {
     const resp = await safeFetch(`${creds.immich_url}/api/users/me`, {
-      headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
+      headers: { 'x-api-key': creds.immich_api_key, Accept: 'application/json' },
       signal: AbortSignal.timeout(10000) as any,
     });
     if (!resp.ok) return { connected: false, error: `HTTP ${resp.status}` };
-    const data = await resp.json() as { name?: string; email?: string };
+    const data = (await resp.json()) as { name?: string; email?: string };
     return { connected: true, user: { name: data.name, email: data.email } };
   } catch (err: unknown) {
     return { connected: false, error: err instanceof Error ? err.message : 'Connection failed' };
@@ -132,16 +135,14 @@ export async function getConnectionStatus(
 
 // ── Browse Timeline / Search ───────────────────────────────────────────────
 
-export async function browseTimeline(
-  userId: number
-): Promise<{ buckets?: any; error?: string; status?: number }> {
+export async function browseTimeline(userId: number): Promise<{ buckets?: any; error?: string; status?: number }> {
   const creds = getImmichCredentials(userId);
   if (!creds) return { error: 'Immich not configured', status: 400 };
 
   try {
     const resp = await safeFetch(`${creds.immich_url}/api/timeline/buckets`, {
       method: 'GET',
-      headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
+      headers: { 'x-api-key': creds.immich_api_key, Accept: 'application/json' },
       signal: AbortSignal.timeout(15000) as any,
     });
     if (!resp.ok) return { error: 'Failed to fetch from Immich', status: resp.status };
@@ -176,7 +177,7 @@ export async function searchPhotos(
       signal: AbortSignal.timeout(15000) as any,
     });
     if (!resp.ok) return { error: 'Search failed', status: resp.status };
-    const data = await resp.json() as { assets?: { items?: any[] } };
+    const data = (await resp.json()) as { assets?: { items?: any[] } };
     const items = data.assets?.items || [];
     const assets = items.map((a: any) => ({
       id: a.id,
@@ -190,14 +191,12 @@ export async function searchPhotos(
   }
 }
 
-
 // ── Asset Info / Proxy ─────────────────────────────────────────────────────
-
 
 export async function getAssetInfo(
   userId: number,
   assetId: string,
-  ownerUserId?: number
+  ownerUserId?: number,
 ): Promise<{ data?: any; error?: string; status?: number }> {
   const effectiveUserId = ownerUserId ?? userId;
   const creds = getImmichCredentials(effectiveUserId);
@@ -205,11 +204,11 @@ export async function getAssetInfo(
 
   try {
     const resp = await safeFetch(`${creds.immich_url}/api/assets/${assetId}`, {
-      headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
+      headers: { 'x-api-key': creds.immich_api_key, Accept: 'application/json' },
       signal: AbortSignal.timeout(10000) as any,
     });
     if (!resp.ok) return { error: 'Failed', status: resp.status };
-    const asset = await resp.json() as any;
+    const asset = (await resp.json()) as any;
     return {
       data: {
         id: asset.id,
@@ -239,7 +238,7 @@ export async function getAssetInfo(
 export async function fetchImmichThumbnailBytes(
   userId: number,
   assetId: string,
-  ownerUserId?: number
+  ownerUserId?: number,
 ): Promise<{ bytes: Buffer; contentType: string } | { error: string; status: number }> {
   const effectiveUserId = ownerUserId ?? userId;
   const creds = getImmichCredentials(effectiveUserId);
@@ -265,25 +264,30 @@ export async function streamImmichAsset(
   userId: number,
   assetId: string,
   kind: 'thumbnail' | 'original',
-  ownerUserId?: number
+  ownerUserId?: number,
 ): Promise<{ error?: string; status?: number } | void> {
   const effectiveUserId = ownerUserId ?? userId;
   const creds = getImmichCredentials(effectiveUserId);
   if (!creds) return { error: 'Not found', status: 404 };
 
   const timeout = kind === 'thumbnail' ? 10000 : 30000;
-  const url = kind === 'thumbnail'
-    ? `${creds.immich_url}/api/assets/${assetId}/thumbnail?size=thumbnail`
-    : `${creds.immich_url}/api/assets/${assetId}/thumbnail?size=fullsize`;
+  const url =
+    kind === 'thumbnail'
+      ? `${creds.immich_url}/api/assets/${assetId}/thumbnail?size=thumbnail`
+      : `${creds.immich_url}/api/assets/${assetId}/thumbnail?size=fullsize`;
 
-  await pipeAsset(url, response, { 'x-api-key': creds.immich_api_key }, AbortSignal.timeout(timeout), 'public, max-age=86400');
+  await pipeAsset(
+    url,
+    response,
+    { 'x-api-key': creds.immich_api_key },
+    AbortSignal.timeout(timeout),
+    'public, max-age=86400',
+  );
 }
 
 // ── Albums ──────────────────────────────────────────────────────────────────
 
-export async function listAlbums(
-  userId: number
-): Promise<{ albums?: any[]; error?: string; status?: number }> {
+export async function listAlbums(userId: number): Promise<{ albums?: any[]; error?: string; status?: number }> {
   const creds = getImmichCredentials(userId);
   if (!creds) return { error: 'Immich not configured', status: 400 };
 
@@ -291,17 +295,17 @@ export async function listAlbums(
     // Fetch both owned and shared albums
     const [ownResp, sharedResp] = await Promise.all([
       safeFetch(`${creds.immich_url}/api/albums`, {
-        headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
+        headers: { 'x-api-key': creds.immich_api_key, Accept: 'application/json' },
         signal: AbortSignal.timeout(10000) as any,
       }),
       safeFetch(`${creds.immich_url}/api/albums?shared=true`, {
-        headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
+        headers: { 'x-api-key': creds.immich_api_key, Accept: 'application/json' },
         signal: AbortSignal.timeout(10000) as any,
       }),
     ]);
     if (!ownResp.ok) return { error: 'Failed to fetch albums', status: ownResp.status };
-    const ownAlbums = await ownResp.json() as any[];
-    const sharedAlbums = sharedResp.ok ? await sharedResp.json() as any[] : [];
+    const ownAlbums = (await ownResp.json()) as any[];
+    const sharedAlbums = sharedResp.ok ? ((await sharedResp.json()) as any[]) : [];
     const seenIds = new Set<string>();
     const allAlbums = [...ownAlbums, ...sharedAlbums].filter((a: any) => {
       if (seenIds.has(a.id)) return false;
@@ -332,17 +336,19 @@ export async function getAlbumPhotos(
 
   try {
     const resp = await safeFetch(`${creds.immich_url}/api/albums/${albumId}`, {
-      headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
+      headers: { 'x-api-key': creds.immich_api_key, Accept: 'application/json' },
       signal: AbortSignal.timeout(15000) as any,
     });
     if (!resp.ok) return { error: 'Failed to fetch album', status: resp.status };
-    const albumData = await resp.json() as { assets?: any[] };
-    const assets = (albumData.assets || []).filter((a: any) => a.type === 'IMAGE').map((a: any) => ({
-      id: a.id,
-      takenAt: a.fileCreatedAt || a.createdAt,
-      city: a.exifInfo?.city || null,
-      country: a.exifInfo?.country || null,
-    }));
+    const albumData = (await resp.json()) as { assets?: any[] };
+    const assets = (albumData.assets || [])
+      .filter((a: any) => a.type === 'IMAGE')
+      .map((a: any) => ({
+        id: a.id,
+        takenAt: a.fileCreatedAt || a.createdAt,
+        city: a.exifInfo?.city || null,
+        country: a.exifInfo?.country || null,
+      }));
     return { assets };
   } catch {
     return { error: 'Could not reach Immich', status: 502 };
@@ -363,11 +369,11 @@ export async function syncAlbumAssets(
 
   try {
     const resp = await safeFetch(`${creds.immich_url}/api/albums/${response.data}`, {
-      headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
+      headers: { 'x-api-key': creds.immich_api_key, Accept: 'application/json' },
       signal: AbortSignal.timeout(15000) as any,
     });
     if (!resp.ok) return { error: 'Failed to fetch album', status: resp.status };
-    const albumData = await resp.json() as { assets?: any[] };
+    const albumData = (await resp.json()) as { assets?: any[] };
     const assets = (albumData.assets || []).filter((a: any) => a.type === 'IMAGE');
 
     const selection: Selection = {
@@ -403,8 +409,12 @@ export async function uploadToImmich(userId: number, filePath: string, fileName:
     const boundary = '----ImmichUpload' + Date.now();
     const ext = path.extname(fileName).toLowerCase();
     const mimeTypes: Record<string, string> = {
-      '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
-      '.gif': 'image/gif', '.webp': 'image/webp', '.heic': 'image/heic',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.heic': 'image/heic',
     };
     const contentType = mimeTypes[ext] || 'application/octet-stream';
     const now = new Date().toISOString();
@@ -413,14 +423,16 @@ export async function uploadToImmich(userId: number, filePath: string, fileName:
     const addField = (name: string, value: string) => {
       parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`));
     };
-    addField('deviceAssetId', `trippi-${Date.now()}`);
-    addField('deviceId', 'TRIPPI');
+    addField('deviceAssetId', `trek-${Date.now()}`);
+    addField('deviceId', 'trippi.ai');
     addField('fileCreatedAt', now);
     addField('fileModifiedAt', now);
 
-    parts.push(Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="assetData"; filename="${fileName}"\r\nContent-Type: ${contentType}\r\n\r\n`
-    ));
+    parts.push(
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="assetData"; filename="${fileName}"\r\nContent-Type: ${contentType}\r\n\r\n`,
+      ),
+    );
     parts.push(fileBuffer);
     parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
 
@@ -437,7 +449,7 @@ export async function uploadToImmich(userId: number, filePath: string, fileName:
     });
 
     if (res.ok) {
-      const data = await res.json() as { id?: string };
+      const data = (await res.json()) as { id?: string };
       return data.id || null;
     }
     return null;

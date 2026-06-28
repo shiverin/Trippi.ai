@@ -1,7 +1,8 @@
+import { PUBLIC_DIR } from './platform.routes';
 import { ArgumentsHost, Catch, ExceptionFilter, NotFoundException } from '@nestjs/common';
+
 import type { Request, Response } from 'express';
 import path from 'node:path';
-import { PUBLIC_DIR } from './platform.routes';
 
 /**
  * Serves the built SPA (index.html) for any request the NestJS router did not
@@ -13,7 +14,7 @@ import { PUBLIC_DIR } from './platform.routes';
  *
  * Behaviour matches the legacy catch-all exactly: in production, an unmatched GET
  * returns index.html; everything else (non-GET, or dev where there is no built
- * client) keeps the standard TRIPPI `{ error }` 404 envelope. The `@Catch(NotFoundException)`
+ * client) keeps the standard trippi.ai `{ error }` 404 envelope. The `@Catch(NotFoundException)`
  * is more specific than the global TrippiExceptionFilter, so Nest routes 404s here
  * while every other error still flows through TrippiExceptionFilter.
  */
@@ -30,7 +31,7 @@ export class SpaFallbackFilter implements ExceptionFilter {
       return;
     }
 
-    // Non-production, or a non-GET miss: keep the standard TRIPPI 404 envelope
+    // Non-production, or a non-GET miss: keep the standard trippi.ai 404 envelope
     // (identical to what TrippiExceptionFilter produces for a NotFoundException).
     res.status(404).json({ error: exception.message || 'Not Found' });
   }

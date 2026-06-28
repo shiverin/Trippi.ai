@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
 import { DayAssignmentsController, AssignmentOpsController } from './assignments.controller';
 import { AssignmentsService } from './assignments.service';
+import { Module } from '@nestjs/common';
 
 /**
  * Assignments domain (S7 — Phase 2 trip sub-domain). The day-assignments mount

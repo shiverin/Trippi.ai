@@ -4,14 +4,14 @@
 
 ## What OIDC gives you
 
-OpenID Connect (OIDC) lets users log in with an existing identity provider — Google, Authentik, Keycloak, or any OIDC-compatible IdP — instead of a local email/password. On first SSO login, a TRIPPI account is created automatically using the email from the provider.
+OpenID Connect (OIDC) lets users log in with an existing identity provider — Google, Authentik, Keycloak, or any OIDC-compatible IdP — instead of a local email/password. On first SSO login, a trippi.ai account is created automatically using the email from the provider.
 
 ## User flow
 
 1. Click **"Sign in with SSO"** on the login page.
 2. You are redirected to your identity provider's login page.
 3. Authenticate and grant consent.
-4. The provider redirects back to TRIPPI at `GET /api/auth/oidc/callback`. If this is your first login, an account is created automatically (subject to registration settings).
+4. The provider redirects back to trippi.ai at `GET /api/auth/oidc/callback`. If this is your first login, an account is created automatically (subject to registration settings).
 5. The server issues a short-lived one-time code and redirects your browser to `/login?oidc_code=<code>`. The frontend immediately exchanges that code at `GET /api/auth/oidc/exchange?code=<code>` to obtain the session.
 6. Your `trippi_session` cookie is set and you land on the dashboard.
 
@@ -21,7 +21,7 @@ Set the following environment variables before starting the server:
 
 | Variable | Required | Description |
 |---|---|---|
-| `APP_URL` | Yes | Base URL of your TRIPPI instance (e.g. `https://trippi.example.com`). Used to build the redirect URI. Can also be set via Admin → Settings. |
+| `APP_URL` | Yes | Base URL of your trippi.ai instance (e.g. `https://trek.example.com`). Used to build the redirect URI. Can also be set via Admin → Settings. |
 | `OIDC_ISSUER` | Yes | Issuer URL of your identity provider. Must use HTTPS in production. |
 | `OIDC_CLIENT_ID` | Yes | OAuth 2.0 client ID registered with your IdP. |
 | `OIDC_CLIENT_SECRET` | Yes | OAuth 2.0 client secret. |
@@ -47,7 +47,7 @@ For example: `https://trippi.example.com/api/auth/oidc/callback`
 
 ## New-user registration via SSO
 
-When an SSO login matches an existing TRIPPI account by email or OIDC subject (`sub`), that account is used and the OIDC identity is linked automatically. If no matching account exists, TRIPPI attempts to create one. The outcome depends on the following:
+When an SSO login matches an existing trippi.ai account by email or OIDC subject (`sub`), that account is used and the OIDC identity is linked automatically. If no matching account exists, trippi.ai attempts to create one. The outcome depends on the following:
 
 - **First user ever**: always created as admin, no invite required.
 - **Open SSO registration enabled** (admin panel toggle `oidc_registration`): account is created as a regular user.

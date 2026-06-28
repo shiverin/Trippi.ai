@@ -1,6 +1,6 @@
 # Updating
 
-How to update TRIPPI to a newer version without losing data.
+How to update trippi.ai to a newer version without losing data.
 
 ## Before You Update
 
@@ -10,9 +10,9 @@ Back up your data first. Go to Admin Panel → Backups and create a manual backu
 
 | Tag | Example | Behavior |
 |---|---|---|
-| `latest` | `mauriceboe/trippi:latest` | Always the newest release across all major versions |
-| Major version | `mauriceboe/trippi:3` | Latest release pinned to that major version |
-| Full version | `mauriceboe/trippi:3.0.15` | Exact release; never changes |
+| `latest` | `shiverin/trippi.ai:latest` | Always the newest release across all major versions |
+| Major version | `shiverin/trippi.ai:3` | Latest release pinned to that major version |
+| Full version | `shiverin/trippi.ai:3.0.15` | Exact release; never changes |
 
 Use `latest` or a major-version tag if you want updates on each redeploy. Use a full version tag for explicit control — update by changing the tag, not by re-pulling.
 
@@ -36,17 +36,17 @@ docker compose up -d
 
 ## Docker Run
 
-If you started TRIPPI with `docker run`, pull the new image and replace the container:
+If you started trippi.ai with `docker run`, pull the new image and replace the container:
 
 ```bash
-docker pull mauriceboe/trippi
-docker rm -f trippi
-docker run -d --name trippi -p 3000:3000 \
+docker pull shiverin/trippi.ai
+docker rm -f trek
+docker run -d --name trek -p 3000:3000 \
   -v ./data:/app/data \
   -v ./uploads:/app/uploads \
   -e ENCRYPTION_KEY=<your-key> \
   --restart unless-stopped \
-  mauriceboe/trippi
+  shiverin/trippi.ai
 ```
 
 > **Tip:** Not sure which volume paths you used? Check before removing:
@@ -56,23 +56,23 @@ docker run -d --name trippi -p 3000:3000 \
 
 ## Database Migrations
 
-TRIPPI runs any pending database migrations automatically at startup. No manual migration steps are required after pulling a new image.
+trippi.ai runs any pending database migrations automatically at startup. No manual migration steps are required after pulling a new image.
 
 ## Encryption Key Note
 
-If you are upgrading from a version that predates the dedicated `ENCRYPTION_KEY` (i.e. you have no `ENCRYPTION_KEY` environment variable set), TRIPPI automatically falls back to `./data/.jwt_secret` on startup and immediately promotes it to `./data/.encryption_key`. No manual steps are required — the transition is handled at first boot after the upgrade.
+If you are upgrading from a version that predates the dedicated `ENCRYPTION_KEY` (i.e. you have no `ENCRYPTION_KEY` environment variable set), trippi.ai automatically falls back to `./data/.jwt_secret` on startup and immediately promotes it to `./data/.encryption_key`. No manual steps are required — the transition is handled at first boot after the upgrade.
 
 If you want to rotate to a new key at any point (not required for a normal update), see [Encryption-Key-Rotation](Encryption-Key-Rotation) for the full procedure.
 
 ## Proxmox VE (LXC)
 
-If you installed TRIPPI via the [Proxmox VE Community Scripts](https://community-scripts.org/scripts/trippi), run the following command inside the **LXC container** and select **Update** when prompted:
+If you installed trippi.ai via the [Proxmox VE Community Scripts](https://community-scripts.org/scripts/trek), run the following command inside the **LXC container** and select **Update** when prompted:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/trippi.sh)"
 ```
 
-> **Tip:** Always check the [community-scripts TRIPPI page](https://community-scripts.org/scripts/trippi) to confirm the latest command before running.
+> **Tip:** Always check the [community-scripts trippi.ai page](https://community-scripts.org/scripts/trek) to confirm the latest command before running.
 
 The script stops the service, backs up your data and uploads, applies the new release, restores the backup, and restarts. No manual steps required.
 
@@ -85,7 +85,7 @@ journalctl -u trippi -n 50
 
 ## Portainer
 
-Open the **Stacks** list, click the TRIPPI stack, then click **Redeploy**.
+Open the **Stacks** list, click the trippi.ai stack, then click **Redeploy**.
 
 **`latest` or major-version tag** — enable the **Re-pull image and redeploy** switch before confirming. Portainer pulls the newest matching image and recreates the container.
 
@@ -101,7 +101,7 @@ See [Install-Portainer](Install-Portainer) for the full installation walkthrough
 
 ## Unraid
 
-In the Unraid Docker tab, click the TRIPPI container and select **Update**. Unraid will pull the latest image and restart with the same volumes.
+In the Unraid Docker tab, click the trippi.ai container and select **Update**. Unraid will pull the latest image and restart with the same volumes.
 
 ## Next Steps
 

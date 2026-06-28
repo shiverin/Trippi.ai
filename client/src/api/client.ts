@@ -191,7 +191,7 @@ apiClient.interceptors.response.use(
         }
       }
       // Pangolin header-auth extended compatibility mode: returns 401 with an
-      // HTML body (a JS redirect page) instead of a 302. TRIPPI's own 401s are
+      // HTML body (a JS redirect page) instead of a 302. trippi.ai's own 401s are
       // always application/json, so checking for text/html is unambiguous.
       if (error.response?.status === 401) {
         const ct = (error.response.headers?.['content-type'] as string | undefined) ?? ''

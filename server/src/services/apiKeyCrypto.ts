@@ -1,5 +1,6 @@
-import * as crypto from 'node:crypto';
 import { ENCRYPTION_KEY } from '../config';
+
+import * as crypto from 'node:crypto';
 
 const ENCRYPTED_PREFIX = 'enc:v1:';
 
@@ -40,4 +41,3 @@ export function maybe_encrypt_api_key(value: unknown) {
   if (trimmed.startsWith(ENCRYPTED_PREFIX)) return trimmed;
   return encrypt_api_key(trimmed);
 }
-

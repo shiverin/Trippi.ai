@@ -1,19 +1,24 @@
-import nodemailer from 'nodemailer';
 import { db } from '../db/database';
+import { checkSsrf, createPinnedDispatcher } from '../utils/ssrfGuard';
 import { decrypt_api_key } from './apiKeyCrypto';
 import { logInfo, logDebug, logError } from './auditLog';
-import { checkSsrf, createPinnedDispatcher } from '../utils/ssrfGuard';
-
 // ── Types ──────────────────────────────────────────────────────────────────
 
 import type { NotifEventType } from './notificationPreferencesService';
 import { EMAIL_I18N as I18N, EVENT_TEXTS, PASSWORD_RESET_I18N } from '@trippi/shared/i18n/externalNotifications';
-import type { EmailStrings, EventText, PasswordResetStrings, NotificationEventKey } from '@trippi/shared/i18n/externalNotifications';
+import type {
+  EmailStrings,
+  EventText,
+  PasswordResetStrings,
+  NotificationEventKey,
+} from '@trippi/shared/i18n/externalNotifications';
+
+import nodemailer from 'nodemailer';
 
 // Compile-time guard: shared NotificationEventKey and server NotifEventType must stay in sync.
-type _EvtFwd = NotifEventType extends NotificationEventKey ? true : never
-type _EvtBwd = NotificationEventKey extends NotifEventType ? true : never
-const _eventKeyDriftGuard: [_EvtFwd, _EvtBwd] = [true, true]
+type _EvtFwd = NotifEventType extends NotificationEventKey ? true : never;
+type _EvtBwd = NotificationEventKey extends NotifEventType ? true : never;
+const _eventKeyDriftGuard: [_EvtFwd, _EvtBwd] = [true, true];
 
 interface SmtpConfig {
   host: string;
@@ -38,7 +43,10 @@ function escapeHtml(str: string): string {
 // ── Settings helpers ───────────────────────────────────────────────────────
 
 function getAppSetting(key: string): string | null {
-  return (db.prepare("SELECT value FROM app_settings WHERE key = ?").get(key) as { value: string } | undefined)?.value || null;
+  return (
+    (db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined)?.value ||
+    null
+  );
 }
 
 function getSmtpConfig(): SmtpConfig | null {
@@ -48,7 +56,14 @@ function getSmtpConfig(): SmtpConfig | null {
   const pass = process.env.SMTP_PASS || decrypt_api_key(getAppSetting('smtp_pass')) || '';
   const from = process.env.SMTP_FROM || getAppSetting('smtp_from');
   if (!host || !port || !from) return null;
-  return { host, port: parseInt(port, 10), user: user || '', pass: pass || '', from, secure: parseInt(port, 10) === 465 };
+  return {
+    host,
+    port: parseInt(port, 10),
+    user: user || '',
+    pass: pass || '',
+    from,
+    secure: parseInt(port, 10) === 465,
+  };
 }
 
 // Exported for use by notificationService
@@ -57,8 +72,7 @@ export function getAppUrl(): string {
     try {
       const _ = new URL(process.env.APP_URL);
       return process.env.APP_URL.replace(/\/+$/, '');
-    } catch (_ignored) {
-    }
+    } catch (_ignored) {}
   }
   const origins = process.env.ALLOWED_ORIGINS;
   if (origins) {
@@ -67,8 +81,7 @@ export function getAppUrl(): string {
       try {
         const _ = new URL(first);
         return first.replace(/\/+$/, '');
-      } catch (_ignored) {
-      }
+      } catch (_ignored) {}
     }
   }
   const port = Number(process.env.PORT) || 3001;
@@ -93,15 +106,28 @@ export function getMcpSafeUrl(): string {
 }
 
 export function getUserEmail(userId: number): string | null {
-  return (db.prepare('SELECT email FROM users WHERE id = ?').get(userId) as { email: string } | undefined)?.email || null;
+  return (
+    (db.prepare('SELECT email FROM users WHERE id = ?').get(userId) as { email: string } | undefined)?.email || null
+  );
 }
 
 export function getUserLanguage(userId: number): string {
-  return (db.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'language'").get(userId) as { value: string } | undefined)?.value || 'en';
+  return (
+    (
+      db.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'language'").get(userId) as
+        | { value: string }
+        | undefined
+    )?.value || 'en'
+  );
 }
 
 export function getUserWebhookUrl(userId: number): string | null {
-  const value = (db.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'webhook_url'").get(userId) as { value: string } | undefined)?.value || null;
+  const value =
+    (
+      db.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'webhook_url'").get(userId) as
+        | { value: string }
+        | undefined
+    )?.value || null;
   return value ? decrypt_api_key(value) : null;
 }
 
@@ -124,10 +150,16 @@ export function getEventText(lang: string, event: NotifEventType, params: Record
 
 // ── Email HTML builder ─────────────────────────────────────────────────────
 
-export function buildEmailHtml(subject: string, body: string, lang: string, navigateTarget?: string, rawBody = false): string {
+export function buildEmailHtml(
+  subject: string,
+  body: string,
+  lang: string,
+  navigateTarget?: string,
+  rawBody = false,
+): string {
   const s = I18N[lang] || I18N.en;
   const appUrl = getAppUrl();
-  const ctaHref = escapeHtml(navigateTarget ? `${appUrl}${navigateTarget}` : (appUrl || ''));
+  const ctaHref = escapeHtml(navigateTarget ? `${appUrl}${navigateTarget}` : appUrl || '');
   const safeSubject = escapeHtml(subject);
   const safeBody = rawBody ? body : escapeHtml(body);
 
@@ -140,9 +172,8 @@ export function buildEmailHtml(subject: string, body: string, lang: string, navi
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
         <!-- Header -->
         <tr><td style="background: linear-gradient(135deg, #000000 0%, #1a1a2e 100%); padding: 32px 32px 28px; text-align: center;">
-          <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4NCiAgPGRlZnM+DQogICAgPGxpbmVhckdyYWRpZW50IGlkPSJiZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPg0KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFlMjkzYiIvPg0KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGYxNzJhIi8+DQogICAgPC9saW5lYXJHcmFkaWVudD4NCiAgICA8Y2xpcFBhdGggaWQ9Imljb24iPg0KICAgICAgPHBhdGggZD0iTSA4NTUuNjM2NzE5IDY5OS4yMDMxMjUgTCAyMjIuMjQ2MDk0IDY5OS4yMDMxMjUgQyAxOTcuNjc5Njg4IDY5OS4yMDMxMjUgMTc5LjkwNjI1IDY3NS43NSAxODYuNTM5MDYyIDY1Mi4xMDE1NjIgTCAzNjAuNDI5Njg4IDMyLjM5MDYyNSBDIDM2NC45MjE4NzUgMTYuMzg2NzE5IDM3OS41MTE3MTkgNS4zMjgxMjUgMzk2LjEzMjgxMiA1LjMyODEyNSBMIDEwMjkuNTI3MzQ0IDUuMzI4MTI1IEMgMTA1NC4wODk4NDQgNS4zMjgxMjUgMTA3MS44NjcxODggMjguNzc3MzQ0IDEwNjUuMjMwNDY5IDUyLjQyOTY4OCBMIDg5MS4zMzk4NDQgNjcyLjEzNjcxOSBDIDg4Ni44NTE1NjIgNjg4LjE0MDYyNSA4NzIuMjU3ODEyIDY5OS4yMDMxMjUgODU1LjYzNjcxOSA2OTkuMjAzMTI1IFogTSA0NDQuMjM4MjgxIDExNjYuOTgwNDY5IEwgNTMzLjc3MzQzOCA4NDcuODk4NDM4IEMgNTQwLjQxMDE1NiA4MjQuMjQ2MDk0IDUyMi42MzI4MTIgODAwLjc5Njg3NSA0OTguMDcwMzEyIDgwMC43OTY4NzUgTCAxNzIuNDcyNjU2IDgwMC43OTY4NzUgQyAxNTUuODUxNTYyIDgwMC43OTY4NzUgMTQxLjI2MTcxOSA4MTEuODU1NDY5IDEzNi43Njk1MzEgODI3Ljg1OTM3NSBMIDQ3LjIzNDM3NSAxMTQ2Ljk0MTQwNiBDIDQwLjU5NzY1NiAxMTcwLjU5Mzc1IDU4LjM3NSAxMTk0LjA0Mjk2OSA4Mi45Mzc1IDExOTQuMDQyOTY5IEwgNDA4LjUzNTE1NiAxMTk0LjA0Mjk2OSBDIDQyNS4xNTYyNSAxMTk0LjA0Mjk2OSA0MzkuNzUgMTE4Mi45ODQzNzUgNDQ0LjIzODI4MSAxMTY2Ljk4MDQ2OSBaIE0gNjA5LjAwMzkwNiA4MjcuODU5Mzc1IEwgNDM1LjExMzI4MSAxNDQ3LjU3MDMxMiBDIDQyOC40NzY1NjIgMTQ3MS4yMTg3NSA0NDYuMjUzOTA2IDE0OTQuNjcxODc1IDQ3MC44MTY0MDYgMTQ5NC42NzE4NzUgTCAxMTA0LjIxMDkzOCAxNDk0LjY3MTg3NSBDIDExMjAuODMyMDMxIDE0OTQuNjcxODc1IDExMzUuNDIxODc1IDE0ODMuNjA5Mzc1IDExMzkuOTE0MDYyIDE0NjcuNjA1NDY5IEwgMTMxMy44MDQ2ODggODQ3Ljg5ODQzOCBDIDEzMjAuNDQxNDA2IDgyNC4yNDYwOTQgMTMwMi42NjQwNjIgODAwLjc5Njg3NSAxMjc4LjEwMTU2MiA4MDAuNzk2ODc1IEwgNjQ0LjcwNzAzMSA4MDAuNzk2ODc1IEMgNjI4LjA4NTkzOCA4MDAuNzk2ODc1IDYxMy40OTIxODggODExLjg1NTQ2OSA2MDkuMDAzOTA2IDgyNy44NTkzNzUgWiBNIDEwNTYuMTA1NDY5IDMzMy4wMTk1MzEgTCA5NjYuNTcwMzEyIDY1Mi4xMDE1NjIgQyA5NTkuOTMzNTk0IDY3NS43NSA5NzcuNzEwOTM4IDY5OS4yMDMxMjUgMTAwMi4yNzM0MzggNjk5LjIwMzEyNSBMIDEzMjcuODcxMDk0IDY5OS4yMDMxMjUgQyAxMzQ0LjQ5MjE4OCA2OTkuMjAzMTI1IDEzNTkuMDg1OTM4IDY4OC4xNDA2MjUgMTM2My41NzQyMTkgNjcyLjEzNjcxOSBMIDE0NTMuMTA5Mzc1IDM1My4wNTQ2ODggQyAxNDU5Ljc0NjA5NCAzMjkuNDA2MjUgMTQ0MS45Njg3NSAzMDUuOTUzMTI1IDE0MTcuNDA2MjUgMzA1Ljk1MzEyNSBMIDEwOTEuODA4NTk0IDMwNS45NTMxMjUgQyAxMDc1LjE4NzUgMzA1Ljk1MzEyNSAxMDYwLjU5NzY1NiAzMTcuMDE1NjI1IDEwNTYuMTA1NDY5IDMzMy4wMTk1MzEgWiIvPg0KICAgIDwvY2xpcFBhdGg+DQogIDwvZGVmcz4NCiAgPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9InVybCgjYmcpIi8+DQogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU2LDUxKSBzY2FsZSgwLjI2NykiPg0KICAgIDxyZWN0IHdpZHRoPSIxNTAwIiBoZWlnaHQ9IjE1MDAiIGZpbGw9IiNmZmZmZmYiIGNsaXAtcGF0aD0idXJsKCNpY29uKSIvPg0KICA8L2c+DQo8L3N2Zz4NCg==" alt="TRIPPI" width="48" height="48" style="border-radius: 14px; margin-bottom: 14px; display: block; margin-left: auto; margin-right: auto;" />
-          <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">TRIPPI</div>
-          <div style="color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Travel Resource &amp; Exploration Kit</div>
+          <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">trippi.ai</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Your trips. Your plan.</div>
         </td></tr>
         <!-- Content -->
         <tr><td style="padding: 32px 32px 16px;">
@@ -151,13 +182,17 @@ export function buildEmailHtml(subject: string, body: string, lang: string, navi
           <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.7; white-space: pre-wrap;">${safeBody}</p>
         </td></tr>
         <!-- CTA -->
-        ${appUrl ? `<tr><td style="padding: 8px 32px 32px; text-align: center;">
+        ${
+          appUrl
+            ? `<tr><td style="padding: 8px 32px 32px; text-align: center;">
           <a href="${ctaHref}" style="display: inline-block; padding: 12px 28px; background: #111827; color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 10px; letter-spacing: 0.2px;">${s.openTrippi}</a>
-        </td></tr>` : ''}
+        </td></tr>`
+            : ''
+        }
         <!-- Footer -->
         <tr><td style="padding: 20px 32px; background: #f9fafb; border-top: 1px solid #f3f4f6; text-align: center;">
           <p style="margin: 0 0 8px; font-size: 11px; color: #9ca3af; line-height: 1.5;">${s.footer}<br>${s.manage}</p>
-          <p style="margin: 0; font-size: 10px; color: #d1d5db;">${s.madeWith} <span style="color: #ef4444;">&hearts;</span> by Maurice &middot; <a href="https://github.com/mauriceboe/TRIPPI" style="color: #9ca3af; text-decoration: none;">GitHub</a></p>
+          <p style="margin: 0; font-size: 10px; color: #d1d5db;">${s.madeWith} <span style="color: #ef4444;">&hearts;</span> by trippi.ai &middot; <a href="https://github.com/shiverin/Trippi.ai" style="color: #9ca3af; text-decoration: none;">GitHub</a></p>
         </td></tr>
       </table>
     </td></tr>
@@ -172,7 +207,13 @@ export function buildEmailHtml(subject: string, body: string, lang: string, navi
 
 // PASSWORD_RESET_I18N imported from @trippi/shared/i18n/externalNotifications
 
-function buildPasswordResetHtml(subject: string, strings: PasswordResetStrings, recipient: string, resetUrl: string, lang: string): string {
+function buildPasswordResetHtml(
+  subject: string,
+  strings: PasswordResetStrings,
+  recipient: string,
+  resetUrl: string,
+  lang: string,
+): string {
   const safeGreeting = escapeHtml(`${strings.greeting}, ${recipient}`);
   const safeBody = escapeHtml(strings.body);
   const safeExpiry = escapeHtml(strings.expiry);
@@ -214,11 +255,11 @@ export async function sendPasswordResetEmail(
     // eslint-disable-next-line no-console
     console.log(
       `\n===== PASSWORD RESET LINK =====\n` +
-      `to: ${to}\n` +
-      `url: ${resetUrl}\n` +
-      `expires: 60 minutes\n` +
-      `(SMTP is not configured — deliver this link to the user manually.)\n` +
-      `================================\n`,
+        `to: ${to}\n` +
+        `url: ${resetUrl}\n` +
+        `expires: 60 minutes\n` +
+        `(SMTP is not configured — deliver this link to the user manually.)\n` +
+        `================================\n`,
     );
     logInfo(`Password reset link issued (no SMTP) for=${to}`);
     return { delivered: 'log' };
@@ -236,7 +277,7 @@ export async function sendPasswordResetEmail(
     await transporter.sendMail({
       from: smtpCfg.from,
       to,
-      subject: `TRIPPI — ${strings.subject}`,
+      subject: `trippi.ai — ${strings.subject}`,
       text: `${strings.greeting}, ${to}\n\n${strings.body}\n\n${strings.ctaIntro}: ${resetUrl}\n\n${strings.expiry}\n${strings.ignore}`,
       html: buildPasswordResetHtml(strings.subject, strings, to, resetUrl, lang),
     });
@@ -248,7 +289,13 @@ export async function sendPasswordResetEmail(
   }
 }
 
-export async function sendEmail(to: string, subject: string, body: string, userId?: number, navigateTarget?: string): Promise<boolean> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  body: string,
+  userId?: number,
+  navigateTarget?: string,
+): Promise<boolean> {
   const config = getSmtpConfig();
   if (!config) return false;
 
@@ -267,7 +314,7 @@ export async function sendEmail(to: string, subject: string, body: string, userI
     await transporter.sendMail({
       from: config.from,
       to,
-      subject: `TRIPPI — ${subject}`,
+      subject: `trippi.ai — ${subject}`,
       text: body,
       html: buildEmailHtml(subject, body, lang, navigateTarget),
     });
@@ -280,35 +327,43 @@ export async function sendEmail(to: string, subject: string, body: string, userI
   }
 }
 
-export function buildWebhookBody(url: string, payload: { event: string; title: string; body: string; tripName?: string; link?: string }): string {
+export function buildWebhookBody(
+  url: string,
+  payload: { event: string; title: string; body: string; tripName?: string; link?: string },
+): string {
   const isDiscord = /discord(?:app)?\.com\/api\/webhooks\//.test(url);
   const isSlack = /hooks\.slack\.com\//.test(url);
 
   if (isDiscord) {
     return JSON.stringify({
-      embeds: [{
-        title: `📍 ${payload.title}`,
-        description: payload.body,
-        url: payload.link,
-        color: 0x3b82f6,
-        footer: { text: payload.tripName ? `Trip: ${payload.tripName}` : 'TRIPPI' },
-        timestamp: new Date().toISOString(),
-      }],
+      embeds: [
+        {
+          title: `📍 ${payload.title}`,
+          description: payload.body,
+          url: payload.link,
+          color: 0x3b82f6,
+          footer: { text: payload.tripName ? `Trip: ${payload.tripName}` : 'trippi.ai' },
+          timestamp: new Date().toISOString(),
+        },
+      ],
     });
   }
 
   if (isSlack) {
     const trip = payload.tripName ? `  •  _${payload.tripName}_` : '';
-    const link = payload.link ? `\n<${payload.link}|Open in TRIPPI>` : '';
+    const link = payload.link ? `\n<${payload.link}|Open in trippi.ai>` : '';
     return JSON.stringify({
       text: `*${payload.title}*\n${payload.body}${trip}${link}`,
     });
   }
 
-  return JSON.stringify({ ...payload, timestamp: new Date().toISOString(), source: 'TRIPPI' });
+  return JSON.stringify({ ...payload, timestamp: new Date().toISOString(), source: 'trippi.ai' });
 }
 
-export async function sendWebhook(url: string, payload: { event: string; title: string; body: string; tripName?: string; link?: string }): Promise<boolean> {
+export async function sendWebhook(
+  url: string,
+  payload: { event: string; title: string; body: string; tripName?: string; link?: string },
+): Promise<boolean> {
   if (!url) return false;
 
   const ssrf = await checkSsrf(url);
@@ -356,8 +411,8 @@ export async function testSmtp(to: string): Promise<{ success: boolean; error?: 
     await transporter.sendMail({
       from: config.from,
       to,
-      subject: 'TRIPPI — Test Notification',
-      text: 'This is a test email from TRIPPI. If you received this, your SMTP configuration is working correctly.',
+      subject: 'trippi.ai — Test Notification',
+      text: 'This is a test email from trippi.ai. If you received this, your SMTP configuration is working correctly.',
     });
     return { success: true };
   } catch (err) {
@@ -367,7 +422,11 @@ export async function testSmtp(to: string): Promise<{ success: boolean; error?: 
 
 export async function testWebhook(url: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const sent = await sendWebhook(url, { event: 'test', title: 'Test Notification', body: 'This is a test webhook from TRIPPI. If you received this, your webhook configuration is working correctly.' });
+    const sent = await sendWebhook(url, {
+      event: 'test',
+      title: 'Test Notification',
+      body: 'This is a test webhook from trippi.ai. If you received this, your webhook configuration is working correctly.',
+    });
     return sent ? { success: true } : { success: false, error: 'Failed to send webhook' };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
@@ -384,22 +443,22 @@ export interface NtfyConfig {
 
 /** Priority and tags mapped to each notification event type. */
 const NTFY_EVENT_META: Partial<Record<NotifEventType, { priority: 1 | 2 | 3 | 4 | 5; tags: string[] }>> = {
-  trip_invite:              { priority: 4, tags: ['loudspeaker'] },
-  booking_change:           { priority: 3, tags: ['calendar'] },
-  trip_reminder:            { priority: 4, tags: ['bell', 'alarm_clock'] },
-  vacay_invite:             { priority: 4, tags: ['palm_tree'] },
-  photos_shared:            { priority: 3, tags: ['camera'] },
-  collab_message:           { priority: 3, tags: ['speech_balloon'] },
-  packing_tagged:           { priority: 3, tags: ['luggage'] },
-  version_available:        { priority: 4, tags: ['package'] },
+  trip_invite: { priority: 4, tags: ['loudspeaker'] },
+  booking_change: { priority: 3, tags: ['calendar'] },
+  trip_reminder: { priority: 4, tags: ['bell', 'alarm_clock'] },
+  vacay_invite: { priority: 4, tags: ['palm_tree'] },
+  photos_shared: { priority: 3, tags: ['camera'] },
+  collab_message: { priority: 3, tags: ['speech_balloon'] },
+  packing_tagged: { priority: 3, tags: ['luggage'] },
+  version_available: { priority: 4, tags: ['package'] },
   synology_session_cleared: { priority: 3, tags: ['warning'] },
 };
 const NTFY_DEFAULT_META = { priority: 3 as const, tags: [] as string[] };
 
 export function getUserNtfyConfig(userId: number): NtfyConfig | null {
-  const rows = db.prepare(
-    "SELECT key, value FROM settings WHERE user_id = ? AND key IN ('ntfy_topic', 'ntfy_server', 'ntfy_token')"
-  ).all(userId) as { key: string; value: string }[];
+  const rows = db
+    .prepare("SELECT key, value FROM settings WHERE user_id = ? AND key IN ('ntfy_topic', 'ntfy_server', 'ntfy_token')")
+    .all(userId) as { key: string; value: string }[];
   if (rows.length === 0) return null;
   const map: Record<string, string> = {};
   for (const r of rows) map[r.key] = r.value;
@@ -434,7 +493,7 @@ export function resolveNtfyUrl(adminCfg: NtfyConfig, userCfg: NtfyConfig | null)
 
 function encodeHeaderValue(value: string): string {
   for (let i = 0; i < value.length; i++) {
-    if (value.charCodeAt(i) > 0xFF) {
+    if (value.charCodeAt(i) > 0xff) {
       return `=?UTF-8?B?${Buffer.from(value, 'utf8').toString('base64')}?=`;
     }
   }
@@ -458,8 +517,8 @@ export async function sendNtfy(
 
   // ntfy header-based API: POST to topic URL, body = plain text message, metadata in headers
   const headers: Record<string, string> = {
-    'Title': encodeHeaderValue(payload.title),
-    'Priority': String(meta.priority),
+    Title: encodeHeaderValue(payload.title),
+    Priority: String(meta.priority),
   };
   if (meta.tags.length > 0) headers['Tags'] = meta.tags.join(',');
   if (payload.link) headers['Click'] = encodeHeaderValue(payload.link);
@@ -489,7 +548,11 @@ export async function sendNtfy(
   }
 }
 
-export async function testNtfy(cfg: { topic: string; server?: string | null; token?: string | null }): Promise<{ success: boolean; error?: string }> {
+export async function testNtfy(cfg: {
+  topic: string;
+  server?: string | null;
+  token?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
   const adminCfg = getAdminNtfyConfig();
   const url = resolveNtfyUrl(adminCfg, { topic: cfg.topic, server: cfg.server ?? null, token: cfg.token ?? null });
   if (!url) return { success: false, error: 'Could not resolve ntfy URL — missing topic' };
@@ -497,11 +560,10 @@ export async function testNtfy(cfg: { topic: string; server?: string | null; tok
     const sent = await sendNtfy(url, cfg.token ?? null, {
       event: 'test',
       title: 'Test Notification',
-      body: 'This is a test notification from TRIPPI. If you received this, your ntfy configuration is working correctly.',
+      body: 'This is a test notification from trippi.ai. If you received this, your ntfy configuration is working correctly.',
     });
     return sent ? { success: true } : { success: false, error: 'Failed to send ntfy notification' };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
-

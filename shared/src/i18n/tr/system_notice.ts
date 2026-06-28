@@ -3,7 +3,7 @@ import type { TranslationStrings } from '../types';
 const system_notice: TranslationStrings = {
   'system_notice.v3_photos.title': "Fotoğraflar 3.0'da taşındı",
   'system_notice.v3_photos.body':
-    "Seyahat Planlayıcı'daki **Fotoğraflar** kaldırıldı. Fotoğraflarınız güvende — TRIPPI Immich veya Synology kütüphanenizi asla değiştirmedi.\\n\\nFotoğraflar artık **Journey** eklentisinde. Journey isteğe bağlıdır — henüz kullanılamıyorsa yöneticinizden Yönetici → Eklentiler bölümünden etkinleştirmesini isteyin.",
+    "Seyahat Planlayıcı'daki **Fotoğraflar** kaldırıldı. Fotoğraflarınız güvende — trippi.ai Immich veya Synology kütüphanenizi asla değiştirmedi.\\n\\nFotoğraflar artık **Journey** eklentisinde. Journey isteğe bağlıdır — henüz kullanılamıyorsa yöneticinizden Yönetici → Eklentiler bölümünden etkinleştirmesini isteyin.",
   'system_notice.v3_journey.title': 'Journey ile tanışın — seyahat günlüğü',
   'system_notice.v3_journey.body':
     'Seyahatlerinizi zaman çizelgeleri, fotoğraf galerileri ve etkileşimli haritalarla zengin hikâyelere dönüştürün.',
@@ -27,15 +27,15 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Genişletilmiş araç seti ve istemler',
   'system_notice.v3_thankyou.title': 'Benden kişisel bir not',
   'system_notice.v3_thankyou.body':
-    "Before you go — I want to take a moment.\n\nTRIPPI started as a side project I built for my own trips. I never imagined it would grow into something that 4,000 of you now trust to plan your adventures. Every star, every issue, every feature request — I read them all, and they keep me going through late nights between a full-time job and university.\n\nI want you to know: TRIPPI will always be open source, always self-hosted, always yours. No tracking, no subscriptions, no strings attached. Just a tool built by someone who loves traveling as much as you do.\n\nSpecial thanks to [jubnl](https://github.com/jubnl) — you have become an incredible collaborator. So much of what makes 3.0 great carries your fingerprints. Thank you for believing in this project when it was still rough around the edges.\n\nAnd to every single one of you who filed a bug, translated a string, shared TRIPPI with a friend, or simply used it to plan a trip — **thank you**. You are the reason this exists.\n\nHere's to many more adventures together.\n\n— Maurice\n\n---\n\n[Join the community on Discord](https://discord.gg/7Q6M6jDwzf)\n\nIf TRIPPI makes your travels better, a [small coffee](https://ko-fi.com/mauriceboe) always keeps the lights on.",
+    "Before you go — I want to take a moment.\n\ntrippi.ai started as a side project I built for my own trips. I never imagined it would grow into something that 4,000 of you now trust to plan your adventures. Every star, every issue, every feature request — I read them all, and they keep me going through late nights between a full-time job and university.\n\nI want you to know: trippi.ai will always be open source, always self-hosted, always yours. No tracking, no subscriptions, no strings attached. Just a tool built by someone who loves traveling as much as you do.\n\nSpecial thanks to [jubnl](https://github.com/jubnl) — you have become an incredible collaborator. So much of what makes 3.0 great carries your fingerprints. Thank you for believing in this project when it was still rough around the edges.\n\nAnd to every single one of you who filed a bug, translated a string, shared trippi.ai with a friend, or simply used it to plan a trip — **thank you**. You are the reason this exists.\n\nHere's to many more adventures together.\n\n— trippi.ai\n\n---\n\n[Join the community on Discord](https://discord.gg/7Q6M6jDwzf)\n\nIf trippi.ai makes your travels better, a [small coffee](https://github.com/shiverin/Trippi.ai) always keeps the lights on.",
   'system_notice.v3014_whitespace_collision.title': 'İşlem gerekli: kullanıcı hesabı çakışması',
   'system_notice.v3014_whitespace_collision.body':
     '3.0.14 yükseltmesi, kayıtlı hesaplardaki baştaki/sondaki boşluklardan kaynaklanan bir veya daha fazla kullanıcı adı veya e-posta çakışması tespit etti. Etkilenen hesaplar otomatik olarak yeniden adlandırıldı. Hangi hesapların incelenmesi gerektiğini belirlemek için sunucu günlüklerinde **[migration] WHITESPACE COLLISION** ile başlayan satırlara bakın.',
-  'system_notice.welcome_v1.title': "TRIPPI'e hoş Geldiniz",
+  'system_notice.welcome_v1.title': "trippi.ai'e hoş Geldiniz",
   'system_notice.welcome_v1.body':
     'Hepsi bir arada seyahat planlayıcınız. Program oluşturun, seyahatleri arkadaşlarınızla paylaşın ve çevrimiçi veya çevrimdışı düzenli kalın.',
   'system_notice.welcome_v1.cta_label': 'Seyahat planla',
-  'system_notice.welcome_v1.hero_alt': 'TRIPPI planlama arayüzü kaplamalı manzaralı bir seyahat destinasyonu',
+  'system_notice.welcome_v1.hero_alt': 'trippi.ai planlama arayüzü kaplamalı manzaralı bir seyahat destinasyonu',
   'system_notice.welcome_v1.highlight_plan': 'Her seyahat için gün gün programlar',
   'system_notice.welcome_v1.highlight_share': 'Seyahat partnerleriyle işbirliği',
   'system_notice.welcome_v1.highlight_offline': 'Mobilde çevrimdışı çalışır',

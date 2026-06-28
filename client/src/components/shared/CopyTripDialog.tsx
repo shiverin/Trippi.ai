@@ -1,13 +1,13 @@
-import React, { useEffect, useCallback } from 'react'
-import ReactDOM from 'react-dom'
-import { Check, X } from 'lucide-react'
-import { useTranslation } from '../../i18n'
+import { Check, X } from 'lucide-react';
+import { useCallback, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { useTranslation } from '../../i18n';
 
 interface CopyTripDialogProps {
-  isOpen: boolean
-  tripTitle: string
-  onClose: () => void
-  onConfirm: () => void
+  isOpen: boolean;
+  tripTitle: string;
+  onClose: () => void;
+  onConfirm: () => void;
 }
 
 const WILL_COPY_KEYS = [
@@ -17,53 +17,52 @@ const WILL_COPY_KEYS = [
   'dashboard.confirm.copy.will4',
   'dashboard.confirm.copy.will5',
   'dashboard.confirm.copy.will6',
-]
+];
 
 const WONT_COPY_KEYS = [
   'dashboard.confirm.copy.wont1',
   'dashboard.confirm.copy.wont2',
   'dashboard.confirm.copy.wont3',
   'dashboard.confirm.copy.wont4',
-]
+];
 
 export default function CopyTripDialog({ isOpen, tripTitle, onClose, onConfirm }: CopyTripDialogProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
 
-  const handleEsc = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose()
-  }, [onClose])
+  const handleEsc = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    },
+    [onClose]
+  );
 
   useEffect(() => {
-    if (isOpen) document.addEventListener('keydown', handleEsc)
-    return () => document.removeEventListener('keydown', handleEsc)
-  }, [isOpen, handleEsc])
+    if (isOpen) document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [isOpen, handleEsc]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return ReactDOM.createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center px-4 trippi-backdrop-enter bg-[rgba(15,23,42,0.5)]"
+      className="trek-backdrop-enter fixed inset-0 z-[10000] flex items-center justify-center bg-[rgba(15,23,42,0.5)] px-4"
       style={{ paddingBottom: 'var(--bottom-nav-h)' }}
       onClick={onClose}
     >
       <div
-        className="trippi-modal-enter rounded-2xl shadow-2xl w-full max-w-md p-6 bg-surface-card"
-        onClick={e => e.stopPropagation()}
+        className="trek-modal-enter w-full max-w-md rounded-2xl bg-surface-card p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-base font-semibold mb-1 text-content">
-          {t('dashboard.confirm.copy.title')}
-        </h3>
-        <p className="text-sm mb-4 text-content-secondary">
-          {tripTitle}
-        </p>
+        <h3 className="mb-1 text-base font-semibold text-content">{t('dashboard.confirm.copy.title')}</h3>
+        <p className="mb-4 text-sm text-content-secondary">{tripTitle}</p>
 
         <div className="flex flex-col gap-3">
-          <div className="rounded-xl p-3 border border-edge-secondary" style={{ background: 'var(--bg-subtle)' }}>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-[#16a34a]">
+          <div className="rounded-xl border border-edge-secondary p-3" style={{ background: 'var(--bg-subtle)' }}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#16a34a]">
               {t('dashboard.confirm.copy.willCopy')}
             </p>
             <ul className="flex flex-col gap-1">
-              {WILL_COPY_KEYS.map(key => (
+              {WILL_COPY_KEYS.map((key) => (
                 <li key={key} className="flex items-center gap-2 text-sm text-content-secondary">
                   <Check size={13} className="flex-shrink-0 text-[#16a34a]" />
                   {t(key)}
@@ -72,12 +71,12 @@ export default function CopyTripDialog({ isOpen, tripTitle, onClose, onConfirm }
             </ul>
           </div>
 
-          <div className="rounded-xl p-3 border border-edge-secondary" style={{ background: 'var(--bg-subtle)' }}>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-content-muted">
+          <div className="rounded-xl border border-edge-secondary p-3" style={{ background: 'var(--bg-subtle)' }}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-content-muted">
               {t('dashboard.confirm.copy.wontCopy')}
             </p>
             <ul className="flex flex-col gap-1">
-              {WONT_COPY_KEYS.map(key => (
+              {WONT_COPY_KEYS.map((key) => (
                 <li key={key} className="flex items-center gap-2 text-sm text-content-secondary">
                   <X size={13} className="flex-shrink-0 text-content-muted" />
                   {t(key)}
@@ -87,16 +86,19 @@ export default function CopyTripDialog({ isOpen, tripTitle, onClose, onConfirm }
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 mt-5">
+        <div className="mt-5 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium rounded-lg transition-colors text-content-secondary border border-edge-secondary"
+            className="rounded-lg border border-edge-secondary px-4 py-2 text-sm font-medium text-content-secondary transition-colors"
           >
             {t('common.cancel')}
           </button>
           <button
-            onClick={() => { onConfirm(); onClose() }}
-            className="px-4 py-2 text-sm font-medium rounded-lg transition-opacity hover:opacity-90 bg-content text-surface-card"
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className="rounded-lg bg-content px-4 py-2 text-sm font-medium text-surface-card transition-opacity hover:opacity-90"
           >
             {t('dashboard.confirm.copy.confirm')}
           </button>
@@ -104,5 +106,5 @@ export default function CopyTripDialog({ isOpen, tripTitle, onClose, onConfirm }
       </div>
     </div>,
     document.body
-  )
+  );
 }

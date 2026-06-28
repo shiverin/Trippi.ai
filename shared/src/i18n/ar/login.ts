@@ -26,7 +26,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'جارٍ تسجيل الدخول…',
   'login.signIn': 'دخول',
   'login.createAdmin': 'إنشاء حساب مسؤول',
-  'login.createAdminHint': 'أعد إعداد أول حساب مسؤول لـ TRIPPI.',
+  'login.createAdminHint': 'أعد إعداد أول حساب مسؤول لـ trippi.ai.',
   'login.setNewPassword': 'تعيين كلمة مرور جديدة',
   'login.setNewPasswordHint': 'يجب عليك تغيير كلمة المرور قبل المتابعة.',
   'login.createAccount': 'إنشاء حساب',

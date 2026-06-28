@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const ja: NotificationLocale = {
   email: {
-    footer: 'TRIPPIで通知を有効にしているため、このメールが届きました。',
+    footer: 'trippi.aiで通知を有効にしているため、このメールが届きました。',
     manage: '設定で通知設定を管理',
     madeWith: 'Made with',
-    openTrippi: 'TRIPPIを開く',
+    openTrippi: 'trippi.aiを開く',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const ja: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Vacay Fusion招待',
-      body: `${p.actor}が休暇プランの統合に招待しています。TRIPPIを開いて承認または拒否してください。`,
+      body: `${p.actor}が休暇プランの統合に招待しています。trippi.aiを開いて承認または拒否してください。`,
     }),
     photos_shared: (p) => ({
       title: `${p.count}枚の写真が共有されました`,
@@ -41,8 +41,8 @@ const ja: NotificationLocale = {
       body: `${p.actor}が「${p.trip}」の「${p.category}」カテゴリにあなたを割り当てました。`,
     }),
     version_available: (p) => ({
-      title: '新しいTRIPPIバージョンが利用可能',
-      body: `TRIPPI ${p.version}が利用可能になりました。管理パネルからアップデートしてください。`,
+      title: '新しいtrippi.aiバージョンが利用可能',
+      body: `trippi.ai ${p.version}が利用可能になりました。管理パネルからアップデートしてください。`,
     }),
     synology_session_cleared: () => ({
       title: 'Synologyセッションがクリアされました',
@@ -52,7 +52,7 @@ const ja: NotificationLocale = {
   passwordReset: {
     subject: 'パスワードをリセット',
     greeting: 'こんにちは',
-    body: 'TRIPPIアカウントのパスワードリセットリクエストを受け付けました。以下のボタンをクリックして新しいパスワードを設定してください。',
+    body: 'trippi.aiアカウントのパスワードリセットリクエストを受け付けました。以下のボタンをクリックして新しいパスワードを設定してください。',
     ctaIntro: 'パスワードをリセット',
     expiry: 'このリンクは60分後に期限切れになります。',
     ignore: 'このリクエストをご自身でしていない場合は、このメールを無視してください — パスワードは変更されません。',

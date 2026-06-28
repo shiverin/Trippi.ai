@@ -1,11 +1,11 @@
 // FE-ADMIN-ADDON-001 to FE-ADMIN-ADDON-011
-import { render, screen, waitFor, within } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../tests/helpers/msw/server';
+import { render, screen, waitFor } from '../../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import { useSettingsStore } from '../../store/settingsStore';
 import { useAddonStore } from '../../store/addonStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { ToastContainer } from '../shared/Toast';
 import AddonManager from './AddonManager';
 
@@ -36,9 +36,7 @@ beforeEach(() => {
   resetAllStores();
   seedStore(useSettingsStore, { settings: { dark_mode: false } });
   vi.spyOn(useAddonStore.getState(), 'loadAddons').mockResolvedValue(undefined);
-  server.use(
-    http.get('/api/admin/addons', () => HttpResponse.json({ addons: [] }))
-  );
+  server.use(http.get('/api/admin/addons', () => HttpResponse.json({ addons: [] })));
 });
 
 afterEach(() => {
@@ -49,7 +47,7 @@ describe('AddonManager', () => {
   it('FE-ADMIN-ADDON-001: loading spinner shown while fetching', async () => {
     server.use(
       http.get('/api/admin/addons', async () => {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
         return HttpResponse.json({ addons: [] });
       })
     );
@@ -95,19 +93,20 @@ describe('AddonManager', () => {
   it('FE-ADMIN-ADDON-005: toggle enables a disabled addon (optimistic update)', async () => {
     const user = userEvent.setup();
     server.use(
-      http.get('/api/admin/addons', () =>
-        HttpResponse.json({ addons: [buildAddon({ id: 'todo', enabled: false })] })
-      ),
-      http.put('/api/admin/addons/todo', () =>
-        HttpResponse.json({ success: true })
-      )
+      http.get('/api/admin/addons', () => HttpResponse.json({ addons: [buildAddon({ id: 'todo', enabled: false })] })),
+      http.put('/api/admin/addons/todo', () => HttpResponse.json({ success: true }))
     );
-    render(<><ToastContainer /><AddonManager /></>);
+    render(
+      <>
+        <ToastContainer />
+        <AddonManager />
+      </>
+    );
     await screen.findByText('Todo List');
 
     // Get toggle button - use getAllByRole since there might be multiple buttons
     const buttons = screen.getAllByRole('button');
-    const toggleBtn = buttons.find(b => b.classList.contains('rounded-full'));
+    const toggleBtn = buttons.find((b) => b.classList.contains('rounded-full'));
     expect(toggleBtn).toBeInTheDocument();
 
     // Before click - disabled state (border-primary bg)
@@ -120,18 +119,19 @@ describe('AddonManager', () => {
   it('FE-ADMIN-ADDON-006: toggle rolls back on API failure', async () => {
     const user = userEvent.setup();
     server.use(
-      http.get('/api/admin/addons', () =>
-        HttpResponse.json({ addons: [buildAddon({ id: 'todo', enabled: false })] })
-      ),
-      http.put('/api/admin/addons/todo', () =>
-        HttpResponse.error()
-      )
+      http.get('/api/admin/addons', () => HttpResponse.json({ addons: [buildAddon({ id: 'todo', enabled: false })] })),
+      http.put('/api/admin/addons/todo', () => HttpResponse.error())
     );
-    render(<><ToastContainer /><AddonManager /></>);
+    render(
+      <>
+        <ToastContainer />
+        <AddonManager />
+      </>
+    );
     await screen.findByText('Todo List');
 
     const buttons = screen.getAllByRole('button');
-    const toggleBtn = buttons.find(b => b.classList.contains('rounded-full'));
+    const toggleBtn = buttons.find((b) => b.classList.contains('rounded-full'));
     await user.click(toggleBtn!);
 
     // Error toast appears
@@ -148,19 +148,18 @@ describe('AddonManager', () => {
     const user = userEvent.setup();
     const mockToggle = vi.fn();
     server.use(
-      http.get('/api/admin/addons', () =>
-        HttpResponse.json({ addons: [buildAddon({ id: 'packing', enabled: true })] })
-      )
+      http.get('/api/admin/addons', () => HttpResponse.json({ addons: [buildAddon({ id: 'packing', enabled: true })] }))
     );
-    render(
-      <AddonManager bagTrackingEnabled={false} onToggleBagTracking={mockToggle} />
-    );
+    render(<AddonManager bagTrackingEnabled={false} onToggleBagTracking={mockToggle} />);
     await screen.findByText('Bag Tracking');
-    const bagTrackingToggle = screen.getAllByRole('button').find(b =>
-      b.closest('[style*="paddingLeft: 70"]') !== null || b.closest('div')?.textContent?.includes('Bag Tracking')
-    );
+    const bagTrackingToggle = screen
+      .getAllByRole('button')
+      .find(
+        (b) =>
+          b.closest('[style*="paddingLeft: 70"]') !== null || b.closest('div')?.textContent?.includes('Bag Tracking')
+      );
     // Click the bag tracking toggle button (the h-6 w-11 button near "Bag Tracking")
-    const allBtns = screen.getAllByRole('button').filter(b => b.classList.contains('rounded-full'));
+    const allBtns = screen.getAllByRole('button').filter((b) => b.classList.contains('rounded-full'));
     // There should be two toggle buttons: one for the addon, one for bag tracking
     await user.click(allBtns[allBtns.length - 1]);
     expect(mockToggle).toHaveBeenCalled();
@@ -172,18 +171,14 @@ describe('AddonManager', () => {
         HttpResponse.json({ addons: [buildAddon({ id: 'packing', enabled: false })] })
       )
     );
-    render(
-      <AddonManager bagTrackingEnabled={false} onToggleBagTracking={vi.fn()} />
-    );
+    render(<AddonManager bagTrackingEnabled={false} onToggleBagTracking={vi.fn()} />);
     await screen.findByText('Lists');
     expect(screen.queryByText('Bag Tracking')).not.toBeInTheDocument();
   });
 
   it('FE-ADMIN-ADDON-009: bag tracking hidden when onToggleBagTracking prop not provided', async () => {
     server.use(
-      http.get('/api/admin/addons', () =>
-        HttpResponse.json({ addons: [buildAddon({ id: 'packing', enabled: true })] })
-      )
+      http.get('/api/admin/addons', () => HttpResponse.json({ addons: [buildAddon({ id: 'packing', enabled: true })] }))
     );
     render(<AddonManager bagTrackingEnabled={false} />);
     await screen.findByText('Lists');
@@ -213,7 +208,7 @@ describe('AddonManager', () => {
     expect(screen.getByText('Journey')).toBeInTheDocument();
 
     // Toggle buttons: journey toggle + 2 provider toggles
-    const toggleBtns = screen.getAllByRole('button').filter(b => b.classList.contains('rounded-full'));
+    const toggleBtns = screen.getAllByRole('button').filter((b) => b.classList.contains('rounded-full'));
     expect(toggleBtns.length).toBe(3);
   });
 

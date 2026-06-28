@@ -1,6 +1,6 @@
 # User Settings
 
-The Settings page lets you personalise every aspect of TRIPPI — appearance, maps, notifications, offline behaviour, and your account.
+The Settings page lets you personalise every aspect of trippi.ai — appearance, maps, notifications, offline behaviour, and your account.
 
 <!-- TODO: screenshot: user settings page tabs -->
 
@@ -8,7 +8,7 @@ The Settings page lets you personalise every aspect of TRIPPI — appearance, ma
 
 Open the user menu in the top navigation bar and select **Settings**. The page opens on the **Display** tab by default.
 
-If your account requires MFA setup, TRIPPI redirects you directly to the **Account** tab (via `?mfa=required`).
+If your account requires MFA setup, trippi.ai redirects you directly to the **Account** tab (via `?mfa=required`).
 
 ## Tabs
 

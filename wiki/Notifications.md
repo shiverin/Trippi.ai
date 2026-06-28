@@ -8,13 +8,13 @@ The Notifications tab (Settings → Notifications) lets you choose which events 
 
 ## Notification channels
 
-TRIPPI supports four delivery channels. Which channels appear depends on what the admin has enabled server-side.
+trippi.ai supports four delivery channels. Which channels appear depends on what the admin has enabled server-side.
 
 | Channel | Description |
 |---------|-------------|
 | **In-app** | Bell icon in the navigation bar. Always available. Delivered in real time via WebSocket. |
 | **Email** | Delivered to your account email. Requires the admin to configure SMTP. |
-| **Webhook** | TRIPPI POSTs a JSON payload to a URL you specify. Discord and Slack webhook URLs are auto-detected and receive a natively formatted payload. |
+| **Webhook** | trippi.ai POSTs a JSON payload to a URL you specify. Discord and Slack webhook URLs are auto-detected and receive a natively formatted payload. |
 | **ntfy** | Push notifications via [ntfy.sh](https://ntfy.sh) or a self-hosted ntfy server. |
 
 ## Notification events
@@ -39,7 +39,7 @@ The following events are shown in the admin panel (Admin → Notifications) and 
 
 | Event | Description | Channels |
 |-------|-------------|---------|
-| `version_available` | A new TRIPPI version is available | in-app, email, webhook, ntfy |
+| `version_available` | A new trippi.ai version is available | in-app, email, webhook, ntfy |
 
 ### System-only events
 
@@ -55,13 +55,13 @@ The preferences panel shows a grid of events × channels. Toggle each intersecti
 
 ## Webhook configuration
 
-Enter a URL that TRIPPI will POST to when a notification fires. Once saved, the URL is displayed as `••••••••`. Use the **Test** button to send a test payload to the saved URL.
+Enter a URL that trippi.ai will POST to when a notification fires. Once saved, the URL is displayed as `••••••••`. Use the **Test** button to send a test payload to the saved URL.
 
-TRIPPI auto-detects the webhook destination and adjusts the payload format:
+trippi.ai auto-detects the webhook destination and adjusts the payload format:
 
 - **Discord** (`discord.com/api/webhooks/…`) — sends a rich embed with title, description, and a timestamp.
 - **Slack** (`hooks.slack.com/…`) — sends a formatted Slack message block.
-- **Generic** — sends a plain JSON object with `event`, `title`, `body`, `tripName`, `link`, `timestamp`, and `source` (`"TRIPPI"`) fields.
+- **Generic** — sends a plain JSON object with `event`, `title`, `body`, `tripName`, `link`, `timestamp`, and `source` (`"trippi.ai"`) fields.
 
 ## ntfy configuration
 

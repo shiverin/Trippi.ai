@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const ar: NotificationLocale = {
   email: {
-    footer: 'تلقيت هذا لأنك قمت بتفعيل الإشعارات في TRIPPI.',
+    footer: 'تلقيت هذا لأنك قمت بتفعيل الإشعارات في trippi.ai.',
     manage: 'إدارة التفضيلات',
     madeWith: 'Made with',
-    openTrippi: 'فتح TRIPPI',
+    openTrippi: 'فتح trippi.ai',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const ar: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'دعوة دمج الإجازة',
-      body: `${p.actor} يدعوك لدمج خطط الإجازة. افتح TRIPPI للقبول أو الرفض.`,
+      body: `${p.actor} يدعوك لدمج خطط الإجازة. افتح trippi.ai للقبول أو الرفض.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} صور مشتركة`,
@@ -41,8 +41,8 @@ const ar: NotificationLocale = {
       body: `${p.actor} عيّنك في فئة "${p.category}" في "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'إصدار TRIPPI جديد متاح',
-      body: `TRIPPI ${p.version} متاح الآن. تفضل بزيارة لوحة الإدارة للتحديث.`,
+      title: 'إصدار trippi.ai جديد متاح',
+      body: `trippi.ai ${p.version} متاح الآن. تفضل بزيارة لوحة الإدارة للتحديث.`,
     }),
     synology_session_cleared: () => ({
       title: 'تمت إعادة تعيين جلسة Synology',
@@ -52,7 +52,7 @@ const ar: NotificationLocale = {
   passwordReset: {
     subject: 'إعادة تعيين كلمة المرور',
     greeting: 'مرحبا',
-    body: 'تلقينا طلبًا لإعادة تعيين كلمة المرور لحسابك في TRIPPI. انقر على الزر أدناه لتعيين كلمة مرور جديدة.',
+    body: 'تلقينا طلبًا لإعادة تعيين كلمة المرور لحسابك في trippi.ai. انقر على الزر أدناه لتعيين كلمة مرور جديدة.',
     ctaIntro: 'إعادة تعيين كلمة المرور',
     expiry: 'تنتهي صلاحية هذا الرابط خلال 60 دقيقة.',
     ignore: 'إذا لم تطلب هذا، يمكنك تجاهل هذه الرسالة — لن تتغير كلمة المرور الخاصة بك.',

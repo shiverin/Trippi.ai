@@ -54,12 +54,12 @@ describe('glProviders', () => {
     expect(styleForActiveProvider('maplibre-gl', mb, '')).toBe(OPENFREEMAP_DEFAULT_STYLE)
   })
 
-  it('basemapLanguage maps TRIPPI UI codes to basemap label codes (#1299)', () => {
+  it('basemapLanguage maps trippi.ai UI codes to basemap label codes (#1299)', () => {
     // Pass-through for plain ISO 639-1 codes.
     expect(basemapLanguage('en')).toBe('en')
     expect(basemapLanguage('de')).toBe('de')
     expect(basemapLanguage('fr')).toBe('fr')
-    // TRIPPI-specific overrides.
+    // trippi.ai-specific overrides.
     expect(basemapLanguage('br')).toBe('pt')
     expect(basemapLanguage('gr')).toBe('el')
     expect(basemapLanguage('zh')).toBe('zh-Hans')

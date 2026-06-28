@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const zh: NotificationLocale = {
   email: {
-    footer: '您收到此邮件是因为您在 TRIPPI 中启用了通知。',
+    footer: '您收到此邮件是因为您在 trippi.ai 中启用了通知。',
     manage: '管理偏好设置',
     madeWith: 'Made with',
-    openTrippi: '打开 TRIPPI',
+    openTrippi: '打开 trippi.ai',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const zh: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Vacay 融合邀请',
-      body: `${p.actor} 邀请你合并假期计划。打开 TRIPPI 接受或拒绝。`,
+      body: `${p.actor} 邀请你合并假期计划。打开 trippi.ai 接受或拒绝。`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} 张照片已分享`,
@@ -41,8 +41,8 @@ const zh: NotificationLocale = {
       body: `${p.actor} 将你分配到"${p.trip}"中的"${p.category}"类别。`,
     }),
     version_available: (p) => ({
-      title: '新版 TRIPPI 可用',
-      body: `TRIPPI ${p.version} 现已可用。请前往管理面板进行更新。`,
+      title: '新版 trippi.ai 可用',
+      body: `trippi.ai ${p.version} 现已可用。请前往管理面板进行更新。`,
     }),
     synology_session_cleared: () => ({
       title: 'Synology 会话已清除',
@@ -52,7 +52,7 @@ const zh: NotificationLocale = {
   passwordReset: {
     subject: '重置您的密码',
     greeting: '您好',
-    body: '我们收到了重置您的 TRIPPI 账户密码的请求。点击下方按钮设置新密码。',
+    body: '我们收到了重置您的 trippi.ai 账户密码的请求。点击下方按钮设置新密码。',
     ctaIntro: '重置密码',
     expiry: '此链接将在 60 分钟后失效。',
     ignore: '如果这不是您本人的请求，可以忽略本邮件 — 您的密码不会改变。',

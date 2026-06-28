@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * Generic pagination query helper. Individual endpoints opt in by extending
- * this; it is NOT applied globally (many TRIPPI list endpoints return full sets).
+ * this; it is NOT applied globally (many trippi.ai list endpoints return full sets).
  * Defaults are conservative and only used where a route already paginates.
  */
 export const paginationQuerySchema = z.object({

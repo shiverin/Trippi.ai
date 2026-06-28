@@ -1,4 +1,4 @@
-// Shared types for the TRIPPI travel planner.
+// Shared types for the trippi.ai travel planner.
 //
 // Domain entity/response types are now sourced from @trippi/shared — the single
 // source of truth shared with the server. The Zod schemas there are built to

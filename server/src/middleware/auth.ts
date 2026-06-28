@@ -1,10 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { db } from '../db/database';
 import { JWT_SECRET } from '../config';
+import { db } from '../db/database';
+import { isDemoEmail } from '../services/demo';
 import { AuthRequest, OptionalAuthRequest, User } from '../types';
 import { applyIdempotency } from './idempotency';
-import { isDemoEmail } from '../services/demo';
+
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 
 export function extractToken(req: Request): string | null {
   // Prefer httpOnly cookie; fall back to Authorization: Bearer (MCP, API clients)
@@ -27,14 +28,18 @@ export function extractToken(req: Request): string | null {
  */
 export function verifyJwtAndLoadUser(token: string): User | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as { id: number; pv?: number; purpose?: string };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as {
+      id: number;
+      pv?: number;
+      purpose?: string;
+    };
     // Purpose-scoped tokens (e.g. the short-lived mfa_login token) share this
     // secret but are not full session tokens — only their dedicated endpoint
     // may accept them, so reject any token carrying a purpose claim here.
     if (decoded.purpose) return null;
-    const row = db.prepare(
-      'SELECT id, username, email, role, password_version FROM users WHERE id = ?'
-    ).get(decoded.id) as (User & { password_version?: number }) | undefined;
+    const row = db
+      .prepare('SELECT id, username, email, role, password_version FROM users WHERE id = ?')
+      .get(decoded.id) as (User & { password_version?: number }) | undefined;
     if (!row) return null;
     // Session invalidation: any token whose embedded password_version
     // predates the user's current one is rejected. Tokens issued before
@@ -110,7 +115,7 @@ const adminOnly = (req: Request, res: Response, next: NextFunction): void => {
 const demoUploadBlock = (req: Request, res: Response, next: NextFunction): void => {
   const authReq = req as AuthRequest;
   if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(authReq.user?.email)) {
-    res.status(403).json({ error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' });
+    res.status(403).json({ error: 'Uploads are disabled in demo mode. Self-host trippi.ai for full functionality.' });
     return;
   }
   next();

@@ -1,19 +1,34 @@
-import { Luggage } from 'lucide-react'
-import type { PackingState } from './usePackingListPanel'
-import { KategorieGruppe } from './PackingListPanelCategoryGroup'
+import { Luggage } from 'lucide-react';
+import { KategorieGruppe } from './PackingListPanelCategoryGroup';
+import type { PackingState } from './usePackingListPanel';
 
 export function PackingList(S: PackingState) {
   const {
-    items, gruppiert, t, tripId, allCategories, handleRenameCategory, handleDeleteCategory, handleDeleteItem,
-    handleAddItemToCategory, categoryAssignees, tripMembers, handleSetAssignees,
-    bagTrackingEnabled, bags, handleCreateBagByName, canEdit,
-  } = S
+    items,
+    gruppiert,
+    t,
+    tripId,
+    allCategories,
+    handleRenameCategory,
+    handleDeleteCategory,
+    handleDeleteItem,
+    handleAddItemToCategory,
+    categoryAssignees,
+    tripMembers,
+    handleSetAssignees,
+    bagTrackingEnabled,
+    bags,
+    handleCreateBagByName,
+    canEdit,
+  } = S;
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0 16px' }}>
       {items.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
           <Luggage size={40} style={{ color: 'var(--text-faint)', display: 'block', margin: '0 auto 10px' }} />
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 4px' }}>{t('packing.emptyTitle')}</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 4px' }}>
+            {t('packing.emptyTitle')}
+          </p>
           <p style={{ fontSize: 13, color: 'var(--text-faint)', margin: 0 }}>{t('packing.emptyHint')}</p>
         </div>
       ) : Object.keys(gruppiert).length === 0 ? (
@@ -21,7 +36,7 @@ export function PackingList(S: PackingState) {
           <p style={{ fontSize: 13, margin: 0 }}>{t('packing.emptyFiltered')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {Object.entries(gruppiert).map(([kat, katItems]) => (
             <KategorieGruppe
               key={kat}
@@ -45,5 +60,5 @@ export function PackingList(S: PackingState) {
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,15 +1,21 @@
 // FE-PLANNER-DAYDETAIL-001 to FE-PLANNER-DAYDETAIL-025
-import React from 'react';
-import { render, screen, waitFor } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import {
+  buildAdmin,
+  buildDay,
+  buildPlace,
+  buildReservation,
+  buildTrip,
+  buildUser,
+} from '../../../tests/helpers/factories';
 import { server } from '../../../tests/helpers/msw/server';
-import { useAuthStore } from '../../store/authStore';
-import { useTripStore } from '../../store/tripStore';
-import { useSettingsStore } from '../../store/settingsStore';
-import { usePermissionsStore } from '../../store/permissionsStore';
+import { render, screen, waitFor } from '../../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import { buildUser, buildAdmin, buildTrip, buildDay, buildPlace, buildReservation } from '../../../tests/helpers/factories';
+import { useAuthStore } from '../../store/authStore';
+import { usePermissionsStore } from '../../store/permissionsStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useTripStore } from '../../store/tripStore';
 import DayDetailPanel from './DayDetailPanel';
 
 const day = buildDay({ id: 1, trip_id: 1, date: '2025-06-15', title: 'Day in Paris' });
@@ -33,7 +39,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   server.use(
     http.get('/api/weather/detailed', () => HttpResponse.json({ error: true })),
-    http.get('/api/trips/1/accommodations', () => HttpResponse.json({ accommodations: [] })),
+    http.get('/api/trips/1/accommodations', () => HttpResponse.json({ accommodations: [] }))
   );
   seedStore(useAuthStore, { user: buildAdmin(), isAuthenticated: true });
   seedStore(useTripStore, { trip: buildTrip({ id: 1 }) });
@@ -43,7 +49,6 @@ beforeEach(() => {
 });
 
 describe('DayDetailPanel', () => {
-
   // ── Rendering ────────────────────────────────────────────────────────────────
 
   it('FE-PLANNER-DAYDETAIL-001: renders without crashing', () => {
@@ -100,7 +105,7 @@ describe('DayDetailPanel', () => {
 
   it('FE-PLANNER-DAYDETAIL-009: weather loading state shown briefly', async () => {
     server.use(
-      http.get('/api/weather/detailed', () => new Promise(() => {})), // never resolves
+      http.get('/api/weather/detailed', () => new Promise(() => {})) // never resolves
     );
     render(<DayDetailPanel {...defaultProps} lat={48.8566} lng={2.3522} />);
     // Spinner div has border + borderTopColor
@@ -114,7 +119,7 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/weather/detailed', () =>
         HttpResponse.json({ main: 'Clear', temp: 22, temp_min: 18, temp_max: 26, description: 'sunny' })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} lat={48.8566} lng={2.3522} />);
     await screen.findByText(/22°C/);
@@ -127,23 +132,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/weather/detailed', () =>
         HttpResponse.json({ main: 'Clear', temp: 0, temp_min: 0, temp_max: 0, description: 'cold' })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} lat={48.8566} lng={2.3522} />);
     await screen.findByText(/32°F/);
   });
 
   it('FE-PLANNER-DAYDETAIL-012: no weather shows "No weather data" message', async () => {
-    server.use(
-      http.get('/api/weather/detailed', () => HttpResponse.json({ error: true })),
-    );
+    server.use(http.get('/api/weather/detailed', () => HttpResponse.json({ error: true })));
     render(<DayDetailPanel {...defaultProps} lat={48.8566} lng={2.3522} />);
     await screen.findByText(/No weather/i);
   });
 
   // ── Reservations ─────────────────────────────────────────────────────────────
 
-  it('FE-PLANNER-DAYDETAIL-013: shows reservations linked to this day\'s assignments', async () => {
+  it("FE-PLANNER-DAYDETAIL-013: shows reservations linked to this day's assignments", async () => {
     const place = buildPlace({ name: 'Museum' });
     const reservation = buildReservation({
       id: 1,
@@ -151,11 +154,13 @@ describe('DayDetailPanel', () => {
       assignment_id: 50,
       status: 'confirmed',
     });
-    render(<DayDetailPanel
-      {...defaultProps}
-      assignments={{ '1': [{ id: 50, place, place_id: place.id, day_id: 1, order_index: 0, notes: null }] }}
-      reservations={[reservation]}
-    />);
+    render(
+      <DayDetailPanel
+        {...defaultProps}
+        assignments={{ '1': [{ id: 50, place, place_id: place.id, day_id: 1, order_index: 0, notes: null }] }}
+        reservations={[reservation]}
+      />
+    );
     await screen.findByText('Museum Tour Ticket');
   });
 
@@ -167,15 +172,17 @@ describe('DayDetailPanel', () => {
       assignment_id: 51,
       status: 'confirmed',
     });
-    render(<DayDetailPanel
-      {...defaultProps}
-      // day.id=1, but reservation belongs to assignment_id=51 which is in day '2'
-      assignments={{
-        '1': [{ id: 50, place, place_id: place.id, day_id: 1, order_index: 0, notes: null }],
-        '2': [{ id: 51, place, place_id: place.id, day_id: 2, order_index: 0, notes: null }],
-      }}
-      reservations={[reservation]}
-    />);
+    render(
+      <DayDetailPanel
+        {...defaultProps}
+        // day.id=1, but reservation belongs to assignment_id=51 which is in day '2'
+        assignments={{
+          '1': [{ id: 50, place, place_id: place.id, day_id: 1, order_index: 0, notes: null }],
+          '2': [{ id: 51, place, place_id: place.id, day_id: 2, order_index: 0, notes: null }],
+        }}
+        reservations={[reservation]}
+      />
+    );
     await waitFor(() => {
       expect(screen.queryByText('Other Day Event')).toBeNull();
     });
@@ -190,11 +197,13 @@ describe('DayDetailPanel', () => {
       status: 'confirmed',
       reservation_time: '2025-06-15T14:30:00Z',
     });
-    render(<DayDetailPanel
-      {...defaultProps}
-      assignments={{ '1': [{ id: 50, place, place_id: place.id, day_id: 1, order_index: 0, notes: null }] }}
-      reservations={[reservation]}
-    />);
+    render(
+      <DayDetailPanel
+        {...defaultProps}
+        assignments={{ '1': [{ id: 50, place, place_id: place.id, day_id: 1, order_index: 0, notes: null }] }}
+        reservations={[reservation]}
+      />
+    );
     await screen.findByText('Dinner');
     // Time should be rendered from reservation_time with T — check for a time-like string
     await waitFor(() => {
@@ -217,12 +226,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Grand Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: '11:00', confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Grand Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: '11:00',
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} />);
     await screen.findByText('Grand Hotel');
@@ -232,12 +250,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Grand Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: '11:00', confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Grand Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: '11:00',
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     // day.id = 1 = start_day_id (check-in day)
     render(<DayDetailPanel {...defaultProps} />);
@@ -252,18 +279,23 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Grand Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: '11:00', confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Grand Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: '11:00',
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
-    render(<DayDetailPanel
-      {...defaultProps}
-      day={checkOutDay}
-      days={[day, checkOutDay]}
-    />);
+    render(<DayDetailPanel {...defaultProps} day={checkOutDay} days={[day, checkOutDay]} />);
     await screen.findByText('11:00');
   });
 
@@ -271,12 +303,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Grand Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: '11:00', confirmation: 'HOTEL99',
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Grand Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: '11:00',
+              confirmation: 'HOTEL99',
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} />);
     await screen.findByText('HOTEL99');
@@ -287,12 +328,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Grand Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: null, confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Grand Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} />);
     await screen.findByText('Grand Hotel');
@@ -309,12 +359,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Budget Inn', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '15:00', check_out: null, confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Budget Inn',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '15:00',
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} />);
     await screen.findByText('Budget Inn');
@@ -359,12 +418,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Secret Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: null, confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Secret Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} reservations={[linkedReservation]} />);
     await screen.findByText('Secret Hotel');
@@ -392,7 +460,7 @@ describe('DayDetailPanel', () => {
           sunrise: '06:30',
           sunset: '20:15',
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} lat={48.8566} lng={2.3522} />);
     await screen.findByText('80%');
@@ -416,7 +484,7 @@ describe('DayDetailPanel', () => {
           description: 'cloudy',
           wind_max: 50,
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} lat={48.8566} lng={2.3522} />);
     // 50 km/h * 0.621371 ≈ 31 mph
@@ -458,11 +526,18 @@ describe('DayDetailPanel', () => {
       http.post('/api/trips/1/accommodations', () =>
         HttpResponse.json({
           accommodation: {
-            id: 99, place_id: 10, place_name: 'Maison Blanche', place_address: null,
-            start_day_id: 1, end_day_id: 1, check_in: null, check_out: null, confirmation: null,
+            id: 99,
+            place_id: 10,
+            place_name: 'Maison Blanche',
+            place_address: null,
+            start_day_id: 1,
+            end_day_id: 1,
+            check_in: null,
+            check_out: null,
+            confirmation: null,
           },
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} places={[place]} />);
     const addButton = await screen.findByText(/Add accommodation/i);
@@ -490,12 +565,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Edit Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '15:00', check_out: '10:00', confirmation: 'EDIT01',
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Edit Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '15:00',
+              check_out: '10:00',
+              confirmation: 'EDIT01',
+            },
+          ],
         })
-      ),
+      )
     );
     seedStore(useAuthStore, { user: buildAdmin(), isAuthenticated: true });
     render(<DayDetailPanel {...defaultProps} />);
@@ -528,12 +612,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Full Details Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 1, check_in: '14:00', check_out: '11:00', confirmation: 'FULL01',
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Full Details Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 1,
+              check_in: '14:00',
+              check_out: '11:00',
+              confirmation: 'FULL01',
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} />);
     await screen.findByText('Full Details Hotel');
@@ -549,12 +642,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Overnight Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: '11:00', confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Overnight Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: '11:00',
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} day={middleDay} days={[day, middleDay]} />);
     await screen.findByText('Overnight Hotel');
@@ -576,7 +678,7 @@ describe('DayDetailPanel', () => {
             { hour: 12, main: 'Clouds', temp: 22, precipitation_probability: 60 },
           ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} lat={48.8566} lng={2.3522} />);
     await screen.findByText(/20°C/);
@@ -597,7 +699,7 @@ describe('DayDetailPanel', () => {
           temp_max: 22,
           description: 'average',
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} lat={48.8566} lng={2.3522} />);
     await screen.findByText(/Ø/);
@@ -620,12 +722,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Existing Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: null, confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Existing Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     seedStore(useAuthStore, { user: buildAdmin(), isAuthenticated: true });
     render(<DayDetailPanel {...defaultProps} />);
@@ -640,14 +751,19 @@ describe('DayDetailPanel', () => {
       http.post('/api/trips/1/accommodations', () =>
         HttpResponse.json({
           accommodation: {
-            id: 99, place_id: 10, place_name: 'New Hotel', place_address: null,
-            start_day_id: 1, end_day_id: 1, check_in: null, check_out: null, confirmation: null,
+            id: 99,
+            place_id: 10,
+            place_name: 'New Hotel',
+            place_address: null,
+            start_day_id: 1,
+            end_day_id: 1,
+            check_in: null,
+            check_out: null,
+            confirmation: null,
           },
         })
       ),
-      http.get('/api/trips/1/accommodations', () =>
-        HttpResponse.json({ accommodations: [] })
-      ),
+      http.get('/api/trips/1/accommodations', () => HttpResponse.json({ accommodations: [] }))
     );
     render(<DayDetailPanel {...defaultProps} places={[place]} />);
     // Open picker
@@ -670,16 +786,25 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 5, place_id: 5, place_name: 'Hotel To Remove', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 1, check_in: null, check_out: null, confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 5,
+              place_id: 5,
+              place_name: 'Hotel To Remove',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 1,
+              check_in: null,
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
       ),
       http.delete('/api/trips/1/accommodations/5', () => {
         deleteWasCalled = true;
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
     seedStore(useAuthStore, { user: buildAdmin(), isAuthenticated: true });
     render(<DayDetailPanel {...defaultProps} />);
@@ -700,12 +825,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'AM Hotel', place_address: null,
-            start_day_id: 1, end_day_id: 1, check_in: '14:00', check_out: '09:00', confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'AM Hotel',
+              place_address: null,
+              start_day_id: 1,
+              end_day_id: 1,
+              check_in: '14:00',
+              check_out: '09:00',
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} />);
     await screen.findByText('AM Hotel');
@@ -726,12 +860,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Pending Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: null, confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Pending Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} reservations={[pendingReservation]} />);
     await screen.findByText('Pending Hotel');
@@ -742,9 +885,7 @@ describe('DayDetailPanel', () => {
   });
 
   it('FE-PLANNER-DAYDETAIL-045: weather API network error is handled gracefully', async () => {
-    server.use(
-      http.get('/api/weather/detailed', () => HttpResponse.error()),
-    );
+    server.use(http.get('/api/weather/detailed', () => HttpResponse.error()));
     render(<DayDetailPanel {...defaultProps} lat={48.8566} lng={2.3522} />);
     // Should show "No weather" after error (catch sets weather to null)
     await screen.findByText(/No weather/i);
@@ -755,21 +896,37 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 7, place_id: 5, place_name: 'Edit Me Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 1, check_in: '15:00', check_out: null, confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 7,
+              place_id: 5,
+              place_name: 'Edit Me Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 1,
+              check_in: '15:00',
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
       ),
       http.put('/api/trips/1/accommodations/7', () => {
         updateCalled = true;
         return HttpResponse.json({
           accommodation: {
-            id: 7, place_id: 5, place_name: 'Edit Me Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 1, check_in: '15:00', check_out: null, confirmation: 'NEW01',
+            id: 7,
+            place_id: 5,
+            place_name: 'Edit Me Hotel',
+            place_address: 'Paris',
+            start_day_id: 1,
+            end_day_id: 1,
+            check_in: '15:00',
+            check_out: null,
+            confirmation: 'NEW01',
           },
         });
-      }),
+      })
     );
     const place = buildPlace({ id: 5, name: 'Edit Me Hotel' });
     render(<DayDetailPanel {...defaultProps} places={[place]} />);
@@ -803,12 +960,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 2, place_id: 5, place_name: 'Blurred Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 3, check_in: '14:00', check_out: null, confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 2,
+              place_id: 5,
+              place_name: 'Blurred Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 3,
+              check_in: '14:00',
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} reservations={[linkedReservation]} />);
     await screen.findByText('Blurred Hotel');
@@ -839,12 +1005,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{
-            id: 1, place_id: 5, place_name: 'Visible Hotel', place_address: 'Paris',
-            start_day_id: 1, end_day_id: 1, check_in: null, check_out: null, confirmation: null,
-          }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 5,
+              place_name: 'Visible Hotel',
+              place_address: 'Paris',
+              start_day_id: 1,
+              end_day_id: 1,
+              check_in: null,
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
     render(<DayDetailPanel {...defaultProps} collapsed={true} />);
     await waitFor(() => {
@@ -907,13 +1082,13 @@ describe('DayDetailPanel', () => {
       buildDay({ id: 23, trip_id: 1, date: '2026-05-06' }),
       buildDay({ id: 24, trip_id: 1, date: '2026-05-07' }),
       buildDay({ id: 25, trip_id: 1, date: '2026-05-08' }),
-      buildDay({ id: 1,  trip_id: 1, date: '2026-05-09' }),
-      buildDay({ id: 2,  trip_id: 1, date: '2026-05-10' }),
-      buildDay({ id: 3,  trip_id: 1, date: '2026-05-11' }),
-      buildDay({ id: 4,  trip_id: 1, date: '2026-05-12' }),
-      buildDay({ id: 5,  trip_id: 1, date: '2026-05-13' }),
-      buildDay({ id: 6,  trip_id: 1, date: '2026-05-14' }),
-      buildDay({ id: 7,  trip_id: 1, date: '2026-05-15' }),
+      buildDay({ id: 1, trip_id: 1, date: '2026-05-09' }),
+      buildDay({ id: 2, trip_id: 1, date: '2026-05-10' }),
+      buildDay({ id: 3, trip_id: 1, date: '2026-05-11' }),
+      buildDay({ id: 4, trip_id: 1, date: '2026-05-12' }),
+      buildDay({ id: 5, trip_id: 1, date: '2026-05-13' }),
+      buildDay({ id: 6, trip_id: 1, date: '2026-05-14' }),
+      buildDay({ id: 7, trip_id: 1, date: '2026-05-15' }),
     ];
   }
 
@@ -922,7 +1097,7 @@ describe('DayDetailPanel', () => {
   // matches /Day \d+/ (the main panel title is a div, not a button).
   // [0] = start trigger, [1] = end trigger (DOM source order).
   function getDayPickerTriggers() {
-    return screen.getAllByRole('button').filter(b => /Day \d+/.test(b.textContent ?? ''));
+    return screen.getAllByRole('button').filter((b) => /Day \d+/.test(b.textContent ?? ''));
   }
 
   it('FE-PLANNER-DAYDETAIL-056: non-monotonic IDs — end picker does not clobber start-day', async () => {
@@ -934,12 +1109,18 @@ describe('DayDetailPanel', () => {
         capturedBody = await request.json();
         return HttpResponse.json({
           accommodation: {
-            id: 99, place_id: 50, place_name: 'Range Hotel', place_address: null,
-            start_day_id: capturedBody.start_day_id, end_day_id: capturedBody.end_day_id,
-            check_in: null, check_out: null, confirmation: null,
+            id: 99,
+            place_id: 50,
+            place_name: 'Range Hotel',
+            place_address: null,
+            start_day_id: capturedBody.start_day_id,
+            end_day_id: capturedBody.end_day_id,
+            check_in: null,
+            check_out: null,
+            confirmation: null,
           },
         });
-      }),
+      })
     );
 
     render(<DayDetailPanel {...defaultProps} day={days[0]} days={days} places={[place]} />);
@@ -949,7 +1130,7 @@ describe('DayDetailPanel', () => {
     // Both triggers show "Day 1"; the second one is the end picker.
     await userEvent.click(getDayPickerTriggers()[1]);
     // Select "Day 16" (id=7) from the open dropdown — textContent starts with "Day 16".
-    await userEvent.click(screen.getAllByRole('button').find(b => b.textContent?.startsWith('Day 16'))!);
+    await userEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.startsWith('Day 16'))!);
 
     await userEvent.click(screen.getByRole('button', { name: /^Save$/i }));
 
@@ -969,12 +1150,18 @@ describe('DayDetailPanel', () => {
         capturedBody = await request.json();
         return HttpResponse.json({
           accommodation: {
-            id: 100, place_id: 51, place_name: 'Span Hotel', place_address: null,
-            start_day_id: capturedBody.start_day_id, end_day_id: capturedBody.end_day_id,
-            check_in: null, check_out: null, confirmation: null,
+            id: 100,
+            place_id: 51,
+            place_name: 'Span Hotel',
+            place_address: null,
+            start_day_id: capturedBody.start_day_id,
+            end_day_id: capturedBody.end_day_id,
+            check_in: null,
+            check_out: null,
+            confirmation: null,
           },
         });
-      }),
+      })
     );
 
     render(<DayDetailPanel {...defaultProps} day={days[0]} days={days} places={[place]} />);
@@ -983,19 +1170,19 @@ describe('DayDetailPanel', () => {
 
     // Set end to day 16 (id=7, low ID but last day by position).
     await userEvent.click(getDayPickerTriggers()[1]);
-    await userEvent.click(screen.getAllByRole('button').find(b => b.textContent?.startsWith('Day 16'))!);
+    await userEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.startsWith('Day 16'))!);
 
     // Set start to day 9 (id=25, high ID, but earlier by position than day 16).
     // Old code: Math.max(25, 7) = 25 → end collapses to day 9.
     // New code: position(id=25)=8 < position(id=7)=15 → end stays at 7 (day 16).
     await userEvent.click(getDayPickerTriggers()[0]);
-    await userEvent.click(screen.getAllByRole('button').find(b => b.textContent?.startsWith('Day 9'))!);
+    await userEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.startsWith('Day 9'))!);
 
     await userEvent.click(screen.getByRole('button', { name: /^Save$/i }));
 
     await waitFor(() => {
       expect(capturedBody?.start_day_id).toBe(25); // day 9
-      expect(capturedBody?.end_day_id).toBe(7);    // day 16 — must NOT have collapsed
+      expect(capturedBody?.end_day_id).toBe(7); // day 16 — must NOT have collapsed
     });
   });
 
@@ -1008,12 +1195,18 @@ describe('DayDetailPanel', () => {
         capturedBody = await request.json();
         return HttpResponse.json({
           accommodation: {
-            id: 101, place_id: 52, place_name: 'Full Trip Hotel', place_address: null,
-            start_day_id: capturedBody.start_day_id, end_day_id: capturedBody.end_day_id,
-            check_in: null, check_out: null, confirmation: null,
+            id: 101,
+            place_id: 52,
+            place_name: 'Full Trip Hotel',
+            place_address: null,
+            start_day_id: capturedBody.start_day_id,
+            end_day_id: capturedBody.end_day_id,
+            check_in: null,
+            check_out: null,
+            confirmation: null,
           },
         });
-      }),
+      })
     );
 
     render(<DayDetailPanel {...defaultProps} day={days[0]} days={days} places={[place]} />);
@@ -1045,12 +1238,18 @@ describe('DayDetailPanel', () => {
         capturedBody = await request.json();
         return HttpResponse.json({
           accommodation: {
-            id: 102, place_id: 53, place_name: 'Seq Hotel', place_address: null,
-            start_day_id: capturedBody.start_day_id, end_day_id: capturedBody.end_day_id,
-            check_in: null, check_out: null, confirmation: null,
+            id: 102,
+            place_id: 53,
+            place_name: 'Seq Hotel',
+            place_address: null,
+            start_day_id: capturedBody.start_day_id,
+            end_day_id: capturedBody.end_day_id,
+            check_in: null,
+            check_out: null,
+            confirmation: null,
           },
         });
-      }),
+      })
     );
 
     render(<DayDetailPanel {...defaultProps} day={seqDays[0]} days={seqDays} places={[place]} />);
@@ -1059,7 +1258,7 @@ describe('DayDetailPanel', () => {
 
     // Pick end = day 3 (id=103, position 2 > position 0 of start id=101).
     await userEvent.click(getDayPickerTriggers()[1]);
-    await userEvent.click(screen.getAllByRole('button').find(b => b.textContent?.startsWith('Day 3'))!);
+    await userEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.startsWith('Day 3'))!);
 
     await userEvent.click(screen.getByRole('button', { name: /^Save$/i }));
 
@@ -1077,21 +1276,50 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () => {
         getCallCount++;
-        const acc = getCallCount === 1
-          // Initial load: single-day so old filter (17>=17 && 17<=17) passes — hotel visible, edit possible
-          ? { id: 1, place_id: 50, place_name: 'Span Hotel', place_address: null, start_day_id: 17, end_day_id: 17, check_in: null, check_out: null, confirmation: null }
-          // Post-save relist: full span — old filter (17>=17 && 17<=7) would drop it, new code keeps it
-          : { id: 1, place_id: 50, place_name: 'Span Hotel', place_address: null, start_day_id: 17, end_day_id: 7, check_in: null, check_out: null, confirmation: null };
+        const acc =
+          getCallCount === 1
+            ? // Initial load: single-day so old filter (17>=17 && 17<=17) passes — hotel visible, edit possible
+              {
+                id: 1,
+                place_id: 50,
+                place_name: 'Span Hotel',
+                place_address: null,
+                start_day_id: 17,
+                end_day_id: 17,
+                check_in: null,
+                check_out: null,
+                confirmation: null,
+              }
+            : // Post-save relist: full span — old filter (17>=17 && 17<=7) would drop it, new code keeps it
+              {
+                id: 1,
+                place_id: 50,
+                place_name: 'Span Hotel',
+                place_address: null,
+                start_day_id: 17,
+                end_day_id: 7,
+                check_in: null,
+                check_out: null,
+                confirmation: null,
+              };
         return HttpResponse.json({ accommodations: [acc] });
       }),
       http.put('/api/trips/1/accommodations/1', async ({ request }) => {
-        const body = await request.json() as any;
+        const body = (await request.json()) as any;
         return HttpResponse.json({
-          accommodation: { id: 1, place_id: 50, place_name: 'Span Hotel', place_address: null,
-            start_day_id: body.start_day_id, end_day_id: body.end_day_id,
-            check_in: null, check_out: null, confirmation: null },
+          accommodation: {
+            id: 1,
+            place_id: 50,
+            place_name: 'Span Hotel',
+            place_address: null,
+            start_day_id: body.start_day_id,
+            end_day_id: body.end_day_id,
+            check_in: null,
+            check_out: null,
+            confirmation: null,
+          },
         });
-      }),
+      })
     );
 
     render(<DayDetailPanel {...defaultProps} day={days[0]} days={days} />);
@@ -1103,7 +1331,7 @@ describe('DayDetailPanel', () => {
 
     // Extend end picker to Day 16 (id=7)
     await userEvent.click(getDayPickerTriggers()[1]);
-    await userEvent.click(screen.getAllByRole('button').find(b => b.textContent?.startsWith('Day 16'))!);
+    await userEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.startsWith('Day 16'))!);
     await userEvent.click(screen.getByRole('button', { name: /^Save$/i }));
 
     // Old code: 17>=17 && 17<=7 → false (hotel vanishes). New code: position 0 in [0,15] → visible.
@@ -1119,13 +1347,21 @@ describe('DayDetailPanel', () => {
     const currentDay = days[5];
     server.use(
       http.post('/api/trips/1/accommodations', async ({ request }) => {
-        const body = await request.json() as any;
+        const body = (await request.json()) as any;
         return HttpResponse.json({
-          accommodation: { id: 200, place_id: 55, place_name: 'Created Hotel', place_address: null,
-            start_day_id: body.start_day_id, end_day_id: body.end_day_id,
-            check_in: null, check_out: null, confirmation: null },
+          accommodation: {
+            id: 200,
+            place_id: 55,
+            place_name: 'Created Hotel',
+            place_address: null,
+            start_day_id: body.start_day_id,
+            end_day_id: body.end_day_id,
+            check_in: null,
+            check_out: null,
+            confirmation: null,
+          },
         });
-      }),
+      })
     );
 
     render(<DayDetailPanel {...defaultProps} day={currentDay} days={days} places={[place]} />);
@@ -1134,7 +1370,7 @@ describe('DayDetailPanel', () => {
 
     // Extend end to Day 16 (id=7) — start stays at current day id=22
     await userEvent.click(getDayPickerTriggers()[1]);
-    await userEvent.click(screen.getAllByRole('button').find(b => b.textContent?.startsWith('Day 16'))!);
+    await userEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.startsWith('Day 16'))!);
     await userEvent.click(screen.getByRole('button', { name: /^Save$/i }));
 
     // Old code: 22>=22 && 22<=7 → false (hotel vanishes). New code: position 5 in [5,15] → visible.
@@ -1148,10 +1384,21 @@ describe('DayDetailPanel', () => {
     server.use(
       http.get('/api/trips/1/accommodations', () =>
         HttpResponse.json({
-          accommodations: [{ id: 1, place_id: 60, place_name: 'Full Trip Hotel', place_address: null,
-            start_day_id: 17, end_day_id: 7, check_in: null, check_out: null, confirmation: null }],
+          accommodations: [
+            {
+              id: 1,
+              place_id: 60,
+              place_name: 'Full Trip Hotel',
+              place_address: null,
+              start_day_id: 17,
+              end_day_id: 7,
+              check_in: null,
+              check_out: null,
+              confirmation: null,
+            },
+          ],
         })
-      ),
+      )
     );
 
     // Day 1 (id=17): old filter: 17>=17 && 17<=7 → false. New: position 0 in [0,15] → visible.
@@ -1175,11 +1422,13 @@ describe('DayDetailPanel', () => {
       status: 'confirmed',
       reservation_time: '2025-06-15T13:00:00Z',
     });
-    render(<DayDetailPanel
-      {...defaultProps}
-      assignments={{ '1': [{ id: 60, place, place_id: place.id, day_id: 1, order_index: 0, notes: null }] }}
-      reservations={[reservation]}
-    />);
+    render(
+      <DayDetailPanel
+        {...defaultProps}
+        assignments={{ '1': [{ id: 60, place, place_id: place.id, day_id: 1, order_index: 0, notes: null }] }}
+        reservations={[reservation]}
+      />
+    );
     await screen.findByText('Lunch');
     // 12h format: some AM/PM-like string
     await waitFor(() => {
@@ -1187,5 +1436,4 @@ describe('DayDetailPanel', () => {
       expect(timeEl).toBeInTheDocument();
     });
   });
-
 });

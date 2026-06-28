@@ -206,7 +206,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Gedeeld via',
   'journey.public.madeWith': 'Gemaakt met',
   'journey.pdf.journeyBook': 'Reisboek',
-  'journey.pdf.madeWith': 'Gemaakt met TRIPPI',
+  'journey.pdf.madeWith': 'Gemaakt met trippi.ai',
   'journey.pdf.day': 'Dag',
   'journey.pdf.theEnd': 'Einde',
   'journey.pdf.saveAsPdf': 'Opslaan als PDF',

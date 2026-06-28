@@ -1,19 +1,8 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Headers,
-  HttpException,
-  Param,
-  Post,
-  Put,
-  UseGuards,
-} from '@nestjs/common';
 import type { User } from '../../types';
-import { DayNotesService } from './day-notes.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { DayNotesService } from './day-notes.service';
+import { Body, Controller, Delete, Get, Headers, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
 
 type DayNoteBody = { text?: string; time?: string; icon?: string; sort_order?: number };
 
@@ -103,7 +92,12 @@ export class DayNotesController {
     if (!current) {
       throw new HttpException({ error: 'Note not found' }, 404);
     }
-    const note = this.notes.update(id, current as never, { text: body.text, time: body.time, icon: body.icon, sort_order: body.sort_order });
+    const note = this.notes.update(id, current as never, {
+      text: body.text,
+      time: body.time,
+      icon: body.icon,
+      sort_order: body.sort_order,
+    });
     this.notes.broadcast(tripId, 'dayNote:updated', { dayId: Number(dayId), note }, socketId);
     return { note };
   }

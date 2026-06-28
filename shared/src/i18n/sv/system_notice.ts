@@ -3,7 +3,7 @@ import type { TranslationStrings } from '../types';
 const system_notice: TranslationStrings = {
   'system_notice.v3_photos.title': 'Bilderna har flyttats i version 3.0',
   'system_notice.v3_photos.body':
-    '**Bilder** i resplaneraren har tagits bort. Dina bilder är i säkerhet – TRIPPI har aldrig ändrat ditt Immich- eller Synology-bibliotek.\n\nBilderna finns nu i tillägget **Journey**. Journey är valfritt – om det ännu inte är tillgängligt kan du be din administratör att aktivera det under Admin → Tillägg.',
+    '**Bilder** i resplaneraren har tagits bort. Dina bilder är i säkerhet – trippi.ai har aldrig ändrat ditt Immich- eller Synology-bibliotek.\n\nBilderna finns nu i tillägget **Journey**. Journey är valfritt – om det ännu inte är tillgängligt kan du be din administratör att aktivera det under Admin → Tillägg.',
   'system_notice.v3_journey.title': 'Upptäck Journey – resedagbok',
   'system_notice.v3_journey.body':
     'Dokumentera dina resor som innehållsrika reseskildringar med tidslinjer, fotoalbum och interaktiva kartor.',
@@ -27,15 +27,15 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Utökad verktygslåda och uppmaningar',
   'system_notice.v3_thankyou.title': 'Ett personligt meddelande från mig',
   'system_notice.v3_thankyou.body':
-    'Innan du går – vill jag ta en stund.\n\nTRIPPI började som ett sidoprojekt som jag skapade för mina egna resor. Jag hade aldrig kunnat föreställa mig att det skulle växa till något som 4 000 av er nu litar på för att planera era äventyr. Varje stjärna, varje problem, varje önskemål om funktioner – jag läser dem alla, och de är det som håller mig igång under sena nätter mellan mitt heltidsjobb och universitetet.\n\nJag vill att ni ska veta: TRIPPI kommer alltid att vara öppen källkod, alltid självhostat, alltid ert. Ingen spårning, inga prenumerationer, inga förbehåll. Bara ett verktyg skapat av någon som älskar att resa lika mycket som ni.\n\nEtt särskilt tack till [jubnl](https://github.com/jubnl) – du har blivit en fantastisk samarbetspartner. Så mycket av det som gör 3.0 så bra bär dina avtryck. Tack för att du trodde på det här projektet när det fortfarande var lite ojämnt i kanterna.\n\nOch till var och en av er som rapporterade ett fel, översatte en sträng, delade TRIPPI med en vän eller helt enkelt använde det för att planera en resa – **tack**. Ni är anledningen till att det här finns.\n\nSkål för många fler äventyr tillsammans.\n\n— Maurice\n\n---\n\n[Gå med i communityn på Discord](https://discord.gg/7Q6M6jDwzf)\n\nOm TRIPPI gör dina resor bättre, så håller en [liten kaffe](https://ko-fi.com/mauriceboe) alltid lamporna tända.',
+    'Innan du går – vill jag ta en stund.\n\ntrippi.ai började som ett sidoprojekt som jag skapade för mina egna resor. Jag hade aldrig kunnat föreställa mig att det skulle växa till något som 4 000 av er nu litar på för att planera era äventyr. Varje stjärna, varje problem, varje önskemål om funktioner – jag läser dem alla, och de är det som håller mig igång under sena nätter mellan mitt heltidsjobb och universitetet.\n\nJag vill att ni ska veta: trippi.ai kommer alltid att vara öppen källkod, alltid självhostat, alltid ert. Ingen spårning, inga prenumerationer, inga förbehåll. Bara ett verktyg skapat av någon som älskar att resa lika mycket som ni.\n\nEtt särskilt tack till [jubnl](https://github.com/jubnl) – du har blivit en fantastisk samarbetspartner. Så mycket av det som gör 3.0 så bra bär dina avtryck. Tack för att du trodde på det här projektet när det fortfarande var lite ojämnt i kanterna.\n\nOch till var och en av er som rapporterade ett fel, översatte en sträng, delade trippi.ai med en vän eller helt enkelt använde det för att planera en resa – **tack**. Ni är anledningen till att det här finns.\n\nSkål för många fler äventyr tillsammans.\n\n— trippi.ai\n\n---\n\n[Gå med i communityn på Discord](https://discord.gg/7Q6M6jDwzf)\n\nOm trippi.ai gör dina resor bättre, så håller en [liten kaffe](https://github.com/shiverin/Trippi.ai) alltid lamporna tända.',
   'system_notice.v3014_whitespace_collision.title': 'Åtgärd krävs: konflikt mellan användarkonton',
   'system_notice.v3014_whitespace_collision.body':
     'Uppgraderingen till version 3.0.14 upptäckte en eller flera konflikter mellan användarnamn eller e-postadresser som orsakades av blanksteg i början eller slutet av lagrade konton. De berörda kontona döptes om automatiskt. Kontrollera serverloggarna efter rader som börjar med **[migration] WHITESPACE COLLISION** för att identifiera vilka konton som behöver granskas.',
-  'system_notice.welcome_v1.title': 'Välkommen till TRIPPI',
+  'system_notice.welcome_v1.title': 'Välkommen till trippi.ai',
   'system_notice.welcome_v1.body':
     'Din allt-i-ett-resplanerare. Skapa resplaner, dela resor med vänner och håll ordning på allt – både online och offline.',
   'system_notice.welcome_v1.cta_label': 'Planera en resa',
-  'system_notice.welcome_v1.hero_alt': 'Ett naturskönt resmål med TRIPPI planering UI-överlagring',
+  'system_notice.welcome_v1.hero_alt': 'Ett naturskönt resmål med trippi.ai planering UI-överlagring',
   'system_notice.welcome_v1.highlight_plan': 'Dag-för-dag-resplaner för alla typer av resor',
   'system_notice.welcome_v1.highlight_share': 'Samarbeta med resepartners',
   'system_notice.welcome_v1.highlight_offline': 'Fungerar offline på mobilen',

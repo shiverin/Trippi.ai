@@ -6,7 +6,7 @@
 
 ## What it is
 
-TRIPPI supports Time-based One-Time Password (TOTP) two-factor authentication, compatible with Google Authenticator, Authy, 1Password, and any standard TOTP app. When 2FA is active, you enter a 6-digit code (or a backup code) after your password on each login.
+trippi.ai supports Time-based One-Time Password (TOTP) two-factor authentication, compatible with Google Authenticator, Authy, 1Password, and any standard TOTP app. When 2FA is active, you enter a 6-digit code (or a backup code) after your password on each login.
 
 ## Setting up 2FA
 
@@ -20,7 +20,7 @@ Go to **Settings → Account** and click **"Set up two-factor authentication"**.
 
 ## Logging in with 2FA
 
-After entering your email and password, TRIPPI shows a second prompt for your TOTP code. You have **5 minutes** to complete this second step before the intermediate session token expires. Enter either:
+After entering your email and password, trippi.ai shows a second prompt for your TOTP code. You have **5 minutes** to complete this second step before the intermediate session token expires. Enter either:
 
 - The current 6-digit code from your authenticator app, or
 - One of your backup codes (format `XXXX-XXXX`). Each backup code can only be used once.
@@ -44,7 +44,7 @@ If the setting is active and your account does not have 2FA set up, any API requ
 
 ## Rate limits
 
-TRIPPI enforces IP-based rate limits to protect against brute-force attacks:
+trippi.ai enforces IP-based rate limits to protect against brute-force attacks:
 
 | Endpoint | Limit |
 |---|---|

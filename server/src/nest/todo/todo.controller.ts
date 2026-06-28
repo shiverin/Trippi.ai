@@ -1,19 +1,8 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Headers,
-  HttpException,
-  Param,
-  Post,
-  Put,
-  UseGuards,
-} from '@nestjs/common';
 import type { User } from '../../types';
-import { TodoService } from './todo.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TodoService } from './todo.service';
+import { Body, Controller, Delete, Get, Headers, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
 
 /**
  * /api/trips/:tripId/todo — trip-scoped task list.
@@ -53,7 +42,15 @@ export class TodoController {
   create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
-    @Body() body: { name?: string; category?: string; due_date?: string; description?: string; assigned_user_id?: number; priority?: number },
+    @Body()
+    body: {
+      name?: string;
+      category?: string;
+      due_date?: string;
+      description?: string;
+      assigned_user_id?: number;
+      priority?: number;
+    },
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = this.requireTrip(tripId, user);
@@ -68,11 +65,7 @@ export class TodoController {
   }
 
   @Put('reorder')
-  reorder(
-    @CurrentUser() user: User,
-    @Param('tripId') tripId: string,
-    @Body('orderedIds') orderedIds: number[],
-  ) {
+  reorder(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body('orderedIds') orderedIds: number[]) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     this.todo.reorderItems(tripId, orderedIds);
@@ -89,8 +82,16 @@ export class TodoController {
   ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const { name, checked, category, due_date, description, assigned_user_id, priority } = body as Record<string, never>;
-    const updated = this.todo.updateItem(tripId, id, { name, checked, category, due_date, description, assigned_user_id, priority }, Object.keys(body));
+    const { name, checked, category, due_date, description, assigned_user_id, priority } = body as Record<
+      string,
+      never
+    >;
+    const updated = this.todo.updateItem(
+      tripId,
+      id,
+      { name, checked, category, due_date, description, assigned_user_id, priority },
+      Object.keys(body),
+    );
     if (!updated) {
       throw new HttpException({ error: 'Item not found' }, 404);
     }

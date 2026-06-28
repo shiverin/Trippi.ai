@@ -1,6 +1,6 @@
+import { DEFAULT_LANGUAGE } from '../../config';
 import { Controller, Get } from '@nestjs/common';
 import type { PublicConfig } from '@trippi/shared';
-import { DEFAULT_LANGUAGE } from '../../config';
 
 /**
  * /api/config — public (unauthenticated) bootstrap config.

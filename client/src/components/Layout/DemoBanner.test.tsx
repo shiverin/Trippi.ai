@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { act, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '../../../tests/helpers/render';
 import DemoBanner from './DemoBanner';
 
@@ -72,9 +72,9 @@ describe('DemoBanner', () => {
   });
 
   // FE-COMP-DEMOBANNER-009
-  it('shows "What is TRIPPI?" section', () => {
+  it('shows "What is trippi.ai?" section', () => {
     render(<DemoBanner />);
-    expect(screen.getByText('What is TRIPPI?')).toBeInTheDocument();
+    expect(screen.getByText('What is trippi.ai?')).toBeInTheDocument();
   });
 
   // FE-COMP-DEMOBANNER-010
@@ -94,7 +94,7 @@ describe('DemoBanner', () => {
   it('self-host link points to GitHub', () => {
     render(<DemoBanner />);
     const link = screen.getByText('self-host it').closest('a')!;
-    expect(link).toHaveAttribute('href', 'https://github.com/mauriceboe/TRIPPI');
+    expect(link).toHaveAttribute('href', 'https://github.com/shiverin/Trippi.ai');
     expect(link).toHaveAttribute('target', '_blank');
   });
 

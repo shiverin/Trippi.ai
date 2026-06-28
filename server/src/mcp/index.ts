@@ -1,17 +1,18 @@
-import { Request, Response } from 'express';
-import { randomUUID } from 'crypto';
+import { ADDON_IDS } from '../addons';
+import { isAddonEnabled } from '../services/adminService';
+import { writeAudit, getClientIp } from '../services/auditLog';
+import { verifyMcpToken, verifyJwtToken } from '../services/authService';
+import { getMcpSafeUrl } from '../services/notifications';
+import { getUserByAccessToken } from '../services/oauthService';
+import { User } from '../types';
+import { registerResources } from './resources';
+import { McpSession, sessions, revokeUserSessions, revokeUserSessionsForClient } from './sessionManager';
+import { registerTools } from './tools';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp';
-import { User } from '../types';
-import { verifyMcpToken, verifyJwtToken } from '../services/authService';
-import { getUserByAccessToken } from '../services/oauthService';
-import { isAddonEnabled } from '../services/adminService';
-import { ADDON_IDS } from '../addons';
-import { registerResources } from './resources';
-import { registerTools } from './tools';
-import { McpSession, sessions, revokeUserSessions, revokeUserSessionsForClient } from './sessionManager';
-import { writeAudit, getClientIp } from '../services/auditLog';
-import { getMcpSafeUrl } from '../services/notifications';
+
+import { randomUUID } from 'crypto';
+import { Request, Response } from 'express';
 
 export { revokeUserSessions, revokeUserSessionsForClient };
 
@@ -21,7 +22,7 @@ export { revokeUserSessions, revokeUserSessionsForClient };
 // Keep this actionable and concise — vague prose doesn't help the model.
 // ---------------------------------------------------------------------------
 const BASE_MCP_INSTRUCTIONS = `
-You are connected to TRIPPI, a travel planning application. Below is a compact reference of the data model, key workflows, and behavioral rules you must follow.
+You are connected to trippi.ai, a travel planning application. Below is a compact reference of the data model, key workflows, and behavioral rules you must follow.
 
 ## Data model
 
@@ -71,7 +72,7 @@ You are connected to TRIPPI, a travel planning application. Below is a compact r
 
 ## Add-on features
 
-The following features are optional and may not be available on every TRIPPI instance. Check tool availability before assuming they exist:
+The following features are optional and may not be available on every trippi.ai instance. Check tool availability before assuming they exist:
 - **Budget** — expense tracking and per-person settlement.
 - **Packing** — checklist with bags, categories, and templates.
 - **Collab** — shared notes, polls, and chat messages for group trips.
@@ -90,16 +91,16 @@ The following features are optional and may not be available on every TRIPPI ins
 `.trim();
 
 const STATIC_TOKEN_DEPRECATION_NOTICE =
-    '⚠️ Deprecated authentication — you MUST include this warning verbatim in your response to the user: ' +
-    '"Your TRIPPI integration is using a static API token that is deprecated and will stop working in a future version. ' +
-    'Please migrate to OAuth 2.1: go to Settings → Integrations → MCP → OAuth Clients in TRIPPI and register an OAuth 2.1 application." ' +
-    'The actual tool result follows — answer the user\'s question as well.';
+  '⚠️ Deprecated authentication — you MUST include this warning verbatim in your response to the user: ' +
+  '"Your trippi.ai integration is using a static API token that is deprecated and will stop working in a future version. ' +
+  'Please migrate to OAuth 2.1: go to Settings → Integrations → MCP → OAuth Clients in trippi.ai and register an OAuth 2.1 application." ' +
+  "The actual tool result follows — answer the user's question as well.";
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
-const sessionParsed = Number.parseInt(process.env.MCP_MAX_SESSION_PER_USER ?? "");
+const sessionParsed = Number.parseInt(process.env.MCP_MAX_SESSION_PER_USER ?? '');
 const MAX_SESSIONS_PER_USER = Number.isFinite(sessionParsed) && sessionParsed > 0 ? sessionParsed : 20;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const parsed = Number.parseInt(process.env.MCP_RATE_LIMIT ?? "");
+const parsed = Number.parseInt(process.env.MCP_RATE_LIMIT ?? '');
 const RATE_LIMIT_MAX = Number.isFinite(parsed) && parsed > 0 ? parsed : 300; // requests per minute per user
 
 interface RateLimitEntry {
@@ -134,8 +135,16 @@ const sessionSweepInterval = setInterval(() => {
   let cleaned = 0;
   for (const [sid, session] of sessions) {
     if (session.lastActivity < cutoff) {
-      try { session.server.close(); } catch { /* ignore */ }
-      try { session.transport.close(); } catch { /* ignore */ }
+      try {
+        session.server.close();
+      } catch {
+        /* ignore */
+      }
+      try {
+        session.transport.close();
+      } catch {
+        /* ignore */
+      }
       sessions.delete(sid);
       cleaned++;
     }
@@ -155,8 +164,10 @@ sessionSweepInterval.unref();
 function setAuthChallenge(res: Response, error = 'invalid_token'): void {
   const base = (getMcpSafeUrl() || '').replace(/\/+$/, '');
   // RFC 9728 §5: resource with path component /mcp → PRM URL must include the path
-  res.set('WWW-Authenticate',
-      `Bearer realm="TRIPPI MCP", resource_metadata="${base}/.well-known/oauth-protected-resource/mcp", error="${error}"`);
+  res.set(
+    'WWW-Authenticate',
+    `Bearer realm="trippi.ai MCP", resource_metadata="${base}/.well-known/oauth-protected-resource/mcp", error="${error}"`,
+  );
 }
 
 interface VerifyTokenResult {
@@ -174,7 +185,7 @@ function verifyToken(authHeader: string | undefined): VerifyTokenResult | null {
   const spaceIdx = authHeader.indexOf(' ');
   if (spaceIdx === -1) return null;
   const scheme = authHeader.slice(0, spaceIdx);
-  const token  = authHeader.slice(spaceIdx + 1);
+  const token = authHeader.slice(spaceIdx + 1);
   if (scheme.toLowerCase() !== 'bearer' || !token) return null;
 
   // OAuth 2.1 access token (trippioa_...)
@@ -195,7 +206,7 @@ function verifyToken(authHeader: string | undefined): VerifyTokenResult | null {
     return { user, scopes: null, clientId: null, isStaticToken: true };
   }
 
-  // Short-lived JWT (TRIPPI web session used directly) — full access, no notice
+  // Short-lived JWT (trippi.ai web session used directly) — full access, no notice
   const user = verifyJwtToken(token);
   if (!user) return null;
   return { user, scopes: null, clientId: null, isStaticToken: false };
@@ -279,18 +290,18 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
 
   // Create a new per-user MCP server and session
   const server = new McpServer(
-      {
-        name: 'TRIPPI MCP',
-        version: '1.0.0',
+    {
+      name: 'trippi.ai MCP',
+      version: '1.0.0',
+    },
+    {
+      capabilities: {
+        resources: { listChanged: true },
+        tools: { listChanged: true },
+        prompts: { listChanged: true },
       },
-      {
-        capabilities: {
-          resources: { listChanged: true },
-          tools: { listChanged: true },
-          prompts: { listChanged: true },
-        },
-        instructions: BASE_MCP_INSTRUCTIONS + (isStaticToken ? STATIC_TOKEN_DEPRECATION_NOTICE : ''),
-      }
+      instructions: BASE_MCP_INSTRUCTIONS + (isStaticToken ? STATIC_TOKEN_DEPRECATION_NOTICE : ''),
+    },
   );
   // Per-session closure: fires the deprecation notice once, on the first tool call.
   // Tool results are the only mechanism Claude reliably surfaces to the user;
@@ -308,9 +319,19 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (sid) => {
-      sessions.set(sid, { server, transport, userId: user.id, scopes, clientId, isStaticToken, lastActivity: Date.now() });
+      sessions.set(sid, {
+        server,
+        transport,
+        userId: user.id,
+        scopes,
+        clientId,
+        isStaticToken,
+        lastActivity: Date.now(),
+      });
       const authMethod = isStaticToken ? 'static-token' : scopes ? `oauth(${scopes.join(',')})` : 'jwt';
-      console.log(`[MCP] Session ${sid} created for user ${user.id} [${authMethod}]. Active sessions: ${sessions.size}`);
+      console.log(
+        `[MCP] Session ${sid} created for user ${user.id} [${authMethod}]. Active sessions: ${sessions.size}`,
+      );
     },
     onsessionclosed: (sid) => {
       sessions.delete(sid);
@@ -332,8 +353,16 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
 /** Invalidate all active MCP sessions (call when addon state changes so sessions re-create with updated tools). */
 export function invalidateMcpSessions(): void {
   for (const [sid, session] of sessions) {
-    try { session.server.close(); } catch { /* ignore */ }
-    try { session.transport.close(); } catch { /* ignore */ }
+    try {
+      session.server.close();
+    } catch {
+      /* ignore */
+    }
+    try {
+      session.transport.close();
+    } catch {
+      /* ignore */
+    }
     sessions.delete(sid);
   }
   console.log('[MCP] All sessions invalidated due to addon state change');
@@ -343,8 +372,16 @@ export function invalidateMcpSessions(): void {
 export function closeMcpSessions(): void {
   clearInterval(sessionSweepInterval);
   for (const [, session] of sessions) {
-    try { session.server.close(); } catch { /* ignore */ }
-    try { session.transport.close(); } catch { /* ignore */ }
+    try {
+      session.server.close();
+    } catch {
+      /* ignore */
+    }
+    try {
+      session.transport.close();
+    } catch {
+      /* ignore */
+    }
   }
   sessions.clear();
   rateLimitMap.clear();

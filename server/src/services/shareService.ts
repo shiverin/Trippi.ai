@@ -1,7 +1,8 @@
 import { db, canAccessTrip } from '../db/database';
-import crypto from 'crypto';
-import { loadTagsByPlaceIds } from './queryHelpers';
 import { serveFilePath } from './placePhotoCache';
+import { loadTagsByPlaceIds } from './queryHelpers';
+
+import crypto from 'crypto';
 
 const PLACE_PHOTO_PROXY_PREFIX = '/api/maps/place-photo/';
 
@@ -45,7 +46,7 @@ interface ShareTokenInfo {
 export function createOrUpdateShareLink(
   tripId: string,
   createdBy: number,
-  permissions: SharePermissions
+  permissions: SharePermissions,
 ): { token: string; created: boolean } {
   const {
     share_map = true,
@@ -55,10 +56,20 @@ export function createOrUpdateShareLink(
     share_collab = false,
   } = permissions;
 
-  const existing = db.prepare('SELECT token FROM share_tokens WHERE trip_id = ?').get(tripId) as { token: string } | undefined;
+  const existing = db.prepare('SELECT token FROM share_tokens WHERE trip_id = ?').get(tripId) as
+    | { token: string }
+    | undefined;
   if (existing) {
-    db.prepare('UPDATE share_tokens SET share_map = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ? WHERE trip_id = ?')
-      .run(share_map ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, tripId);
+    db.prepare(
+      'UPDATE share_tokens SET share_map = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ? WHERE trip_id = ?',
+    ).run(
+      share_map ? 1 : 0,
+      share_bookings ? 1 : 0,
+      share_packing ? 1 : 0,
+      share_budget ? 1 : 0,
+      share_collab ? 1 : 0,
+      tripId,
+    );
     return { token: existing.token, created: false };
   }
 
@@ -68,8 +79,19 @@ export function createOrUpdateShareLink(
   // behaviour for anyone who's already sharing a link.
   const token = crypto.randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-  db.prepare('INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_bookings, share_packing, share_budget, share_collab, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(tripId, token, createdBy, share_map ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, expiresAt);
+  db.prepare(
+    'INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_bookings, share_packing, share_budget, share_collab, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  ).run(
+    tripId,
+    token,
+    createdBy,
+    share_map ? 1 : 0,
+    share_bookings ? 1 : 0,
+    share_packing ? 1 : 0,
+    share_budget ? 1 : 0,
+    share_collab ? 1 : 0,
+    expiresAt,
+  );
   return { token, created: true };
 }
 
@@ -102,26 +124,30 @@ export function deleteShareLink(tripId: string): void {
  * permission flags. Returns null if the token is invalid or the trip is gone.
  */
 export function getSharedTripData(token: string): Record<string, any> | null {
-  const shareRow = db.prepare(
-    "SELECT * FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))"
-  ).get(token) as any;
+  const shareRow = db
+    .prepare("SELECT * FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))")
+    .get(token) as any;
   if (!shareRow) return null;
 
   const tripId = shareRow.trip_id;
 
   // Trip
-  const trip = db.prepare('SELECT id, title, description, start_date, end_date, cover_image, currency FROM trips WHERE id = ?').get(tripId);
+  const trip = db
+    .prepare('SELECT id, title, description, start_date, end_date, cover_image, currency FROM trips WHERE id = ?')
+    .get(tripId);
   if (!trip) return null;
 
   // Days with assignments
   const days = db.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number ASC').all(tripId) as any[];
-  const dayIds = days.map(d => d.id);
+  const dayIds = days.map((d) => d.id);
 
   let assignments: Record<number, any[]> = {};
   let dayNotes: Record<number, any[]> = {};
   if (dayIds.length > 0) {
     const ph = dayIds.map(() => '?').join(',');
-    const allAssignments = db.prepare(`
+    const allAssignments = db
+      .prepare(
+        `
       SELECT da.*, p.id as place_id, p.name as place_name, p.description as place_description,
         p.lat, p.lng, p.address, p.category_id, p.price, p.currency as place_currency,
         COALESCE(da.assignment_time, p.place_time) as place_time,
@@ -133,7 +159,9 @@ export function getSharedTripData(token: string): Record<string, any> | null {
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE da.day_id IN (${ph})
       ORDER BY da.order_index ASC, da.created_at ASC
-    `).all(...dayIds);
+    `,
+      )
+      .all(...dayIds);
 
     const placeIds = [...new Set(allAssignments.map((a: any) => a.place_id))];
     const tagsByPlace = loadTagsByPlaceIds(placeIds, { compact: true });
@@ -142,20 +170,35 @@ export function getSharedTripData(token: string): Record<string, any> | null {
     for (const a of allAssignments as any[]) {
       if (!byDay[a.day_id]) byDay[a.day_id] = [];
       byDay[a.day_id].push({
-        id: a.id, day_id: a.day_id, order_index: a.order_index, notes: a.notes,
+        id: a.id,
+        day_id: a.day_id,
+        order_index: a.order_index,
+        notes: a.notes,
         place: {
-          id: a.place_id, name: a.place_name, description: a.place_description,
-          lat: a.lat, lng: a.lng, address: a.address, category_id: a.category_id,
-          price: a.price, place_time: a.place_time, end_time: a.end_time,
-          image_url: rewritePlacePhotoUrl(a.image_url, token), transport_mode: a.transport_mode,
-          category: a.category_id ? { id: a.category_id, name: a.category_name, color: a.category_color, icon: a.category_icon } : null,
+          id: a.place_id,
+          name: a.place_name,
+          description: a.place_description,
+          lat: a.lat,
+          lng: a.lng,
+          address: a.address,
+          category_id: a.category_id,
+          price: a.price,
+          place_time: a.place_time,
+          end_time: a.end_time,
+          image_url: rewritePlacePhotoUrl(a.image_url, token),
+          transport_mode: a.transport_mode,
+          category: a.category_id
+            ? { id: a.category_id, name: a.category_name, color: a.category_color, icon: a.category_icon }
+            : null,
           tags: tagsByPlace[a.place_id] || [],
-        }
+        },
       });
     }
     assignments = byDay;
 
-    const allNotes = db.prepare(`SELECT * FROM day_notes WHERE day_id IN (${ph}) ORDER BY sort_order ASC, created_at ASC`).all(...dayIds);
+    const allNotes = db
+      .prepare(`SELECT * FROM day_notes WHERE day_id IN (${ph}) ORDER BY sort_order ASC, created_at ASC`)
+      .all(...dayIds);
     const notesByDay: Record<number, any[]> = {};
     for (const n of allNotes as any[]) {
       if (!notesByDay[n.day_id]) notesByDay[n.day_id] = [];
@@ -165,21 +208,33 @@ export function getSharedTripData(token: string): Record<string, any> | null {
   }
 
   // Places
-  const places = (db.prepare(`
+  const places = (
+    db
+      .prepare(
+        `
     SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM places p LEFT JOIN categories c ON p.category_id = c.id
     WHERE p.trip_id = ? ORDER BY p.created_at DESC
-  `).all(tripId) as any[]).map((p) => ({ ...p, image_url: rewritePlacePhotoUrl(p.image_url, token) }));
+  `,
+      )
+      .all(tripId) as any[]
+  ).map((p) => ({ ...p, image_url: rewritePlacePhotoUrl(p.image_url, token) }));
 
   // Reservations — include per-day positions so the client can render the same order as the planner
-  const reservations = db.prepare('SELECT * FROM reservations WHERE trip_id = ? ORDER BY reservation_time ASC').all(tripId) as any[];
+  const reservations = db
+    .prepare('SELECT * FROM reservations WHERE trip_id = ? ORDER BY reservation_time ASC')
+    .all(tripId) as any[];
 
-  const dayPositions = db.prepare(`
+  const dayPositions = db
+    .prepare(
+      `
     SELECT rdp.reservation_id, rdp.day_id, rdp.position
     FROM reservation_day_positions rdp
     JOIN reservations r ON rdp.reservation_id = r.id
     WHERE r.trip_id = ?
-  `).all(tripId) as { reservation_id: number; day_id: number; position: number }[];
+  `,
+    )
+    .all(tripId) as { reservation_id: number; day_id: number; position: number }[];
 
   const posMap = new Map<number, Record<number, number>>();
   for (const dp of dayPositions) {
@@ -191,11 +246,15 @@ export function getSharedTripData(token: string): Record<string, any> | null {
   }
 
   // Accommodations
-  const accommodations = db.prepare(`
+  const accommodations = db
+    .prepare(
+      `
     SELECT a.*, p.name as place_name, p.address as place_address, p.lat as place_lat, p.lng as place_lng
     FROM day_accommodations a JOIN places p ON a.place_id = p.id
     WHERE a.trip_id = ?
-  `).all(tripId);
+  `,
+    )
+    .all(tripId);
 
   // Packing
   const packing = db.prepare('SELECT * FROM packing_items WHERE trip_id = ? ORDER BY sort_order ASC').all(tripId);
@@ -216,11 +275,21 @@ export function getSharedTripData(token: string): Record<string, any> | null {
 
   // Collab messages (only if owner chose to share)
   const collabMessages = permissions.share_collab
-    ? db.prepare('SELECT m.*, u.username, u.avatar FROM collab_messages m JOIN users u ON m.user_id = u.id WHERE m.trip_id = ? AND m.deleted = 0 ORDER BY m.created_at').all(tripId)
+    ? db
+        .prepare(
+          'SELECT m.*, u.username, u.avatar FROM collab_messages m JOIN users u ON m.user_id = u.id WHERE m.trip_id = ? AND m.deleted = 0 ORDER BY m.created_at',
+        )
+        .all(tripId)
     : [];
 
   return {
-    trip, days, assignments, dayNotes, places, categories, permissions,
+    trip,
+    days,
+    assignments,
+    dayNotes,
+    places,
+    categories,
+    permissions,
     reservations: permissions.share_bookings ? reservations : [],
     accommodations: permissions.share_bookings ? accommodations : [],
     packing: permissions.share_packing ? packing : [],
@@ -238,15 +307,17 @@ export function getSharedTripData(token: string): Record<string, any> | null {
  * answers a plain 404, mirroring the authenticated bytes endpoint.
  */
 export function getSharedPlacePhotoPath(token: string, placeId: string): string | null {
-  const shareRow = db.prepare(
-    "SELECT trip_id FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))"
-  ).get(token) as { trip_id: string } | undefined;
+  const shareRow = db
+    .prepare(
+      "SELECT trip_id FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))",
+    )
+    .get(token) as { trip_id: string } | undefined;
   if (!shareRow) return null;
 
   const expectedUrl = `${PLACE_PHOTO_PROXY_PREFIX}${encodeURIComponent(placeId)}/bytes`;
-  const place = db.prepare(
-    'SELECT 1 FROM places WHERE trip_id = ? AND image_url = ?'
-  ).get(shareRow.trip_id, expectedUrl);
+  const place = db
+    .prepare('SELECT 1 FROM places WHERE trip_id = ? AND image_url = ?')
+    .get(shareRow.trip_id, expectedUrl);
   if (!place) return null;
 
   return serveFilePath(placeId);

@@ -61,7 +61,7 @@ async function fetchGeo(url) {
   }
   for (let attempt = 1; attempt <= RETRIES; attempt++) {
     try {
-      const res = await fetch(url, { headers: { 'User-Agent': 'TRIPPI atlas builder' } })
+      const res = await fetch(url, { headers: { 'User-Agent': 'trippi.ai atlas builder' } })
       if (res.status === 404) { fs.writeFileSync(cacheFile, ''); return null } // no file — skip
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const text = await res.text()

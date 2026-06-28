@@ -1,6 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
 import { canAccessTrip, isOwner } from '../db/database';
 import { AuthRequest } from '../types';
+
+import { Request, Response, NextFunction } from 'express';
 
 /** Middleware: verifies the authenticated user is an owner or member of the trip, then attaches trip to req. */
 function requireTripAccess(req: Request, res: Response, next: NextFunction): void {

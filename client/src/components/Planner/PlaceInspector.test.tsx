@@ -1,10 +1,10 @@
-import { render, screen, waitFor, fireEvent, act } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
-import { buildUser, buildTrip, buildPlace, buildCategory, buildReservation } from '../../../tests/helpers/factories';
+import { buildCategory, buildPlace, buildReservation, buildTrip, buildUser } from '../../../tests/helpers/factories';
+import { act, fireEvent, render, screen, waitFor } from '../../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../../tests/helpers/store';
 import { useAuthStore } from '../../store/authStore';
-import { useTripStore } from '../../store/tripStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useTripStore } from '../../store/tripStore';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -41,8 +41,8 @@ beforeAll(() => {
 
 // ── Import component after mocks ──────────────────────────────────────────────
 
-import PlaceInspector from './PlaceInspector';
 import { mapsApi } from '../../api/client';
+import PlaceInspector from './PlaceInspector';
 
 // ── Shared fixtures ───────────────────────────────────────────────────────────
 
@@ -94,7 +94,6 @@ beforeEach(() => {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('PlaceInspector', () => {
-
   // ── Rendering ──────────────────────────────────────────────────────────────
 
   it('FE-PLANNER-INSPECTOR-001: returns null when place is null', () => {
@@ -169,7 +168,7 @@ describe('PlaceInspector', () => {
     // Find the X button — it's the close button with an X icon inside
     const buttons = screen.getAllByRole('button');
     // The close button is typically in the header, first button with X icon
-    const closeBtn = buttons.find(btn => btn.querySelector('svg'));
+    const closeBtn = buttons.find((btn) => btn.querySelector('svg'));
     // Click the last-found header button that has no text label (the X)
     // More reliable: find button by its position as close button
     await user.click(buttons[0]); // first button is the close X
@@ -222,12 +221,7 @@ describe('PlaceInspector', () => {
     const user = userEvent.setup();
     const onAssignToDay = vi.fn();
     render(
-      <PlaceInspector
-        {...defaultProps}
-        selectedDayId={1}
-        assignments={{ '1': [] }}
-        onAssignToDay={onAssignToDay}
-      />
+      <PlaceInspector {...defaultProps} selectedDayId={1} assignments={{ '1': [] }} onAssignToDay={onAssignToDay} />
     );
     const addBtn = screen.getByText('Add to Day').closest('button')!;
     await user.click(addBtn);
@@ -236,13 +230,7 @@ describe('PlaceInspector', () => {
 
   it('FE-PLANNER-INSPECTOR-017: "Remove from day" button appears when place IS assigned to selectedDay', () => {
     const assignmentInDay = [{ id: 99, place, day_id: 1, place_id: place.id, order_index: 0, notes: null }];
-    render(
-      <PlaceInspector
-        {...defaultProps}
-        selectedDayId={1}
-        assignments={{ '1': assignmentInDay }}
-      />
-    );
+    render(<PlaceInspector {...defaultProps} selectedDayId={1} assignments={{ '1': assignmentInDay }} />);
     const allButtons = screen.getAllByRole('button');
     expect(allButtons.length).toBeGreaterThan(2);
   });
@@ -362,7 +350,9 @@ describe('PlaceInspector', () => {
     const p = buildPlace({ id: 204, google_place_id: null, osm_id: null });
     render(<PlaceInspector {...defaultProps} place={p} />);
     // Wait a tick
-    await act(async () => { await new Promise(r => setTimeout(r, 50)) });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
     expect(vi.mocked(mapsApi.details)).not.toHaveBeenCalled();
   });
 
@@ -384,14 +374,14 @@ describe('PlaceInspector', () => {
     render(<PlaceInspector {...defaultProps} files={[file as any]} />);
     // The files section header/toggle is always visible; click to expand
     const allButtons = screen.getAllByRole('button');
-    const filesBtn = allButtons.find(btn => btn.textContent?.includes('1'));
+    const filesBtn = allButtons.find((btn) => btn.textContent?.includes('1'));
     // Click the expand button (file count label button)
     if (filesBtn) {
       await user.click(filesBtn);
       await screen.findByText('photo.jpg');
     } else {
       // Try clicking the last non-footer button
-      const toggleButtons = allButtons.filter(btn => !btn.closest('footer'));
+      const toggleButtons = allButtons.filter((btn) => !btn.closest('footer'));
       await user.click(toggleButtons[0]);
     }
   });
@@ -471,7 +461,7 @@ describe('PlaceInspector', () => {
     };
     render(<PlaceInspector {...defaultProps} files={[file as any]} />);
     // Click expand to see file details
-    const expandBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('1'));
+    const expandBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('1'));
     if (expandBtn) {
       await user.click(expandBtn);
       await waitFor(() => {
@@ -494,7 +484,7 @@ describe('PlaceInspector', () => {
       created_at: '2025-01-01T00:00:00.000Z',
     };
     render(<PlaceInspector {...defaultProps} files={[file as any]} />);
-    const expandBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('1'));
+    const expandBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('1'));
     if (expandBtn) {
       await user.click(expandBtn);
       await waitFor(() => {
@@ -506,7 +496,11 @@ describe('PlaceInspector', () => {
   // ── GPX track stats ────────────────────────────────────────────────────────
 
   it('FE-PLANNER-INSPECTOR-036: GPX track stats shown when route_geometry has 2D points', () => {
-    const pts = [[48.8584, 2.2945], [48.8600, 2.3000], [48.8620, 2.3050]];
+    const pts = [
+      [48.8584, 2.2945],
+      [48.86, 2.3],
+      [48.862, 2.305],
+    ];
     const p = buildPlace({ id: 302, route_geometry: JSON.stringify(pts) } as any);
     render(<PlaceInspector {...defaultProps} place={p} />);
     // Track distance should be visible (e.g. "x.x km" or "xxx m")
@@ -517,9 +511,9 @@ describe('PlaceInspector', () => {
   it('FE-PLANNER-INSPECTOR-037: GPX track stats shown with 3D points (elevation data)', () => {
     const pts = [
       [48.8584, 2.2945, 100],
-      [48.8600, 2.3000, 120],
-      [48.8620, 2.3050, 110],
-      [48.8640, 2.3100, 130],
+      [48.86, 2.3, 120],
+      [48.862, 2.305, 110],
+      [48.864, 2.31, 130],
     ];
     const p = buildPlace({ id: 303, route_geometry: JSON.stringify(pts) } as any);
     const { container } = render(<PlaceInspector {...defaultProps} place={p} />);
@@ -533,10 +527,17 @@ describe('PlaceInspector', () => {
     const member1 = buildUser({ id: 10, username: 'alice' });
     const member2 = buildUser({ id: 11, username: 'bob' });
     const members = [member1, member2];
-    const assignmentInDay = [{
-      id: 99, place, day_id: 1, place_id: place.id, order_index: 0, notes: null,
-      participants: [{ user_id: 10, username: 'alice' }],
-    }];
+    const assignmentInDay = [
+      {
+        id: 99,
+        place,
+        day_id: 1,
+        place_id: place.id,
+        order_index: 0,
+        notes: null,
+        participants: [{ user_id: 10, username: 'alice' }],
+      },
+    ];
     render(
       <PlaceInspector
         {...defaultProps}
@@ -556,7 +557,9 @@ describe('PlaceInspector', () => {
     const p = buildPlace({ id: 304, google_place_id: 'ChIJ005' });
     render(<PlaceInspector {...defaultProps} place={p} />);
     // Wait for effect to run
-    await act(async () => { await new Promise(r => setTimeout(r, 50)) });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
     // mapsApi.details should NOT have been called (cache hit)
     expect(vi.mocked(mapsApi.details)).not.toHaveBeenCalled();
     // Rating from cache should be visible
@@ -614,21 +617,27 @@ describe('PlaceInspector', () => {
     // place has lat/lng so Google Maps button should appear with Navigation icon
     const allButtons = screen.getAllByRole('button');
     // Find button containing "Google Maps" text
-    const mapsBtn = allButtons.find(btn => btn.textContent?.includes('Google Maps'));
+    const mapsBtn = allButtons.find((btn) => btn.textContent?.includes('Google Maps'));
     expect(mapsBtn).toBeTruthy();
   });
 
   it('FE-PLANNER-INSPECTOR-043b: Google Maps action uses google_ftid over coordinates', async () => {
     const user = userEvent.setup();
-    const mapsUrl = "https://www.google.com/maps/place/?q=St.%20Jacobs%20Farmers'%20Market&ftid=0x882bf179e806d471:0x8591dde29c821a93";
+    const mapsUrl =
+      "https://www.google.com/maps/place/?q=St.%20Jacobs%20Farmers'%20Market&ftid=0x882bf179e806d471:0x8591dde29c821a93";
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    render(<PlaceInspector {...defaultProps} place={buildPlace({
-      name: "St. Jacobs Farmers' Market",
-      lat: 43.5118527,
-      lng: -80.5542617,
-      google_ftid: '0x882bf179e806d471:0x8591dde29c821a93',
-    })} />);
-    const mapsBtn = screen.getAllByRole('button').find(btn => btn.textContent?.includes('Google Maps'))!;
+    render(
+      <PlaceInspector
+        {...defaultProps}
+        place={buildPlace({
+          name: "St. Jacobs Farmers' Market",
+          lat: 43.5118527,
+          lng: -80.5542617,
+          google_ftid: '0x882bf179e806d471:0x8591dde29c821a93',
+        })}
+      />
+    );
+    const mapsBtn = screen.getAllByRole('button').find((btn) => btn.textContent?.includes('Google Maps'))!;
     await user.click(mapsBtn);
     expect(openSpy).toHaveBeenCalledWith(mapsUrl, '_blank');
     openSpy.mockRestore();
@@ -637,9 +646,7 @@ describe('PlaceInspector', () => {
   // ── No files section when no upload handler and no files ──────────────────
 
   it('FE-PLANNER-INSPECTOR-044: files section hidden when no files and no onFileUpload', () => {
-    const { container } = render(
-      <PlaceInspector {...defaultProps} files={[]} onFileUpload={undefined} />
-    );
+    const { container } = render(<PlaceInspector {...defaultProps} files={[]} onFileUpload={undefined} />);
     expect(container.querySelector('input[type="file"]')).toBeNull();
   });
 
@@ -700,5 +707,4 @@ describe('PlaceInspector', () => {
       expect(el.style.flexShrink).toBe('0');
     }
   });
-
 });

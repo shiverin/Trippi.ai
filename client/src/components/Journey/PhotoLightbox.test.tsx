@@ -10,7 +10,7 @@ vi.mock('../../api/websocket', () => ({
   removeListener: vi.fn(),
 }));
 
-import { render, screen, fireEvent } from '../../../tests/helpers/render';
+import { fireEvent, render, screen } from '../../../tests/helpers/render';
 import { resetAllStores } from '../../../tests/helpers/store';
 import PhotoLightbox from './PhotoLightbox';
 

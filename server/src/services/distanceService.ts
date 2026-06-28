@@ -6,9 +6,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -19,7 +17,9 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
  * legs between consecutive points so multi-stop flights count correctly.
  */
 export function getFlightDistanceKm(userId: number): number {
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT re.reservation_id, re.lat, re.lng
     FROM reservation_endpoints re
     JOIN reservations r ON r.id = re.reservation_id
@@ -29,7 +29,9 @@ export function getFlightDistanceKm(userId: number): number {
       AND r.type = 'flight'
       AND r.status != 'cancelled'
     ORDER BY re.reservation_id, re.sequence
-  `).all(userId, userId) as { reservation_id: number; lat: number; lng: number }[];
+  `,
+    )
+    .all(userId, userId) as { reservation_id: number; lat: number; lng: number }[];
 
   let total = 0;
   let prev: { id: number; lat: number; lng: number } | null = null;

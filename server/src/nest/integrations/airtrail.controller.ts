@@ -1,12 +1,3 @@
-import { Body, Controller, Get, HttpCode, HttpException, Post, Put, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
-import type { User } from '../../types';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { ZodValidationPipe } from '../common/zod-validation.pipe';
-import { AirtrailAddonGuard } from './airtrail-addon.guard';
-import { getClientIp } from '../../services/auditLog';
-import { airtrailSettingsSchema, type AirtrailSettings } from '@trippi/shared';
 import {
   getConnectionSettings,
   getConnectionStatus,
@@ -15,6 +6,16 @@ import {
   testConnection,
 } from '../../services/airtrail/airtrailService';
 import { runAirtrailSyncForUser } from '../../services/airtrail/airtrailSync';
+import { getClientIp } from '../../services/auditLog';
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { AirtrailAddonGuard } from './airtrail-addon.guard';
+import { Body, Controller, Get, HttpCode, HttpException, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { airtrailSettingsSchema, type AirtrailSettings } from '@trippi/shared';
+
+import type { Request } from 'express';
 
 /**
  * /api/integrations/airtrail — per-user AirTrail connection (#214).
@@ -62,7 +63,10 @@ export class AirtrailController {
     try {
       return { flights: await getFlightsForPicker(user.id) };
     } catch (err: any) {
-      throw new HttpException({ error: err?.message || 'Could not load AirTrail flights' }, err?.status === 400 ? 400 : 502);
+      throw new HttpException(
+        { error: err?.message || 'Could not load AirTrail flights' },
+        err?.status === 400 ? 400 : 502,
+      );
     }
   }
 
@@ -75,10 +79,7 @@ export class AirtrailController {
 
   @Post('test')
   @HttpCode(200)
-  test(
-    @CurrentUser() user: User,
-    @Body(new ZodValidationPipe(airtrailSettingsSchema)) body: AirtrailSettings,
-  ) {
+  test(@CurrentUser() user: User, @Body(new ZodValidationPipe(airtrailSettingsSchema)) body: AirtrailSettings) {
     return testConnection(user.id, body.url, body.apiKey, !!body.allowInsecureTls);
   }
 }

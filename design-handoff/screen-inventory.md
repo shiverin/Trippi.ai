@@ -1,4 +1,4 @@
-# TRIPPI Screen Inventory
+# trippi.ai Screen Inventory
 
 Source: `client/src/App.tsx`
 

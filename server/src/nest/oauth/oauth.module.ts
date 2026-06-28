@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { OauthPublicController } from './oauth-public.controller';
-import { OauthApiController } from './oauth-api.controller';
-import { OauthService } from './oauth.service';
 import { RateLimitService } from '../auth/rate-limit.service';
+import { OauthApiController } from './oauth-api.controller';
+import { OauthPublicController } from './oauth-public.controller';
+import { OauthService } from './oauth.service';
+import { Module } from '@nestjs/common';
 
 /**
  * OAuth 2.1 server (MCP). Public token/userinfo/revoke endpoints + the SPA's

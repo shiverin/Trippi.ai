@@ -2,7 +2,7 @@ import { getCachedBlob } from '../db/offlineDb'
 
 // MIME types safe to open inline (will not execute script in any browser).
 // Everything else (text/html, image/svg+xml, text/javascript, …) is forced to
-// download so a maliciously-named upload cannot run code in the TRIPPI origin.
+// download so a maliciously-named upload cannot run code in the trippi.ai origin.
 const SAFE_INLINE_TYPES = new Set([
   'application/pdf',
   'image/png',
@@ -92,7 +92,7 @@ export async function downloadFile(url: string, filename?: string): Promise<void
  *
  * Only PDFs and raster images are opened inline. All other MIME types
  * (including text/html and image/svg+xml which can execute script) are forced
- * to download so that an uploaded file cannot run code in the TRIPPI origin.
+ * to download so that an uploaded file cannot run code in the trippi.ai origin.
  *
  * Uses a synthetic <a target="_blank" rel="noopener noreferrer"> click rather
  * than window.open(). window.open() called with the "noreferrer"/"noopener"

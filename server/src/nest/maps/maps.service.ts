@@ -1,13 +1,3 @@
-import { Injectable } from '@nestjs/common';
-import type {
-  MapsSearchResult,
-  MapsAutocompleteResult,
-  MapsPlaceDetailsResult,
-  MapsPlacePhotoResult,
-  MapsReverseResult,
-  MapsResolveUrlResult,
-} from '@trippi/shared';
-import { DatabaseService } from '../database/database.service';
 import {
   searchPlaces,
   autocompletePlaces,
@@ -19,6 +9,16 @@ import {
   searchOverpassPois,
 } from '../../services/mapsService';
 import { serveFilePath } from '../../services/placePhotoCache';
+import { DatabaseService } from '../database/database.service';
+import { Injectable } from '@nestjs/common';
+import type {
+  MapsSearchResult,
+  MapsAutocompleteResult,
+  MapsPlaceDetailsResult,
+  MapsPlacePhotoResult,
+  MapsReverseResult,
+  MapsResolveUrlResult,
+} from '@trippi/shared';
 
 type LocationBias = { low: { lat: number; lng: number }; high: { lat: number; lng: number } };
 
@@ -37,10 +37,7 @@ export class MapsService {
   constructor(private readonly database: DatabaseService) {}
 
   private isSettingDisabled(key: string): boolean {
-    const row = this.database.get<{ value: string }>(
-      'SELECT value FROM app_settings WHERE key = ?',
-      key,
-    );
+    const row = this.database.get<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', key);
     return row?.value === 'false';
   }
 
@@ -56,11 +53,21 @@ export class MapsService {
     return this.isSettingDisabled('places_photos_enabled');
   }
 
-  search(userId: number, query: string, lang?: string, locationBias?: { lat: number; lng: number; radius?: number }): Promise<MapsSearchResult> {
+  search(
+    userId: number,
+    query: string,
+    lang?: string,
+    locationBias?: { lat: number; lng: number; radius?: number },
+  ): Promise<MapsSearchResult> {
     return searchPlaces(userId, query, lang, locationBias) as Promise<MapsSearchResult>;
   }
 
-  autocomplete(userId: number, input: string, lang?: string, locationBias?: LocationBias): Promise<MapsAutocompleteResult> {
+  autocomplete(
+    userId: number,
+    input: string,
+    lang?: string,
+    locationBias?: LocationBias,
+  ): Promise<MapsAutocompleteResult> {
     return autocompletePlaces(userId, input, lang, locationBias) as Promise<MapsAutocompleteResult>;
   }
 
@@ -68,7 +75,12 @@ export class MapsService {
     return getPlaceDetails(userId, placeId, lang) as Promise<MapsPlaceDetailsResult>;
   }
 
-  detailsExpanded(userId: number, placeId: string, lang: string | undefined, refresh: boolean): Promise<MapsPlaceDetailsResult> {
+  detailsExpanded(
+    userId: number,
+    placeId: string,
+    lang: string | undefined,
+    refresh: boolean,
+  ): Promise<MapsPlaceDetailsResult> {
     return getPlaceDetailsExpanded(userId, placeId, lang, refresh) as Promise<MapsPlaceDetailsResult>;
   }
 

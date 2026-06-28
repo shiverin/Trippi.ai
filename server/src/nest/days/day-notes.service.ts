@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { broadcast } from '../../websocket';
+import * as dayNoteService from '../../services/dayNoteService';
 import { checkPermission } from '../../services/permissions';
 import type { User } from '../../types';
-import * as dayNoteService from '../../services/dayNoteService';
+import { broadcast } from '../../websocket';
+import { Injectable } from '@nestjs/common';
 
 type Trip = NonNullable<ReturnType<typeof dayNoteService.verifyTripAccess>>;
 
@@ -40,7 +40,11 @@ export class DayNotesService {
     return dayNoteService.createNote(dayId, tripId, text, time, icon, sortOrder);
   }
 
-  update(id: string, current: Parameters<typeof dayNoteService.updateNote>[1], fields: { text?: string; time?: string; icon?: string; sort_order?: number }) {
+  update(
+    id: string,
+    current: Parameters<typeof dayNoteService.updateNote>[1],
+    fields: { text?: string; time?: string; icon?: string; sort_order?: number },
+  ) {
     return dayNoteService.updateNote(id, current, fields);
   }
 

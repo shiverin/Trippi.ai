@@ -191,7 +191,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': '保存に失敗しました',
   'admin.tabs.addons': 'アドオン',
   'admin.addons.title': 'アドオン',
-  'admin.addons.subtitle': '機能を有効／無効にしてTRIPPIをカスタマイズします。',
+  'admin.addons.subtitle': '機能を有効／無効にしてtrippi.aiをカスタマイズします。',
   'admin.addons.catalog.packing.name': 'リスト',
   'admin.addons.catalog.packing.description': '旅行用の持ち物リストとToDo',
   'admin.addons.catalog.budget.name': '予算',
@@ -224,7 +224,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': '天気データ',
   'admin.weather.badge': '2026年3月24日以降',
   'admin.weather.description':
-    'TRIPPIは天気データにOpen‑Meteoを使用しています。無料でオープンソース、APIキーは不要です。',
+    'trippi.aiは天気データにOpen‑Meteoを使用しています。無料でオープンソース、APIキーは不要です。',
   'admin.weather.forecast': '16日間予報',
   'admin.weather.forecastDesc': '以前は5日（OpenWeatherMap）',
   'admin.weather.climate': '過去の気候データ',
@@ -282,14 +282,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': '読み込み中...',
   'admin.github.error': 'リリースの読み込みに失敗しました',
   'admin.github.by': '作成者',
-  'admin.github.support': 'TRIPPIの開発を支援',
+  'admin.github.support': 'trippi.aiの開発を支援',
   'admin.update.available': '更新があります',
-  'admin.update.text': 'TRIPPI {version} が利用可能です。現在は {current} を使用しています。',
+  'admin.update.text': 'trippi.ai {version} が利用可能です。現在は {current} を使用しています。',
   'admin.update.button': 'GitHubで見る',
   'admin.update.install': '更新をインストール',
   'admin.update.confirmTitle': '更新をインストールしますか？',
   'admin.update.confirmText':
-    'TRIPPIを {current} から {version} に更新します。更新後、サーバーは自動的に再起動します。',
+    'trippi.aiを {current} から {version} に更新します。更新後、サーバーは自動的に再起動します。',
   'admin.update.dataInfo':
     'すべてのデータ（旅行、ユーザー、APIキー、アップロード、Vacay、Atlas、予算）は保持されます。',
   'admin.update.warning': '再起動中、アプリは短時間利用できません。',
@@ -301,9 +301,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'バックアップへ',
   'admin.update.howTo': '更新方法',
   'admin.update.dockerText':
-    'TRIPPIはDockerで実行されています。{version} に更新するには、サーバーで次のコマンドを実行してください：',
+    'trippi.aiはDockerで実行されています。{version} に更新するには、サーバーで次のコマンドを実行してください：',
   'admin.update.nonDockerText':
-    'このTRIPPIインスタンスはDockerで実行されていません。{version} に更新するには、使用したインストールまたは更新方法をもう一度実行してください。たとえばProxmox Community Scriptsの場合は、LXCコンソールから更新を実行します：',
+    'このtrippi.aiインスタンスはDockerで実行されていません。{version} に更新するには、使用したインストールまたは更新方法をもう一度実行してください。たとえばProxmox Community Scriptsの場合は、LXCコンソールから更新を実行します：',
   'admin.update.wikiLink': '更新ガイドを開く',
   'admin.update.reloadHint': '数秒後にページを再読み込みしてください。',
   'admin.tabs.permissions': '権限',

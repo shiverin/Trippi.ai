@@ -1,5 +1,5 @@
-import { CanActivate, HttpException, Injectable } from '@nestjs/common';
 import { resolveAuthToggles } from '../../services/authService';
+import { CanActivate, HttpException, Injectable } from '@nestjs/common';
 
 /**
  * Server-side enforcement of the instance-wide `passkey_login` toggle. Placed

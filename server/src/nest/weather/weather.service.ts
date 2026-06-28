@@ -1,6 +1,6 @@
+import { getWeather, getDetailedWeather } from '../../services/weatherService';
 import { Injectable } from '@nestjs/common';
 import type { WeatherResult } from '@trippi/shared';
-import { getWeather, getDetailedWeather } from '../../services/weatherService';
 
 /**
  * Thin Nest wrapper around the existing weather service. It delegates to the

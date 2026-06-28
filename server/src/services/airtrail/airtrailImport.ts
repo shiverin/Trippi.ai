@@ -1,10 +1,10 @@
-import type { AirtrailImportResult } from '@trippi/shared';
 import { db } from '../../db/database';
 import { broadcast } from '../../websocket';
 import { createReservation } from '../reservationService';
-import { getAirtrailCredentials } from './airtrailService';
 import { AirtrailRequestError, listFlights } from './airtrailClient';
 import { canonicalHash, mapFlightToReservation } from './airtrailMapper';
+import { getAirtrailCredentials } from './airtrailService';
+import type { AirtrailImportResult } from '@trippi/shared';
 
 interface ExistingFlightRow {
   id: number;
@@ -51,15 +51,19 @@ export async function importAirtrailFlights(
   if (!creds) throw new AirtrailRequestError('AirTrail is not connected', 400);
 
   const wanted = new Set(flightIds.map(String));
-  const selected = (await listFlights(creds)).filter(f => wanted.has(String(f.id)));
+  const selected = (await listFlights(creds)).filter((f) => wanted.has(String(f.id)));
 
   const result: AirtrailImportResult = { imported: [], skipped: [] };
 
   const linkedIds = new Set(
-    (db.prepare("SELECT external_id FROM reservations WHERE trip_id = ? AND external_source = 'airtrail'").all(tripId) as {
-      external_id: string | null;
-    }[])
-      .map(r => r.external_id)
+    (
+      db
+        .prepare("SELECT external_id FROM reservations WHERE trip_id = ? AND external_source = 'airtrail'")
+        .all(tripId) as {
+        external_id: string | null;
+      }[]
+    )
+      .map((r) => r.external_id)
       .filter((v): v is string => !!v),
   );
 
@@ -95,8 +99,8 @@ export async function importAirtrailFlights(
     const sig = softSignature(
       depDate(mapped.reservation_time),
       (mapped.metadata.flight_number as string) ?? null,
-      mapped.endpoints.find(e => e.role === 'from')?.code ?? null,
-      mapped.endpoints.find(e => e.role === 'to')?.code ?? null,
+      mapped.endpoints.find((e) => e.role === 'from')?.code ?? null,
+      mapped.endpoints.find((e) => e.role === 'to')?.code ?? null,
     );
     if (sig && existingSigs.has(sig)) {
       result.skipped.push({ flightId: fid, reason: 'already-in-trip', detail: mapped.title });

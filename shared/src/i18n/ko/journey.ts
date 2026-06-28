@@ -206,7 +206,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': '공유 경로',
   'journey.public.madeWith': '으로 만들어짐',
   'journey.pdf.journeyBook': 'Journey 책',
-  'journey.pdf.madeWith': 'TRIPPI으로 만들어짐',
+  'journey.pdf.madeWith': 'trippi.ai으로 만들어짐',
   'journey.pdf.day': '일차',
   'journey.pdf.theEnd': '끝',
   'journey.pdf.saveAsPdf': 'PDF로 저장',

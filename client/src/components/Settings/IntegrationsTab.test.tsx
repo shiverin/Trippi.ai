@@ -1,12 +1,12 @@
 // FE-COMP-INTEGRATIONS-001 to FE-COMP-INTEGRATIONS-032
-import { render, screen, waitFor } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { server } from '../../../tests/helpers/msw/server';
-import { useAuthStore } from '../../store/authStore';
-import { useAddonStore } from '../../store/addonStore';
-import { resetAllStores, seedStore } from '../../../tests/helpers/store';
 import { buildUser } from '../../../tests/helpers/factories';
+import { server } from '../../../tests/helpers/msw/server';
+import { render, screen, waitFor } from '../../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../../tests/helpers/store';
+import { useAddonStore } from '../../store/addonStore';
+import { useAuthStore } from '../../store/authStore';
 import { ToastContainer } from '../shared/Toast';
 import IntegrationsTab from './IntegrationsTab';
 
@@ -42,7 +42,7 @@ beforeEach(() => {
     http.get('/api/auth/mcp-tokens', () => HttpResponse.json({ tokens: [] })),
     http.get('/api/addons', () => HttpResponse.json({ addons: [] })),
     http.get('/api/oauth/clients', () => HttpResponse.json({ clients: [] })),
-    http.get('/api/oauth/sessions', () => HttpResponse.json({ sessions: [] })),
+    http.get('/api/oauth/sessions', () => HttpResponse.json({ sessions: [] }))
   );
 });
 
@@ -100,11 +100,23 @@ describe('IntegrationsTab', () => {
       http.get('/api/auth/mcp-tokens', () =>
         HttpResponse.json({
           tokens: [
-            { id: 1, name: 'My Token', token_prefix: 'tk_aaa', created_at: '2025-01-01T00:00:00.000Z', last_used_at: null },
-            { id: 2, name: 'Other Token', token_prefix: 'tk_bbb', created_at: '2025-01-01T00:00:00.000Z', last_used_at: null },
+            {
+              id: 1,
+              name: 'My Token',
+              token_prefix: 'tk_aaa',
+              created_at: '2025-01-01T00:00:00.000Z',
+              last_used_at: null,
+            },
+            {
+              id: 2,
+              name: 'Other Token',
+              token_prefix: 'tk_bbb',
+              created_at: '2025-01-01T00:00:00.000Z',
+              last_used_at: null,
+            },
           ],
-        }),
-      ),
+        })
+      )
     );
     const user = userEvent.setup();
     enableMcp();
@@ -163,8 +175,8 @@ describe('IntegrationsTab', () => {
             created_at: '2025-01-01T00:00:00.000Z',
             raw_token: 'tk_abc...full_secret_token',
           },
-        }),
-      ),
+        })
+      )
     );
     const user = userEvent.setup();
     enableMcp();
@@ -193,8 +205,8 @@ describe('IntegrationsTab', () => {
             created_at: '2025-01-01T00:00:00.000Z',
             raw_token: 'tk_abc...full_secret_token',
           },
-        }),
-      ),
+        })
+      )
     );
     const user = userEvent.setup();
     enableMcp();
@@ -217,10 +229,16 @@ describe('IntegrationsTab', () => {
       http.get('/api/auth/mcp-tokens', () =>
         HttpResponse.json({
           tokens: [
-            { id: 1, name: 'Delete Me', token_prefix: 'tk_del', created_at: '2025-01-01T00:00:00.000Z', last_used_at: null },
+            {
+              id: 1,
+              name: 'Delete Me',
+              token_prefix: 'tk_del',
+              created_at: '2025-01-01T00:00:00.000Z',
+              last_used_at: null,
+            },
           ],
-        }),
-      ),
+        })
+      )
     );
     const user = userEvent.setup();
     enableMcp();
@@ -239,14 +257,20 @@ describe('IntegrationsTab', () => {
       http.get('/api/auth/mcp-tokens', () =>
         HttpResponse.json({
           tokens: [
-            { id: 1, name: 'Delete Me', token_prefix: 'tk_del', created_at: '2025-01-01T00:00:00.000Z', last_used_at: null },
+            {
+              id: 1,
+              name: 'Delete Me',
+              token_prefix: 'tk_del',
+              created_at: '2025-01-01T00:00:00.000Z',
+              last_used_at: null,
+            },
           ],
-        }),
+        })
       ),
       http.delete('/api/auth/mcp-tokens/1', () => {
         deleteCalled = true;
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
     const user = userEvent.setup();
     enableMcp();
@@ -258,7 +282,7 @@ describe('IntegrationsTab', () => {
     // There are two "Delete Token" buttons: the trash icon (title) and the confirm button in modal
     const deleteButtons = await screen.findAllByRole('button', { name: /^Delete Token$/i });
     // Click the one in the modal (last one, or the standalone one without title attribute)
-    const confirmBtn = deleteButtons.find(btn => !btn.title);
+    const confirmBtn = deleteButtons.find((btn) => !btn.title);
     await user.click(confirmBtn ?? deleteButtons[deleteButtons.length - 1]);
     expect(deleteCalled).toBe(true);
     await waitFor(() => {
@@ -300,14 +324,20 @@ describe('IntegrationsTab', () => {
       http.get('/api/auth/mcp-tokens', () =>
         HttpResponse.json({
           tokens: [
-            { id: 1, name: 'Cancel Token', token_prefix: 'tk_can', created_at: '2025-01-01T00:00:00.000Z', last_used_at: null },
+            {
+              id: 1,
+              name: 'Cancel Token',
+              token_prefix: 'tk_can',
+              created_at: '2025-01-01T00:00:00.000Z',
+              last_used_at: null,
+            },
           ],
-        }),
+        })
       ),
       http.delete('/api/auth/mcp-tokens/1', () => {
         deleteCalled = true;
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
     const user = userEvent.setup();
     enableMcp();
@@ -319,7 +349,9 @@ describe('IntegrationsTab', () => {
     await screen.findByRole('button', { name: /^Cancel$/i });
     await user.click(screen.getByRole('button', { name: /^Cancel$/i }));
     await waitFor(() => {
-      expect(screen.queryByText('This token will stop working immediately. Any MCP client using it will lose access.')).toBeNull();
+      expect(
+        screen.queryByText('This token will stop working immediately. Any MCP client using it will lose access.')
+      ).toBeNull();
     });
     expect(deleteCalled).toBe(false);
   });
@@ -338,7 +370,7 @@ describe('IntegrationsTab', () => {
             raw_token: 'tk_ent...full',
           },
         });
-      }),
+      })
     );
     const user = userEvent.setup();
     enableMcp();
@@ -408,12 +440,27 @@ describe('IntegrationsTab', () => {
 
   it('FE-COMP-INTEGRATIONS-022: scope expansion toggle shows more/fewer scopes', async () => {
     const user = userEvent.setup();
-    const scopes = ['trips:read', 'trips:write', 'places:read', 'places:write', 'budget:read', 'budget:write', 'packing:read'];
+    const scopes = [
+      'trips:read',
+      'trips:write',
+      'places:read',
+      'places:write',
+      'budget:read',
+      'budget:write',
+      'packing:read',
+    ];
     server.use(
       http.get('/api/oauth/clients', () =>
         HttpResponse.json({
           clients: [
-            { id: 'c1', client_id: 'cid', name: 'Big App', redirect_uris: ['http://localhost'], allowed_scopes: scopes, created_at: '2025-01-01T00:00:00Z' },
+            {
+              id: 'c1',
+              client_id: 'cid',
+              name: 'Big App',
+              redirect_uris: ['http://localhost'],
+              allowed_scopes: scopes,
+              created_at: '2025-01-01T00:00:00Z',
+            },
           ],
         })
       )
@@ -549,14 +596,26 @@ describe('IntegrationsTab', () => {
       http.get('/api/oauth/clients', () =>
         HttpResponse.json({
           clients: [
-            { id: 'del-1', client_id: 'cid-del', name: 'Delete Me', redirect_uris: ['http://localhost'], allowed_scopes: ['trips:read'], created_at: '2025-01-01T00:00:00Z' },
+            {
+              id: 'del-1',
+              client_id: 'cid-del',
+              name: 'Delete Me',
+              redirect_uris: ['http://localhost'],
+              allowed_scopes: ['trips:read'],
+              created_at: '2025-01-01T00:00:00Z',
+            },
           ],
         })
       ),
       http.delete('/api/oauth/clients/del-1', () => HttpResponse.json({ success: true }))
     );
     enableMcp();
-    render(<><ToastContainer /><IntegrationsTab /></>);
+    render(
+      <>
+        <ToastContainer />
+        <IntegrationsTab />
+      </>
+    );
     await screen.findByText('Delete Me');
     await user.click(screen.getByTitle('Delete Client'));
     // Confirmation modal
@@ -575,13 +634,18 @@ describe('IntegrationsTab', () => {
       http.get('/api/oauth/clients', () =>
         HttpResponse.json({
           clients: [
-            { id: 'rot-1', client_id: 'cid-rot', name: 'Rotate Me', redirect_uris: ['http://localhost'], allowed_scopes: ['trips:read'], created_at: '2025-01-01T00:00:00Z' },
+            {
+              id: 'rot-1',
+              client_id: 'cid-rot',
+              name: 'Rotate Me',
+              redirect_uris: ['http://localhost'],
+              allowed_scopes: ['trips:read'],
+              created_at: '2025-01-01T00:00:00Z',
+            },
           ],
         })
       ),
-      http.post('/api/oauth/clients/rot-1/rotate', () =>
-        HttpResponse.json({ client_secret: 'new-rotated-secret' })
-      )
+      http.post('/api/oauth/clients/rot-1/rotate', () => HttpResponse.json({ client_secret: 'new-rotated-secret' }))
     );
     enableMcp();
     render(<IntegrationsTab />);
@@ -600,14 +664,24 @@ describe('IntegrationsTab', () => {
       http.get('/api/oauth/sessions', () =>
         HttpResponse.json({
           sessions: [
-            { id: 99, client_name: 'Revoke App', scopes: ['trips:read'], access_token_expires_at: '2025-12-31T00:00:00Z' },
+            {
+              id: 99,
+              client_name: 'Revoke App',
+              scopes: ['trips:read'],
+              access_token_expires_at: '2025-12-31T00:00:00Z',
+            },
           ],
         })
       ),
       http.delete('/api/oauth/sessions/99', () => HttpResponse.json({ success: true }))
     );
     enableMcp();
-    render(<><ToastContainer /><IntegrationsTab /></>);
+    render(
+      <>
+        <ToastContainer />
+        <IntegrationsTab />
+      </>
+    );
     await screen.findByText('Revoke App');
     await user.click(screen.getByText('Revoke'));
     // Confirmation modal
@@ -636,13 +710,14 @@ describe('IntegrationsTab', () => {
 
   it('FE-COMP-INTEGRATIONS-032: error toast shown when create OAuth client fails', async () => {
     const user = userEvent.setup();
-    server.use(
-      http.post('/api/oauth/clients', () =>
-        HttpResponse.json({ error: 'server error' }, { status: 500 })
-      )
-    );
+    server.use(http.post('/api/oauth/clients', () => HttpResponse.json({ error: 'server error' }, { status: 500 })));
     enableMcp();
-    render(<><ToastContainer /><IntegrationsTab /></>);
+    render(
+      <>
+        <ToastContainer />
+        <IntegrationsTab />
+      </>
+    );
     await screen.findByText('MCP Configuration');
     await user.click(screen.getByRole('button', { name: /New Client/i }));
     await screen.findByText('Register OAuth Client');

@@ -1,9 +1,9 @@
 import DOMPurify from 'isomorphic-dompurify';
 
 /**
- * HTML sanitisation for TRIPPI.
+ * HTML sanitisation for trippi.ai.
  *
- * TRIPPI currently has no rich-text editor and no user-provided HTML reaches
+ * trippi.ai currently has no rich-text editor and no user-provided HTML reaches
  * the database, so this module exists only to guard the handful of client
  * sites that interpolate user-controlled strings into a markup template
  * (today: the Journey suggestion banner). It is also the future home for

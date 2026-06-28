@@ -1,4 +1,7 @@
-import bcrypt from 'bcryptjs';
+import { db } from '../db/database';
+import type { User } from '../types';
+import { generateToken, stripUserForClient, avatarUrl } from './authService';
+import { resolveWebauthnConfig } from './webauthnConfig';
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -6,10 +9,8 @@ import {
   verifyAuthenticationResponse,
   type AuthenticatorTransportFuture,
 } from '@simplewebauthn/server';
-import { db } from '../db/database';
-import { resolveWebauthnConfig } from './webauthnConfig';
-import { generateToken, stripUserForClient, avatarUrl } from './authService';
-import type { User } from '../types';
+
+import bcrypt from 'bcryptjs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -52,9 +53,18 @@ function purgeExpiredChallenges(now: number): void {
   db.prepare('DELETE FROM webauthn_challenges WHERE expires_at < ?').run(now);
 }
 
-function storeChallenge(challenge: string, userId: number | null, type: 'registration' | 'authentication', now: number): void {
-  db.prepare('INSERT INTO webauthn_challenges (challenge, user_id, type, expires_at) VALUES (?, ?, ?, ?)')
-    .run(challenge, userId, type, now + CHALLENGE_TTL_MS);
+function storeChallenge(
+  challenge: string,
+  userId: number | null,
+  type: 'registration' | 'authentication',
+  now: number,
+): void {
+  db.prepare('INSERT INTO webauthn_challenges (challenge, user_id, type, expires_at) VALUES (?, ?, ?, ?)').run(
+    challenge,
+    userId,
+    type,
+    now + CHALLENGE_TTL_MS,
+  );
 }
 
 /**
@@ -63,10 +73,14 @@ function storeChallenge(challenge: string, userId: number | null, type: 'registr
  * concurrent double-submit of the same assertion can never spend one challenge
  * twice (the replay window a SELECT→await→DELETE ordering would open).
  */
-function claimChallenge(challenge: string, type: 'registration' | 'authentication', now: number): { user_id: number | null } | null {
-  const row = db.prepare(
-    'DELETE FROM webauthn_challenges WHERE challenge = ? AND type = ? AND expires_at > ? RETURNING user_id',
-  ).get(challenge, type, now) as { user_id: number | null } | undefined;
+function claimChallenge(
+  challenge: string,
+  type: 'registration' | 'authentication',
+  now: number,
+): { user_id: number | null } | null {
+  const row = db
+    .prepare('DELETE FROM webauthn_challenges WHERE challenge = ? AND type = ? AND expires_at > ? RETURNING user_id')
+    .get(challenge, type, now) as { user_id: number | null } | undefined;
   return row ?? null;
 }
 
@@ -123,7 +137,8 @@ export async function passkeyRegisterOptions(
     return { error: 'Incorrect password', status: 401 };
   }
 
-  const existing = db.prepare('SELECT credential_id, transports FROM webauthn_credentials WHERE user_id = ?')
+  const existing = db
+    .prepare('SELECT credential_id, transports FROM webauthn_credentials WHERE user_id = ?')
     .all(userId) as { credential_id: string; transports: string | null }[];
 
   const now = Date.now();
@@ -211,9 +226,11 @@ export async function passkeyRegisterVerify(
     return { error: 'Could not register this passkey.', status: 400 };
   }
 
-  const created = db.prepare(
-    'SELECT id, name, device_type, backed_up, created_at, last_used_at FROM webauthn_credentials WHERE credential_id = ?',
-  ).get(credential.id) as { backed_up: number } & Record<string, unknown>;
+  const created = db
+    .prepare(
+      'SELECT id, name, device_type, backed_up, created_at, last_used_at FROM webauthn_credentials WHERE credential_id = ?',
+    )
+    .get(credential.id) as { backed_up: number } & Record<string, unknown>;
   return { success: true, credential: { ...created, backed_up: created.backed_up === 1 } };
 }
 
@@ -267,7 +284,9 @@ export async function passkeyLoginVerify(body: { assertionResponse?: unknown }):
   const credId = (resp as { id?: unknown; rawId?: unknown }).id ?? (resp as { rawId?: unknown }).rawId;
   if (typeof credId !== 'string') return { ...AUTH_FAILED };
 
-  const cred = db.prepare('SELECT * FROM webauthn_credentials WHERE credential_id = ?').get(credId) as CredentialRow | undefined;
+  const cred = db.prepare('SELECT * FROM webauthn_credentials WHERE credential_id = ?').get(credId) as
+    | CredentialRow
+    | undefined;
   if (!cred) return { ...AUTH_FAILED };
 
   let verification;
@@ -305,8 +324,13 @@ export async function passkeyLoginVerify(body: { assertionResponse?: unknown }):
 
   // Persist the new counter + last-used and bump login bookkeeping atomically.
   db.transaction(() => {
-    db.prepare('UPDATE webauthn_credentials SET counter = ?, last_used_at = CURRENT_TIMESTAMP WHERE id = ?').run(newCounter, cred.id);
-    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?').run(user.id);
+    db.prepare('UPDATE webauthn_credentials SET counter = ?, last_used_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+      newCounter,
+      cred.id,
+    );
+    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?').run(
+      user.id,
+    );
   })();
 
   // A user-verified passkey is phishing-resistant and inherently two-factor
@@ -322,17 +346,25 @@ export async function passkeyLoginVerify(body: { assertionResponse?: unknown }):
 // ---------------------------------------------------------------------------
 
 export function listPasskeys(userId: number): Array<Record<string, unknown>> {
-  const rows = db.prepare(
-    'SELECT id, name, device_type, backed_up, created_at, last_used_at FROM webauthn_credentials WHERE user_id = ? ORDER BY created_at DESC',
-  ).all(userId) as Array<{ backed_up: number } & Record<string, unknown>>;
+  const rows = db
+    .prepare(
+      'SELECT id, name, device_type, backed_up, created_at, last_used_at FROM webauthn_credentials WHERE user_id = ? ORDER BY created_at DESC',
+    )
+    .all(userId) as Array<{ backed_up: number } & Record<string, unknown>>;
   return rows.map((r) => ({ ...r, backed_up: r.backed_up === 1 }));
 }
 
-export function renamePasskey(userId: number, id: string, name: unknown): { error?: string; status?: number; success?: boolean } {
+export function renamePasskey(
+  userId: number,
+  id: string,
+  name: unknown,
+): { error?: string; status?: number; success?: boolean } {
   const cleanName = sanitizeName(name);
   if (!cleanName) return { error: 'Name is required', status: 400 };
   // Ownership enforced in SQL (404 on miss, never a 403 that leaks existence).
-  const result = db.prepare('UPDATE webauthn_credentials SET name = ? WHERE id = ? AND user_id = ?').run(cleanName, Number(id), userId);
+  const result = db
+    .prepare('UPDATE webauthn_credentials SET name = ? WHERE id = ? AND user_id = ?')
+    .run(cleanName, Number(id), userId);
   if (result.changes === 0) return { error: 'Passkey not found', status: 404 };
   return { success: true };
 }
@@ -346,7 +378,9 @@ export function deletePasskey(
   // strip the victim's passkeys). Deleting is always allowed because every
   // account keeps a usable password as recovery fallback — losing all passkeys
   // can never lock anyone out.
-  const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId) as { password_hash: string } | undefined;
+  const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId) as
+    | { password_hash: string }
+    | undefined;
   if (!user || !user.password_hash || !password || !bcrypt.compareSync(password, user.password_hash)) {
     return { error: 'Incorrect password', status: 401 };
   }
@@ -356,8 +390,16 @@ export function deletePasskey(
 }
 
 /** Admin: clear all of a user's passkeys (e.g. on suspected compromise). */
-export function adminResetPasskeys(targetUserId: number): { error?: string; status?: number; success?: boolean; deleted?: number; email?: string } {
-  const target = db.prepare('SELECT id, email FROM users WHERE id = ?').get(targetUserId) as { id: number; email: string } | undefined;
+export function adminResetPasskeys(targetUserId: number): {
+  error?: string;
+  status?: number;
+  success?: boolean;
+  deleted?: number;
+  email?: string;
+} {
+  const target = db.prepare('SELECT id, email FROM users WHERE id = ?').get(targetUserId) as
+    | { id: number; email: string }
+    | undefined;
   if (!target) return { error: 'User not found', status: 404 };
   const result = db.prepare('DELETE FROM webauthn_credentials WHERE user_id = ?').run(targetUserId);
   return { success: true, deleted: result.changes, email: target.email };

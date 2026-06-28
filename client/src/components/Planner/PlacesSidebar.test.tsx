@@ -1,14 +1,21 @@
 // FE-COMP-PLACES-001 to FE-COMP-PLACES-015 + FE-PLANNER-SIDEBAR-016 to 043
-import { render, screen, fireEvent, waitFor, act } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { useAuthStore } from '../../store/authStore';
-import { useTripStore } from '../../store/tripStore';
-import { usePermissionsStore } from '../../store/permissionsStore';
-import { placesApi } from '../../api/client';
-import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import { buildUser, buildTrip, buildPlace, buildCategory, buildDay, buildAssignment } from '../../../tests/helpers/factories';
+import {
+  buildAssignment,
+  buildCategory,
+  buildDay,
+  buildPlace,
+  buildTrip,
+  buildUser,
+} from '../../../tests/helpers/factories';
 import { server } from '../../../tests/helpers/msw/server';
+import { act, fireEvent, render, screen, waitFor } from '../../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../../tests/helpers/store';
+import { placesApi } from '../../api/client';
+import { useAuthStore } from '../../store/authStore';
+import { usePermissionsStore } from '../../store/permissionsStore';
+import { useTripStore } from '../../store/tripStore';
 import PlacesSidebar from './PlacesSidebar';
 
 // Mock photoService so PlaceAvatar doesn't trigger API calls
@@ -25,7 +32,9 @@ class MockIO {
   disconnect = vi.fn();
   unobserve = vi.fn();
 }
-beforeAll(() => { (globalThis as any).IntersectionObserver = MockIO; });
+beforeAll(() => {
+  (globalThis as any).IntersectionObserver = MockIO;
+});
 
 const defaultProps = {
   tripId: 1,
@@ -62,10 +71,7 @@ describe('PlacesSidebar', () => {
   });
 
   it('FE-COMP-PLACES-003: renders places from props', () => {
-    const places = [
-      buildPlace({ name: 'Eiffel Tower' }),
-      buildPlace({ name: 'Louvre Museum' }),
-    ];
+    const places = [buildPlace({ name: 'Eiffel Tower' }), buildPlace({ name: 'Louvre Museum' })];
     render(<PlacesSidebar {...defaultProps} places={places} />);
     expect(screen.getByText('Eiffel Tower')).toBeInTheDocument();
     expect(screen.getByText('Louvre Museum')).toBeInTheDocument();
@@ -98,10 +104,7 @@ describe('PlacesSidebar', () => {
 
   it('FE-COMP-PLACES-007: search filters places by name', async () => {
     const user = userEvent.setup();
-    const places = [
-      buildPlace({ name: 'Arc de Triomphe' }),
-      buildPlace({ name: 'Sacre Coeur' }),
-    ];
+    const places = [buildPlace({ name: 'Arc de Triomphe' }), buildPlace({ name: 'Sacre Coeur' })];
     render(<PlacesSidebar {...defaultProps} places={places} />);
     const searchInput = screen.getByPlaceholderText(/Search places/i);
     await user.type(searchInput, 'Arc');
@@ -127,10 +130,7 @@ describe('PlacesSidebar', () => {
   it('FE-COMP-PLACES-009a: selected visible place is scrolled into view', async () => {
     const scrollIntoView = Element.prototype.scrollIntoView as unknown as ReturnType<typeof vi.fn>;
     scrollIntoView.mockClear();
-    const places = [
-      buildPlace({ id: 10, name: 'First Place' }),
-      buildPlace({ id: 42, name: 'Map Click Target' }),
-    ];
+    const places = [buildPlace({ id: 10, name: 'First Place' }), buildPlace({ id: 42, name: 'Map Click Target' })];
 
     render(<PlacesSidebar {...defaultProps} places={places} selectedPlaceId={42} />);
 
@@ -144,10 +144,7 @@ describe('PlacesSidebar', () => {
   it('FE-COMP-PLACES-009b: selected place hidden by search is not scrolled', async () => {
     const user = userEvent.setup();
     const scrollIntoView = Element.prototype.scrollIntoView as unknown as ReturnType<typeof vi.fn>;
-    const places = [
-      buildPlace({ id: 10, name: 'Visible Cafe' }),
-      buildPlace({ id: 42, name: 'Hidden Museum' }),
-    ];
+    const places = [buildPlace({ id: 10, name: 'Visible Cafe' }), buildPlace({ id: 42, name: 'Hidden Museum' })];
     const { rerender } = render(<PlacesSidebar {...defaultProps} places={places} selectedPlaceId={null} />);
 
     await user.type(screen.getByPlaceholderText(/Search places/i), 'Visible');
@@ -265,9 +262,10 @@ describe('Search', () => {
     await user.type(searchInput, 'Paris');
     expect(screen.queryByText('Rome Cafe')).not.toBeInTheDocument();
     // X clear button should appear
-    const clearBtn = document.querySelector('button svg[data-lucide="x"]')?.closest('button')
-      ?? document.querySelector('input[type="text"] ~ button')
-      ?? screen.getByRole('button', { name: '' });
+    const clearBtn =
+      document.querySelector('button svg[data-lucide="x"]')?.closest('button') ??
+      document.querySelector('input[type="text"] ~ button') ??
+      screen.getByRole('button', { name: '' });
     // Find the X button by querying near the search input
     const inputWrapper = searchInput.closest('div');
     const xBtn = inputWrapper?.querySelector('button');
@@ -346,7 +344,7 @@ describe('Place list interaction', () => {
     render(<PlacesSidebar {...defaultProps} places={[place]} selectedDayId={5} assignments={{}} />);
     // Plus button should be visible next to the place
     const plusBtns = screen.getAllByRole('button');
-    const plusBtn = plusBtns.find(b => b.querySelector('svg'));
+    const plusBtn = plusBtns.find((b) => b.querySelector('svg'));
     expect(plusBtn).toBeTruthy();
     // The place row itself should be in the DOM
     expect(screen.getByText('Unassigned Place')).toBeInTheDocument();
@@ -356,7 +354,15 @@ describe('Place list interaction', () => {
     const user = userEvent.setup();
     const onAssignToDay = vi.fn();
     const place = buildPlace({ id: 99, name: 'Place To Assign' });
-    render(<PlacesSidebar {...defaultProps} places={[place]} selectedDayId={5} assignments={{}} onAssignToDay={onAssignToDay} />);
+    render(
+      <PlacesSidebar
+        {...defaultProps}
+        places={[place]}
+        selectedDayId={5}
+        assignments={{}}
+        onAssignToDay={onAssignToDay}
+      />
+    );
     // Find the + button inside the place row (small inline button)
     const placeRow = screen.getByText('Place To Assign').closest('div[draggable]')!;
     const plusBtn = placeRow.querySelector('button')!;
@@ -413,7 +419,9 @@ describe('Mobile day-picker (portal)', () => {
     const onAssignToDay = vi.fn();
     const place = buildPlace({ id: 77, name: 'Day Picker Place' });
     const day = buildDay({ id: 7, title: 'Day 1' });
-    render(<PlacesSidebar {...defaultProps} places={[place]} isMobile={true} days={[day]} onAssignToDay={onAssignToDay} />);
+    render(
+      <PlacesSidebar {...defaultProps} places={[place]} isMobile={true} days={[day]} onAssignToDay={onAssignToDay} />
+    );
     await user.click(screen.getByText('Day Picker Place'));
     // Click "Add to which day?" to expand the day list
     const assignBtn = await screen.findByText(/Add to which day\?/i);
@@ -475,7 +483,9 @@ describe('GPX import', () => {
   });
 
   it('FE-PLANNER-SIDEBAR-039: successful GPX import via modal shows success toast', async () => {
-    const importSpy = vi.spyOn(placesApi, 'importGpx').mockResolvedValueOnce({ count: 2, places: [{ id: 10 }, { id: 11 }] });
+    const importSpy = vi
+      .spyOn(placesApi, 'importGpx')
+      .mockResolvedValueOnce({ count: 2, places: [{ id: 10 }, { id: 11 }] });
     const loadTrip = vi.fn().mockResolvedValue(undefined);
     seedStore(useTripStore, { loadTrip });
     const addToast = vi.fn();
@@ -491,11 +501,7 @@ describe('GPX import', () => {
     });
     await user.click(screen.getByRole('button', { name: /^import$/i }));
     await waitFor(() => {
-      expect(addToast).toHaveBeenCalledWith(
-        expect.stringContaining('2'),
-        'success',
-        undefined,
-      );
+      expect(addToast).toHaveBeenCalledWith(expect.stringContaining('2'), 'success', undefined);
     });
     importSpy.mockRestore();
   });
@@ -524,7 +530,7 @@ describe('Google Maps list import', () => {
     server.use(
       http.post('/api/trips/1/places/import/google-list', () =>
         HttpResponse.json({ count: 3, listName: 'My List', places: [{ id: 20 }, { id: 21 }, { id: 22 }] })
-      ),
+      )
     );
     const loadTrip = vi.fn().mockResolvedValue(undefined);
     seedStore(useTripStore, { loadTrip });
@@ -537,11 +543,7 @@ describe('Google Maps list import', () => {
     await user.type(urlInput, 'https://maps.app.goo.gl/abc123');
     await user.click(screen.getByRole('button', { name: /^Import$/i }));
     await waitFor(() => {
-      expect(addToast).toHaveBeenCalledWith(
-        expect.stringContaining('3'),
-        'success',
-        undefined,
-      );
+      expect(addToast).toHaveBeenCalledWith(expect.stringContaining('3'), 'success', undefined);
     });
     // Dialog should close
     await waitFor(() => {
@@ -553,7 +555,7 @@ describe('Google Maps list import', () => {
     server.use(
       http.post('/api/trips/1/places/import/google-list', () =>
         HttpResponse.json({ count: 1, listName: 'Test', places: [{ id: 30 }] })
-      ),
+      )
     );
     const loadTrip = vi.fn().mockResolvedValue(undefined);
     seedStore(useTripStore, { loadTrip });
@@ -565,11 +567,7 @@ describe('Google Maps list import', () => {
     const urlInput = await screen.findByPlaceholderText(/maps\.app\.goo\.gl/i);
     await user.type(urlInput, 'https://maps.app.goo.gl/xyz{Enter}');
     await waitFor(() => {
-      expect(addToast).toHaveBeenCalledWith(
-        expect.stringContaining('1'),
-        'success',
-        undefined,
-      );
+      expect(addToast).toHaveBeenCalledWith(expect.stringContaining('1'), 'success', undefined);
     });
   });
 });

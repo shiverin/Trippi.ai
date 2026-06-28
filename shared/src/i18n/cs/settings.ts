@@ -172,9 +172,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Navrhněte novou funkci',
   'settings.about.wikiHint': 'Dokumentace a návody',
   'settings.about.supporters.badge': 'Měsíční podporovatelé',
-  'settings.about.supporters.title': 'Společníci na cestě s TRIPPI',
+  'settings.about.supporters.title': 'Společníci na cestě s trippi.ai',
   'settings.about.supporters.subtitle':
-    'Zatímco plánuješ další trasu, tihle lidé plánují společně se mnou budoucnost TRIPPI. Jejich měsíční příspěvek jde přímo na vývoj a reálně strávené hodiny — aby TRIPPI zůstal Open Source.',
+    'Zatímco plánuješ další trasu, tihle lidé plánují společně se mnou budoucnost trippi.ai. Jejich měsíční příspěvek jde přímo na vývoj a reálně strávené hodiny — aby trippi.ai zůstal Open Source.',
   'settings.about.supporters.since': 'podporovatel od {date}',
   'settings.about.supporters.tierEmpty': 'Buď první',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -183,9 +183,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'TRIPPI je samohostovaný plánovač cest, který vám pomůže organizovat výlety od prvního nápadu po poslední vzpomínku. Denní plánování, rozpočet, balicí seznamy, fotky a mnoho dalšího — vše na jednom místě, na vašem vlastním serveru.',
+    'trippi.ai je samohostovaný plánovač cest, který vám pomůže organizovat výlety od prvního nápadu po poslední vzpomínku. Denní plánování, rozpočet, balicí seznamy, fotky a mnoho dalšího — vše na jednom místě, na vašem vlastním serveru.',
   'settings.about.madeWith': 'Vytvořeno s',
-  'settings.about.madeBy': 'Mauricem a rostoucí open-source komunitou.',
+  'settings.about.madeBy': 'trippi.ai a rostoucí open-source komunitou.',
   'settings.username': 'Uživatelské jméno',
   'settings.email': 'E-mail',
   'settings.role': 'Role',
@@ -314,7 +314,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': 'Povolte pouze pro důvěryhodnou instanci ve vlastní síti.',
   'settings.airtrail.writeBack': 'Zapisovat změny zpět do AirTrail',
   'settings.airtrail.writeBackHint':
-    'Ve výchozím stavu vypnuto: AirTrail je zdrojem pravdy a TRIPPI z něj pouze čte. Zapněte, chcete-li odesílat úpravy provedené v TRIPPI zpět do AirTrail.',
+    'Ve výchozím stavu vypnuto: AirTrail je zdrojem pravdy a trippi.ai z něj pouze čte. Zapněte, chcete-li odesílat úpravy provedené v trippi.ai zpět do AirTrail.',
   'settings.airtrail.connected': 'Připojeno',
   'settings.airtrail.notConnected': 'Nepřipojeno',
   'settings.airtrail.toast.saved': 'Připojení k AirTrail uloženo',

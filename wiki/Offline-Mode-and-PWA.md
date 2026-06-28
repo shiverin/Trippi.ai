@@ -1,26 +1,26 @@
 # Offline Mode and PWA
 
-TRIPPI can be installed as a Progressive Web App (PWA) and used without an internet connection for previously synced trips.
+trippi.ai can be installed as a Progressive Web App (PWA) and used without an internet connection for previously synced trips.
 
 ## Install as an app (PWA)
 
-TRIPPI must be served over **HTTPS** — the install prompt does not appear on plain HTTP.
+trippi.ai must be served over **HTTPS** — the install prompt does not appear on plain HTTP.
 
 **iOS (Safari):**
-1. Open TRIPPI in Safari.
+1. Open trippi.ai in Safari.
 2. Tap the Share button.
 3. Select **Add to Home Screen**.
 
 **Android (Chrome / Edge):**
-1. Open TRIPPI in the browser.
+1. Open trippi.ai in the browser.
 2. Tap the browser menu.
 3. Select **Install app** or **Add to Home Screen**.
 
-Once installed, TRIPPI launches in **standalone** mode (fullscreen, no browser UI) using the TRIPPI icon.
+Once installed, trippi.ai launches in **standalone** mode (fullscreen, no browser UI) using the trippi.ai icon.
 
 ## What works offline
 
-TRIPPI uses Workbox service-worker caching plus an IndexedDB database (Dexie) for structured trip data. The following content is available offline after the first sync:
+trippi.ai uses Workbox service-worker caching plus an IndexedDB database (Dexie) for structured trip data. The following content is available offline after the first sync:
 
 **Service-worker cache (Workbox)**
 
@@ -36,7 +36,7 @@ TRIPPI uses Workbox service-worker caching plus an IndexedDB database (Dexie) fo
 
 **IndexedDB (Dexie) — structured trip data**
 
-On login, after each trip-list refresh, and on WebSocket reconnect, TRIPPI runs a background sync that writes full trip bundles into IndexedDB:
+On login, after each trip-list refresh, and on WebSocket reconnect, trippi.ai runs a background sync that writes full trip bundles into IndexedDB:
 
 - Trips, days, places, packing items, to-dos, budget items, reservations, accommodations, trip members, tags, and categories.
 - Non-photo file attachments (PDFs, documents, etc.) are downloaded and stored as blobs in IndexedDB.

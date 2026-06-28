@@ -2,11 +2,11 @@
 
 ## "Access token required" when changing password on first login
 
-**Cause:** The session cookie has the `Secure` flag set, which means the browser will only send it over HTTPS. When accessing TRIPPI over plain HTTP (e.g. `http://192.168.1.x:3000`), the browser silently drops the cookie and the server sees no session — returning "Access token required".
+**Cause:** The session cookie has the `Secure` flag set, which means the browser will only send it over HTTPS. When accessing trippi.ai over plain HTTP (e.g. `http://192.168.1.x:3000`), the browser silently drops the cookie and the server sees no session — returning "Access token required".
 
 **Fix:** Choose one of the following options:
 
-**Option 1 — Use HTTPS.** Access TRIPPI via HTTPS with a valid SSL certificate.
+**Option 1 — Use HTTPS.** Access trippi.ai via HTTPS with a valid SSL certificate.
 
 **Option 2 — Disable the Secure flag.** Set `COOKIE_SECURE=false` in your Docker environment to allow the session cookie to be sent over plain HTTP:
 
@@ -39,7 +39,7 @@ Without these headers, the WebSocket handshake fails and real-time sync will not
 
 **Cause:** `FORCE_HTTPS=true` is set but your reverse proxy is not forwarding the `X-Forwarded-Proto: https` header, so every request looks like plain HTTP and gets redirected indefinitely.
 
-**Fix:** Ensure your proxy passes the `X-Forwarded-Proto` header to TRIPPI. Also set `TRUST_PROXY=1` so that Express uses the forwarded IP for rate limiting and audit logs:
+**Fix:** Ensure your proxy passes the `X-Forwarded-Proto` header to trippi.ai. Also set `TRUST_PROXY=1` so that Express uses the forwarded IP for rate limiting and audit logs:
 
 ```yaml
 environment:
@@ -49,7 +49,7 @@ environment:
 
 > **Note:** The `/api/health` endpoint is always exempt from the HTTPS redirect so that Docker health checks continue to work over plain HTTP.
 
-If you are accessing TRIPPI directly on `http://<host>:3000` with no proxy, remove `FORCE_HTTPS` entirely. See [Environment Variables](Environment-Variables).
+If you are accessing trippi.ai directly on `http://<host>:3000` with no proxy, remove `FORCE_HTTPS` entirely. See [Environment Variables](Environment-Variables).
 
 ---
 
@@ -83,7 +83,7 @@ If you no longer have access to backup codes and cannot log in, an admin must di
 
 **Cause:** Your reverse proxy has a default body size limit (commonly 1 MB or 10 MB) that is smaller than the backup ZIP. Backup archives include the full uploads directory and can be large.
 
-**Fix:** Raise the body size limit in your proxy config. TRIPPI's own backup upload cap is 500 MB. For nginx:
+**Fix:** Raise the body size limit in your proxy config. trippi.ai's own backup upload cap is 500 MB. For nginx:
 
 ```nginx
 client_max_body_size 500m;
@@ -95,7 +95,7 @@ Add this to the `location /` block (or the specific backup route). See [Reverse 
 
 ## "Cannot find module" on startup
 
-**Likely cause:** A Docker volume mount is missing or the `/app/data` and `/app/uploads` directories are not writable by the container process. TRIPPI automatically creates all required subdirectories on startup (`data/logs`, `data/backups`, `data/tmp`, `uploads/files`, `uploads/covers`, `uploads/avatars`, `uploads/photos`) — if this fails because the volume is read-only or owned by the wrong user, startup will abort.
+**Likely cause:** A Docker volume mount is missing or the `/app/data` and `/app/uploads` directories are not writable by the container process. trippi.ai automatically creates all required subdirectories on startup (`data/logs`, `data/backups`, `data/tmp`, `uploads/files`, `uploads/covers`, `uploads/avatars`, `uploads/photos`) — if this fails because the volume is read-only or owned by the wrong user, startup will abort.
 
 **Fix:** Check your Docker volume configuration. Both `./data:/app/data` and `./uploads:/app/uploads` must be mounted and writable. Run `docker inspect <container> --format '{{json .Mounts}}'` to verify the mounts are present and point to valid host paths. If the host directories are owned by root, the container's `chown` step (which runs as root before dropping to `node`) should correct permissions automatically — but if your host filesystem is read-only or permissions are locked down, grant write access manually:
 
@@ -107,7 +107,7 @@ sudo chown -R 1000:1000 ./data ./uploads
 
 ## Encryption key regenerated on restart — stored secrets stop working
 
-**Cause:** On every startup, TRIPPI resolves its encryption key in this order: (1) `ENCRYPTION_KEY` env var, (2) `data/.encryption_key` file, (3) legacy `data/.jwt_secret` fallback, (4) auto-generate a fresh key. If neither the env var nor the `data/` volume is persisted — for example after recreating a container without a volume mount — a new random key is generated and all stored secrets (SMTP password, OIDC client secret, API keys, MFA TOTP seeds) become unrecoverable.
+**Cause:** On every startup, trippi.ai resolves its encryption key in this order: (1) `ENCRYPTION_KEY` env var, (2) `data/.encryption_key` file, (3) legacy `data/.jwt_secret` fallback, (4) auto-generate a fresh key. If neither the env var nor the `data/` volume is persisted — for example after recreating a container without a volume mount — a new random key is generated and all stored secrets (SMTP password, OIDC client secret, API keys, MFA TOTP seeds) become unrecoverable.
 
 **Fix:** Ensure `./data:/app/data` is mounted as a persistent volume so `data/.encryption_key` survives restarts. Alternatively, pin the key explicitly:
 
@@ -122,7 +122,7 @@ See [Encryption Key Rotation](Encryption-Key-Rotation) for how to retrieve or ro
 
 ## OIDC login returns "APP_URL is not configured"
 
-**Cause:** When OIDC is enabled, TRIPPI needs to know its own public URL to build the redirect URI. It resolves this from (1) `APP_URL` env var, (2) the first entry in `ALLOWED_ORIGINS`, (3) `http://localhost:<PORT>` as a last resort. If none of these are set and the request is not coming from localhost, TRIPPI returns a 500 error.
+**Cause:** When OIDC is enabled, trippi.ai needs to know its own public URL to build the redirect URI. It resolves this from (1) `APP_URL` env var, (2) the first entry in `ALLOWED_ORIGINS`, (3) `http://localhost:<PORT>` as a last resort. If none of these are set and the request is not coming from localhost, trippi.ai returns a 500 error.
 
 **Fix:** Set `APP_URL` to the public URL of your instance:
 
@@ -135,7 +135,7 @@ environment:
 
 ## OIDC login fails with issuer mismatch
 
-**Cause:** TRIPPI validates that the `issuer` field in the provider's discovery document exactly matches the configured `OIDC_ISSUER`. A trailing-slash difference (e.g. `https://auth.example.com` vs `https://auth.example.com/`) is enough to fail.
+**Cause:** trippi.ai validates that the `issuer` field in the provider's discovery document exactly matches the configured `OIDC_ISSUER`. A trailing-slash difference (e.g. `https://auth.example.com` vs `https://auth.example.com/`) is enough to fail.
 
 **Fix:** Check the exact issuer value your provider advertises and match it:
 
@@ -149,7 +149,7 @@ Set `OIDC_ISSUER` to that exact string.
 
 ## OIDC login fails when provider is on a private/internal network
 
-**Cause:** TRIPPI's SSRF guard blocks outbound requests to private IP ranges by default. If your OIDC provider (e.g. Keycloak, Authentik) is running on an internal address, the discovery document fetch will be blocked with: `Requests to private/internal network addresses are not allowed.`
+**Cause:** trippi.ai's SSRF guard blocks outbound requests to private IP ranges by default. If your OIDC provider (e.g. Keycloak, Authentik) is running on an internal address, the discovery document fetch will be blocked with: `Requests to private/internal network addresses are not allowed.`
 
 **Fix:**
 
@@ -177,7 +177,7 @@ environment:
    docker exec <container> nc -zv <SMTP_HOST> <SMTP_PORT>
    ```
 
-> **Note:** If no SMTP is configured at all, TRIPPI prints the reset link directly to the server logs (`===== PASSWORD RESET LINK =====`). This is useful for initial setup or self-hosted installs without email.
+> **Note:** If no SMTP is configured at all, trippi.ai prints the reset link directly to the server logs (`===== PASSWORD RESET LINK =====`). This is useful for initial setup or self-hosted installs without email.
 
 ---
 
@@ -192,7 +192,7 @@ environment:
   - ALLOWED_ORIGINS=https://trippi.example.com,https://other.example.com
 ```
 
-If `ALLOWED_ORIGINS` is not set, TRIPPI allows all origins (development default). See [Environment Variables](Environment-Variables).
+If `ALLOWED_ORIGINS` is not set, trippi.ai allows all origins (development default). See [Environment Variables](Environment-Variables).
 
 ---
 
@@ -214,22 +214,22 @@ If `ALLOWED_ORIGINS` is not set, TRIPPI allows all origins (development default)
 
 ## Clipboard features not working (copy link, share, etc.)
 
-**Cause:** The browser Clipboard API (`navigator.clipboard`) is only available in a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts). When accessing TRIPPI over plain HTTP on a non-localhost address, the API is unavailable and clipboard operations silently fail or show an error.
+**Cause:** The browser Clipboard API (`navigator.clipboard`) is only available in a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts). When accessing trippi.ai over plain HTTP on a non-localhost address, the API is unavailable and clipboard operations silently fail or show an error.
 
 **Fix:** The only supported options are:
 
-- Access TRIPPI over HTTPS with a valid SSL certificate.
-- Access TRIPPI directly from `http://localhost:<port>` — browsers treat `localhost` as a secure context for the Clipboard API (unlike the session cookie, which always requires HTTPS regardless of hostname).
+- Access trippi.ai over HTTPS with a valid SSL certificate.
+- Access trippi.ai directly from `http://localhost:<port>` — browsers treat `localhost` as a secure context for the Clipboard API (unlike the session cookie, which always requires HTTPS regardless of hostname).
 
 ---
 
 ## Place photos not loading / place thumbnail shows default map pin (Google Maps API key configured)
 
-**Cause:** When a Google Maps API key is set, TRIPPI fetches photo references and image bytes from the Google Places API on the server side. If the server-side call is rejected or returns no photos, the `/place-photo/:id` endpoint returns 404 and the place falls back to the default map-pin thumbnail. The most common causes are:
+**Cause:** When a Google Maps API key is set, trippi.ai fetches photo references and image bytes from the Google Places API on the server side. If the server-side call is rejected or returns no photos, the `/place-photo/:id` endpoint returns 404 and the place falls back to the default map-pin thumbnail. The most common causes are:
 
-1. **HTTP referrer restriction on the API key.** Google Cloud Console lets you restrict a key to specific HTTP referrers. Because TRIPPI calls Google from the server (not the browser), it sends a `Referer` header derived from `APP_URL`. If `APP_URL` is not set, the fallback is `http://localhost:<PORT>`, which will not match any domain whitelist in GCP.
+1. **HTTP referrer restriction on the API key.** Google Cloud Console lets you restrict a key to specific HTTP referrers. Because trippi.ai calls Google from the server (not the browser), it sends a `Referer` header derived from `APP_URL`. If `APP_URL` is not set, the fallback is `http://localhost:<PORT>`, which will not match any domain whitelist in GCP.
 
-2. **Wrong key restriction type.** API keys restricted by **HTTP referrers** are designed for browser-side JavaScript. For a self-hosted server application, use **IP address** restrictions instead — add the public IP of your TRIPPI server and no `APP_URL` configuration is needed.
+2. **Wrong key restriction type.** API keys restricted by **HTTP referrers** are designed for browser-side JavaScript. For a self-hosted server application, use **IP address** restrictions instead — add the public IP of your trippi.ai server and no `APP_URL` configuration is needed.
 
 3. **Places API (New) not enabled.** The key must have **Places API (New)** enabled in Google Cloud Console under APIs & Services → Enabled APIs. Enabling only the legacy Places API is not sufficient.
 
@@ -264,7 +264,7 @@ If the response is `{}` or `{"error": {...}}`, the key or its restrictions are b
 
 ## MCP OAuth flow does not initiate / "Connect" redirects but authentication never starts
 
-**Cause:** TRIPPI builds the OAuth 2.1 redirect URI from `APP_URL`. If `APP_URL` is not set, the authorization URL is constructed from a localhost fallback that external clients (Claude.ai, Claude Desktop) cannot reach, so the OAuth handshake never completes.
+**Cause:** trippi.ai builds the OAuth 2.1 redirect URI from `APP_URL`. If `APP_URL` is not set, the authorization URL is constructed from a localhost fallback that external clients (Claude.ai, Claude Desktop) cannot reach, so the OAuth handshake never completes.
 
 **Fix:** Set `APP_URL` to the public URL of your instance:
 
@@ -273,7 +273,7 @@ environment:
   - APP_URL=https://trippi.example.com
 ```
 
-Restart the container after adding the variable. Once set, clicking **Connect** in the MCP client should redirect to your TRIPPI instance and complete the OAuth flow normally.
+Restart the container after adding the variable. Once set, clicking **Connect** in the MCP client should redirect to your trippi.ai instance and complete the OAuth flow normally.
 
 > **Note:** `APP_URL` is required for any MCP OAuth integration. Without it, the authorization endpoint resolves to `http://localhost:<PORT>`, which is unreachable from external MCP clients.
 
@@ -295,7 +295,7 @@ environment:
 
 ## MCP requests blocked by Cloudflare WAF (Bot Fight Mode)
 
-**Cause:** When TRIPPI is proxied through Cloudflare, **Bot Fight Mode** and **Super Bot Fight Mode** classify requests from ChatGPT as bots and block them at the WAF level — before the request ever reaches TRIPPI. This is specific to ChatGPT; Claude.ai is not affected. ChatGPT's exit node IPs have low reputation scores in Cloudflare's threat intelligence and the User-Agent matches Cloudflare's automated-traffic heuristics. TRIPPI itself never receives the request, so there is nothing in TRIPPI's logs; the block is silent from TRIPPI's perspective.
+**Cause:** When trippi.ai is proxied through Cloudflare, **Bot Fight Mode** and **Super Bot Fight Mode** classify requests from ChatGPT as bots and block them at the WAF level — before the request ever reaches trippi.ai. This is specific to ChatGPT; Claude.ai is not affected. ChatGPT's exit node IPs have low reputation scores in Cloudflare's threat intelligence and the User-Agent matches Cloudflare's automated-traffic heuristics. trippi.ai itself never receives the request, so there is nothing in trippi.ai's logs; the block is silent from trippi.ai's perspective.
 
 Symptoms:
 - ChatGPT shows a connection error or times out immediately after OAuth completes.

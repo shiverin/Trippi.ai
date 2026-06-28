@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { AirtrailController } from './airtrail.controller';
 import { AirtrailImportController } from './airtrail-import.controller';
+import { AirtrailController } from './airtrail.controller';
+import { Module } from '@nestjs/common';
 
 /**
  * AirTrail integration domain. The connection lives under

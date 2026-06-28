@@ -1,6 +1,6 @@
 # Languages
 
-TRIPPI ships with translations for 20 languages. You can change your language at any time without logging out.
+trippi.ai ships with translations for 20 languages. You can change your language at any time without logging out.
 
 ## Supported languages
 
@@ -33,7 +33,7 @@ Arabic (`ar`) uses a right-to-left layout. All other languages use left-to-right
 
 ## How language is detected
 
-TRIPPI resolves the display language in this order:
+trippi.ai resolves the display language in this order:
 
 1. **User preference** — the language saved to your account (set in Settings → Display).
 2. **Browser language** — `navigator.languages` (and `navigator.language`) reported by your browser.

@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import type Database from 'better-sqlite3';
 import { db } from '../../db/database';
+import { Injectable } from '@nestjs/common';
+
+import type Database from 'better-sqlite3';
 
 /**
- * Injectable wrapper around TRIPPI's existing better-sqlite3 connection.
+ * Injectable wrapper around trippi.ai's existing better-sqlite3 connection.
  *
  * `db` is a Proxy onto the singleton connection the legacy app already uses
  * (WAL enabled), so Nest modules share the exact same connection — no second

@@ -77,10 +77,10 @@ const oauth: TranslationStrings = {
   'oauth.authorize.loading': 'Loading…', // en-fallback
   'oauth.authorize.errorTitle': 'Authorization Error', // en-fallback
   'oauth.authorize.loginTitle': 'Sign in to continue', // en-fallback
-  'oauth.authorize.loginDescription': '{client} wants access to your TRIPPI account. Please sign in first.', // en-fallback
-  'oauth.authorize.loginButton': 'Sign in to TRIPPI', // en-fallback
+  'oauth.authorize.loginDescription': '{client} wants access to your trippi.ai account. Please sign in first.', // en-fallback
+  'oauth.authorize.loginButton': 'Sign in to trippi.ai', // en-fallback
   'oauth.authorize.requestLabel': 'Authorization Request', // en-fallback
-  'oauth.authorize.requestDescription': 'This application is requesting access to your TRIPPI account.', // en-fallback
+  'oauth.authorize.requestDescription': 'This application is requesting access to your trippi.ai account.', // en-fallback
   'oauth.authorize.trustNote': 'Only grant access to applications you trust. Your data stays on your server.', // en-fallback
   'oauth.authorize.selectScope': 'Select at least one scope', // en-fallback
   'oauth.authorize.approveOneScope': 'Approve ({count} scope)', // en-fallback

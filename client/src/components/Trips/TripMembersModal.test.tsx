@@ -1,13 +1,13 @@
 // FE-COMP-MEMBERS-001 to FE-COMP-MEMBERS-025
-import { render, screen, waitFor } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { buildTrip, buildUser } from '../../../tests/helpers/factories';
 import { server } from '../../../tests/helpers/msw/server';
-import { useAuthStore } from '../../store/authStore';
-import { useTripStore } from '../../store/tripStore';
-import { usePermissionsStore } from '../../store/permissionsStore';
+import { render, screen, waitFor } from '../../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import { buildUser, buildTrip } from '../../../tests/helpers/factories';
+import { useAuthStore } from '../../store/authStore';
+import { usePermissionsStore } from '../../store/permissionsStore';
+import { useTripStore } from '../../store/tripStore';
 import TripMembersModal from './TripMembersModal';
 
 const defaultProps = {
@@ -30,12 +30,8 @@ beforeEach(() => {
         current_user_id: ownerUser.id,
       })
     ),
-    http.get('/api/trips/1/share-link', () =>
-      HttpResponse.json({ token: null })
-    ),
-    http.get('/api/auth/users', () =>
-      HttpResponse.json({ users: [memberUser] })
-    ),
+    http.get('/api/trips/1/share-link', () => HttpResponse.json({ token: null })),
+    http.get('/api/auth/users', () => HttpResponse.json({ users: [memberUser] }))
   );
   seedStore(useAuthStore, { user: ownerUser, isAuthenticated: true });
   seedStore(useTripStore, { trip: buildTrip({ id: 1, title: 'Test Trip' }) });
@@ -96,7 +92,9 @@ describe('TripMembersModal', () => {
   it('FE-COMP-MEMBERS-009: Cancel/close button is present', () => {
     render(<TripMembersModal {...defaultProps} />);
     // Modal has a close button (×)
-    const closeBtn = screen.queryByRole('button', { name: /close/i }) || document.querySelector('[aria-label="close"], button[title="Close"]');
+    const closeBtn =
+      screen.queryByRole('button', { name: /close/i }) ||
+      document.querySelector('[aria-label="close"], button[title="Close"]');
     // The modal renders at minimum a close button or can be closed by clicking overlay
     expect(document.body).toBeInTheDocument();
   });
@@ -213,7 +211,7 @@ describe('TripMembersModal', () => {
           share_budget: false,
           share_collab: false,
         })
-      ),
+      )
     );
 
     render(<TripMembersModal {...defaultProps} />);
@@ -247,7 +245,7 @@ describe('TripMembersModal', () => {
           share_budget: false,
           share_collab: false,
         })
-      ),
+      )
     );
 
     render(<TripMembersModal {...defaultProps} />);
@@ -278,7 +276,7 @@ describe('TripMembersModal', () => {
       http.delete('/api/trips/1/share-link', () => {
         deleteHandlerCalled = true;
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
 
     render(<TripMembersModal {...defaultProps} />);
@@ -307,9 +305,9 @@ describe('TripMembersModal', () => {
         })
       ),
       http.post('/api/trips/1/share-link', async ({ request }) => {
-        postedPerms = await request.json() as Record<string, unknown>;
+        postedPerms = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ token: 'tok99', ...postedPerms });
-      }),
+      })
     );
 
     render(<TripMembersModal {...defaultProps} />);
@@ -332,9 +330,9 @@ describe('TripMembersModal', () => {
     let postBody: Record<string, unknown> | null = null;
     server.use(
       http.post('/api/trips/1/members', async ({ request }) => {
-        postBody = await request.json() as Record<string, unknown>;
+        postBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
 
     render(<TripMembersModal {...defaultProps} />);
@@ -390,7 +388,7 @@ describe('TripMembersModal', () => {
       http.delete('/api/trips/1/members/:userId', ({ params }) => {
         deleteCalledForUserId = params.userId as string;
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
 
     render(<TripMembersModal {...defaultProps} />);
@@ -415,9 +413,7 @@ describe('TripMembersModal', () => {
           current_user_id: ownerUser.id,
         })
       ),
-      http.get('/api/auth/users', () =>
-        HttpResponse.json({ users: [memberUser] })
-      ),
+      http.get('/api/auth/users', () => HttpResponse.json({ users: [memberUser] }))
     );
 
     render(<TripMembersModal {...defaultProps} />);

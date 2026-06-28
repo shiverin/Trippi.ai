@@ -1,24 +1,25 @@
-import crypto, { randomBytes, createHash, randomUUID } from 'crypto';
-import { db } from '../db/database';
-import { isAddonEnabled } from './adminService';
-import { validateScopes } from '../mcp/scopes';
 import { ADDON_IDS } from '../addons';
-import { User } from '../types';
-import { writeAudit, logWarn } from './auditLog';
+import { db } from '../db/database';
+import { validateScopes } from '../mcp/scopes';
 import { revokeUserSessionsForClient } from '../mcp/sessionManager';
+import { User } from '../types';
+import { isAddonEnabled } from './adminService';
+import { writeAudit, logWarn } from './auditLog';
 import { getMcpSafeUrl } from './notifications';
+
+import crypto, { randomBytes, createHash, randomUUID } from 'crypto';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const ACCESS_TOKEN_TTL_S   = 60 * 60;                          // 1 hour
-const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;        // 30 days rolling
-const AUTH_CODE_TTL_MS     = 2 * 60 * 1000;                   // 2 minutes
+const ACCESS_TOKEN_TTL_S = 60 * 60; // 1 hour
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days rolling
+const AUTH_CODE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
 // PKCE format (RFC 7636)
 const CODE_CHALLENGE_RE = /^[A-Za-z0-9_-]{43}$/;
-const CODE_VERIFIER_RE  = /^[A-Za-z0-9\-._~]{43,128}$/;
+const CODE_VERIFIER_RE = /^[A-Za-z0-9\-._~]{43,128}$/;
 
 // ---------------------------------------------------------------------------
 // In-memory auth code store (short-lived, no need for DB persistence)
@@ -55,11 +56,11 @@ interface OAuthClientRow {
   name: string;
   client_id: string;
   client_secret_hash: string;
-  redirect_uris: string;   // JSON array
-  allowed_scopes: string;  // JSON array
+  redirect_uris: string; // JSON array
+  allowed_scopes: string; // JSON array
   created_at: string;
-  is_public: number;       // 0 | 1 (SQLite boolean)
-  created_via: string;     // 'settings_ui' | 'browser-registration'
+  is_public: number; // 0 | 1 (SQLite boolean)
+  created_via: string; // 'settings_ui' | 'browser-registration'
   allows_client_credentials: number; // 0 | 1
 }
 
@@ -69,7 +70,7 @@ interface OAuthTokenRow {
   user_id: number;
   access_token_hash: string;
   refresh_token_hash: string;
-  scopes: string;           // JSON array
+  scopes: string; // JSON array
   audience: string | null;
   access_token_expires_at: string;
   refresh_token_expires_at: string;
@@ -90,7 +91,9 @@ function timingSafeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   try {
     return crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 function generateAccessToken(): string {
@@ -106,10 +109,12 @@ function generateRefreshToken(): string {
 // ---------------------------------------------------------------------------
 
 export function listOAuthClients(userId: number): Record<string, unknown>[] {
-  const rows = db.prepare(
-    'SELECT id, user_id, name, client_id, redirect_uris, allowed_scopes, created_at, is_public, created_via, allows_client_credentials FROM oauth_clients WHERE user_id = ? ORDER BY created_at DESC'
-  ).all(userId) as OAuthClientRow[];
-  return rows.map(r => ({
+  const rows = db
+    .prepare(
+      'SELECT id, user_id, name, client_id, redirect_uris, allowed_scopes, created_at, is_public, created_via, allows_client_credentials FROM oauth_clients WHERE user_id = ? ORDER BY created_at DESC',
+    )
+    .all(userId) as OAuthClientRow[];
+  return rows.map((r) => ({
     ...r,
     is_public: Boolean(r.is_public),
     allows_client_credentials: Boolean(r.allows_client_credentials),
@@ -129,7 +134,8 @@ export function createOAuthClient(
   if (!name?.trim()) return { error: 'Name is required', status: 400 };
   if (name.trim().length > 100) return { error: 'Name must be 100 characters or less', status: 400 };
   const isMachineClient = Boolean(options?.allowsClientCredentials);
-  if (!isMachineClient && (!redirectUris || redirectUris.length === 0)) return { error: 'At least one redirect URI is required', status: 400 };
+  if (!isMachineClient && (!redirectUris || redirectUris.length === 0))
+    return { error: 'At least one redirect URI is required', status: 400 };
   if (redirectUris.length > 10) return { error: 'Maximum 10 redirect URIs per client', status: 400 };
 
   for (const uri of redirectUris) {
@@ -149,32 +155,59 @@ export function createOAuthClient(
   if (!valid) return { error: `Invalid scopes: ${invalid.join(', ')}`, status: 400 };
 
   if (userId !== null) {
-    const count = (db.prepare('SELECT COUNT(*) as count FROM oauth_clients WHERE user_id = ?').get(userId) as { count: number }).count;
+    const count = (
+      db.prepare('SELECT COUNT(*) as count FROM oauth_clients WHERE user_id = ?').get(userId) as { count: number }
+    ).count;
     if (count >= 10) return { error: 'Maximum of 10 OAuth clients per user', status: 400 };
   } else {
     // Anonymous DCR clients: enforce a global cap to prevent unbounded registration abuse
-    const count = (db.prepare('SELECT COUNT(*) as count FROM oauth_clients WHERE user_id IS NULL').get() as { count: number }).count;
+    const count = (
+      db.prepare('SELECT COUNT(*) as count FROM oauth_clients WHERE user_id IS NULL').get() as { count: number }
+    ).count;
     if (count >= 500) return { error: 'server_error', status: 503 };
   }
 
   // Machine clients (client_credentials) must always be confidential — ignore isPublic for them.
-  const isPublic    = isMachineClient ? false : (options?.isPublic ?? false);
-  const createdVia  = options?.createdVia ?? 'settings_ui';
-  const id          = randomUUID();
-  const clientId    = randomUUID();
+  const isPublic = isMachineClient ? false : (options?.isPublic ?? false);
+  const createdVia = options?.createdVia ?? 'settings_ui';
+  const id = randomUUID();
+  const clientId = randomUUID();
   // Public clients have no usable secret; store an opaque random value to satisfy NOT NULL.
-  const rawSecret   = isPublic ? null : 'trippics_' + randomBytes(24).toString('hex');
-  const secretHash  = rawSecret ? hashToken(rawSecret) : randomBytes(32).toString('hex');
+  const rawSecret = isPublic ? null : 'trekcs_' + randomBytes(24).toString('hex');
+  const secretHash = rawSecret ? hashToken(rawSecret) : randomBytes(32).toString('hex');
 
   db.prepare(
-    'INSERT INTO oauth_clients (id, user_id, name, client_id, client_secret_hash, redirect_uris, allowed_scopes, is_public, created_via, allows_client_credentials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(id, userId, name.trim(), clientId, secretHash, JSON.stringify(redirectUris), JSON.stringify(allowedScopes), isPublic ? 1 : 0, createdVia, isMachineClient ? 1 : 0);
+    'INSERT INTO oauth_clients (id, user_id, name, client_id, client_secret_hash, redirect_uris, allowed_scopes, is_public, created_via, allows_client_credentials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  ).run(
+    id,
+    userId,
+    name.trim(),
+    clientId,
+    secretHash,
+    JSON.stringify(redirectUris),
+    JSON.stringify(allowedScopes),
+    isPublic ? 1 : 0,
+    createdVia,
+    isMachineClient ? 1 : 0,
+  );
 
-  const row = db.prepare(
-    'SELECT id, user_id, name, client_id, redirect_uris, allowed_scopes, created_at, is_public, created_via, allows_client_credentials FROM oauth_clients WHERE id = ?'
-  ).get(id) as OAuthClientRow;
+  const row = db
+    .prepare(
+      'SELECT id, user_id, name, client_id, redirect_uris, allowed_scopes, created_at, is_public, created_via, allows_client_credentials FROM oauth_clients WHERE id = ?',
+    )
+    .get(id) as OAuthClientRow;
 
-  writeAudit({ userId, action: 'oauth.client.create', details: { client_id: clientId, name: name.trim(), is_public: isPublic, allows_client_credentials: isMachineClient }, ip });
+  writeAudit({
+    userId,
+    action: 'oauth.client.create',
+    details: {
+      client_id: clientId,
+      name: name.trim(),
+      is_public: isPublic,
+      allows_client_credentials: isMachineClient,
+    },
+    ip,
+  });
 
   return {
     client: {
@@ -199,17 +232,21 @@ export function rotateOAuthClientSecret(
   clientRowId: string,
   ip?: string | null,
 ): { error?: string; status?: number; client_secret?: string } {
-  const row = db.prepare('SELECT id, client_id, is_public FROM oauth_clients WHERE id = ? AND user_id = ?').get(clientRowId, userId) as OAuthClientRow | undefined;
+  const row = db
+    .prepare('SELECT id, client_id, is_public FROM oauth_clients WHERE id = ? AND user_id = ?')
+    .get(clientRowId, userId) as OAuthClientRow | undefined;
   if (!row) return { error: 'Client not found', status: 404 };
   if (row.is_public) return { error: 'Public clients do not use a client secret', status: 400 };
 
-  const rawSecret  = 'trippics_' + randomBytes(24).toString('hex');
+  const rawSecret = 'trekcs_' + randomBytes(24).toString('hex');
   const secretHash = hashToken(rawSecret);
 
   db.prepare('UPDATE oauth_clients SET client_secret_hash = ? WHERE id = ?').run(secretHash, clientRowId);
 
   // Revoke all existing tokens for this client so old sessions are invalidated
-  db.prepare("UPDATE oauth_tokens SET revoked_at = datetime('now') WHERE client_id = ? AND revoked_at IS NULL").run(row.client_id);
+  db.prepare("UPDATE oauth_tokens SET revoked_at = datetime('now') WHERE client_id = ? AND revoked_at IS NULL").run(
+    row.client_id,
+  );
 
   // Terminate active MCP sessions for this (user, client) pair
 
@@ -225,7 +262,9 @@ export function deleteOAuthClient(
   clientRowId: string,
   ip?: string | null,
 ): { error?: string; status?: number; success?: boolean } {
-  const row = db.prepare('SELECT id, client_id FROM oauth_clients WHERE id = ? AND user_id = ?').get(clientRowId, userId) as OAuthClientRow | undefined;
+  const row = db
+    .prepare('SELECT id, client_id FROM oauth_clients WHERE id = ? AND user_id = ?')
+    .get(clientRowId, userId) as OAuthClientRow | undefined;
   if (!row) return { error: 'Client not found', status: 404 };
   db.prepare('DELETE FROM oauth_clients WHERE id = ?').run(clientRowId);
   writeAudit({ userId, action: 'oauth.client.delete', details: { client_id: row.client_id }, ip });
@@ -264,9 +303,9 @@ export function consumeAuthCode(code: string): PendingCode | null {
 // ---------------------------------------------------------------------------
 
 export function getConsent(clientId: string, userId: number): string[] | null {
-  const row = db.prepare(
-    'SELECT scopes FROM oauth_consents WHERE client_id = ? AND user_id = ?'
-  ).get(clientId, userId) as { scopes: string } | undefined;
+  const row = db
+    .prepare('SELECT scopes FROM oauth_consents WHERE client_id = ? AND user_id = ?')
+    .get(clientId, userId) as { scopes: string } | undefined;
   return row ? JSON.parse(row.scopes) : null;
 }
 
@@ -275,13 +314,13 @@ export function saveConsent(clientId: string, userId: number, scopes: string[], 
   const existing = getConsent(clientId, userId) ?? [];
   const merged = Array.from(new Set([...existing, ...scopes]));
   db.prepare(
-    'INSERT OR REPLACE INTO oauth_consents (client_id, user_id, scopes, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)'
+    'INSERT OR REPLACE INTO oauth_consents (client_id, user_id, scopes, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)',
   ).run(clientId, userId, JSON.stringify(merged));
   writeAudit({ userId, action: 'oauth.consent.grant', details: { client_id: clientId, scopes: merged }, ip });
 }
 
 export function isConsentSufficient(existingScopes: string[], requestedScopes: string[]): boolean {
-  return requestedScopes.every(s => existingScopes.includes(s));
+  return requestedScopes.every((s) => existingScopes.includes(s));
 }
 
 // ---------------------------------------------------------------------------
@@ -301,27 +340,39 @@ export function issueTokens(
   expires_in: number;
   scope: string;
 } {
-  const rawAccess   = generateAccessToken();
-  const rawRefresh  = generateRefreshToken();
-  const accessHash  = hashToken(rawAccess);
+  const rawAccess = generateAccessToken();
+  const rawRefresh = generateRefreshToken();
+  const accessHash = hashToken(rawAccess);
   const refreshHash = hashToken(rawRefresh);
 
-  const now           = new Date();
-  const accessExpiry  = new Date(now.getTime() + ACCESS_TOKEN_TTL_S * 1000);
+  const now = new Date();
+  const accessExpiry = new Date(now.getTime() + ACCESS_TOKEN_TTL_S * 1000);
   const refreshExpiry = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO oauth_tokens
       (client_id, user_id, access_token_hash, refresh_token_hash, scopes, audience, access_token_expires_at, refresh_token_expires_at, parent_token_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(clientId, userId, accessHash, refreshHash, JSON.stringify(scopes), audience, accessExpiry.toISOString(), refreshExpiry.toISOString(), parentTokenId);
+  `,
+  ).run(
+    clientId,
+    userId,
+    accessHash,
+    refreshHash,
+    JSON.stringify(scopes),
+    audience,
+    accessExpiry.toISOString(),
+    refreshExpiry.toISOString(),
+    parentTokenId,
+  );
 
   return {
-    access_token:  rawAccess,
+    access_token: rawAccess,
     refresh_token: rawRefresh,
-    token_type:    'Bearer',
-    expires_in:    ACCESS_TOKEN_TTL_S,
-    scope:         scopes.join(' '),
+    token_type: 'Bearer',
+    expires_in: ACCESS_TOKEN_TTL_S,
+    scope: scopes.join(' '),
   };
 }
 
@@ -341,24 +392,36 @@ export function issueClientCredentialsToken(
   expires_in: number;
   scope: string;
 } {
-  const rawAccess       = generateAccessToken();
-  const accessHash      = hashToken(rawAccess);
+  const rawAccess = generateAccessToken();
+  const accessHash = hashToken(rawAccess);
   const placeholderHash = randomBytes(32).toString('hex');
 
-  const now         = new Date();
+  const now = new Date();
   const accessExpiry = new Date(now.getTime() + ACCESS_TOKEN_TTL_S * 1000);
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO oauth_tokens
       (client_id, user_id, access_token_hash, refresh_token_hash, scopes, audience, access_token_expires_at, refresh_token_expires_at, parent_token_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(clientId, userId, accessHash, placeholderHash, JSON.stringify(scopes), audience, accessExpiry.toISOString(), now.toISOString(), null);
+  `,
+  ).run(
+    clientId,
+    userId,
+    accessHash,
+    placeholderHash,
+    JSON.stringify(scopes),
+    audience,
+    accessExpiry.toISOString(),
+    now.toISOString(),
+    null,
+  );
 
   return {
     access_token: rawAccess,
-    token_type:   'Bearer',
-    expires_in:   ACCESS_TOKEN_TTL_S,
-    scope:        scopes.join(' '),
+    token_type: 'Bearer',
+    expires_in: ACCESS_TOKEN_TTL_S,
+    scope: scopes.join(' '),
   };
 }
 
@@ -375,13 +438,17 @@ export interface OAuthTokenInfo {
 
 export function getUserByAccessToken(rawToken: string): OAuthTokenInfo | null {
   const hash = hashToken(rawToken);
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT ot.scopes, ot.audience, ot.revoked_at, ot.access_token_expires_at,
            ot.user_id, ot.client_id, u.username, u.email, u.role
     FROM oauth_tokens ot
     JOIN users u ON ot.user_id = u.id
     WHERE ot.access_token_hash = ?
-  `).get(hash) as (OAuthTokenRow & { username: string; email: string; role: string }) | undefined;
+  `,
+    )
+    .get(hash) as (OAuthTokenRow & { username: string; email: string; role: string }) | undefined;
 
   if (!row) return null;
   if (row.revoked_at) return null;
@@ -403,7 +470,9 @@ export function getUserByAccessToken(rawToken: string): OAuthTokenInfo | null {
 function findChainRoot(tokenId: number): number {
   let current = tokenId;
   for (let i = 0; i < 100; i++) {
-    const row = db.prepare('SELECT id, parent_token_id FROM oauth_tokens WHERE id = ?').get(current) as { id: number; parent_token_id: number | null } | undefined;
+    const row = db.prepare('SELECT id, parent_token_id FROM oauth_tokens WHERE id = ?').get(current) as
+      | { id: number; parent_token_id: number | null }
+      | undefined;
     if (!row || row.parent_token_id === null) return current;
     current = row.parent_token_id;
   }
@@ -412,18 +481,22 @@ function findChainRoot(tokenId: number): number {
 
 /** Revoke all tokens in the rotation chain rooted at rootId. Returns affected ids. */
 function revokeChain(rootId: number): number[] {
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     WITH RECURSIVE chain(id) AS (
       SELECT id FROM oauth_tokens WHERE id = ?
       UNION ALL
       SELECT t.id FROM oauth_tokens t JOIN chain c ON t.parent_token_id = c.id
     )
     SELECT id FROM chain
-  `).all(rootId) as { id: number }[];
-  const ids = rows.map(r => r.id);
+  `,
+    )
+    .all(rootId) as { id: number }[];
+  const ids = rows.map((r) => r.id);
   if (ids.length > 0) {
     db.prepare(
-      `UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id IN (${ids.map(() => '?').join(',')}) AND revoked_at IS NULL`
+      `UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id IN (${ids.map(() => '?').join(',')}) AND revoked_at IS NULL`,
     ).run(...ids);
   }
   return ids;
@@ -435,7 +508,9 @@ export function refreshTokens(
   clientSecret: string | undefined,
   ip?: string | null,
 ): { error?: string; status?: number; tokens?: ReturnType<typeof issueTokens> } {
-  const client = db.prepare('SELECT client_id, client_secret_hash, is_public FROM oauth_clients WHERE client_id = ?').get(clientId) as OAuthClientRow | undefined;
+  const client = db
+    .prepare('SELECT client_id, client_secret_hash, is_public FROM oauth_clients WHERE client_id = ?')
+    .get(clientId) as OAuthClientRow | undefined;
   if (!client) return { error: 'invalid_client', status: 401 };
   if (!client.is_public) {
     if (!clientSecret || !timingSafeEqualHex(hashToken(clientSecret), client.client_secret_hash)) {
@@ -444,10 +519,14 @@ export function refreshTokens(
   }
 
   const hash = hashToken(rawRefreshToken);
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT id, client_id, user_id, scopes, audience, refresh_token_expires_at, revoked_at, parent_token_id
     FROM oauth_tokens WHERE refresh_token_hash = ?
-  `).get(hash) as OAuthTokenRow | undefined;
+  `,
+    )
+    .get(hash) as OAuthTokenRow | undefined;
 
   if (!row) return { error: 'invalid_grant', status: 400 };
   if (row.client_id !== clientId) return { error: 'invalid_grant', status: 400 };
@@ -458,7 +537,6 @@ export function refreshTokens(
     const rootId = findChainRoot(row.id);
     revokeChain(rootId);
 
-  
     revokeUserSessionsForClient(row.user_id, clientId);
 
     writeAudit({
@@ -495,21 +573,29 @@ export function revokeToken(rawToken: string, clientId: string, userId?: number,
   const hash = hashToken(rawToken);
 
   // Get the user_id for the token so we can revoke its MCP sessions
-  const row = db.prepare(
-    'SELECT user_id FROM oauth_tokens WHERE (access_token_hash = ? OR refresh_token_hash = ?) AND client_id = ?'
-  ).get(hash, hash, clientId) as { user_id: number } | undefined;
+  const row = db
+    .prepare(
+      'SELECT user_id FROM oauth_tokens WHERE (access_token_hash = ? OR refresh_token_hash = ?) AND client_id = ?',
+    )
+    .get(hash, hash, clientId) as { user_id: number } | undefined;
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE oauth_tokens
     SET revoked_at = CURRENT_TIMESTAMP
     WHERE (access_token_hash = ? OR refresh_token_hash = ?) AND client_id = ?
-  `).run(hash, hash, clientId);
+  `,
+  ).run(hash, hash, clientId);
 
   const affectedUserId = row?.user_id ?? userId;
   if (affectedUserId) {
-  
     revokeUserSessionsForClient(affectedUserId, clientId);
-    writeAudit({ userId: affectedUserId, action: 'oauth.token.revoke', details: { client_id: clientId, method: 'token' }, ip });
+    writeAudit({
+      userId: affectedUserId,
+      action: 'oauth.token.revoke',
+      details: { client_id: clientId, method: 'token' },
+      ip,
+    });
   }
 }
 
@@ -518,7 +604,9 @@ export function revokeToken(rawToken: string, clientId: string, userId?: number,
 // ---------------------------------------------------------------------------
 
 export function listOAuthSessions(userId: number): Record<string, unknown>[] {
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT ot.id, ot.client_id, oc.name AS client_name, ot.scopes,
            ot.access_token_expires_at, ot.refresh_token_expires_at, ot.created_at
     FROM oauth_tokens ot
@@ -527,8 +615,10 @@ export function listOAuthSessions(userId: number): Record<string, unknown>[] {
       AND ot.revoked_at IS NULL
       AND ot.refresh_token_expires_at > CURRENT_TIMESTAMP
     ORDER BY ot.created_at DESC
-  `).all(userId) as Record<string, unknown>[];
-  return rows.map(r => ({ ...r, scopes: JSON.parse(r.scopes as string) }));
+  `,
+    )
+    .all(userId) as Record<string, unknown>[];
+  return rows.map((r) => ({ ...r, scopes: JSON.parse(r.scopes as string) }));
 }
 
 export function revokeSession(
@@ -536,11 +626,12 @@ export function revokeSession(
   sessionId: number,
   ip?: string | null,
 ): { error?: string; status?: number; success?: boolean } {
-  const row = db.prepare('SELECT id, client_id FROM oauth_tokens WHERE id = ? AND user_id = ?').get(sessionId, userId) as { id: number; client_id: string } | undefined;
+  const row = db
+    .prepare('SELECT id, client_id FROM oauth_tokens WHERE id = ? AND user_id = ?')
+    .get(sessionId, userId) as { id: number; client_id: string } | undefined;
   if (!row) return { error: 'Session not found', status: 404 };
 
   db.prepare('UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?').run(sessionId);
-
 
   revokeUserSessionsForClient(userId, row.client_id);
 
@@ -579,52 +670,69 @@ export interface ValidateAuthorizeResult {
   scopeSelectable?: boolean;
 }
 
-export function validateAuthorizeRequest(
-  params: AuthorizeParams,
-  userId: number | null,
-): ValidateAuthorizeResult {
+export function validateAuthorizeRequest(params: AuthorizeParams, userId: number | null): ValidateAuthorizeResult {
   if (!isAddonEnabled(ADDON_IDS.MCP)) {
     return { valid: false, error: 'mcp_disabled', error_description: 'MCP is not enabled on this server' };
   }
 
   if (params.response_type !== 'code') {
-    return { valid: false, error: 'unsupported_response_type', error_description: 'Only response_type=code is supported' };
+    return {
+      valid: false,
+      error: 'unsupported_response_type',
+      error_description: 'Only response_type=code is supported',
+    };
   }
 
   if (!params.code_challenge || params.code_challenge_method !== 'S256') {
-    return { valid: false, error: 'invalid_request', error_description: 'PKCE with code_challenge_method=S256 is required (OAuth 2.1)' };
+    return {
+      valid: false,
+      error: 'invalid_request',
+      error_description: 'PKCE with code_challenge_method=S256 is required (OAuth 2.1)',
+    };
   }
 
   // H1: Enforce code_challenge format (RFC 7636 §4.2)
   if (!CODE_CHALLENGE_RE.test(params.code_challenge)) {
-    return { valid: false, error: 'invalid_request', error_description: 'code_challenge must be 43 base64url characters (S256)' };
+    return {
+      valid: false,
+      error: 'invalid_request',
+      error_description: 'code_challenge must be 43 base64url characters (S256)',
+    };
   }
 
   if (!params.client_id) {
     return { valid: false, error: 'invalid_request', error_description: 'client_id is required' };
   }
 
-  const client = db.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').get(params.client_id) as OAuthClientRow | undefined;
+  const client = db.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').get(params.client_id) as
+    | OAuthClientRow
+    | undefined;
   if (!client) {
     return { valid: false, error: 'invalid_client', error_description: 'Unknown client_id' };
   }
 
   const allowedUris: string[] = JSON.parse(client.redirect_uris);
   if (!params.redirect_uri || !allowedUris.includes(params.redirect_uri)) {
-    return { valid: false, error: 'invalid_redirect_uri', error_description: 'redirect_uri does not match any registered URI' };
+    return {
+      valid: false,
+      error: 'invalid_redirect_uri',
+      error_description: 'redirect_uri does not match any registered URI',
+    };
   }
 
-  // RFC 8707 resource indicator: if provided, must identify the TRIPPI
+  // RFC 8707 resource indicator: if provided, must identify the trippi.ai
   // MCP endpoint exactly. If the client didn't supply `resource`, we
   // bind the token to the MCP endpoint by default — previously this
   // left `audience = null`, and the audience-bind check on MCP requests
   // then treated a null audience as "valid for any resource".
   const mcpResource = `${getMcpSafeUrl().replace(/\/+$/, '')}/mcp`;
-  const resource = params.resource
-    ? params.resource.replace(/\/+$/, '')
-    : mcpResource;
+  const resource = params.resource ? params.resource.replace(/\/+$/, '') : mcpResource;
   if (resource !== mcpResource) {
-    return { valid: false, error: 'invalid_target', error_description: 'Requested resource must be the TRIPPI MCP endpoint' };
+    return {
+      valid: false,
+      error: 'invalid_target',
+      error_description: 'Requested resource must be the trippi.ai MCP endpoint',
+    };
   }
 
   const requestedScopes = (params.scope || '').split(' ').filter(Boolean);
@@ -635,9 +743,13 @@ export function validateAuthorizeRequest(
   const allowedScopes: string[] = JSON.parse(client.allowed_scopes);
   // Narrow to the intersection: drop scopes the client isn't permitted for rather
   // than rejecting the whole request (per OAuth 2.0 §3.3 scope narrowing).
-  const grantedScopes = requestedScopes.filter(s => allowedScopes.includes(s));
+  const grantedScopes = requestedScopes.filter((s) => allowedScopes.includes(s));
   if (grantedScopes.length === 0) {
-    return { valid: false, error: 'invalid_scope', error_description: 'None of the requested scopes are permitted for this client' };
+    return {
+      valid: false,
+      error: 'invalid_scope',
+      error_description: 'None of the requested scopes are permitted for this client',
+    };
   }
 
   if (userId === null) {
@@ -672,7 +784,9 @@ export function verifyPKCE(codeVerifier: string, codeChallenge: string): boolean
   if (expected.length !== codeChallenge.length) return false;
   try {
     return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(codeChallenge));
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -680,7 +794,9 @@ export function verifyPKCE(codeVerifier: string, codeChallenge: string): boolean
 // ---------------------------------------------------------------------------
 
 export function authenticateClient(clientId: string, clientSecret: string | undefined): OAuthClientRow | null {
-  const client = db.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').get(clientId) as OAuthClientRow | undefined;
+  const client = db.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').get(clientId) as
+    | OAuthClientRow
+    | undefined;
   if (!client) return null;
   if (client.is_public) {
     // Public clients are identified by client_id alone — PKCE provides the security guarantee.

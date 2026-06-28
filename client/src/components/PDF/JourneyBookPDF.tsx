@@ -1,69 +1,69 @@
 // Journey Photo Book PDF — Polarsteps-inspired, magazine-density
-import { marked } from 'marked'
-import { sanitizeRichTextHtml } from '@trippi/shared'
-import type { JourneyDetail, JourneyEntry, JourneyPhoto } from '../../store/journeyStore'
+import { sanitizeRichTextHtml } from '@trippi/shared';
+import { marked } from 'marked';
+import type { JourneyDetail, JourneyEntry, JourneyPhoto } from '../../store/journeyStore';
 
 function esc(str: string | null | undefined): string {
-  if (!str) return ''
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function md(str: string | null | undefined): string {
-  if (!str) return ''
+  if (!str) return '';
   // marked passes embedded raw HTML through by default, so sanitise the result
   // before it goes into the srcdoc iframe (keeps prose markup, drops scripts).
-  return sanitizeRichTextHtml(marked.parse(str, { async: false, breaks: true }) as string)
+  return sanitizeRichTextHtml(marked.parse(str, { async: false, breaks: true }) as string);
 }
 
 function abs(url: string | null | undefined): string {
-  if (!url) return ''
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url
-  return window.location.origin + (url.startsWith('/') ? '' : '/') + url
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  return window.location.origin + (url.startsWith('/') ? '' : '/') + url;
 }
 
 function pSrc(p: JourneyPhoto): string {
-  return abs(`/api/photos/${p.photo_id}/original`)
+  return abs(`/api/photos/${p.photo_id}/original`);
 }
 
 function fmtDate(d: string): string {
-  const date = new Date(d + 'T00:00:00')
-  return date.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  const date = new Date(d + 'T00:00:00');
+  return date.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 function fmtShort(d: string): string {
-  return new Date(d + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' })
+  return new Date(d + 'T00:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' });
 }
 
 function groupByDate(entries: JourneyEntry[]): Map<string, JourneyEntry[]> {
-  const groups = new Map<string, JourneyEntry[]>()
+  const groups = new Map<string, JourneyEntry[]>();
   for (const e of entries) {
-    if (!e.entry_date) continue
-    if (!groups.has(e.entry_date)) groups.set(e.entry_date, [])
-    groups.get(e.entry_date)!.push(e)
+    if (!e.entry_date) continue;
+    if (!groups.has(e.entry_date)) groups.set(e.entry_date, []);
+    groups.get(e.entry_date)!.push(e);
   }
-  return groups
+  return groups;
 }
 
 function renderProscons(entry: JourneyEntry): string {
-  const pc = entry.pros_cons
-  if (!pc) return ''
-  const pros = pc.pros?.filter(p => p.trim()) || []
-  const cons = pc.cons?.filter(c => c.trim()) || []
-  if (pros.length === 0 && cons.length === 0) return ''
+  const pc = entry.pros_cons;
+  if (!pc) return '';
+  const pros = pc.pros?.filter((p) => p.trim()) || [];
+  const cons = pc.cons?.filter((c) => c.trim()) || [];
+  if (pros.length === 0 && cons.length === 0) return '';
 
   return `<div class="verdict-wrap"><div class="verdict-row">
-    ${pros.length > 0 ? `<div class="verdict-card pros"><div class="verdict-label">Loved it</div><ul>${pros.map(p => `<li>${esc(p)}</li>`).join('')}</ul></div>` : ''}
-    ${cons.length > 0 ? `<div class="verdict-card cons"><div class="verdict-label">Could be better</div><ul>${cons.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
-  </div></div>`
+    ${pros.length > 0 ? `<div class="verdict-card pros"><div class="verdict-label">Loved it</div><ul>${pros.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div>` : ''}
+    ${cons.length > 0 ? `<div class="verdict-card cons"><div class="verdict-label">Could be better</div><ul>${cons.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
+  </div></div>`;
 }
 
 function renderPhotoBlock(photos: JourneyPhoto[]): string {
-  if (photos.length === 0) return ''
+  if (photos.length === 0) return '';
   if (photos.length === 1) {
-    return `<div class="entry-photo-single"><img src="${pSrc(photos[0])}" /></div>`
+    return `<div class="entry-photo-single"><img src="${pSrc(photos[0])}" /></div>`;
   }
   if (photos.length === 2) {
-    return `<div class="entry-photo-duo">${photos.map(p => `<div class="photo-cell"><img src="${pSrc(p)}" /></div>`).join('')}</div>`
+    return `<div class="entry-photo-duo">${photos.map((p) => `<div class="photo-cell"><img src="${pSrc(p)}" /></div>`).join('')}</div>`;
   }
   // 3+ photos: hero left + stack right
   return `<div class="entry-photo-trio">
@@ -72,41 +72,43 @@ function renderPhotoBlock(photos: JourneyPhoto[]): string {
       <div class="photo-cell"><img src="${pSrc(photos[1])}" /></div>
       <div class="photo-cell"><img src="${pSrc(photos[2])}" /></div>
     </div>
-  </div>`
+  </div>`;
 }
 
 export async function downloadJourneyBookPDF(journey: JourneyDetail) {
-  const entries = (journey.entries || []).filter(e => e.type !== 'skeleton')
-  const allPhotos = entries.flatMap(e => e.photos || [])
-  const coverUrl = journey.cover_image ? abs(`/uploads/${journey.cover_image}`) : (allPhotos[0] ? pSrc(allPhotos[0]) : '')
+  const entries = (journey.entries || []).filter((e) => e.type !== 'skeleton');
+  const allPhotos = entries.flatMap((e) => e.photos || []);
+  const coverUrl = journey.cover_image
+    ? abs(`/uploads/${journey.cover_image}`)
+    : allPhotos[0]
+      ? pSrc(allPhotos[0])
+      : '';
 
-  const grouped = groupByDate(entries)
-  const dates = [...grouped.keys()].sort()
+  const grouped = groupByDate(entries);
+  const dates = [...grouped.keys()].sort();
 
   // Build entry pages — one per entry, day header inline on first entry of day
-  const entryPages: string[] = []
-  let pageNum = 1 // cover=1
+  const entryPages: string[] = [];
+  let pageNum = 1; // cover=1
   dates.forEach((date, di) => {
-    const dayEntries = grouped.get(date)!
+    const dayEntries = grouped.get(date)!;
     dayEntries.forEach((entry, ei) => {
-      pageNum++
-      const isFirstOfDay = ei === 0
-      const photos = entry.photos || []
-      const meta = [entry.entry_time, entry.location_name].filter(Boolean).join(' · ')
+      pageNum++;
+      const isFirstOfDay = ei === 0;
+      const photos = entry.photos || [];
+      const meta = [entry.entry_time, entry.location_name].filter(Boolean).join(' · ');
 
       // Day header (inline, only on first entry of day)
-      const dayHeaderHtml = isFirstOfDay
-        ? `<div class="day-header">Day ${di + 1} · ${fmtDate(date)}</div>`
-        : ''
+      const dayHeaderHtml = isFirstOfDay ? `<div class="day-header">Day ${di + 1} · ${fmtDate(date)}</div>` : '';
 
       // Photo block
-      const photoHtml = renderPhotoBlock(photos)
+      const photoHtml = renderPhotoBlock(photos);
 
       // Pros/cons
-      const prosconsHtml = renderProscons(entry)
+      const prosconsHtml = renderProscons(entry);
 
       // Story (markdown)
-      const storyHtml = entry.story ? `<div class="entry-story">${md(entry.story)}</div>` : ''
+      const storyHtml = entry.story ? `<div class="entry-story">${md(entry.story)}</div>` : '';
 
       entryPages.push(`
         <div class="entry-page">
@@ -119,11 +121,11 @@ export async function downloadJourneyBookPDF(journey: JourneyDetail) {
             ${prosconsHtml}
           </div>
         </div>
-      `)
-    })
-  })
+      `);
+    });
+  });
 
-  const totalPages = pageNum + 1 // +1 for closing page
+  const totalPages = pageNum + 1; // +1 for closing page
 
   const html = `<!DOCTYPE html>
 <html>
@@ -271,7 +273,7 @@ export async function downloadJourneyBookPDF(journey: JourneyDetail) {
         <div><div class="cover-stat-val">${allPhotos.length}</div><div class="cover-stat-label">Photos</div></div>
       </div>
     </div>
-    <div class="cover-footer">Made with TRIPPI</div>
+    <div class="cover-footer">Made with trippi.ai</div>
   </div>
 
   <!-- Entry Pages -->
@@ -281,46 +283,53 @@ export async function downloadJourneyBookPDF(journey: JourneyDetail) {
   <div class="closing-page">
     <div>
       <div class="closing-title">The End</div>
-      <div class="closing-sub">Made with TRIPPI · ${new Date().getFullYear()}</div>
+      <div class="closing-sub">Made with trippi.ai · ${new Date().getFullYear()}</div>
     </div>
   </div>
 
 </body>
-</html>`
+</html>`;
 
   // Render in a fixed overlay + srcdoc iframe — same pattern as TripPDF.
   // This avoids window.open() which Safari iOS blocks in async callbacks
   // and window.close() which doesn't work reliably in standalone PWA mode.
-  const overlay = document.createElement('div')
-  overlay.id = 'journey-pdf-overlay'
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:8px;'
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove() }
+  const overlay = document.createElement('div');
+  overlay.id = 'journey-pdf-overlay';
+  overlay.style.cssText =
+    'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:8px;';
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove();
+  };
 
-  const card = document.createElement('div')
-  card.style.cssText = 'width:100%;max-width:1100px;height:95vh;background:#fff;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.35);'
+  const card = document.createElement('div');
+  card.style.cssText =
+    'width:100%;max-width:1100px;height:95vh;background:#fff;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.35);';
 
-  const header = document.createElement('div')
-  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid #e4e4e7;flex-shrink:0;background:#0f172a;'
+  const header = document.createElement('div');
+  header.style.cssText =
+    'display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid #e4e4e7;flex-shrink:0;background:#0f172a;';
   header.innerHTML = `
     <span style="font-size:12px;color:rgba(255,255,255,0.45);font-weight:500;letter-spacing:0.03em">${esc(journey.title)} &middot; ${totalPages} pages</span>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="journey-pdf-save" style="min-height:44px;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;border:none;background:#fff;color:#0f172a;">Save as PDF</button>
       <button id="journey-pdf-close" style="min-height:44px;padding:10px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);">Close</button>
     </div>
-  `
+  `;
 
-  const iframe = document.createElement('iframe')
-  iframe.style.cssText = 'flex:1;width:100%;border:none;'
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'flex:1;width:100%;border:none;';
   // No script runs inside the document (print is triggered from the parent via
   // contentWindow.print()), so withhold allow-scripts to keep the sandbox tight.
-  iframe.sandbox = 'allow-same-origin allow-modals'
-  iframe.srcdoc = html
+  iframe.sandbox = 'allow-same-origin allow-modals';
+  iframe.srcdoc = html;
 
-  card.appendChild(header)
-  card.appendChild(iframe)
-  overlay.appendChild(card)
-  document.body.appendChild(overlay)
+  card.appendChild(header);
+  card.appendChild(iframe);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
 
-  header.querySelector<HTMLButtonElement>('#journey-pdf-close')!.onclick = () => overlay.remove()
-  header.querySelector<HTMLButtonElement>('#journey-pdf-save')!.onclick = () => { iframe.contentWindow?.print() }
+  header.querySelector<HTMLButtonElement>('#journey-pdf-close')!.onclick = () => overlay.remove();
+  header.querySelector<HTMLButtonElement>('#journey-pdf-save')!.onclick = () => {
+    iframe.contentWindow?.print();
+  };
 }

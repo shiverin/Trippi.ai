@@ -1,20 +1,18 @@
 // FE-COMP-DISPLAY-001 to FE-COMP-DISPLAY-027
-import { render, screen, waitFor } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { buildSettings, buildUser } from '../../../tests/helpers/factories';
 import { server } from '../../../tests/helpers/msw/server';
+import { render, screen } from '../../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../../tests/helpers/store';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import { buildUser, buildSettings } from '../../../tests/helpers/factories';
-import DisplaySettingsTab from './DisplaySettingsTab';
 import { ToastContainer } from '../shared/Toast';
+import DisplaySettingsTab from './DisplaySettingsTab';
 
 beforeEach(() => {
   resetAllStores();
-  server.use(
-    http.put('/api/settings', async () => HttpResponse.json({ success: true })),
-  );
+  server.use(http.put('/api/settings', async () => HttpResponse.json({ success: true })));
   seedStore(useAuthStore, { user: buildUser(), isAuthenticated: true });
   seedStore(useSettingsStore, { settings: buildSettings({ dark_mode: 'light', language: 'en' }) });
 });
@@ -124,8 +122,11 @@ describe('DisplaySettingsTab', () => {
     render(<DisplaySettingsTab />);
     // Multiple elements contain "English" (desktop grid button + mobile dropdown trigger).
     // The desktop grid button is the one with the active border style.
-    const englishMatches = screen.getAllByText('English').map(el => el.closest('button')!).filter(Boolean);
-    const activeBtn = englishMatches.find(btn => (btn.style.border || '').includes('var(--text-primary)'));
+    const englishMatches = screen
+      .getAllByText('English')
+      .map((el) => el.closest('button')!)
+      .filter(Boolean);
+    const activeBtn = englishMatches.find((btn) => (btn.style.border || '').includes('var(--text-primary)'));
     expect(activeBtn).toBeDefined();
   });
 
@@ -194,7 +195,12 @@ describe('DisplaySettingsTab', () => {
     const user = userEvent.setup();
     const updateSetting = vi.fn().mockRejectedValue(new Error('Server error'));
     seedStore(useSettingsStore, { settings: buildSettings({ dark_mode: 'light' }), updateSetting });
-    render(<><ToastContainer /><DisplaySettingsTab /></>);
+    render(
+      <>
+        <ToastContainer />
+        <DisplaySettingsTab />
+      </>
+    );
     await user.click(screen.getByText('Dark'));
     await screen.findByText('Server error');
   });

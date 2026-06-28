@@ -1,10 +1,11 @@
-import express, { Request, Response, NextFunction } from 'express';
-import compression from 'compression';
-import cors from 'cors';
-import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
 import { logDebug, logWarn, logError } from '../services/auditLog';
 import { enforceGlobalMfaPolicy } from './mfaPolicy';
+
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import express, { Request, Response, NextFunction } from 'express';
+import helmet from 'helmet';
 
 /**
  * The global request pipeline shared by the legacy Express app and the NestJS
@@ -18,10 +19,7 @@ import { enforceGlobalMfaPolicy } from './mfaPolicy';
  * `bodyParser` is opt-out: the Nest instance does its own body parsing, so it
  * passes `false` to avoid parsing the request twice.
  */
-export function applyGlobalMiddleware(
-  app: express.Application,
-  opts: { bodyParser?: boolean } = {},
-): void {
+export function applyGlobalMiddleware(app: express.Application, opts: { bodyParser?: boolean } = {}): void {
   const { bodyParser = true } = opts;
 
   // Trust first proxy (nginx/Docker) for correct req.ip
@@ -45,7 +43,9 @@ export function applyGlobalMiddleware(
   );
 
   const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+    ? process.env.ALLOWED_ORIGINS.split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
     : null;
 
   let corsOrigin: cors.CorsOptions['origin'];
@@ -82,59 +82,71 @@ export function applyGlobalMiddleware(
   // answer OPTIONS without Access-Control-Allow-Origin before the SDK's own cors() runs.
   // All /.well-known/* paths get open CORS so clients probing openid-configuration or the
   // RFC 8414 path-suffixed AS metadata form don't get CORS-blocked (they get 404 JSON instead).
-  app.use(
-    (req: Request, _res: Response, next: NextFunction) => {
-      if (
-        req.path.startsWith('/.well-known/') ||
-        req.path === '/oauth/register' ||
-        req.path === '/oauth/authorize' ||
-        req.path === '/oauth/userinfo' ||
-        req.path === '/mcp'
-      ) {
-        cors({ origin: '*', credentials: false })(req, _res, next);
-      } else {
-        next();
-      }
-    },
-  );
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    if (
+      req.path.startsWith('/.well-known/') ||
+      req.path === '/oauth/register' ||
+      req.path === '/oauth/authorize' ||
+      req.path === '/oauth/userinfo' ||
+      req.path === '/mcp'
+    ) {
+      cors({ origin: '*', credentials: false })(req, _res, next);
+    } else {
+      next();
+    }
+  });
   app.use(cors({ origin: corsOrigin, credentials: true }));
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'wasm-unsafe-eval'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://unpkg.com"],
-        imgSrc: ["'self'", "data:", "blob:", "https:"],
-        connectSrc: [
-          "'self'", "ws:", "wss:",
-          "https://nominatim.openstreetmap.org", "https://overpass-api.de",
-          "https://places.googleapis.com", "https://api.openweathermap.org",
-          "https://en.wikipedia.org", "https://commons.wikimedia.org",
-          "https://*.basemaps.cartocdn.com", "https://*.tile.openstreetmap.org",
-          "https://unpkg.com", "https://open-meteo.com", "https://api.open-meteo.com",
-          "https://geocoding-api.open-meteo.com", "https://api.frankfurter.dev",
-          "https://router.project-osrm.org/route/v1/", "https://routing.openstreetmap.de/",
-          "https://api.mapbox.com", "https://*.tiles.mapbox.com", "https://events.mapbox.com",
-          "https://tiles.openfreemap.org"
-        ],
-        workerSrc: ["'self'", "blob:"],
-        childSrc: ["'self'", "blob:"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-        // 'self' so same-origin file previews can embed PDFs via <object>/<embed>
-        // (Firefox/Chrome enforce object-src; 'none' broke inline PDF previews there).
-        objectSrc: ["'self'"],
-        frameSrc: ["'none'"],
-        frameAncestors: ["'self'"],
-        // Restrict <form> submission targets (form-action has no default-src
-        // fallback, so it must be set explicitly).
-        formAction: ["'self'"],
-        upgradeInsecureRequests: shouldForceHttps ? [] : null
-      }
-    },
-    crossOriginEmbedderPolicy: false,
-    hsts: hstsActive ? { maxAge: 31536000, includeSubDomains: hstsIncludeSubdomains } : false,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'wasm-unsafe-eval'", "'unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
+          imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+          connectSrc: [
+            "'self'",
+            'ws:',
+            'wss:',
+            'https://nominatim.openstreetmap.org',
+            'https://overpass-api.de',
+            'https://places.googleapis.com',
+            'https://api.openweathermap.org',
+            'https://en.wikipedia.org',
+            'https://commons.wikimedia.org',
+            'https://*.basemaps.cartocdn.com',
+            'https://*.tile.openstreetmap.org',
+            'https://unpkg.com',
+            'https://open-meteo.com',
+            'https://api.open-meteo.com',
+            'https://geocoding-api.open-meteo.com',
+            'https://api.frankfurter.dev',
+            'https://router.project-osrm.org/route/v1/',
+            'https://routing.openstreetmap.de/',
+            'https://api.mapbox.com',
+            'https://*.tiles.mapbox.com',
+            'https://events.mapbox.com',
+            'https://tiles.openfreemap.org',
+          ],
+          workerSrc: ["'self'", 'blob:'],
+          childSrc: ["'self'", 'blob:'],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+          // 'self' so same-origin file previews can embed PDFs via <object>/<embed>
+          // (Firefox/Chrome enforce object-src; 'none' broke inline PDF previews there).
+          objectSrc: ["'self'"],
+          frameSrc: ["'none'"],
+          frameAncestors: ["'self'"],
+          // Restrict <form> submission targets (form-action has no default-src
+          // fallback, so it must be set explicitly).
+          formAction: ["'self'"],
+          upgradeInsecureRequests: shouldForceHttps ? [] : null,
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+      hsts: hstsActive ? { maxAge: 31536000, includeSubDomains: hstsIncludeSubdomains } : false,
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    }),
+  );
 
   if (shouldForceHttps) {
     app.use((req: Request, res: Response, next: NextFunction) => {
@@ -152,7 +164,19 @@ export function applyGlobalMiddleware(
   app.use(enforceGlobalMfaPolicy);
 
   // Request logging with sensitive field redaction
-  const SENSITIVE_KEYS = new Set(['password', 'new_password', 'current_password', 'token', 'jwt', 'authorization', 'cookie', 'client_secret', 'mfa_token', 'code', 'smtp_pass']);
+  const SENSITIVE_KEYS = new Set([
+    'password',
+    'new_password',
+    'current_password',
+    'token',
+    'jwt',
+    'authorization',
+    'cookie',
+    'client_secret',
+    'mfa_token',
+    'code',
+    'smtp_pass',
+  ]);
   const redact = (value: unknown): unknown => {
     if (!value || typeof value !== 'object') return value;
     if (Array.isArray(value)) return (value as unknown[]).map(redact);

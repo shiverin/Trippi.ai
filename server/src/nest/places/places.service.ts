@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { broadcast } from '../../websocket';
 import { canAccessTrip } from '../../db/database';
-import { checkPermission } from '../../services/permissions';
-import type { User } from '../../types';
-import * as svc from '../../services/placeService';
 import { onPlaceCreated, onPlaceUpdated, onPlaceDeleted } from '../../services/journeyService';
+import { checkPermission } from '../../services/permissions';
+import * as svc from '../../services/placeService';
+import type { User } from '../../types';
+import { broadcast } from '../../websocket';
+import { Injectable } from '@nestjs/common';
 
 type Trip = { user_id: number };
 
@@ -77,7 +77,25 @@ export class PlacesService {
   }
 
   // Journey hooks — non-fatal, mirroring the route's try/catch wrappers.
-  onCreated(tripId: string, placeId: number): void { try { onPlaceCreated(Number(tripId), placeId); } catch { /* non-fatal */ } }
-  onUpdated(placeId: number): void { try { onPlaceUpdated(placeId); } catch { /* non-fatal */ } }
-  onDeleted(placeId: number): void { try { onPlaceDeleted(placeId); } catch { /* non-fatal */ } }
+  onCreated(tripId: string, placeId: number): void {
+    try {
+      onPlaceCreated(Number(tripId), placeId);
+    } catch {
+      /* non-fatal */
+    }
+  }
+  onUpdated(placeId: number): void {
+    try {
+      onPlaceUpdated(placeId);
+    } catch {
+      /* non-fatal */
+    }
+  }
+  onDeleted(placeId: number): void {
+    try {
+      onPlaceDeleted(placeId);
+    } catch {
+      /* non-fatal */
+    }
+  }
 }

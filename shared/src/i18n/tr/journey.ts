@@ -206,7 +206,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Şununla paylaşıldı:',
   'journey.public.madeWith': 'İle yapıldı',
   'journey.pdf.journeyBook': 'Journey Kitabı',
-  'journey.pdf.madeWith': 'TRIPPI ile Yapıldı',
+  'journey.pdf.madeWith': 'trippi.ai ile Yapıldı',
   'journey.pdf.day': 'Gün',
   'journey.pdf.theEnd': 'Son',
   'journey.pdf.saveAsPdf': 'PDF olarak Kaydet',

@@ -1,7 +1,7 @@
 /**
  * Idempotency key TTL cleanup (H6).
  *
- * The TRIPPI client replays queued mutations with their X-Idempotency-Key on
+ * The trippi.ai client replays queued mutations with their X-Idempotency-Key on
  * reconnect, so the server must keep keys long enough to cover a realistic
  * offline window — otherwise a key GC'd before the device returns lets the
  * replay create a duplicate. The TTL was raised from 24h to 30d (overridable).

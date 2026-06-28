@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
 import { db } from '../../db/database';
-import { broadcast } from '../../websocket';
-import { checkPermission } from '../../services/permissions';
-import type { User } from '../../types';
 import * as svc from '../../services/budgetService';
 import { getRates } from '../../services/exchangeRateService';
+import { checkPermission } from '../../services/permissions';
+import type { User } from '../../types';
+import { broadcast } from '../../websocket';
+import { Injectable } from '@nestjs/common';
 
 type Trip = NonNullable<ReturnType<typeof svc.verifyTripAccess>>;
 
@@ -54,12 +54,12 @@ export class BudgetService {
     const cur = (data.currency || '').toUpperCase();
     if (!cur) return; // currency not being set in this request
     if (existingItemId != null) {
-      const existing = db.prepare('SELECT currency FROM budget_items WHERE id = ?')
-        .get(existingItemId) as { currency?: string } | undefined;
+      const existing = db.prepare('SELECT currency FROM budget_items WHERE id = ?').get(existingItemId) as
+        | { currency?: string }
+        | undefined;
       if (existing && (existing.currency || '').toUpperCase() === cur) return; // currency unchanged
     }
-    const trip = db.prepare('SELECT currency FROM trips WHERE id = ?')
-      .get(tripId) as { currency?: string } | undefined;
+    const trip = db.prepare('SELECT currency FROM trips WHERE id = ?').get(tripId) as { currency?: string } | undefined;
     const tripCur = (trip?.currency || 'EUR').toUpperCase();
     if (cur === tripCur) return; // same as the trip currency → no conversion to freeze
     const rates = await getRates(tripCur);
@@ -124,9 +124,9 @@ export class BudgetService {
    */
   syncReservationPrice(tripId: string, reservationId: number, totalPrice: number, socketId: string | undefined): void {
     try {
-      const reservation = db.prepare(
-        'SELECT id, metadata FROM reservations WHERE id = ? AND trip_id = ?',
-      ).get(reservationId, tripId) as { id: number; metadata: string | null } | undefined;
+      const reservation = db
+        .prepare('SELECT id, metadata FROM reservations WHERE id = ? AND trip_id = ?')
+        .get(reservationId, tripId) as { id: number; metadata: string | null } | undefined;
       if (!reservation) return;
       const meta = reservation.metadata ? JSON.parse(reservation.metadata) : {};
       meta.price = String(totalPrice);

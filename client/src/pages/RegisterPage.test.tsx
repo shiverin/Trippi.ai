@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { server } from '../../tests/helpers/msw/server';
+import { render, screen, waitFor } from '../../tests/helpers/render';
 import { resetAllStores } from '../../tests/helpers/store';
 import RegisterPage from './RegisterPage';
 
@@ -89,9 +89,9 @@ describe('RegisterPage', () => {
     it('disables submit button and shows loading text while registering', async () => {
       server.use(
         http.post('/api/auth/register', async () => {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
           return HttpResponse.json({ user: { id: 1, username: 'newuser' } });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -115,7 +115,7 @@ describe('RegisterPage', () => {
       server.use(
         http.post('/api/auth/register', () => {
           return HttpResponse.json({ error: 'Username already taken' }, { status: 409 });
-        }),
+        })
       );
 
       const user = userEvent.setup();

@@ -1,7 +1,7 @@
 /**
  * Encryption key migration script.
  *
- * Re-encrypts all at-rest secrets in the TRIPPI database from one ENCRYPTION_KEY
+ * Re-encrypts all at-rest secrets in the trippi.ai database from one ENCRYPTION_KEY
  * to another without requiring the application to be running.
  *
  * Usage (host):
@@ -138,7 +138,7 @@ interface MigrationResult {
 }
 
 async function main() {
-  console.log('=== TRIPPI Encryption Key Migration ===\n');
+  console.log('=== trippi.ai Encryption Key Migration ===\n');
   console.log('This script re-encrypts all stored secrets under a new ENCRYPTION_KEY.');
   console.log('A backup of the database will be created before any changes are made.\n');
 

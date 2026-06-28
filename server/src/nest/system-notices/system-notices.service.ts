@@ -1,6 +1,6 @@
+import { getActiveNoticesFor, dismissNotice } from '../../systemNotices/service';
 import { Injectable } from '@nestjs/common';
 import type { SystemNoticeDto } from '@trippi/shared';
-import { getActiveNoticesFor, dismissNotice } from '../../systemNotices/service';
 
 /**
  * Thin Nest wrapper around the existing system-notices service. The condition

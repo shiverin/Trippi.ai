@@ -1,3 +1,9 @@
+import { isDemoEmail } from '../../services/demo';
+import { MAX_FILE_SIZE, BLOCKED_EXTENSIONS, filesDir, getAllowedExtensions } from '../../services/fileService';
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { FilesService } from './files.service';
 import {
   Body,
   Controller,
@@ -16,20 +22,18 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+
+import fs from 'fs';
 import { diskStorage } from 'multer';
 import path from 'path';
-import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import type { User } from '../../types';
-import { FilesService } from './files.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { MAX_FILE_SIZE, BLOCKED_EXTENSIONS, filesDir, getAllowedExtensions } from '../../services/fileService';
-import { isDemoEmail } from '../../services/demo';
 
 const UPLOAD = {
   storage: diskStorage({
-    destination: (_req, _file, cb) => { if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true }); cb(null, filesDir); },
+    destination: (_req, _file, cb) => {
+      if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
+      cb(null, filesDir);
+    },
     filename: (_req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
   }),
   limits: { fileSize: MAX_FILE_SIZE },
@@ -42,9 +46,12 @@ const UPLOAD = {
       cb(err, false);
     };
     if (BLOCKED_EXTENSIONS.includes(ext) || file.mimetype.includes('svg')) return reject();
-    const allowed = getAllowedExtensions().split(',').map((e) => e.trim().toLowerCase());
+    const allowed = getAllowedExtensions()
+      .split(',')
+      .map((e) => e.trim().toLowerCase());
     const fileExt = ext.replace('.', '');
-    if (allowed.includes(fileExt) || (allowed.includes('*') && !BLOCKED_EXTENSIONS.includes(ext))) return cb(null, true);
+    if (allowed.includes(fileExt) || (allowed.includes('*') && !BLOCKED_EXTENSIONS.includes(ext)))
+      return cb(null, true);
     reject();
   },
 };
@@ -89,7 +96,10 @@ export class FilesController {
   ) {
     const trip = this.requireTrip(tripId, user);
     if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(user.email)) {
-      throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' }, 403);
+      throw new HttpException(
+        { error: 'Uploads are disabled in demo mode. Self-host trippi.ai for full functionality.' },
+        403,
+      );
     }
     if (!this.files.can('file_upload', trip, user)) {
       throw new HttpException({ error: 'No permission to upload files' }, 403);
@@ -107,7 +117,13 @@ export class FilesController {
   }
 
   @Put(':id')
-  update(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Body() body: { description?: string; place_id?: string | null; reservation_id?: string | null }, @Headers('x-socket-id') socketId?: string) {
+  update(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Body() body: { description?: string; place_id?: string | null; reservation_id?: string | null },
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission to edit files' }, 403);
@@ -116,13 +132,22 @@ export class FilesController {
     if (!file) {
       throw new HttpException({ error: 'File not found' }, 404);
     }
-    const updated = this.files.updateFile(id, file, { description: body.description, place_id: body.place_id, reservation_id: body.reservation_id });
+    const updated = this.files.updateFile(id, file, {
+      description: body.description,
+      place_id: body.place_id,
+      reservation_id: body.reservation_id,
+    });
     this.files.broadcast(tripId, 'file:updated', { file: updated }, socketId);
     return { file: updated };
   }
 
   @Patch(':id/star')
-  star(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Headers('x-socket-id') socketId?: string) {
+  star(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
@@ -147,7 +172,12 @@ export class FilesController {
   }
 
   @Delete(':id/permanent')
-  async permanent(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Headers('x-socket-id') socketId?: string) {
+  async permanent(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
@@ -162,7 +192,12 @@ export class FilesController {
   }
 
   @Delete(':id')
-  remove(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Headers('x-socket-id') socketId?: string) {
+  remove(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission to delete files' }, 403);
@@ -178,7 +213,12 @@ export class FilesController {
 
   @Post(':id/restore')
   @HttpCode(200) // Express answers restore with res.json (200), not the POST-default 201.
-  restore(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Headers('x-socket-id') socketId?: string) {
+  restore(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
@@ -194,7 +234,12 @@ export class FilesController {
 
   @Post(':id/link')
   @HttpCode(200) // Express answers link with res.json (200).
-  link(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Body() body: { reservation_id?: string | null; assignment_id?: string | null; place_id?: string | null }) {
+  link(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Body() body: { reservation_id?: string | null; assignment_id?: string | null; place_id?: string | null },
+  ) {
     const trip = this.requireTrip(tripId, user);
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
@@ -203,12 +248,21 @@ export class FilesController {
     if (!file) {
       throw new HttpException({ error: 'File not found' }, 404);
     }
-    const links = this.files.createFileLink(id, { reservation_id: body.reservation_id, assignment_id: body.assignment_id, place_id: body.place_id });
+    const links = this.files.createFileLink(id, {
+      reservation_id: body.reservation_id,
+      assignment_id: body.assignment_id,
+      place_id: body.place_id,
+    });
     return { success: true, links };
   }
 
   @Delete(':id/link/:linkId')
-  unlink(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @Param('linkId') linkId: string) {
+  unlink(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Param('linkId') linkId: string,
+  ) {
     const trip = this.requireTrip(tripId, user);
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);

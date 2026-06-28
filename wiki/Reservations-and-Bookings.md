@@ -10,7 +10,7 @@ Open your trip in the planner and select the **Reservations** tab. The panel lis
 
 ## Reservation types
 
-TRIPPI supports nine reservation types:
+trippi.ai supports nine reservation types:
 
 | Type | How to create |
 |------|--------------|
@@ -78,7 +78,7 @@ Click **Add** (or the + button) in the Reservations panel. Fill in the form:
 
 ## Import from booking confirmation
 
-TRIPPI can parse booking confirmation emails, PDFs, and pass files and create reservations automatically using [KDE Itinerary](https://apps.kde.org/itinerary/).
+trippi.ai can parse booking confirmation emails, PDFs, and pass files and create reservations automatically using [KDE Itinerary](https://apps.kde.org/itinerary/).
 
 ### Supported formats
 
@@ -97,7 +97,7 @@ Up to 5 files, 10 MB each, per import.
 1. Open the **Reservations** tab.
 2. Click the **Import** (download) button in the toolbar — the button is only shown when the extractor is available on your server.
 3. Drag and drop your files onto the upload area, or click to browse.
-4. TRIPPI parses each file and shows a **preview list** of the detected reservations with type, title, dates, endpoints, and confirmation number.
+4. trippi.ai parses each file and shows a **preview list** of the detected reservations with type, title, dates, endpoints, and confirmation number.
 5. Deselect any items you do not want to import by clicking the × on their card.
 6. Click **Confirm** to create the selected reservations.
 
@@ -111,7 +111,7 @@ All created reservations appear immediately in the panel and are broadcast to al
 
 ### When the button is not visible
 
-The Import button is hidden when the `kitinerary-extractor` binary is not available. The binary ships inside the official TRIPPI Docker image. If you run TRIPPI from source, install the `libkitinerary-bin` package (Debian trixie / Ubuntu 25.04+) or set `KITINERARY_EXTRACTOR_PATH` to the binary's full path. See [Environment-Variables](Environment-Variables).
+The Import button is hidden when the `kitinerary-extractor` binary is not available. The binary ships inside the official trippi.ai Docker image. If you run trippi.ai from source, install the `libkitinerary-bin` package (Debian trixie / Ubuntu 25.04+) or set `KITINERARY_EXTRACTOR_PATH` to the binary's full path. See [Environment-Variables](Environment-Variables).
 
 ### Needs review flag
 

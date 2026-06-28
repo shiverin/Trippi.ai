@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { Injectable } from '@nestjs/common';
 
 /**
  * Smoke service proving NestJS DI works under the chosen runtime AND that the
- * injected DatabaseService talks to TRIPPI's existing SQLite connection.
+ * injected DatabaseService talks to trippi.ai's existing SQLite connection.
  */
 @Injectable()
 export class HealthService {

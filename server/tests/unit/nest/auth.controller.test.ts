@@ -207,7 +207,7 @@ describe('AuthController (authenticated)', () => {
   it('avatar 403 in demo mode, 400 without a file, else saves', async () => {
     process.env.DEMO_MODE = 'true';
     vi.mocked(isDemoEmail).mockReturnValue(true);
-    expect(await thrownAsync(() => new AuthController(asvc(), rl()).avatar(user, { filename: 'a.jpg' } as Express.Multer.File))).toEqual({ status: 403, body: { error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' } });
+    expect(await thrownAsync(() => new AuthController(asvc(), rl()).avatar(user, { filename: 'a.jpg' } as Express.Multer.File))).toEqual({ status: 403, body: { error: 'Uploads are disabled in demo mode. Self-host trippi.ai for full functionality.' } });
     vi.mocked(isDemoEmail).mockReturnValue(false);
     delete process.env.DEMO_MODE;
     expect(await thrownAsync(() => new AuthController(asvc(), rl()).avatar(user, undefined))).toEqual({ status: 400, body: { error: 'No image uploaded' } });

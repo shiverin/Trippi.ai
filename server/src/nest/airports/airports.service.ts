@@ -1,6 +1,6 @@
+import { searchAirports, findByIata } from '../../services/airportService';
 import { Injectable } from '@nestjs/common';
 import type { Airport } from '@trippi/shared';
-import { searchAirports, findByIata } from '../../services/airportService';
 
 /**
  * Thin Nest wrapper around the existing airport service. It delegates to the

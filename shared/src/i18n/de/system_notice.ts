@@ -1,11 +1,11 @@
 import type { TranslationStrings } from '../types';
 
 const system_notice: TranslationStrings = {
-  'system_notice.welcome_v1.title': 'Willkommen bei TRIPPI',
+  'system_notice.welcome_v1.title': 'Willkommen bei trippi.ai',
   'system_notice.welcome_v1.body':
     'Dein All-in-one-Reiseplaner. Erstelle Reisepläne, teile sie mit Freunden und bleib organisiert – online und offline.',
   'system_notice.welcome_v1.cta_label': 'Reise planen',
-  'system_notice.welcome_v1.hero_alt': 'Malerisches Reiseziel mit TRIPPI-Planungs-UI',
+  'system_notice.welcome_v1.hero_alt': 'Malerisches Reiseziel mit trippi.ai-Planungs-UI',
   'system_notice.welcome_v1.highlight_plan': 'Tagesweise Reisepläne für jede Reise',
   'system_notice.welcome_v1.highlight_share': 'Gemeinsam mit Reisepartnern planen',
   'system_notice.welcome_v1.highlight_offline': 'Funktioniert offline auf dem Handy',
@@ -18,7 +18,7 @@ const system_notice: TranslationStrings = {
   'system_notice.pager.position': 'Meldung {current} von {total}',
   'system_notice.v3_photos.title': 'Fotos wurden in 3.0 verschoben',
   'system_notice.v3_photos.body':
-    '**Fotos** im Trip-Planer wurden entfernt. Deine Fotos sind sicher — TRIPPI hat deine Immich- oder Synology-Bibliothek nie verändert.\n\nFotos befinden sich jetzt im **Journey**-Addon. Journey ist optional — falls es noch nicht verfügbar ist, bitte deinen Admin, es unter Admin → Addons zu aktivieren.',
+    '**Fotos** im Trip-Planer wurden entfernt. Deine Fotos sind sicher — trippi.ai hat deine Immich- oder Synology-Bibliothek nie verändert.\n\nFotos befinden sich jetzt im **Journey**-Addon. Journey ist optional — falls es noch nicht verfügbar ist, bitte deinen Admin, es unter Admin → Addons zu aktivieren.',
   'system_notice.v3_journey.title': 'Neu: Journey — dein Reisetagebuch',
   'system_notice.v3_journey.body':
     'Dokumentiere deine Reisen als lebendige Geschichten mit Zeitachsen, Fotogalerien und interaktiven Karten.',
@@ -42,7 +42,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Erweitertes Toolset & Prompts',
   'system_notice.v3_thankyou.title': 'Ein persönliches Wort von mir',
   'system_notice.v3_thankyou.body':
-    'Bevor du weiterklickst — einen Moment noch.\n\nTRIPPI hat als Nebenprojekt für meine eigenen Reisen angefangen. Ich hätte nie gedacht, dass es jemals so weit kommt, dass 4.000 von euch damit ihre Abenteuer planen. Jeder Stern, jedes Issue, jeder Feature-Wunsch — ich lese sie alle, und sie halten mich am Laufen durch die späten Nächte zwischen Vollzeitjob und Studium.\n\nEins will ich euch sagen: TRIPPI wird immer Open Source bleiben, immer self-hosted, immer eures. Kein Tracking, keine Abos, keine versteckten Haken. Einfach ein Tool, gebaut von jemandem, der das Reisen genauso liebt wie ihr.\n\nBesonderer Dank an [jubnl](https://github.com/jubnl) — du bist ein unglaublicher Mitstreiter geworden. So vieles, was 3.0 großartig macht, trägt deine Handschrift. Danke, dass du an dieses Projekt geglaubt hast, als es noch holprig war.\n\nUnd an jeden einzelnen von euch, der einen Bug gemeldet, einen String übersetzt, TRIPPI mit Freunden geteilt oder einfach damit eine Reise geplant hat — **danke**. Ihr seid der Grund, warum es das hier gibt.\n\nAuf viele weitere Abenteuer zusammen.\n\n— Maurice\n\n---\n\n[Tritt der Community auf Discord bei](https://discord.gg/7Q6M6jDwzf)\n\nWenn TRIPPI deine Reisen besser macht, hält ein [kleiner Kaffee](https://ko-fi.com/mauriceboe) die Lichter an.',
+    'Bevor du weiterklickst — einen Moment noch.\n\ntrippi.ai hat als Nebenprojekt für meine eigenen Reisen angefangen. Ich hätte nie gedacht, dass es jemals so weit kommt, dass 4.000 von euch damit ihre Abenteuer planen. Jeder Stern, jedes Issue, jeder Feature-Wunsch — ich lese sie alle, und sie halten mich am Laufen durch die späten Nächte zwischen Vollzeitjob und Studium.\n\nEins will ich euch sagen: trippi.ai wird immer Open Source bleiben, immer self-hosted, immer eures. Kein Tracking, keine Abos, keine versteckten Haken. Einfach ein Tool, gebaut von jemandem, der das Reisen genauso liebt wie ihr.\n\nBesonderer Dank an [jubnl](https://github.com/jubnl) — du bist ein unglaublicher Mitstreiter geworden. So vieles, was 3.0 großartig macht, trägt deine Handschrift. Danke, dass du an dieses Projekt geglaubt hast, als es noch holprig war.\n\nUnd an jeden einzelnen von euch, der einen Bug gemeldet, einen String übersetzt, trippi.ai mit Freunden geteilt oder einfach damit eine Reise geplant hat — **danke**. Ihr seid der Grund, warum es das hier gibt.\n\nAuf viele weitere Abenteuer zusammen.\n\n— trippi.ai\n\n---\n\n[Tritt der Community auf Discord bei](https://discord.gg/7Q6M6jDwzf)\n\nWenn trippi.ai deine Reisen besser macht, hält ein [kleiner Kaffee](https://github.com/shiverin/Trippi.ai) die Lichter an.',
   'system_notice.v3014_whitespace_collision.title': 'Aktion erforderlich: Benutzerkontokonflikt',
   'system_notice.v3014_whitespace_collision.body':
     'Das 3.0.14-Upgrade hat einen oder mehrere Konflikte bei Benutzernamen oder E-Mail-Adressen festgestellt, die durch führende oder nachgestellte Leerzeichen in gespeicherten Konten verursacht wurden. Betroffene Konten wurden automatisch umbenannt. Prüfe die Serverprotokolle auf Zeilen, die mit **[migration] WHITESPACE COLLISION** beginnen, um die betroffenen Konten zu identifizieren.',

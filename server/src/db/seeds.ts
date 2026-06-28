@@ -26,7 +26,7 @@ function seedAdminAccount(db: Database.Database): void {
     if (isOidcOnlyConfigured()) {
       console.log('');
       console.log('╔══════════════════════════════════════════════╗');
-      console.log('║  TRIPPI — OIDC-Only Mode                       ║');
+      console.log('║  trippi.ai — OIDC-Only Mode                  ║');
       console.log('║  First SSO login will become admin.           ║');
       console.log('╚══════════════════════════════════════════════╝');
       console.log('');
@@ -51,11 +51,13 @@ function seedAdminAccount(db: Database.Database): void {
     const hash = bcrypt.hashSync(password, BCRYPT_COST);
     const username = 'admin';
 
-    db.prepare('INSERT INTO users (username, email, password_hash, role, must_change_password) VALUES (?, ?, ?, ?, 1)').run(username, email, hash, 'admin');
+    db.prepare(
+      'INSERT INTO users (username, email, password_hash, role, must_change_password) VALUES (?, ?, ?, ?, 1)',
+    ).run(username, email, hash, 'admin');
 
     console.log('');
     console.log('╔══════════════════════════════════════════════╗');
-    console.log('║  TRIPPI — First Run: Admin Account Created     ║');
+    console.log('║  trippi.ai — Admin Account Created           ║');
     console.log('╠══════════════════════════════════════════════╣');
     console.log(`║  Email:    ${email.padEnd(33)}║`);
     console.log(`║  Password: ${password.padEnd(33)}║`);
@@ -94,19 +96,102 @@ function seedCategories(db: Database.Database): void {
 function seedAddons(db: Database.Database): void {
   try {
     const defaultAddons = [
-      { id: 'packing', name: 'Lists', description: 'Packing lists and to-do tasks for your trips', type: 'trip', icon: 'ListChecks', enabled: 1, sort_order: 0 },
-      { id: 'budget', name: 'Costs', description: 'Track and split trip expenses', type: 'trip', icon: 'Wallet', enabled: 1, sort_order: 1 },
-      { id: 'documents', name: 'Documents', description: 'Store and manage travel documents', type: 'trip', icon: 'FileText', enabled: 1, sort_order: 2 },
-      { id: 'vacay', name: 'Vacay', description: 'Personal vacation day planner with calendar view', type: 'global', icon: 'CalendarDays', enabled: 1, sort_order: 10 },
-      { id: 'atlas', name: 'Atlas', description: 'World map of your visited countries with travel stats', type: 'global', icon: 'Globe', enabled: 1, sort_order: 11 },
-      { id: 'mcp', name: 'MCP', description: 'Model Context Protocol for AI assistant integration', type: 'integration', icon: 'Terminal', enabled: 0, sort_order: 12 },
-      { id: 'naver_list_import', name: 'Naver List Import', description: 'Import places from shared Naver Maps lists', type: 'trip', icon: 'Link2', enabled: 1, sort_order: 13 },
-      { id: 'collab', name: 'Collab', description: 'Notes, polls, and live chat for trip collaboration', type: 'trip', icon: 'Users', enabled: 1, sort_order: 6 },
-      { id: 'journey', name: 'Journey', description: 'Trip tracking & travel journal — check-ins, photos, daily stories', type: 'global', icon: 'Compass', enabled: 0, sort_order: 35 },
-      { id: 'airtrail', name: 'AirTrail', description: 'Sync flights from your self-hosted AirTrail instance', type: 'integration', icon: 'Plane', enabled: 0, sort_order: 14 },
+      {
+        id: 'packing',
+        name: 'Lists',
+        description: 'Packing lists and to-do tasks for your trips',
+        type: 'trip',
+        icon: 'ListChecks',
+        enabled: 1,
+        sort_order: 0,
+      },
+      {
+        id: 'budget',
+        name: 'Costs',
+        description: 'Track and split trip expenses',
+        type: 'trip',
+        icon: 'Wallet',
+        enabled: 1,
+        sort_order: 1,
+      },
+      {
+        id: 'documents',
+        name: 'Documents',
+        description: 'Store and manage travel documents',
+        type: 'trip',
+        icon: 'FileText',
+        enabled: 1,
+        sort_order: 2,
+      },
+      {
+        id: 'vacay',
+        name: 'Vacay',
+        description: 'Personal vacation day planner with calendar view',
+        type: 'global',
+        icon: 'CalendarDays',
+        enabled: 1,
+        sort_order: 10,
+      },
+      {
+        id: 'atlas',
+        name: 'Atlas',
+        description: 'World map of your visited countries with travel stats',
+        type: 'global',
+        icon: 'Globe',
+        enabled: 1,
+        sort_order: 11,
+      },
+      {
+        id: 'mcp',
+        name: 'MCP',
+        description: 'Model Context Protocol for AI assistant integration',
+        type: 'integration',
+        icon: 'Terminal',
+        enabled: 0,
+        sort_order: 12,
+      },
+      {
+        id: 'naver_list_import',
+        name: 'Naver List Import',
+        description: 'Import places from shared Naver Maps lists',
+        type: 'trip',
+        icon: 'Link2',
+        enabled: 1,
+        sort_order: 13,
+      },
+      {
+        id: 'collab',
+        name: 'Collab',
+        description: 'Notes, polls, and live chat for trip collaboration',
+        type: 'trip',
+        icon: 'Users',
+        enabled: 1,
+        sort_order: 6,
+      },
+      {
+        id: 'journey',
+        name: 'Journey',
+        description: 'Trip tracking & travel journal — check-ins, photos, daily stories',
+        type: 'global',
+        icon: 'Compass',
+        enabled: 0,
+        sort_order: 35,
+      },
+      {
+        id: 'airtrail',
+        name: 'AirTrail',
+        description: 'Sync flights from your self-hosted AirTrail instance',
+        type: 'integration',
+        icon: 'Plane',
+        enabled: 0,
+        sort_order: 14,
+      },
     ];
-    const insertAddon = db.prepare('INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    for (const a of defaultAddons) insertAddon.run(a.id, a.name, a.description, a.type, a.icon, a.enabled, a.sort_order);
+    const insertAddon = db.prepare(
+      'INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    );
+    for (const a of defaultAddons)
+      insertAddon.run(a.id, a.name, a.description, a.type, a.icon, a.enabled, a.sort_order);
 
     const providerRows = [
       {
@@ -126,21 +211,121 @@ function seedAddons(db: Database.Database): void {
         sort_order: 1,
       },
     ];
-    const insertProvider = db.prepare('INSERT OR IGNORE INTO photo_providers (id, name, description, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+    const insertProvider = db.prepare(
+      'INSERT OR IGNORE INTO photo_providers (id, name, description, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+    );
     for (const p of providerRows) insertProvider.run(p.id, p.name, p.description, p.icon, p.enabled, p.sort_order);
 
     const providerFields = [
-      { provider_id: 'immich', field_key: 'immich_url', label: 'providerUrl', input_type: 'url', placeholder: 'https://immich.example.com', hint: null, required: 1, secret: 0, settings_key: 'immich_url', payload_key: 'immich_url', sort_order: 0 },
-      { provider_id: 'immich', field_key: 'immich_api_key', label: 'providerApiKey', input_type: 'password', placeholder: 'API Key', hint: null, required: 1, secret: 1, settings_key: null, payload_key: 'immich_api_key', sort_order: 1 },
-      { provider_id: 'synologyphotos', field_key: 'synology_url', label: 'providerUrl', input_type: 'url', placeholder: 'https://synology.example.com/photo', hint: 'providerUrlHintSynology', required: 1, secret: 0, settings_key: 'synology_url', payload_key: 'synology_url', sort_order: 0 },
-      { provider_id: 'synologyphotos', field_key: 'synology_username', label: 'providerUsername', input_type: 'text', placeholder: 'Username', hint: null, required: 1, secret: 0, settings_key: 'synology_username', payload_key: 'synology_username', sort_order: 1 },
-      { provider_id: 'synologyphotos', field_key: 'synology_password', label: 'providerPassword', input_type: 'password', placeholder: 'Password', hint: null, required: 1, secret: 1, settings_key: null, payload_key: 'synology_password', sort_order: 2 },
-      { provider_id: 'synologyphotos', field_key: 'synology_otp', label: 'providerOTP', input_type: 'text', placeholder: '123456', hint: null, required: 0, secret: 0, settings_key: null, payload_key: 'synology_otp', sort_order: 3 },
-      { provider_id: 'synologyphotos', field_key: 'synology_skip_ssl', label: 'skipSSLVerification', input_type: 'checkbox', placeholder: null, hint: null, required: 0, secret: 0, settings_key: 'synology_skip_ssl', payload_key: 'synology_skip_ssl', sort_order: 4 },
+      {
+        provider_id: 'immich',
+        field_key: 'immich_url',
+        label: 'providerUrl',
+        input_type: 'url',
+        placeholder: 'https://immich.example.com',
+        hint: null,
+        required: 1,
+        secret: 0,
+        settings_key: 'immich_url',
+        payload_key: 'immich_url',
+        sort_order: 0,
+      },
+      {
+        provider_id: 'immich',
+        field_key: 'immich_api_key',
+        label: 'providerApiKey',
+        input_type: 'password',
+        placeholder: 'API Key',
+        hint: null,
+        required: 1,
+        secret: 1,
+        settings_key: null,
+        payload_key: 'immich_api_key',
+        sort_order: 1,
+      },
+      {
+        provider_id: 'synologyphotos',
+        field_key: 'synology_url',
+        label: 'providerUrl',
+        input_type: 'url',
+        placeholder: 'https://synology.example.com/photo',
+        hint: 'providerUrlHintSynology',
+        required: 1,
+        secret: 0,
+        settings_key: 'synology_url',
+        payload_key: 'synology_url',
+        sort_order: 0,
+      },
+      {
+        provider_id: 'synologyphotos',
+        field_key: 'synology_username',
+        label: 'providerUsername',
+        input_type: 'text',
+        placeholder: 'Username',
+        hint: null,
+        required: 1,
+        secret: 0,
+        settings_key: 'synology_username',
+        payload_key: 'synology_username',
+        sort_order: 1,
+      },
+      {
+        provider_id: 'synologyphotos',
+        field_key: 'synology_password',
+        label: 'providerPassword',
+        input_type: 'password',
+        placeholder: 'Password',
+        hint: null,
+        required: 1,
+        secret: 1,
+        settings_key: null,
+        payload_key: 'synology_password',
+        sort_order: 2,
+      },
+      {
+        provider_id: 'synologyphotos',
+        field_key: 'synology_otp',
+        label: 'providerOTP',
+        input_type: 'text',
+        placeholder: '123456',
+        hint: null,
+        required: 0,
+        secret: 0,
+        settings_key: null,
+        payload_key: 'synology_otp',
+        sort_order: 3,
+      },
+      {
+        provider_id: 'synologyphotos',
+        field_key: 'synology_skip_ssl',
+        label: 'skipSSLVerification',
+        input_type: 'checkbox',
+        placeholder: null,
+        hint: null,
+        required: 0,
+        secret: 0,
+        settings_key: 'synology_skip_ssl',
+        payload_key: 'synology_skip_ssl',
+        sort_order: 4,
+      },
     ];
-    const insertProviderField = db.prepare('INSERT OR IGNORE INTO photo_provider_fields (provider_id, field_key, label, input_type, placeholder, hint, required, secret, settings_key, payload_key, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const insertProviderField = db.prepare(
+      'INSERT OR IGNORE INTO photo_provider_fields (provider_id, field_key, label, input_type, placeholder, hint, required, secret, settings_key, payload_key, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    );
     for (const f of providerFields) {
-      insertProviderField.run(f.provider_id, f.field_key, f.label, f.input_type, f.placeholder, f.hint, f.required, f.secret, f.settings_key, f.payload_key, f.sort_order);
+      insertProviderField.run(
+        f.provider_id,
+        f.field_key,
+        f.label,
+        f.input_type,
+        f.placeholder,
+        f.hint,
+        f.required,
+        f.secret,
+        f.settings_key,
+        f.payload_key,
+        f.sort_order,
+      );
     }
     console.log('Default addons seeded');
   } catch (err: unknown) {

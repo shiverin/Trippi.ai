@@ -1,3 +1,10 @@
+import { writeAudit, getClientIp } from '../../services/auditLog';
+import { getUploadTmpDir, MAX_BACKUP_UPLOAD_SIZE } from '../../services/backupService';
+import type { User } from '../../types';
+import { AdminGuard } from '../auth/admin.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { BackupService } from './backup.service';
 import {
   Body,
   Controller,
@@ -15,15 +22,9 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+
 import type { Request, Response } from 'express';
 import fs from 'fs';
-import type { User } from '../../types';
-import { BackupService } from './backup.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { AdminGuard } from '../auth/admin.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { writeAudit, getClientIp } from '../../services/auditLog';
-import { getUploadTmpDir, MAX_BACKUP_UPLOAD_SIZE } from '../../services/backupService';
 
 const UPLOAD = {
   dest: getUploadTmpDir(),
@@ -65,7 +66,13 @@ export class BackupController {
     }
     try {
       const backup = await this.backup.createBackup();
-      writeAudit({ userId: user.id, action: 'backup.create', resource: backup.filename, ip: getClientIp(req), details: { size: backup.size } });
+      writeAudit({
+        userId: user.id,
+        action: 'backup.create',
+        resource: backup.filename,
+        ip: getClientIp(req),
+        details: { size: backup.size },
+      });
       return { success: true, backup };
     } catch {
       throw new HttpException({ error: 'Error creating backup' }, 500);
@@ -108,7 +115,11 @@ export class BackupController {
   @Post('upload-restore')
   @HttpCode(200) // Express answers upload-restore with res.json (200).
   @UseInterceptors(FileInterceptor('backup', UPLOAD))
-  async uploadRestore(@CurrentUser() user: User, @UploadedFile() file: Express.Multer.File | undefined, @Req() req: Request) {
+  async uploadRestore(
+    @CurrentUser() user: User,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Req() req: Request,
+  ) {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
@@ -143,12 +154,23 @@ export class BackupController {
   updateAutoSettings(@CurrentUser() user: User, @Body() body: Record<string, unknown>, @Req() req: Request) {
     try {
       const settings = this.backup.updateAutoSettings(body || {});
-      writeAudit({ userId: user.id, action: 'backup.auto_settings', ip: getClientIp(req), details: { enabled: settings.enabled, interval: settings.interval, keep_days: settings.keep_days } });
+      writeAudit({
+        userId: user.id,
+        action: 'backup.auto_settings',
+        ip: getClientIp(req),
+        details: { enabled: settings.enabled, interval: settings.interval, keep_days: settings.keep_days },
+      });
       return { settings };
     } catch (err) {
       console.error('[backup] PUT auto-settings:', err);
       const msg = err instanceof Error ? err.message : String(err);
-      throw new HttpException({ error: 'Could not save auto-backup settings', detail: process.env.NODE_ENV?.toLowerCase() !== 'production' ? msg : undefined }, 500);
+      throw new HttpException(
+        {
+          error: 'Could not save auto-backup settings',
+          detail: process.env.NODE_ENV?.toLowerCase() !== 'production' ? msg : undefined,
+        },
+        500,
+      );
     }
   }
 

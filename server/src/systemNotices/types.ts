@@ -1,5 +1,5 @@
-export type Display  = 'modal' | 'banner' | 'toast';
-export type Severity = 'info'  | 'warn'   | 'critical';
+export type Display = 'modal' | 'banner' | 'toast';
+export type Severity = 'info' | 'warn' | 'critical';
 
 export type NoticeCondition =
   | { kind: 'firstLogin' }
@@ -20,7 +20,7 @@ export interface NoticeMedia {
 }
 
 export type NoticeCta =
-  | { kind: 'nav';    labelKey: string; href: string }
+  | { kind: 'nav'; labelKey: string; href: string }
   | { kind: 'action'; labelKey: string; actionId: string; dismissOnAction?: boolean };
 
 export interface SystemNotice {
@@ -43,4 +43,7 @@ export interface SystemNotice {
 }
 
 // DTO sent to client (same shape minus the conditions — server evaluates those)
-export type SystemNoticeDTO = Omit<SystemNotice, 'conditions' | 'publishedAt' | 'minVersion' | 'maxVersion' | 'priority'>;
+export type SystemNoticeDTO = Omit<
+  SystemNotice,
+  'conditions' | 'publishedAt' | 'minVersion' | 'maxVersion' | 'priority'
+>;

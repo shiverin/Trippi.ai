@@ -200,9 +200,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Sarankan fitur baru',
   'settings.about.wikiHint': 'Dokumentasi & panduan',
   'settings.about.supporters.badge': 'Pendukung Bulanan',
-  'settings.about.supporters.title': 'Rekan perjalanan untuk TRIPPI',
+  'settings.about.supporters.title': 'Rekan perjalanan untuk trippi.ai',
   'settings.about.supporters.subtitle':
-    'Saat kamu merencanakan rute berikutnya, orang-orang ini ikut merencanakan masa depan TRIPPI. Kontribusi bulanan mereka langsung masuk ke pengembangan dan jam kerja nyata — supaya TRIPPI tetap Open Source.',
+    'Saat kamu merencanakan rute berikutnya, orang-orang ini ikut merencanakan masa depan trippi.ai. Kontribusi bulanan mereka langsung masuk ke pengembangan dan jam kerja nyata — supaya trippi.ai tetap Open Source.',
   'settings.about.supporters.since': 'pendukung sejak {date}',
   'settings.about.supporters.tierEmpty': 'Jadilah yang pertama',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -211,9 +211,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'TRIPPI adalah perencana perjalanan self-hosted yang membantu kamu mengatur perjalanan dari ide pertama hingga kenangan terakhir. Perencanaan harian, anggaran, daftar bawaan, foto dan masih banyak lagi — semua di satu tempat, di servermu sendiri.',
+    'trippi.ai adalah perencana perjalanan self-hosted yang membantu kamu mengatur perjalanan dari ide pertama hingga kenangan terakhir. Perencanaan harian, anggaran, daftar bawaan, foto dan masih banyak lagi — semua di satu tempat, di servermu sendiri.',
   'settings.about.madeWith': 'Dibuat dengan',
-  'settings.about.madeBy': 'oleh Maurice dan komunitas open-source yang terus berkembang.',
+  'settings.about.madeBy': 'oleh trippi.ai dan komunitas open-source yang terus berkembang.',
   'settings.username': 'Nama pengguna',
   'settings.email': 'Email',
   'settings.role': 'Peran',
@@ -318,7 +318,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': 'Aktifkan hanya untuk instans tepercaya di jaringanmu sendiri.',
   'settings.airtrail.writeBack': 'Tulis perubahan kembali ke AirTrail',
   'settings.airtrail.writeBackHint':
-    'Nonaktif secara bawaan: AirTrail adalah sumber kebenaran dan TRIPPI hanya membaca darinya. Aktifkan untuk mengirim perubahan yang dibuat di TRIPPI kembali ke AirTrail.',
+    'Nonaktif secara bawaan: AirTrail adalah sumber kebenaran dan trippi.ai hanya membaca darinya. Aktifkan untuk mengirim perubahan yang dibuat di trippi.ai kembali ke AirTrail.',
   'settings.airtrail.connected': 'Terhubung',
   'settings.airtrail.notConnected': 'Tidak terhubung',
   'settings.airtrail.toast.saved': 'Koneksi AirTrail disimpan',

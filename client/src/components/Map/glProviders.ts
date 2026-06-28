@@ -67,17 +67,17 @@ export function styleForActiveProvider(
   return normalizeStyleForProvider(provider, provider === 'maplibre-gl' ? maplibreStyle : mapboxStyle)
 }
 
-// A few TRIPPI UI language codes differ from what the GL basemap expects for its labels.
+// A few trippi.ai UI language codes differ from what the GL basemap expects for its labels.
 const BASEMAP_LANG_OVERRIDES: Record<string, string> = {
-  br: 'pt',          // TRIPPI 'br' = Brazilian Portuguese
-  gr: 'el',          // TRIPPI 'gr' = Greek
+  br: 'pt',          // trippi.ai 'br' = Brazilian Portuguese
+  gr: 'el',          // trippi.ai 'gr' = Greek
   zh: 'zh-Hans',
   zhTw: 'zh-Hant',
   'zh-TW': 'zh-Hant',
 }
 
 /**
- * Maps a TRIPPI UI language code to the label language the GL basemap expects. Used to pin
+ * Maps a trippi.ai UI language code to the label language the GL basemap expects. Used to pin
  * Mapbox Standard's basemap labels to the user's language so they don't fall back to the
  * browser/OS locale and stack multiple scripts per place (#1299).
  */

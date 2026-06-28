@@ -4,7 +4,7 @@
 // that renders a PDF preview in an srcdoc iframe overlay (Safari-safe pattern).
 // Tests verify the overlay DOM structure and HTML content.
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock `marked` so we don't need the real markdown parser
 vi.mock('marked', () => ({
@@ -13,8 +13,8 @@ vi.mock('marked', () => ({
   },
 }));
 
-import { downloadJourneyBookPDF } from './JourneyBookPDF';
 import type { JourneyDetail } from '../../store/journeyStore';
+import { downloadJourneyBookPDF } from './JourneyBookPDF';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

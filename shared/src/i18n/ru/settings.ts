@@ -172,9 +172,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Предложите новую функцию',
   'settings.about.wikiHint': 'Документация и руководства',
   'settings.about.supporters.badge': 'Ежемесячные спонсоры',
-  'settings.about.supporters.title': 'Спутники TRIPPI',
+  'settings.about.supporters.title': 'Спутники trippi.ai',
   'settings.about.supporters.subtitle':
-    'Пока ты планируешь следующий маршрут, эти люди планируют вместе со мной будущее TRIPPI. Их ежемесячный взнос идёт напрямую в разработку и реально потраченные часы — чтобы TRIPPI оставался Open Source.',
+    'Пока ты планируешь следующий маршрут, эти люди планируют вместе со мной будущее trippi.ai. Их ежемесячный взнос идёт напрямую в разработку и реально потраченные часы — чтобы trippi.ai оставался Open Source.',
   'settings.about.supporters.since': 'спонсор с {date}',
   'settings.about.supporters.tierEmpty': 'Стань первым',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -183,7 +183,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'TRIPPI — это самостоятельно размещаемый планировщик путешествий, который помогает организовать поездки от первой идеи до последнего воспоминания. Планирование по дням, бюджет, списки вещей, фото и многое другое — всё в одном месте, на вашем собственном сервере.',
+    'trippi.ai — это самостоятельно размещаемый планировщик путешествий, который помогает организовать поездки от первой идеи до последнего воспоминания. Планирование по дням, бюджет, списки вещей, фото и многое другое — всё в одном месте, на вашем собственном сервере.',
   'settings.about.madeWith': 'Сделано с',
   'settings.about.madeBy': 'Морисом и растущим open-source сообществом.',
   'settings.username': 'Имя пользователя',
@@ -320,7 +320,7 @@ const settings: TranslationStrings = {
   'settings.airtrail.allowInsecureTlsHint': 'Включайте только для доверенного экземпляра в вашей собственной сети.',
   'settings.airtrail.writeBack': 'Записывать изменения обратно в AirTrail',
   'settings.airtrail.writeBackHint':
-    'По умолчанию выключено: AirTrail является источником истины, а TRIPPI только читает из него. Включите, чтобы отправлять изменения, сделанные в TRIPPI, обратно в AirTrail.',
+    'По умолчанию выключено: AirTrail является источником истины, а trippi.ai только читает из него. Включите, чтобы отправлять изменения, сделанные в trippi.ai, обратно в AirTrail.',
   'settings.airtrail.connected': 'Подключено',
   'settings.airtrail.notConnected': 'Не подключено',
   'settings.airtrail.toast.saved': 'Подключение к AirTrail сохранено',

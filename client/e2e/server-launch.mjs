@@ -1,4 +1,4 @@
-// Boots the TRIPPI backend for the Playwright E2E run against a fresh, isolated
+// Boots the trippi.ai backend for the Playwright E2E run against a fresh, isolated
 // SQLite database. The DB file is deleted first so every run starts clean, then
 // the server's own startup seeds a known admin from ADMIN_EMAIL/ADMIN_PASSWORD.
 //

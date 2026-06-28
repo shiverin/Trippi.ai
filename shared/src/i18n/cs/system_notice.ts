@@ -1,11 +1,11 @@
 import type { TranslationStrings } from '../types';
 
 const system_notice: TranslationStrings = {
-  'system_notice.welcome_v1.title': 'Vítejte v TRIPPI',
+  'system_notice.welcome_v1.title': 'Vítejte v trippi.ai',
   'system_notice.welcome_v1.body':
     'Váš kompletní plánovač cest. Vytvářejte itineráře, sdílejte výlety s přáteli a zůstaňte organizovaní — online i offline.',
   'system_notice.welcome_v1.cta_label': 'Naplánovat cestu',
-  'system_notice.welcome_v1.hero_alt': 'Malebné cestovní místo s rozhraním TRIPPI',
+  'system_notice.welcome_v1.hero_alt': 'Malebné cestovní místo s rozhraním trippi.ai',
   'system_notice.welcome_v1.highlight_plan': 'Denní itineráře pro každou cestu',
   'system_notice.welcome_v1.highlight_share': 'Spolupráce s cestovními partnery',
   'system_notice.welcome_v1.highlight_offline': 'Funguje offline na mobilu',
@@ -18,7 +18,7 @@ const system_notice: TranslationStrings = {
   'system_notice.pager.position': 'Oznámení {current} z {total}',
   'system_notice.v3_photos.title': 'Fotografie přesunuty ve verzi 3.0',
   'system_notice.v3_photos.body':
-    '**Fotografie** v Plánovacím nástroji byly odebrány. Vaše fotografie jsou v bezpečí — TRIPPI nikdy neupravoval vaši knihovnu Immich nebo Synology.\n\nFotografie jsou nyní dostupné v doplňku **Journey**. Journey je volitelný — pokud ještě není k dispozici, požádejte svého správce, aby ho aktivoval v Admin → Doplňky.',
+    '**Fotografie** v Plánovacím nástroji byly odebrány. Vaše fotografie jsou v bezpečí — trippi.ai nikdy neupravoval vaši knihovnu Immich nebo Synology.\n\nFotografie jsou nyní dostupné v doplňku **Journey**. Journey je volitelný — pokud ještě není k dispozici, požádejte svého správce, aby ho aktivoval v Admin → Doplňky.',
   'system_notice.v3_journey.title': 'Poznejte Journey — cest. denník',
   'system_notice.v3_journey.body':
     'Dokumentujte své cesty jako bohaté příběhy s časovnicemi, galeriemi fotek a interaktivními mapami.',
@@ -42,7 +42,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Rozšířená sada nástrojů a promptů',
   'system_notice.v3_thankyou.title': 'Osobní slovo ode mě',
   'system_notice.v3_thankyou.body':
-    'Než budete pokračovat — chci se na chvíli zastavit.\n\nTRIPPI začal jako vedlejší projekt, který jsem vytvořil pro své vlastní cesty. Nikdy jsem si nepředstavoval, že vyroste v něco, čemu 4 000 z vás důvěřuje při plánování svých dobrodružství. Každou hvězdičku, každý issue, každý požadavek na funkci — všechny čtu a právě ony mě drží při životě během pozdních nocí mezi prací na plný úvazek a univerzitou.\n\nChci, abyste věděli: TRIPPI bude vždy open source, vždy self-hosted, vždy váš. Žádné sledování, žádná předplatná, žádné háčky. Jen nástroj vytvořený někým, kdo miluje cestování stejně jako vy.\n\nZvláštní poděkování patří [jubnl](https://github.com/jubnl) — stal ses neuvěřitelným spolupracovníkem. Tolik z toho, co dělá verzi 3.0 skvělou, nese tvůj rukopis. Děkuji, že jsi věřil tomuto projektu, když byl ještě v plenkách.\n\nA každému z vás, kdo nahlásil chybu, přeložil řetězec, sdílel TRIPPI s přítelem nebo ho jednoduše použil k plánování cesty — **děkuji**. Vy jste důvod, proč tohle existuje.\n\nNa mnoho dalších dobrodružství společně.\n\n— Maurice\n\n---\n\n[Přidej se ke komunitě na Discordu](https://discord.gg/7Q6M6jDwzf)\n\nPokud ti TRIPPI zlepšuje cestování, [malá káva](https://ko-fi.com/mauriceboe) vždy pomůže udržet světla rozsvícená.',
+    'Než budete pokračovat — chci se na chvíli zastavit.\n\ntrippi.ai začal jako vedlejší projekt, který jsem vytvořil pro své vlastní cesty. Nikdy jsem si nepředstavoval, že vyroste v něco, čemu 4 000 z vás důvěřuje při plánování svých dobrodružství. Každou hvězdičku, každý issue, každý požadavek na funkci — všechny čtu a právě ony mě drží při životě během pozdních nocí mezi prací na plný úvazek a univerzitou.\n\nChci, abyste věděli: trippi.ai bude vždy open source, vždy self-hosted, vždy váš. Žádné sledování, žádná předplatná, žádné háčky. Jen nástroj vytvořený někým, kdo miluje cestování stejně jako vy.\n\nZvláštní poděkování patří [jubnl](https://github.com/jubnl) — stal ses neuvěřitelným spolupracovníkem. Tolik z toho, co dělá verzi 3.0 skvělou, nese tvůj rukopis. Děkuji, že jsi věřil tomuto projektu, když byl ještě v plenkách.\n\nA každému z vás, kdo nahlásil chybu, přeložil řetězec, sdílel trippi.ai s přítelem nebo ho jednoduše použil k plánování cesty — **děkuji**. Vy jste důvod, proč tohle existuje.\n\nNa mnoho dalších dobrodružství společně.\n\n— trippi.ai\n\n---\n\n[Přidej se ke komunitě na Discordu](https://discord.gg/7Q6M6jDwzf)\n\nPokud ti trippi.ai zlepšuje cestování, [malá káva](https://github.com/shiverin/Trippi.ai) vždy pomůže udržet světla rozsvícená.',
   'system_notice.v3014_whitespace_collision.title': 'Vyžadována akce: konflikt uživatelského účtu',
   'system_notice.v3014_whitespace_collision.body':
     'Aktualizace 3.0.14 zjistila jeden nebo více konfliktů uživatelského jména nebo e-mailu způsobených mezerami na začátku nebo konci uložených hodnot. Dotčené účty byly automaticky přejmenovány. Zkontrolujte protokoly serveru na řádky začínající **[migration] WHITESPACE COLLISION** a zjistěte, které účty vyžadují kontrolu.',

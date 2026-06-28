@@ -1,5 +1,5 @@
-import { CanActivate, HttpException, Injectable } from '@nestjs/common';
 import { JourneyService } from './journey.service';
+import { CanActivate, HttpException, Injectable } from '@nestjs/common';
 
 /**
  * Mirrors the legacy `/api/journeys` mount gate: when the Journey addon is

@@ -1,3 +1,10 @@
+import { writeAudit, getClientIp, logInfo } from '../../services/auditLog';
+import { isDemoEmail } from '../../services/demo';
+import { NotFoundError, ValidationError } from '../../services/tripService';
+import type { User } from '../../types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TripsService } from './trips.service';
 import {
   Body,
   Controller,
@@ -17,18 +24,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+
 import type { Request, Response } from 'express';
+import fs from 'fs';
 import { diskStorage } from 'multer';
 import path from 'path';
-import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import type { User } from '../../types';
-import { TripsService } from './trips.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { writeAudit, getClientIp, logInfo } from '../../services/auditLog';
-import { isDemoEmail } from '../../services/demo';
-import { NotFoundError, ValidationError } from '../../services/tripService';
 
 const MAX_COVER_SIZE = 20 * 1024 * 1024;
 const coversDir = path.join(__dirname, '../../../uploads/covers');
@@ -50,7 +51,11 @@ const COVER_UPLOAD = {
 };
 
 const toDateStr = (d: Date) => d.toISOString().slice(0, 10);
-const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+const addDays = (d: Date, n: number) => {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+};
 
 /**
  * /api/trips — the trip aggregate root.
@@ -89,8 +94,21 @@ export class TripsController {
       throw new HttpException({ error: 'End date must be after start date' }, 400);
     }
     const parsedDayCount = day_count ? Math.min(Math.max(Number(day_count) || 7, 1), 365) : undefined;
-    const { trip, tripId, reminderDays } = this.trips.create(user.id, { title, description, start_date, end_date, currency, reminder_days, day_count: parsedDayCount });
-    writeAudit({ userId: user.id, action: 'trip.create', ip: getClientIp(req), details: { tripId, title, reminder_days: reminderDays === 0 ? 'none' : `${reminderDays} days` } });
+    const { trip, tripId, reminderDays } = this.trips.create(user.id, {
+      title,
+      description,
+      start_date,
+      end_date,
+      currency,
+      reminder_days,
+      day_count: parsedDayCount,
+    });
+    writeAudit({
+      userId: user.id,
+      action: 'trip.create',
+      ip: getClientIp(req),
+      details: { tripId, title, reminder_days: reminderDays === 0 ? 'none' : `${reminderDays} days` },
+    });
     if (reminderDays > 0) logInfo(`${user.email} set ${reminderDays}-day reminder for trip "${title}"`);
     return { trip };
   }
@@ -105,7 +123,13 @@ export class TripsController {
   }
 
   @Put(':id')
-  update(@CurrentUser() user: User, @Param('id') id: string, @Body() body: Record<string, unknown>, @Req() req: Request, @Headers('x-socket-id') socketId?: string) {
+  update(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+    @Req() req: Request,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const access = this.trips.canAccessTrip(id, user.id);
     if (!access) {
       throw new HttpException({ error: 'Trip not found' }, 404);
@@ -119,17 +143,32 @@ export class TripsController {
       throw new HttpException({ error: 'No permission to change cover image' }, 403);
     }
     const editFields = ['title', 'description', 'start_date', 'end_date', 'currency', 'reminder_days', 'day_count'];
-    if (editFields.some((f) => body[f] !== undefined) && !this.trips.can('trip_edit', user.role, ownerId, user.id, isMember)) {
+    if (
+      editFields.some((f) => body[f] !== undefined) &&
+      !this.trips.can('trip_edit', user.role, ownerId, user.id, isMember)
+    ) {
       throw new HttpException({ error: 'No permission to edit this trip' }, 403);
     }
     try {
       const result = this.trips.update(id, user.id, body, user.role);
       if (Object.keys(result.changes).length > 0) {
-        writeAudit({ userId: user.id, action: 'trip.update', ip: getClientIp(req), details: { tripId: Number(id), trip: result.newTitle, ...(result.ownerEmail ? { owner: result.ownerEmail } : {}), ...result.changes } });
-        if (result.isAdminEdit && result.ownerEmail) logInfo(`Admin ${user.email} edited trip "${result.newTitle}" owned by ${result.ownerEmail}`);
+        writeAudit({
+          userId: user.id,
+          action: 'trip.update',
+          ip: getClientIp(req),
+          details: {
+            tripId: Number(id),
+            trip: result.newTitle,
+            ...(result.ownerEmail ? { owner: result.ownerEmail } : {}),
+            ...result.changes,
+          },
+        });
+        if (result.isAdminEdit && result.ownerEmail)
+          logInfo(`Admin ${user.email} edited trip "${result.newTitle}" owned by ${result.ownerEmail}`);
       }
       if (result.newReminder !== result.oldReminder) {
-        if (result.newReminder > 0) logInfo(`${user.email} set ${result.newReminder}-day reminder for trip "${result.newTitle}"`);
+        if (result.newReminder > 0)
+          logInfo(`${user.email} set ${result.newReminder}-day reminder for trip "${result.newTitle}"`);
         else logInfo(`${user.email} removed reminder for trip "${result.newTitle}"`);
       }
       this.trips.broadcast(id, 'trip:updated', { trip: result.updatedTrip }, socketId);
@@ -145,7 +184,10 @@ export class TripsController {
   @UseInterceptors(FileInterceptor('cover', COVER_UPLOAD))
   cover(@CurrentUser() user: User, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
     if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(user.email)) {
-      throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TRIPPI for full functionality.' }, 403);
+      throw new HttpException(
+        { error: 'Uploads are disabled in demo mode. Self-host trippi.ai for full functionality.' },
+        403,
+      );
     }
     const access = this.trips.canAccessTrip(id, user.id);
     if (!access?.user_id) {
@@ -169,7 +211,12 @@ export class TripsController {
 
   @Post(':id/copy')
   @HttpCode(201)
-  copy(@CurrentUser() user: User, @Param('id') id: string, @Body('title') title: string | undefined, @Req() req: Request) {
+  copy(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body('title') title: string | undefined,
+    @Req() req: Request,
+  ) {
     if (!this.trips.can('trip_create', user.role, null, user.id, false)) {
       throw new HttpException({ error: 'No permission to create trips' }, 403);
     }
@@ -178,7 +225,12 @@ export class TripsController {
     }
     try {
       const newTripId = this.trips.copy(id, user.id, title);
-      writeAudit({ userId: user.id, action: 'trip.copy', ip: getClientIp(req), details: { sourceTripId: Number(id), newTripId, title } });
+      writeAudit({
+        userId: user.id,
+        action: 'trip.copy',
+        ip: getClientIp(req),
+        details: { sourceTripId: Number(id), newTripId, title },
+      });
       return { trip: this.trips.getCopiedTrip(newTripId, user.id) };
     } catch {
       throw new HttpException({ error: 'Failed to copy trip' }, 500);
@@ -186,7 +238,12 @@ export class TripsController {
   }
 
   @Delete(':id')
-  remove(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request, @Headers('x-socket-id') socketId?: string) {
+  remove(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
     const owner = this.trips.getOwner(id);
     if (!owner) {
       throw new HttpException({ error: 'Trip not found' }, 404);
@@ -195,8 +252,14 @@ export class TripsController {
       throw new HttpException({ error: 'No permission to delete this trip' }, 403);
     }
     const info = this.trips.remove(id, user.id, user.role);
-    writeAudit({ userId: user.id, action: 'trip.delete', ip: getClientIp(req), details: { tripId: info.tripId, trip: info.title, ...(info.ownerEmail ? { owner: info.ownerEmail } : {}) } });
-    if (info.isAdminDelete && info.ownerEmail) logInfo(`Admin ${user.email} deleted trip "${info.title}" owned by ${info.ownerEmail}`);
+    writeAudit({
+      userId: user.id,
+      action: 'trip.delete',
+      ip: getClientIp(req),
+      details: { tripId: info.tripId, trip: info.title, ...(info.ownerEmail ? { owner: info.ownerEmail } : {}) },
+    });
+    if (info.isAdminDelete && info.ownerEmail)
+      logInfo(`Admin ${user.email} deleted trip "${info.title}" owned by ${info.ownerEmail}`);
     this.trips.broadcast(String(info.tripId), 'trip:deleted', { id: info.tripId }, socketId);
     return { success: true };
   }
@@ -239,7 +302,10 @@ export class TripsController {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     const targetId = parseInt(userId);
-    if (targetId !== user.id && !this.trips.can('member_manage', user.role, access.user_id, user.id, access.user_id !== user.id)) {
+    if (
+      targetId !== user.id &&
+      !this.trips.can('member_manage', user.role, access.user_id, user.id, access.user_id !== user.id)
+    ) {
       throw new HttpException({ error: 'No permission to remove members' }, 403);
     }
     this.trips.removeMember(id, targetId);

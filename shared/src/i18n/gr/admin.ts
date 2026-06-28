@@ -207,7 +207,7 @@ const admin: TranslationStrings = {
   'admin.tabs.addons': 'Πρόσθετα',
   'admin.addons.title': 'Πρόσθετα',
   'admin.addons.subtitle':
-    'Ενεργοποιήστε ή απενεργοποιήστε λειτουργίες για να εξατομικεύσετε την εμπειρία σας στο TRIPPI.',
+    'Ενεργοποιήστε ή απενεργοποιήστε λειτουργίες για να εξατομικεύσετε την εμπειρία σας στο trippi.ai.',
   'admin.addons.catalog.packing.name': 'Λίστες',
   'admin.addons.catalog.packing.description': 'Λίστες πακεταρίσματος και εργασίες προς εκτέλεση για τα ταξίδια σας',
   'admin.addons.catalog.budget.name': 'Προϋπολογισμός',
@@ -244,7 +244,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Δεδομένα Καιρού',
   'admin.weather.badge': 'Από 24 Μαρτίου 2026',
   'admin.weather.description':
-    'Το TRIPPI χρησιμοποιεί το Open-Meteo ως πηγή δεδομένων καιρού. Το Open-Meteo είναι μια δωρεάν, ανοιχτού κώδικα υπηρεσία καιρού — δεν απαιτείται κλειδί API.',
+    'Το trippi.ai χρησιμοποιεί το Open-Meteo ως πηγή δεδομένων καιρού. Το Open-Meteo είναι μια δωρεάν, ανοιχτού κώδικα υπηρεσία καιρού — δεν απαιτείται κλειδί API.',
   'admin.weather.forecast': 'Πρόγνωση 16 ημερών',
   'admin.weather.forecastDesc': 'Προηγουμένως 5 ημέρες (OpenWeatherMap)',
   'admin.weather.climate': 'Ιστορικά δεδομένα κλίματος',
@@ -303,14 +303,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Φόρτωση...',
   'admin.github.error': 'Αποτυχία φόρτωσης εκδόσεων',
   'admin.github.by': 'από',
-  'admin.github.support': 'Βοηθά να συνεχίσω την ανάπτυξη του TRIPPI',
+  'admin.github.support': 'Βοηθά να συνεχίσω την ανάπτυξη του trippi.ai',
   'admin.update.available': 'Διαθέσιμη ενημέρωση',
-  'admin.update.text': 'Το TRIPPI {version} είναι διαθέσιμο. Εκτελείτε το {current}.',
+  'admin.update.text': 'Το trippi.ai {version} είναι διαθέσιμο. Εκτελείτε το {current}.',
   'admin.update.button': 'Προβολή στο GitHub',
   'admin.update.install': 'Εγκατάσταση Ενημέρωσης',
   'admin.update.confirmTitle': 'Εγκατάσταση Ενημέρωσης;',
   'admin.update.confirmText':
-    'Το TRIPPI θα ενημερωθεί από {current} σε {version}. Ο server θα επανεκκινήσει αυτόματα στη συνέχεια.',
+    'Το trippi.ai θα ενημερωθεί από {current} σε {version}. Ο server θα επανεκκινήσει αυτόματα στη συνέχεια.',
   'admin.update.dataInfo':
     'Όλα τα δεδομένα σας (ταξίδια, χρήστες, κλειδιά API, μεταφορτώσεις, Vacay, Atlas, προϋπολογισμοί) θα διατηρηθούν.',
   'admin.update.warning': 'Η εφαρμογή θα είναι σύντομα μη διαθέσιμη κατά την επανεκκίνηση.',
@@ -322,9 +322,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Μετάβαση στο Αντίγραφο Ασφαλείας',
   'admin.update.howTo': 'Πώς να Ενημερώσετε',
   'admin.update.dockerText':
-    'Η εγκατάστασή σας TRIPPI εκτελείται σε Docker. Για να ενημερωθείτε στο {version}, εκτελέστε τις ακόλουθες εντολές στον server σας:',
+    'Η εγκατάστασή σας trippi.ai εκτελείται σε Docker. Για να ενημερωθείτε στο {version}, εκτελέστε τις ακόλουθες εντολές στον server σας:',
   'admin.update.nonDockerText':
-    'Αυτή η εγκατάσταση TRIPPI δεν εκτελείται σε Docker. Για να ενημερωθείτε στο {version}, εκτελέστε ξανά τη μέθοδο εγκατάστασης ή ενημέρωσης που χρησιμοποιήσατε — για παράδειγμα, στα Proxmox Community Scripts εκτελέστε την ενημέρωση από την κονσόλα LXC:',
+    'Αυτή η εγκατάσταση trippi.ai δεν εκτελείται σε Docker. Για να ενημερωθείτε στο {version}, εκτελέστε ξανά τη μέθοδο εγκατάστασης ή ενημέρωσης που χρησιμοποιήσατε — για παράδειγμα, στα Proxmox Community Scripts εκτελέστε την ενημέρωση από την κονσόλα LXC:',
   'admin.update.wikiLink': 'Άνοιγμα του οδηγού ενημέρωσης',
   'admin.update.reloadHint': 'Παρακαλώ ανανεώστε τη σελίδα σε λίγα δευτερόλεπτα.',
   'admin.tabs.permissions': 'Δικαιώματα',

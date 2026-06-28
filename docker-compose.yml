@@ -1,7 +1,7 @@
 services:
   app:
-    image: mauriceboe/trippi:dev
-    container_name: trippi
+    image: shiverin/trippi.ai:dev
+    container_name: trippi-ai
     read_only: true
     security_opt:
       - no-new-privileges:true

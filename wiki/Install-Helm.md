@@ -1,11 +1,11 @@
 # Install: Helm
 
-Deploy TRIPPI on Kubernetes using the official Helm chart.
+Deploy trippi.ai on Kubernetes using the official Helm chart.
 
 ## Add the Chart Repository
 
 ```bash
-helm repo add trippi https://mauriceboe.github.io/TRIPPI
+helm repo add trek https://shiverin.github.io/Trippi.ai
 helm repo update
 ```
 
@@ -15,7 +15,7 @@ helm repo update
 helm install trippi trippi/trippi
 ```
 
-This deploys TRIPPI with default values: a `ClusterIP` service on port 3000, 1 Gi PVCs for data and uploads, and no ingress.
+This deploys trippi.ai with default values: a `ClusterIP` service on port 3000, 1 Gi PVCs for data and uploads, and no ingress.
 
 ## Encryption Key
 
@@ -72,7 +72,7 @@ helm install trippi trippi/trippi \
 
 ```yaml
 image:
-  repository: mauriceboe/trippi
+  repository: shiverin/trippi.ai
   # tag: latest        # defaults to the chart's appVersion
   pullPolicy: IfNotPresent
 
@@ -172,7 +172,7 @@ ingress:
         - trippi.example.com
 ```
 
-> **Important:** TRIPPI uses WebSockets on `/ws`. Your ingress controller must support WebSocket upgrades. Set `proxy-read-timeout` to at least `86400` and `proxy-body-size` to at least `500m` for backup restores.
+> **Important:** trippi.ai uses WebSockets on `/ws`. Your ingress controller must support WebSocket upgrades. Set `proxy-read-timeout` to at least `86400` and `proxy-body-size` to at least `500m` for backup restores.
 
 > **Note:** Keep `env.ALLOWED_ORIGINS` in sync with `ingress.hosts` — the chart does not synchronize these automatically.
 
@@ -187,7 +187,7 @@ helm upgrade trippi trippi/trippi
 
 ## Full Values Reference
 
-See the [`charts/README.md`](https://github.com/mauriceboe/TRIPPI/blob/main/charts/README.md) for all available values.
+See the [`charts/README.md`](https://github.com/shiverin/Trippi.ai/blob/main/charts/README.md) for all available values.
 
 ## Next Steps
 

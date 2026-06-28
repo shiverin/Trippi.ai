@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { z } from 'zod';
 import type { User } from '../../types';
-import { HealthService } from './health.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { HealthService } from './health.service';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+
+import { z } from 'zod';
 
 // Local demo schema (real domains import their schema from @trippi/shared).
 const echoSchema = z.object({ name: z.string().min(1) });

@@ -1,5 +1,5 @@
-import { Global, Module } from '@nestjs/common';
 import { DatabaseService } from './database.service';
+import { Global, Module } from '@nestjs/common';
 
 /**
  * Global so every migrated module can inject DatabaseService without re-importing.

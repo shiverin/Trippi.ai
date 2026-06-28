@@ -1,10 +1,11 @@
-import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
-import { db } from '../db/database';
 import { JWT_SECRET, SESSION_DURATION_SECONDS } from '../config';
+import { db } from '../db/database';
 import { User } from '../types';
 import { decrypt_api_key } from './apiKeyCrypto';
 import { resolveAuthToggles } from './authService';
+
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,17 +50,20 @@ export interface OidcConfig {
 // Constants / TTLs
 // ---------------------------------------------------------------------------
 
-const AUTH_CODE_TTL = 60000;          // 1 minute
-const AUTH_CODE_CLEANUP = 30000;      // 30 seconds
-const STATE_TTL = 5 * 60 * 1000;     // 5 minutes
-const STATE_CLEANUP = 60 * 1000;      // 1 minute
+const AUTH_CODE_TTL = 60000; // 1 minute
+const AUTH_CODE_CLEANUP = 30000; // 30 seconds
+const STATE_TTL = 5 * 60 * 1000; // 5 minutes
+const STATE_CLEANUP = 60 * 1000; // 1 minute
 const DISCOVERY_TTL = 60 * 60 * 1000; // 1 hour
 
 // ---------------------------------------------------------------------------
 // State management – pending OIDC states
 // ---------------------------------------------------------------------------
 
-const pendingStates = new Map<string, { createdAt: number; redirectUri: string; inviteToken?: string; codeVerifier: string }>();
+const pendingStates = new Map<
+  string,
+  { createdAt: number; redirectUri: string; inviteToken?: string; codeVerifier: string }
+>();
 
 setInterval(() => {
   const now = Date.now();
@@ -124,7 +128,8 @@ export function consumeAuthCode(code: string): { token: string } | { error: stri
 
 export function getOidcConfig(): OidcConfig | null {
   const get = (key: string) =>
-    (db.prepare("SELECT value FROM app_settings WHERE key = ?").get(key) as { value: string } | undefined)?.value || null;
+    (db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined)?.value ||
+    null;
 
   const issuer = process.env.OIDC_ISSUER || get('oidc_issuer');
   const clientId = process.env.OIDC_CLIENT_ID || get('oidc_client_id');
@@ -161,7 +166,7 @@ export async function discover(issuer: string, discoveryUrl?: string | null): Pr
     if (discoveryUrl) {
       console.warn(
         `[OIDC] Discovery doc issuer "${doc.issuer}" differs from configured OIDC_ISSUER "${issuer}". ` +
-        `Using discovery doc issuer for id_token verification (custom OIDC_DISCOVERY_URL is set).`,
+          `Using discovery doc issuer for id_token verification (custom OIDC_DISCOVERY_URL is set).`,
       );
     } else {
       throw new Error(`OIDC discovery issuer mismatch: expected "${issuer}", got "${doc.issuer}"`);
@@ -205,7 +210,12 @@ export function generateToken(user: { id: number }): string {
   // Embed the current password_version so an OIDC-issued session is invalidated
   // by a password change/reset exactly like a password-login session (the auth
   // middleware compares this `pv` against users.password_version).
-  const pv = (db.prepare('SELECT password_version FROM users WHERE id = ?').get(user.id) as { password_version?: number } | undefined)?.password_version ?? 0;
+  const pv =
+    (
+      db.prepare('SELECT password_version FROM users WHERE id = ?').get(user.id) as
+        | { password_version?: number }
+        | undefined
+    )?.password_version ?? 0;
   return jwt.sign({ id: user.id, pv }, JWT_SECRET, { expiresIn: SESSION_DURATION_SECONDS, algorithm: 'HS256' });
 }
 
@@ -298,8 +308,11 @@ export async function verifyIdToken(
   if (parts.length !== 3) return { ok: false, error: 'malformed_token' };
 
   let header: { kid?: string; alg?: string };
-  try { header = JSON.parse(base64UrlDecode(parts[0]!).toString('utf8')); }
-  catch { return { ok: false, error: 'bad_header' }; }
+  try {
+    header = JSON.parse(base64UrlDecode(parts[0]!).toString('utf8'));
+  } catch {
+    return { ok: false, error: 'bad_header' };
+  }
 
   const alg = header.alg;
   if (!alg || !/^(RS256|RS384|RS512|ES256|ES384|ES512|PS256|PS384|PS512)$/.test(alg)) {
@@ -307,16 +320,17 @@ export async function verifyIdToken(
   }
 
   let keys: Array<Record<string, unknown>>;
-  try { keys = await fetchJwks(doc.jwks_uri); }
-  catch (e) { return { ok: false, error: 'jwks_fetch_failed' }; }
+  try {
+    keys = await fetchJwks(doc.jwks_uri);
+  } catch (e) {
+    return { ok: false, error: 'jwks_fetch_failed' };
+  }
 
   // When the token carries a `kid`, refuse to fall back to any other
   // key in the JWKS — a mismatch means the token was signed with a key
   // the provider no longer publishes, and we should reject rather than
   // mask the failure by trying another key.
-  const jwk = header.kid
-    ? keys.find((k) => k['kid'] === header.kid)
-    : keys[0];
+  const jwk = header.kid ? keys.find((k) => k['kid'] === header.kid) : keys[0];
   if (!jwk) return { ok: false, error: 'no_matching_key' };
 
   let publicKey;
@@ -365,7 +379,9 @@ export function findOrCreateUser(
   const sub = userInfo.sub;
 
   // Try to find existing user by sub, then by email
-  let user = db.prepare('SELECT * FROM users WHERE oidc_sub = ? AND oidc_issuer = ?').get(sub, config.issuer) as User | undefined;
+  let user = db.prepare('SELECT * FROM users WHERE oidc_sub = ? AND oidc_issuer = ?').get(sub, config.issuer) as
+    | User
+    | undefined;
   if (!user) {
     user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(email) as User | undefined;
   }
@@ -392,9 +408,12 @@ export function findOrCreateUser(
         const demotingLastAdmin =
           user.role === 'admin' &&
           newRole !== 'admin' &&
-          (db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number }).count <= 1;
+          (db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number }).count <=
+            1;
         if (demotingLastAdmin) {
-          console.warn(`[OIDC] Kept admin role for user ${user.id}: their OIDC claims map to '${newRole}', but they are the only admin — demoting would lock the instance out.`);
+          console.warn(
+            `[OIDC] Kept admin role for user ${user.id}: their OIDC claims map to '${newRole}', but they are the only admin — demoting would lock the instance out.`,
+          );
         } else {
           db.prepare('UPDATE users SET role = ? WHERE id = ?').run(newRole, user.id);
           user = { ...user, role: newRole } as User;
@@ -445,21 +464,27 @@ export function findOrCreateUser(
   try {
     const createUser = db.transaction(() => {
       if (validInvite) {
-        const updated = db.prepare(
-          'UPDATE invite_tokens SET used_count = used_count + 1 WHERE id = ? AND (max_uses = 0 OR used_count < max_uses)',
-        ).run(validInvite.id);
+        const updated = db
+          .prepare(
+            'UPDATE invite_tokens SET used_count = used_count + 1 WHERE id = ? AND (max_uses = 0 OR used_count < max_uses)',
+          )
+          .run(validInvite.id);
         if (updated.changes === 0) throw inviteRaceError;
       }
-      return db.prepare(
-        'INSERT INTO users (username, email, password_hash, role, oidc_sub, oidc_issuer, first_seen_version, login_count) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
-      ).run(username, email, hash, role, sub, config.issuer, process.env.APP_VERSION || '0.0.0');
+      return db
+        .prepare(
+          'INSERT INTO users (username, email, password_hash, role, oidc_sub, oidc_issuer, first_seen_version, login_count) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
+        )
+        .run(username, email, hash, role, sub, config.issuer, process.env.APP_VERSION || '0.0.0');
     });
     const result = createUser() as { lastInsertRowid: number | bigint };
     user = { id: Number(result.lastInsertRowid), username, email, role } as User;
     return { user };
   } catch (err) {
     if (err === inviteRaceError) {
-      console.warn(`[OIDC] Invite token ${inviteToken?.slice(0, 8)}... exhausted — concurrent callback won the last slot`);
+      console.warn(
+        `[OIDC] Invite token ${inviteToken?.slice(0, 8)}... exhausted — concurrent callback won the last slot`,
+      );
       return { error: 'registration_disabled' };
     }
     throw err;

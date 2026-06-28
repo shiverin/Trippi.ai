@@ -1,11 +1,10 @@
-import React from 'react';
-import { render, screen, waitFor } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { server } from '../../../tests/helpers/msw/server';
-import { useAuthStore } from '../../store/authStore';
-import { resetAllStores, seedStore } from '../../../tests/helpers/store';
 import { buildUser } from '../../../tests/helpers/factories';
+import { server } from '../../../tests/helpers/msw/server';
+import { render, screen, waitFor } from '../../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../../tests/helpers/store';
+import { useAuthStore } from '../../store/authStore';
 import { ToastContainer } from '../shared/Toast';
 import NotificationsTab from './NotificationsTab';
 
@@ -25,15 +24,13 @@ beforeEach(() => {
   server.use(
     http.get('/api/notifications/preferences', () => HttpResponse.json(minimalMatrix)),
     http.get('/api/settings', () => HttpResponse.json({ settings: { webhook_url: '' } })),
-    http.put('/api/notifications/preferences', () => HttpResponse.json({ success: true })),
+    http.put('/api/notifications/preferences', () => HttpResponse.json({ success: true }))
   );
 });
 
 describe('NotificationsTab', () => {
   it('FE-COMP-NOTIFICATIONS-001: shows loading state initially', () => {
-    server.use(
-      http.get('/api/notifications/preferences', () => new Promise(() => {})),
-    );
+    server.use(http.get('/api/notifications/preferences', () => new Promise(() => {})));
     render(<NotificationsTab />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
@@ -67,8 +64,8 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: false, inapp: false },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'email'] },
-        }),
-      ),
+        })
+      )
     );
     render(<NotificationsTab />);
     await waitFor(() => {
@@ -89,11 +86,11 @@ describe('NotificationsTab', () => {
           available_channels: { email: true, webhook: false, inapp: true },
           event_types: ['trip_invite', 'booking_change'],
           implemented_combos: {
-            trip_invite: ['inapp'],         // no email → dash in email column
-            booking_change: ['email'],      // no inapp → dash in inapp column
+            trip_invite: ['inapp'], // no email → dash in email column
+            booking_change: ['email'], // no inapp → dash in inapp column
           },
-        }),
-      ),
+        })
+      )
     );
     render(<NotificationsTab />);
     await waitFor(() => {
@@ -111,7 +108,7 @@ describe('NotificationsTab', () => {
       http.put('/api/notifications/preferences', async ({ request }) => {
         capturedBody = await request.json();
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
 
     render(<NotificationsTab />);
@@ -138,9 +135,7 @@ describe('NotificationsTab', () => {
 
   it('FE-COMP-NOTIFICATIONS-007: toggle rolls back on API error', async () => {
     const user = userEvent.setup();
-    server.use(
-      http.put('/api/notifications/preferences', () => HttpResponse.json({ error: 'fail' }, { status: 500 })),
-    );
+    server.use(http.put('/api/notifications/preferences', () => HttpResponse.json({ error: 'fail' }, { status: 500 })));
 
     render(<NotificationsTab />);
     await waitFor(() => {
@@ -169,11 +164,13 @@ describe('NotificationsTab', () => {
     const user = userEvent.setup();
     let resolveRequest!: () => void;
     server.use(
-      http.put('/api/notifications/preferences', () =>
-        new Promise<Response>(resolve => {
-          resolveRequest = () => resolve(HttpResponse.json({ success: true }) as unknown as Response);
-        }),
-      ),
+      http.put(
+        '/api/notifications/preferences',
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRequest = () => resolve(HttpResponse.json({ success: true }) as unknown as Response);
+          })
+      )
     );
 
     render(<NotificationsTab />);
@@ -203,8 +200,8 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: true, inapp: true },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'webhook'] },
-        }),
-      ),
+        })
+      )
     );
 
     render(<NotificationsTab />);
@@ -218,7 +215,7 @@ describe('NotificationsTab', () => {
 
     // Save button should be present
     const buttons = screen.getAllByRole('button');
-    expect(buttons.some(b => /save/i.test(b.textContent || ''))).toBe(true);
+    expect(buttons.some((b) => /save/i.test(b.textContent || ''))).toBe(true);
   });
 
   it('FE-COMP-NOTIFICATIONS-010: webhook URL input shows masked placeholder when webhook is already set', async () => {
@@ -229,11 +226,9 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: true, inapp: true },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'webhook'] },
-        }),
+        })
       ),
-      http.get('/api/settings', () =>
-        HttpResponse.json({ settings: { webhook_url: '••••••••' } }),
-      ),
+      http.get('/api/settings', () => HttpResponse.json({ settings: { webhook_url: '••••••••' } }))
     );
 
     render(<NotificationsTab />);
@@ -255,12 +250,12 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: true, inapp: true },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'webhook'] },
-        }),
+        })
       ),
       http.put('/api/settings', async ({ request }) => {
         capturedBody = await request.json();
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
 
     render(<NotificationsTab />);
@@ -271,7 +266,7 @@ describe('NotificationsTab', () => {
     const input = await screen.findByRole('textbox');
     await user.type(input, 'https://example.com/hook');
 
-    const saveBtn = screen.getAllByRole('button').find(b => /save/i.test(b.textContent || ''));
+    const saveBtn = screen.getAllByRole('button').find((b) => /save/i.test(b.textContent || ''));
     expect(saveBtn).toBeDefined();
     await user.click(saveBtn!);
 
@@ -288,11 +283,9 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: true, inapp: true },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'webhook'] },
-        }),
+        })
       ),
-      http.get('/api/settings', () =>
-        HttpResponse.json({ settings: { webhook_url: '' } }),
-      ),
+      http.get('/api/settings', () => HttpResponse.json({ settings: { webhook_url: '' } }))
     );
 
     render(<NotificationsTab />);
@@ -301,7 +294,7 @@ describe('NotificationsTab', () => {
     });
 
     await screen.findByRole('textbox');
-    const testBtn = screen.getAllByRole('button').find(b => /test/i.test(b.textContent || ''));
+    const testBtn = screen.getAllByRole('button').find((b) => /test/i.test(b.textContent || ''));
     expect(testBtn).toBeDefined();
     expect(testBtn).toBeDisabled();
   });
@@ -315,18 +308,16 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: true, inapp: true },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'webhook'] },
-        }),
+        })
       ),
-      http.post('/api/notifications/test-webhook', () =>
-        HttpResponse.json({ success: true }),
-      ),
+      http.post('/api/notifications/test-webhook', () => HttpResponse.json({ success: true }))
     );
 
     render(
       <>
         <NotificationsTab />
         <ToastContainer />
-      </>,
+      </>
     );
 
     await waitFor(() => {
@@ -336,7 +327,7 @@ describe('NotificationsTab', () => {
     const input = await screen.findByRole('textbox');
     await user.type(input, 'https://example.com/hook');
 
-    const testBtn = screen.getAllByRole('button').find(b => /test/i.test(b.textContent || ''));
+    const testBtn = screen.getAllByRole('button').find((b) => /test/i.test(b.textContent || ''));
     expect(testBtn).toBeDefined();
     await user.click(testBtn!);
 
@@ -355,8 +346,8 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: false, inapp: true, ntfy: true },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'ntfy'] },
-        }),
-      ),
+        })
+      )
     );
 
     render(<NotificationsTab />);
@@ -377,9 +368,9 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: false, inapp: true, ntfy: true },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'ntfy'] },
-        }),
+        })
       ),
-      http.get('/api/settings', () => HttpResponse.json({ settings: { ntfy_topic: '' } })),
+      http.get('/api/settings', () => HttpResponse.json({ settings: { ntfy_topic: '' } }))
     );
 
     render(<NotificationsTab />);
@@ -389,7 +380,7 @@ describe('NotificationsTab', () => {
 
     // Test button should be disabled when topic is empty
     const allButtons = await screen.findAllByRole('button');
-    const testBtn = allButtons.find(b => /test/i.test(b.textContent || ''));
+    const testBtn = allButtons.find((b) => /test/i.test(b.textContent || ''));
     expect(testBtn).toBeDefined();
     expect(testBtn).toBeDisabled();
   });
@@ -404,19 +395,19 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: false, inapp: true, ntfy: true },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'ntfy'] },
-        }),
+        })
       ),
       http.post('/api/notifications/test-ntfy', () => {
         ntfyCalled = true;
         return HttpResponse.json({ success: true });
-      }),
+      })
     );
 
     render(
       <>
         <NotificationsTab />
         <ToastContainer />
-      </>,
+      </>
     );
 
     await waitFor(() => {
@@ -429,7 +420,7 @@ describe('NotificationsTab', () => {
 
     // Test button should now be enabled
     const allButtons = screen.getAllByRole('button');
-    const testBtn = allButtons.find(b => /test/i.test(b.textContent || ''));
+    const testBtn = allButtons.find((b) => /test/i.test(b.textContent || ''));
     expect(testBtn).toBeDefined();
     expect(testBtn).not.toBeDisabled();
 
@@ -449,18 +440,18 @@ describe('NotificationsTab', () => {
           available_channels: { email: false, webhook: true, inapp: true },
           event_types: ['trip_invite'],
           implemented_combos: { trip_invite: ['inapp', 'webhook'] },
-        }),
+        })
       ),
       http.post('/api/notifications/test-webhook', () =>
-        HttpResponse.json({ success: false, error: 'Connection refused' }),
-      ),
+        HttpResponse.json({ success: false, error: 'Connection refused' })
+      )
     );
 
     render(
       <>
         <NotificationsTab />
         <ToastContainer />
-      </>,
+      </>
     );
 
     await waitFor(() => {
@@ -470,7 +461,7 @@ describe('NotificationsTab', () => {
     const input = await screen.findByRole('textbox');
     await user.type(input, 'https://example.com/hook');
 
-    const testBtn = screen.getAllByRole('button').find(b => /test/i.test(b.textContent || ''));
+    const testBtn = screen.getAllByRole('button').find((b) => /test/i.test(b.textContent || ''));
     expect(testBtn).toBeDefined();
     await user.click(testBtn!);
 

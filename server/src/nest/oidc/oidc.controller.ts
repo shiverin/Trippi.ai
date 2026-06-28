@@ -1,7 +1,8 @@
-import { Controller, Get, Query, Req, Res } from '@nestjs/common';
-import type { Request, Response } from 'express';
-import { OidcService } from './oidc.service';
 import { cookieOptions } from '../../services/cookie';
+import { OidcService } from './oidc.service';
+import { Controller, Get, Query, Req, Res } from '@nestjs/common';
+
+import type { Request, Response } from 'express';
 
 const OIDC_STATE_COOKIE = 'trippi_oidc_state';
 
@@ -29,7 +30,11 @@ export class OidcController {
       res.status(400).json({ error: 'OIDC not configured' });
       return;
     }
-    if (config.issuer && !config.issuer.startsWith('https://') && process.env.NODE_ENV?.toLowerCase() === 'production') {
+    if (
+      config.issuer &&
+      !config.issuer.startsWith('https://') &&
+      process.env.NODE_ENV?.toLowerCase() === 'production'
+    ) {
       res.status(400).json({ error: 'OIDC issuer must use HTTPS in production' });
       return;
     }
@@ -93,13 +98,24 @@ export class OidcController {
 
     const config = this.oidc.getOidcConfig();
     if (!config) return f('/login?oidc_error=not_configured');
-    if (config.issuer && !config.issuer.startsWith('https://') && process.env.NODE_ENV?.toLowerCase() === 'production') {
+    if (
+      config.issuer &&
+      !config.issuer.startsWith('https://') &&
+      process.env.NODE_ENV?.toLowerCase() === 'production'
+    ) {
       return f('/login?oidc_error=issuer_not_https');
     }
 
     try {
       const doc = await this.oidc.discover(config.issuer, config.discoveryUrl);
-      const tokenData = await this.oidc.exchangeCodeForToken(doc, code, pending.redirectUri, config.clientId, config.clientSecret, pending.codeVerifier);
+      const tokenData = await this.oidc.exchangeCodeForToken(
+        doc,
+        code,
+        pending.redirectUri,
+        config.clientId,
+        config.clientSecret,
+        pending.codeVerifier,
+      );
       if (!tokenData._ok || !tokenData.access_token) {
         console.error('[OIDC] Token exchange failed: status', tokenData._status);
         return f('/login?oidc_error=token_failed');

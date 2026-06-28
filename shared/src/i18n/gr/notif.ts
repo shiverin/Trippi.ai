@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Ανάθεση Αποσκευών',
   'notif.packing_tagged.text': 'Ο/Η {actor} σας ανέθεσε στο {category} του {trip}',
   'notif.version_available.title': 'Νέα Έκδοση Διαθέσιμη',
-  'notif.version_available.text': 'Το TRIPPI {version} είναι τώρα διαθέσιμο',
+  'notif.version_available.text': 'Το trippi.ai {version} είναι τώρα διαθέσιμο',
   'notif.action.view_trip': 'Προβολή Ταξιδιού',
   'notif.action.view_collab': 'Προβολή Μηνυμάτων',
   'notif.action.view_packing': 'Προβολή Αποσκευών',

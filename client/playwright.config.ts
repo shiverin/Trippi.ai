@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * E2E harness for TRIPPI's critical user flows (FE7).
+ * E2E harness for trippi.ai's critical user flows (FE7).
  *
  * Two web servers are orchestrated: the Express/Nest backend on :3001 against an
  * isolated throwaway SQLite DB (e2e/server-launch.mjs sets TRIPPI_DB_FILE + seeds a

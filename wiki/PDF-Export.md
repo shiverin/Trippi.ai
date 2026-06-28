@@ -1,6 +1,6 @@
 # PDF Export
 
-TRIPPI can generate two kinds of PDFs from your trip data: a structured **Trip Plan PDF** and a photo-book-style **Journey Book PDF**. Both render as HTML in a sandboxed iframe and open the browser's native print/save dialog — no server-side processing is involved.
+trippi.ai can generate two kinds of PDFs from your trip data: a structured **Trip Plan PDF** and a photo-book-style **Journey Book PDF**. Both render as HTML in a sandboxed iframe and open the browser's native print/save dialog — no server-side processing is involved.
 
 <!-- TODO: screenshot: export options dialog or PDF preview modal -->
 
@@ -39,7 +39,7 @@ Below the header:
 
 ### Footer
 
-Every printed page carries a small "made with TRIPPI" logo at the bottom.
+Every printed page carries a small "made with trippi.ai" logo at the bottom.
 
 ### Font
 

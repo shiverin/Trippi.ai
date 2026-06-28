@@ -1,10 +1,10 @@
 // FE-COMP-MAP-001 to FE-COMP-MAP-017
-import { render, screen, waitFor } from '../../../tests/helpers/render';
 import userEvent from '@testing-library/user-event';
+import { buildSettings, buildUser } from '../../../tests/helpers/factories';
+import { render, screen, waitFor } from '../../../tests/helpers/render';
+import { resetAllStores, seedStore } from '../../../tests/helpers/store';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { resetAllStores, seedStore } from '../../../tests/helpers/store';
-import { buildUser, buildSettings } from '../../../tests/helpers/factories';
 import { ToastContainer } from '../shared/Toast';
 import MapSettingsTab from './MapSettingsTab';
 
@@ -106,12 +106,14 @@ describe('MapSettingsTab', () => {
     render(<MapSettingsTab />);
     await user.click(screen.getByText('Save Map'));
     expect(updateSettings).toHaveBeenCalledTimes(1);
-    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
-      map_tile_url: expect.any(String),
-      default_lat: expect.any(Number),
-      default_lng: expect.any(Number),
-      default_zoom: expect.any(Number),
-    }));
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        map_tile_url: expect.any(String),
+        default_lat: expect.any(Number),
+        default_lng: expect.any(Number),
+        default_zoom: expect.any(Number),
+      })
+    );
   });
 
   it('FE-COMP-MAP-012: Save Map parses numeric values correctly', async () => {
@@ -123,12 +125,14 @@ describe('MapSettingsTab', () => {
     });
     render(<MapSettingsTab />);
     await user.click(screen.getByText('Save Map'));
-    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
-      map_tile_url: '',
-      default_lat: 48.8566,
-      default_lng: 2.3522,
-      default_zoom: 10,
-    }));
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        map_tile_url: '',
+        default_lat: 48.8566,
+        default_lng: 2.3522,
+        default_zoom: 10,
+      })
+    );
   });
 
   it('FE-COMP-MAP-013: Save Map button shows spinner while saving', async () => {
@@ -151,7 +155,12 @@ describe('MapSettingsTab', () => {
       settings: buildSettings(),
       updateSettings,
     });
-    render(<><ToastContainer /><MapSettingsTab /></>);
+    render(
+      <>
+        <ToastContainer />
+        <MapSettingsTab />
+      </>
+    );
     await user.click(screen.getByText('Save Map'));
     await screen.findByText('Save failed');
   });

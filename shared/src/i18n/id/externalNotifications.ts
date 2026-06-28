@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const id: NotificationLocale = {
   email: {
-    footer: 'Anda menerima ini karena Anda telah mengaktifkan notifikasi di TRIPPI.',
+    footer: 'Anda menerima ini karena Anda telah mengaktifkan notifikasi di trippi.ai.',
     manage: 'Kelola preferensi di Pengaturan',
     madeWith: 'Dibuat dengan',
-    openTrippi: 'Buka TRIPPI',
+    openTrippi: 'Buka trippi.ai',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const id: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Undangan Penggabungan Vacay',
-      body: `${p.actor} mengundang Anda untuk menggabungkan rencana liburan. Buka TRIPPI untuk menerima atau menolak.`,
+      body: `${p.actor} mengundang Anda untuk menggabungkan rencana liburan. Buka trippi.ai untuk menerima atau menolak.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} foto dibagikan`,
@@ -41,8 +41,8 @@ const id: NotificationLocale = {
       body: `${p.actor} menugaskan Anda ke kategori "${p.category}" di "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Versi TRIPPI baru tersedia',
-      body: `TRIPPI ${p.version} sekarang tersedia. Kunjungi panel admin untuk memperbarui.`,
+      title: 'Versi trippi.ai baru tersedia',
+      body: `trippi.ai ${p.version} sekarang tersedia. Kunjungi panel admin untuk memperbarui.`,
     }),
     synology_session_cleared: () => ({
       title: 'Sesi Synology dihapus',
@@ -52,7 +52,7 @@ const id: NotificationLocale = {
   passwordReset: {
     subject: 'Setel ulang kata sandi Anda',
     greeting: 'Halo',
-    body: 'Kami menerima permintaan untuk menyetel ulang kata sandi akun TRIPPI Anda. Klik tombol di bawah untuk menetapkan kata sandi baru.',
+    body: 'Kami menerima permintaan untuk menyetel ulang kata sandi akun trippi.ai Anda. Klik tombol di bawah untuk menetapkan kata sandi baru.',
     ctaIntro: 'Setel ulang kata sandi',
     expiry: 'Tautan ini kedaluwarsa dalam 60 menit.',
     ignore: 'Jika Anda tidak meminta ini, Anda dapat mengabaikan email ini — kata sandi Anda tidak akan berubah.',

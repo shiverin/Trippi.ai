@@ -1,6 +1,6 @@
 # Internal Network Access
 
-TRIPPI makes outbound HTTP requests when you configure integrations such as Immich or Synology Photos. By default, it blocks requests to private and local IP ranges to prevent server-side request forgery (SSRF) attacks. You need to allow internal network access when those services are hosted on your LAN.
+trippi.ai makes outbound HTTP requests when you configure integrations such as Immich or Synology Photos. By default, it blocks requests to private and local IP ranges to prevent server-side request forgery (SSRF) attacks. You need to allow internal network access when those services are hosted on your LAN.
 
 ## Default behavior
 
@@ -35,7 +35,7 @@ The hostname `localhost` is not blocked at the hostname stage, but it resolves t
 
 ## When to enable
 
-Set `ALLOW_INTERNAL_NETWORK=true` when Immich, Synology Photos, or another integrated service is hosted on your local network and you need TRIPPI to reach it.
+Set `ALLOW_INTERNAL_NETWORK=true` when Immich, Synology Photos, or another integrated service is hosted on your local network and you need trippi.ai to reach it.
 
 See [Environment-Variables](Environment-Variables) for how to set environment variables.
 
@@ -43,11 +43,11 @@ See [Environment-Variables](Environment-Variables) for how to set environment va
 
 ## DNS rebinding protection
 
-Even with `ALLOW_INTERNAL_NETWORK=true`, TRIPPI pins the DNS resolution to prevent rebinding attacks. When the guard checks a URL, it resolves the hostname once and records the IP. The outbound connection is then made directly to that IP using a pinned dispatcher (via undici), so the hostname cannot re-resolve to a different address between the check and the actual request.
+Even with `ALLOW_INTERNAL_NETWORK=true`, trippi.ai pins the DNS resolution to prevent rebinding attacks. When the guard checks a URL, it resolves the hostname once and records the IP. The outbound connection is then made directly to that IP using a pinned dispatcher (via undici), so the hostname cannot re-resolve to a different address between the check and the actual request.
 
 ## Audit log
 
-When a user saves an Immich URL that resolves to a private IP, TRIPPI records an `immich.private_ip_configured` entry in the [Audit-Log](Audit-Log) including the URL and the resolved IP address. This audit event is specific to Immich; Synology Photos does not emit an equivalent event.
+When a user saves an Immich URL that resolves to a private IP, trippi.ai records an `immich.private_ip_configured` entry in the [Audit-Log](Audit-Log) including the URL and the resolved IP address. This audit event is specific to Immich; Synology Photos does not emit an equivalent event.
 
 ## See also
 

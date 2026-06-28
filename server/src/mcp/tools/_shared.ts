@@ -1,6 +1,6 @@
-import { broadcast } from '../../websocket';
 import { db } from '../../db/database';
 import { checkPermission } from '../../services/permissions';
+import { broadcast } from '../../websocket';
 
 export function safeBroadcast(tripId: number, event: string, payload: Record<string, unknown>): void {
   try {
@@ -49,7 +49,10 @@ export function noAccess() {
 }
 
 export function permissionDenied() {
-  return { content: [{ type: 'text' as const, text: 'You do not have permission to perform this action on this trip.' }], isError: true };
+  return {
+    content: [{ type: 'text' as const, text: 'You do not have permission to perform this action on this trip.' }],
+    isError: true,
+  };
 }
 
 /**

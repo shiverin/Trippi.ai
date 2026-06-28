@@ -1,8 +1,8 @@
-import { Body, Controller, Get, HttpCode, HttpException, Post, Put, UseGuards } from '@nestjs/common';
 import type { User } from '../../types';
-import { SettingsService } from './settings.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SettingsService } from './settings.service';
+import { Body, Controller, Get, HttpCode, HttpException, Post, Put, UseGuards } from '@nestjs/common';
 
 const MASKED_VALUE = '••••••••';
 

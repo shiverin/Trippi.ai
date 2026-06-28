@@ -1,6 +1,6 @@
 # MCP Tools and Resources
 
-TRIPPI exposes **tools** (read and write actions) and **resources** (read-only `trippi://` URIs). Tools are registered per-session based on OAuth scopes and enabled addons.
+trippi.ai exposes **tools** (read and write actions) and **resources** (read-only `trek://` URIs). Tools are registered per-session based on OAuth scopes and enabled addons.
 
 For addon-gated tools (Packing, To-Dos, Atlas, Collab, Vacay, Journey) and their resources, see [MCP-Addon-Tools](MCP-Addon-Tools).
 

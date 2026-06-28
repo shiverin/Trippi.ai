@@ -609,10 +609,6 @@ export default function LoginPage(): React.ReactElement {
               </div>
             ))}
           </div>
-
-          <p style={{ marginTop: 36, fontSize: 11.5, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.03em' }}>
-            {t('login.selfHosted')}
-          </p>
         </div>
       </div>
 

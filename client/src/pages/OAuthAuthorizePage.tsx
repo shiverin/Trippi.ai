@@ -31,6 +31,11 @@ export default function OAuthAuthorizePage(): React.ReactElement {
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             {pageState === 'auto_approving' ? t('oauth.authorize.authorizing') : t('oauth.authorize.loading')}
           </p>
+          {pageState === 'auto_approving' && (
+            <p className="max-w-xs text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              {t('oauth.authorize.reusingConsent')}
+            </p>
+          )}
         </div>
       </div>
     );

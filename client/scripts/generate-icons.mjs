@@ -15,6 +15,7 @@ const brandIconBuffer = readFileSync(join(__dirname, '..', 'public', 'brand', 't
 mkdirSync(iconsDir, { recursive: true });
 
 const sizes = [
+  { name: 'favicon-32.png', size: 32 },
   { name: 'apple-touch-icon-180x180.png', size: 180 },
   { name: 'icon-192x192.png', size: 192 },
   { name: 'icon-512x512.png', size: 512 },

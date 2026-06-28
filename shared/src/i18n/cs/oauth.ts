@@ -69,6 +69,7 @@ const oauth: TranslationStrings = {
   'oauth.scope.journey:share.label': 'Spravovat odkazy na cestovní deníky',
   'oauth.scope.journey:share.description': 'Vytvářet, aktualizovat a rušit veřejné sdílené odkazy na cestovní deníky',
   'oauth.authorize.authorizing': 'Authorizing…', // en-fallback
+  'oauth.authorize.reusingConsent': 'You already approved this connection, so trippi.ai is continuing securely.', // en-fallback
   'oauth.authorize.loading': 'Loading…', // en-fallback
   'oauth.authorize.errorTitle': 'Authorization Error', // en-fallback
   'oauth.authorize.loginTitle': 'Sign in to continue', // en-fallback

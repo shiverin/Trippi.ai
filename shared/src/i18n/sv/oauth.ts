@@ -74,6 +74,7 @@ const oauth: TranslationStrings = {
   'oauth.scope.journey:share.label': 'Hantera journey länkar',
   'oauth.scope.journey:share.description': 'Skapa, uppdatera och återkalla offentliga delningslänkar för journeys',
   'oauth.authorize.authorizing': 'Autentiserar…',
+  'oauth.authorize.reusingConsent': 'You already approved this connection, so trippi.ai is continuing securely.', // en-fallback
   'oauth.authorize.loading': 'Laddar…',
   'oauth.authorize.errorTitle': 'Auktoriseringsfel',
   'oauth.authorize.loginTitle': 'Logga in för att fortsätta',

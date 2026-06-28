@@ -70,6 +70,7 @@ const oauth: TranslationStrings = {
   'oauth.scope.journey:share.description':
     'Twórz, aktualizuj i unieważniaj publiczne linki udostępniania dzienników podróży',
   'oauth.authorize.authorizing': 'Authorizing…', // en-fallback
+  'oauth.authorize.reusingConsent': 'You already approved this connection, so trippi.ai is continuing securely.', // en-fallback
   'oauth.authorize.loading': 'Loading…', // en-fallback
   'oauth.authorize.errorTitle': 'Authorization Error', // en-fallback
   'oauth.authorize.loginTitle': 'Sign in to continue', // en-fallback

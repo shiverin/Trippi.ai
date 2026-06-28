@@ -69,6 +69,7 @@ const oauth: TranslationStrings = {
   'oauth.scope.journey:share.label': '日記共有を管理',
   'oauth.scope.journey:share.description': '公開共有リンクの作成・更新・無効化',
   'oauth.authorize.authorizing': 'Authorizing…', // en-fallback
+  'oauth.authorize.reusingConsent': 'You already approved this connection, so trippi.ai is continuing securely.', // en-fallback
   'oauth.authorize.loading': 'Loading…', // en-fallback
   'oauth.authorize.errorTitle': 'Authorization Error', // en-fallback
   'oauth.authorize.loginTitle': 'Sign in to continue', // en-fallback

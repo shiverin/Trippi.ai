@@ -69,6 +69,7 @@ const oauth: TranslationStrings = {
   'oauth.scope.journey:share.label': '管理旅程連結',
   'oauth.scope.journey:share.description': '建立、更新及撤銷旅程的公開分享連結',
   'oauth.authorize.authorizing': 'Authorizing…', // en-fallback
+  'oauth.authorize.reusingConsent': 'You already approved this connection, so trippi.ai is continuing securely.', // en-fallback
   'oauth.authorize.loading': 'Loading…', // en-fallback
   'oauth.authorize.errorTitle': 'Authorization Error', // en-fallback
   'oauth.authorize.loginTitle': 'Sign in to continue', // en-fallback

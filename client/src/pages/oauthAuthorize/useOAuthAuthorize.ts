@@ -79,7 +79,7 @@ export function useOAuthAuthorize() {
       }
 
       if (!result.consentRequired) {
-        // Consent already on record — auto-approve silently with the full validated scope
+        // Consent already on record — continue with the full validated scope.
         setPageState('auto_approving')
         await submitConsent(true, result.scopes ?? [])
         return
@@ -108,6 +108,9 @@ export function useOAuthAuthorize() {
         approved,
         resource,
       })
+      if (!result || typeof result.redirect !== 'string' || result.redirect.length === 0) {
+        throw new Error('OAuth authorize response did not include a redirect URL')
+      }
       setPageState('done')
       window.location.href = result.redirect
     } catch {

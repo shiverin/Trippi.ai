@@ -69,6 +69,7 @@ const oauth: TranslationStrings = {
   'oauth.scope.journey:share.label': 'Manage journey links',
   'oauth.scope.journey:share.description': 'Create, update, and revoke public share links for journeys',
   'oauth.authorize.authorizing': 'Authorizing…',
+  'oauth.authorize.reusingConsent': 'You already approved this connection, so trippi.ai is continuing securely.',
   'oauth.authorize.loading': 'Loading…',
   'oauth.authorize.errorTitle': 'Authorization Error',
   'oauth.authorize.loginTitle': 'Sign in to continue',

@@ -324,7 +324,8 @@ const admin: TranslationStrings = {
   'admin.passkey.rpIdHint':
     'النطاق المجرّد الذي تُربط به مفاتيح المرور، مثل trippi.example.org. اتركه فارغًا لاشتقاقه من APP_URL. تغييره لاحقًا يُبطل مفاتيح المرور الموجودة.',
   'admin.passkey.origins': 'الأصول المسموح بها',
-  'admin.passkey.originsHint': 'أصول كاملة مفصولة بفواصل، مثل https://trippi.example.org. اتركه فارغًا لاستخدام APP_URL.',
+  'admin.passkey.originsHint':
+    'أصول كاملة مفصولة بفواصل، مثل https://trippi.example.org. اتركه فارغًا لاستخدام APP_URL.',
   'admin.passkey.reset': 'إعادة تعيين مفاتيح المرور',
   'admin.passkey.resetHint':
     'إزالة جميع مفاتيح المرور لهذا المستخدم (مثلًا عند فقدان جهاز). سيظل بإمكانه تسجيل الدخول بكلمة المرور.',

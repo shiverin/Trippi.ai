@@ -45,6 +45,7 @@ export interface Day {
   date?: string | null;
   notes?: string | null;
   title?: string | null;
+  mcp_import_batch_id?: string | null;
 }
 
 export interface Place {
@@ -72,6 +73,7 @@ export interface Place {
   website?: string | null;
   phone?: string | null;
   transport_mode?: string;
+  mcp_import_batch_id?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -104,6 +106,7 @@ export interface DayAssignment {
   reservation_datetime?: string | null;
   assignment_time?: string | null;
   assignment_end_time?: string | null;
+  mcp_import_batch_id?: string | null;
   created_at?: string;
 }
 
@@ -186,6 +189,7 @@ export interface Reservation {
   type: string;
   accommodation_id?: number | null;
   metadata?: string | null;
+  mcp_import_batch_id?: string | null;
   needs_review?: number;
   endpoints?: ReservationEndpoint[];
   created_at?: string;

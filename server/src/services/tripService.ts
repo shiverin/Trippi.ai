@@ -960,7 +960,22 @@ export function copyTripById(sourceTripId: string | number, newOwnerId: number, 
 
 // ── Trip summary (used by MCP get_trip_summary tool) ──────────────────────
 
-export function getTripSummary(tripId: number) {
+export interface TripSummaryOptions {
+  includeBudget?: boolean;
+  includePacking?: boolean;
+  includeReservations?: boolean;
+  includeCollabNotes?: boolean;
+}
+
+const DEFAULT_TRIP_SUMMARY_OPTIONS: Required<TripSummaryOptions> = {
+  includeBudget: true,
+  includePacking: true,
+  includeReservations: true,
+  includeCollabNotes: true,
+};
+
+export function getTripSummary(tripId: number, options: TripSummaryOptions = {}) {
+  const summaryOptions = { ...DEFAULT_TRIP_SUMMARY_OPTIONS, ...options };
   const trip = db.prepare('SELECT * FROM trips WHERE id = ?').get(tripId) as Record<string, unknown> | undefined;
   if (!trip) return null;
 
@@ -973,23 +988,31 @@ export function getTripSummary(tripId: number) {
 
   const accommodations = listAccommodations(tripId);
 
-  const budgetItems = listBudgetItems(tripId);
-  const budget = {
-    items: budgetItems,
-    item_count: budgetItems.length,
-    total: budgetItems.reduce((sum, i) => sum + (i.total_price || 0), 0),
-    currency: trip.currency,
-  };
+  const budget = summaryOptions.includeBudget
+    ? (() => {
+        const budgetItems = listBudgetItems(tripId);
+        return {
+          items: budgetItems,
+          item_count: budgetItems.length,
+          total: budgetItems.reduce((sum, i) => sum + (i.total_price || 0), 0),
+          currency: trip.currency,
+        };
+      })()
+    : undefined;
 
-  const packingItems = listPackingItems(tripId);
-  const packing = {
-    items: packingItems,
-    total: packingItems.length,
-    checked: (packingItems as { checked: number }[]).filter((i) => i.checked).length,
-  };
+  const packing = summaryOptions.includePacking
+    ? (() => {
+        const packingItems = listPackingItems(tripId);
+        return {
+          items: packingItems,
+          total: packingItems.length,
+          checked: (packingItems as { checked: number }[]).filter((i) => i.checked).length,
+        };
+      })()
+    : undefined;
 
-  const reservations = listReservations(tripId);
-  const collab_notes = listCollabNotes(tripId);
+  const reservations = summaryOptions.includeReservations ? listReservations(tripId) : undefined;
+  const collab_notes = summaryOptions.includeCollabNotes ? listCollabNotes(tripId) : undefined;
 
   return {
     trip,

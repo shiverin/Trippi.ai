@@ -98,6 +98,7 @@ function createTables(db: Database.Database): void {
       date TEXT,
       notes TEXT,
       title TEXT,
+      mcp_import_batch_id TEXT,
       UNIQUE(trip_id, day_number)
     );
 
@@ -139,9 +140,11 @@ function createTables(db: Database.Database): void {
       image_url TEXT,
       google_place_id TEXT,
       google_ftid TEXT,
+      osm_id TEXT,
       website TEXT,
       phone TEXT,
       transport_mode TEXT DEFAULT 'walking',
+      mcp_import_batch_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -161,6 +164,9 @@ function createTables(db: Database.Database): void {
       reservation_status TEXT DEFAULT 'none',
       reservation_notes TEXT,
       reservation_datetime TEXT,
+      assignment_time TEXT,
+      assignment_end_time TEXT,
+      mcp_import_batch_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -217,6 +223,8 @@ function createTables(db: Database.Database): void {
       notes TEXT,
       status TEXT DEFAULT 'pending',
       type TEXT DEFAULT 'other',
+      metadata TEXT,
+      mcp_import_batch_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -379,6 +387,7 @@ function createTables(db: Database.Database): void {
       check_out TEXT,
       confirmation TEXT,
       notes TEXT,
+      mcp_import_batch_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 

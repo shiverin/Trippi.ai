@@ -3062,6 +3062,31 @@ function runMigrations(db: Database.Database): void {
         if (!err.message?.includes('duplicate column name')) throw err;
       }
     },
+    // Track objects created by one-shot MCP itinerary imports so replace_imported
+    // can remove only prior imported content and leave user-authored content intact.
+    () => {
+      const addColumn = (table: string) => {
+        try {
+          db.exec(`ALTER TABLE ${table} ADD COLUMN mcp_import_batch_id TEXT`);
+        } catch (err: any) {
+          if (!err.message?.includes('duplicate column name')) throw err;
+        }
+      };
+
+      addColumn('days');
+      addColumn('places');
+      addColumn('day_assignments');
+      addColumn('day_accommodations');
+      addColumn('reservations');
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_days_mcp_import_batch ON days(mcp_import_batch_id);
+        CREATE INDEX IF NOT EXISTS idx_places_mcp_import_batch ON places(mcp_import_batch_id);
+        CREATE INDEX IF NOT EXISTS idx_day_assignments_mcp_import_batch ON day_assignments(mcp_import_batch_id);
+        CREATE INDEX IF NOT EXISTS idx_day_accommodations_mcp_import_batch ON day_accommodations(mcp_import_batch_id);
+        CREATE INDEX IF NOT EXISTS idx_reservations_mcp_import_batch ON reservations(mcp_import_batch_id);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

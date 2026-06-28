@@ -159,8 +159,8 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
           <img
             src={dark ? '/brand/trippi-icon-light.png' : '/brand/trippi-icon.png'}
             alt=""
-            className="brand-icon sm:hidden"
-            style={{ height: 24, width: 24 }}
+            className="brand-icon"
+            style={{ height: 28, width: 28 }}
           />
           <span
             className="hidden sm:inline"

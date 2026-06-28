@@ -54,9 +54,8 @@ export default function RegisterPage(): React.ReactElement {
       {/* Right panel */}
       <div className="flex flex-1 items-center justify-center bg-slate-50 p-8">
         <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center justify-center gap-2 lg:hidden">
-            <img src="/brand/trippi-icon.png" alt="trippi.ai" className="brand-icon h-8 w-8" />
-            <img src="/brand/trippi-wordmark.png" alt="trippi.ai" className="brand-wordmark h-8" />
+          <div className="mb-8 flex items-center justify-center lg:hidden">
+            <img src="/brand/trippi-icon.png" alt="trippi.ai" className="brand-icon h-10 w-10" />
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">

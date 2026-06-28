@@ -126,15 +126,36 @@ export function placeExists(placeId: string | number, tripId: string | number) {
   return !!db.prepare('SELECT id FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId);
 }
 
-export function createAssignment(dayId: string | number, placeId: string | number, notes: string | null) {
+export function createAssignment(
+  dayId: string | number,
+  placeId: string | number,
+  notes: string | null,
+  options: {
+    assignment_time?: string | null;
+    assignment_end_time?: string | null;
+    mcp_import_batch_id?: string | null;
+  } = {},
+) {
   const maxOrder = db.prepare('SELECT MAX(order_index) as max FROM day_assignments WHERE day_id = ?').get(dayId) as {
     max: number | null;
   };
   const orderIndex = (maxOrder.max !== null ? maxOrder.max : -1) + 1;
 
   const result = db
-    .prepare('INSERT INTO day_assignments (day_id, place_id, order_index, notes) VALUES (?, ?, ?, ?)')
-    .run(dayId, placeId, orderIndex, notes || null);
+    .prepare(
+      `INSERT INTO day_assignments
+        (day_id, place_id, order_index, notes, assignment_time, assignment_end_time, mcp_import_batch_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      dayId,
+      placeId,
+      orderIndex,
+      notes || null,
+      options.assignment_time ?? null,
+      options.assignment_end_time ?? null,
+      options.mcp_import_batch_id ?? null,
+    );
 
   return getAssignmentWithPlace(result.lastInsertRowid);
 }

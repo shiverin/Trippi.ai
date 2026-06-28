@@ -159,6 +159,7 @@ export function createPlace(
     phone?: string;
     transport_mode?: string;
     tags?: number[];
+    mcp_import_batch_id?: string;
   },
 ) {
   const {
@@ -182,6 +183,7 @@ export function createPlace(
     phone,
     transport_mode,
     tags = [],
+    mcp_import_batch_id,
   } = body;
 
   const result = db
@@ -189,23 +191,24 @@ export function createPlace(
       `
     INSERT INTO places (trip_id, name, description, lat, lng, address, category_id, price, currency,
       place_time, end_time,
-      duration_minutes, notes, image_url, google_place_id, google_ftid, osm_id, website, phone, transport_mode)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      duration_minutes, notes, image_url, google_place_id, google_ftid, osm_id, website, phone, transport_mode,
+      mcp_import_batch_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
     )
     .run(
       tripId,
       name,
       description || null,
-      lat || null,
-      lng || null,
+      lat ?? null,
+      lng ?? null,
       address || null,
       category_id || null,
-      price || null,
+      price ?? null,
       currency || null,
       place_time || null,
       end_time || null,
-      duration_minutes || 60,
+      duration_minutes ?? 60,
       notes || null,
       image_url || null,
       google_place_id || null,
@@ -214,6 +217,7 @@ export function createPlace(
       website || null,
       phone || null,
       transport_mode || 'walking',
+      mcp_import_batch_id || null,
     );
 
   const placeId = result.lastInsertRowid;

@@ -419,6 +419,7 @@ export interface DayAccommodation {
   check_out: string | null;
   confirmation: string | null;
   notes: string | null;
+  mcp_import_batch_id?: string | null;
 }
 
 function getAccommodationWithPlace(id: number | bigint) {
@@ -485,14 +486,27 @@ interface CreateAccommodationData {
   check_out?: string;
   confirmation?: string;
   notes?: string;
+  mcp_import_batch_id?: string;
 }
 
 export function createAccommodation(tripId: string | number, data: CreateAccommodationData) {
-  const { place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes } = data;
+  const {
+    place_id,
+    start_day_id,
+    end_day_id,
+    check_in,
+    check_in_end,
+    check_out,
+    confirmation,
+    notes,
+    mcp_import_batch_id,
+  } = data;
 
   const result = db
     .prepare(
-      'INSERT INTO day_accommodations (trip_id, place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      `INSERT INTO day_accommodations
+        (trip_id, place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes, mcp_import_batch_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       tripId,
@@ -504,6 +518,7 @@ export function createAccommodation(tripId: string | number, data: CreateAccommo
       check_out || null,
       confirmation || null,
       notes || null,
+      mcp_import_batch_id || null,
     );
 
   const accommodationId = result.lastInsertRowid;
@@ -519,8 +534,9 @@ export function createAccommodation(tripId: string | number, data: CreateAccommo
   if (check_out) meta.check_out_time = check_out;
   db.prepare(
     `
-    INSERT INTO reservations (trip_id, day_id, title, reservation_time, location, confirmation_number, notes, status, type, accommodation_id, metadata)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', 'hotel', ?, ?)
+    INSERT INTO reservations
+      (trip_id, day_id, title, reservation_time, location, confirmation_number, notes, status, type, accommodation_id, metadata, mcp_import_batch_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', 'hotel', ?, ?, ?)
   `,
   ).run(
     tripId,
@@ -532,6 +548,7 @@ export function createAccommodation(tripId: string | number, data: CreateAccommo
     notes || null,
     accommodationId,
     Object.keys(meta).length > 0 ? JSON.stringify(meta) : null,
+    mcp_import_batch_id || null,
   );
 
   return getAccommodationWithPlace(accommodationId);

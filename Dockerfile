@@ -41,6 +41,8 @@ RUN npm run build --workspace=server
 FROM node:24-trixie-slim
 WORKDIR /app
 
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 # Workspace manifests only — source never enters this stage.
 COPY package.json package-lock.json ./
 COPY shared/package.json ./shared/
@@ -53,6 +55,7 @@ COPY server/package.json ./server/
 RUN apt-get update && \
     apt-get install -y --no-install-recommends tzdata dumb-init wget ca-certificates python3 build-essential && \
     npm ci --workspace=server --omit=dev && \
+    ./node_modules/.bin/playwright install --with-deps chromium && \
     ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "amd64" ]; then \
         wget -qO /tmp/ki.tgz https://cdn.kde.org/ci-builds/pim/kitinerary/release-26.04/linux/kitinerary-extractor-x86_64-26.04.2.tgz && \

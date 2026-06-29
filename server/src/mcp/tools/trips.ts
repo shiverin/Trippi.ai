@@ -581,8 +581,9 @@ export function registerTripTools(
         try {
           const result = await exportTripPdf(tripId);
           return ok({ ...result, contentType: 'application/pdf' });
-        } catch {
-          return { content: [{ type: 'text' as const, text: 'Trip not found.' }], isError: true };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'PDF export failed.';
+          return { content: [{ type: 'text' as const, text: message }], isError: true };
         }
       },
     );

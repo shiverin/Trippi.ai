@@ -48,7 +48,7 @@ You are connected to trippi.ai, a travel planning application. Below is a compac
 
 **Loading trip context:** Before planning or modifying a trip, call \`get_trip_summary\` once. It returns all days (with assignments and notes), accommodations, budget, packing, reservations, collab notes, and todos in a single round-trip. Use this data to answer follow-up questions without extra tool calls.
 
-**Full-trip itinerary planning:** When the user asks to plan a trip, generate a full itinerary, build a multi-day travel plan, or produce a PDF itinerary, use \`apply_itinerary_plan\`. Send the complete normalized JSON payload in one call: all days, activities, timing, accommodations, and locations. The server validates, geocodes, creates places, assigns them to days, and can export the official Trippi PDF. Do not create activities with \`create_day_note\`.
+**Full-trip itinerary planning:** When the user asks to plan a trip, generate a full itinerary, build a multi-day travel plan, or produce a PDF itinerary, use \`apply_itinerary_plan\` exactly once. Send the complete normalized JSON payload in one call: all days, activities, timing, accommodations, and text/provider-ID locations. Set \`exportPdf: true\` for PDF requests. Do not invent or send \`lat\`/\`lng\`; the server validates, geocodes, creates places, assigns them to days, and can export the official Trippi PDF. Do not create activities with \`create_day_note\`.
 
 **Adding a place to the itinerary (correct order):**
 1. \`search_place\` — find the real-world POI; note the \`osm_id\`, \`google_place_id\`, and/or \`google_ftid\` in the result.
@@ -86,6 +86,8 @@ The following features are optional and may not be available on every trippi.ai 
 
 - Prefer \`get_trip_summary\` over individual list tools when you need a full picture — it is one call instead of many.
 - Prefer \`apply_itinerary_plan\` over low-level place/day tools for full-trip or multi-day itinerary generation. Low-level tools are for later incremental edits.
+- For full-trip PDF requests, call \`apply_itinerary_plan\` with \`exportPdf: true\`; use \`export_trip_pdf\` only for existing trips or retrying a PDF export.
+- Never invent coordinates for itinerary imports. Use location \`query\`, optional \`address\`, day \`city\`, and \`destination_context\`; Trippi resolves coordinates server-side.
 - Use \`search_place\` before \`create_place\` so the app gets structured POI data (coordinates, address, opening hours). Do not skip this step.
 - When the user asks to "add X to day Y", resolve both the place (search + create if needed) and the day ID before calling \`assign_place_to_day\`.
 - \`create_day_note\` is only for free-text annotations, reminders, or commentary. Do not use day notes for itinerary activities, restaurants, attractions, hotels, or route stops; those must be places plus assignments.

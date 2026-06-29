@@ -30,8 +30,6 @@ export interface ImportLocation {
   name?: string;
   query: string;
   address?: string;
-  lat?: number;
-  lng?: number;
   google_place_id?: string;
   google_ftid?: string;
   osm_id?: string;
@@ -71,6 +69,7 @@ export interface ApplyItineraryPlanInput {
     | { kind: 'new_trip'; title: string; start_date?: string; end_date?: string; currency?: string }
     | { kind: 'existing_trip'; tripId: number; mode: 'append' | 'replace_imported' };
   lang?: string;
+  destination_context?: string;
   exportPdf?: boolean;
   days: ImportDay[];
 }
@@ -192,20 +191,27 @@ function hasValidCoordinates(lat: number | null, lng: number | null): lat is num
   return lat !== null && lng !== null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
 
-function validateCoordinatePair(location: ImportLocation, path: string, issues: ImportIssue[]): void {
-  const hasLat = location.lat !== undefined;
-  const hasLng = location.lng !== undefined;
-  if (!hasLat && !hasLng) return;
-
-  const lat = parseNumber(location.lat);
-  const lng = parseNumber(location.lng);
-  if (!hasValidCoordinates(lat, lng)) {
-    issues.push({ path, message: 'lat/lng must both be present and within valid coordinate ranges.' });
-  }
-}
-
 function validateTime(value: string | undefined, path: string, issues: ImportIssue[]): void {
   if (value !== undefined && !TIME_RE.test(value)) issues.push({ path, message: 'Expected 24-hour HH:mm time.' });
+}
+
+const LOCATION_FIELDS = new Set(['name', 'query', 'address', 'google_place_id', 'google_ftid', 'osm_id']);
+
+function validateLocation(location: ImportLocation | undefined, path: string, issues: ImportIssue[]): boolean {
+  if (!location || !clean(location.query)) {
+    issues.push({ path: `${path}.query`, message: 'Location query is required.' });
+    return false;
+  }
+
+  for (const key of Object.keys(location as unknown as Record<string, unknown>)) {
+    if (!LOCATION_FIELDS.has(key)) {
+      issues.push({
+        path: `${path}.${key}`,
+        message: 'Unsupported location field. Send query/address/provider IDs only; backend geocodes coordinates.',
+      });
+    }
+  }
+  return true;
 }
 
 function validateInput(input: ApplyItineraryPlanInput): void {
@@ -267,11 +273,8 @@ function validateInput(input: ApplyItineraryPlanInput): void {
       const activityPath = `${dayPath}.activities[${activityIndex}]`;
       if (!clean(activity.title))
         issues.push({ path: `${activityPath}.title`, message: 'Activity title is required.' });
-      if (!activity.location || !clean(activity.location.query)) {
-        issues.push({ path: `${activityPath}.location.query`, message: 'Location query is required.' });
-      } else {
+      if (validateLocation(activity.location, `${activityPath}.location`, issues)) {
         locationCount++;
-        validateCoordinatePair(activity.location, `${activityPath}.location`, issues);
       }
       validateTime(activity.start_time, `${activityPath}.start_time`, issues);
       validateTime(activity.end_time, `${activityPath}.end_time`, issues);
@@ -294,11 +297,8 @@ function validateInput(input: ApplyItineraryPlanInput): void {
       if (!clean(day.accommodation.title)) {
         issues.push({ path: `${accommodationPath}.title`, message: 'Accommodation title is required.' });
       }
-      if (!day.accommodation.location || !clean(day.accommodation.location.query)) {
-        issues.push({ path: `${accommodationPath}.location.query`, message: 'Location query is required.' });
-      } else {
+      if (validateLocation(day.accommodation.location, `${accommodationPath}.location`, issues)) {
         locationCount++;
-        validateCoordinatePair(day.accommodation.location, `${accommodationPath}.location`, issues);
       }
       validateTime(day.accommodation.check_in, `${accommodationPath}.check_in`, issues);
       validateTime(day.accommodation.check_out, `${accommodationPath}.check_out`, issues);
@@ -367,18 +367,42 @@ function withContext(
   return `${cleanQuery}${separator}${cleanContext}`;
 }
 
-function buildLocationSearchQueries(location: ImportLocation, city: string | undefined): string[] {
+function withContexts(
+  query: string | undefined,
+  contexts: (string | undefined)[],
+  separator = ', ',
+): string | undefined {
+  return contexts.reduce((current, context) => withContext(current, context, separator), query);
+}
+
+function withCityAndDestination(
+  query: string | undefined,
+  city: string | undefined,
+  destinationContext: string | undefined,
+  citySeparator = ', ',
+): string | undefined {
+  return withContext(withContext(query, city, citySeparator), destinationContext);
+}
+
+function buildLocationSearchQueries(
+  location: ImportLocation,
+  city: string | undefined,
+  destinationContext: string | undefined,
+): string[] {
   const base = clean(location.query);
   const name = clean(location.name);
   const address = clean(location.address);
   const simplified = base ? simplifiedLocationQuery(base) : undefined;
   const candidates = [
-    withContext(withContext(base, address), city),
-    withContext(base, city),
-    withContext(base, city, ' '),
-    withContext(simplified && simplified !== base ? simplified : undefined, city, ' '),
-    withContext(simplified && simplified !== base ? simplified : undefined, city),
-    withContext(name && name !== base ? name : undefined, city),
+    withContexts(base, [address, city, destinationContext]),
+    withCityAndDestination(base, city, destinationContext),
+    withCityAndDestination(base, city, destinationContext, ' '),
+    withCityAndDestination(simplified && simplified !== base ? simplified : undefined, city, destinationContext, ' '),
+    withCityAndDestination(simplified && simplified !== base ? simplified : undefined, city, destinationContext),
+    withCityAndDestination(name && name !== base ? name : undefined, city, destinationContext),
+    withContext(base, destinationContext),
+    withContext(simplified && simplified !== base ? simplified : undefined, destinationContext),
+    withContext(name && name !== base ? name : undefined, destinationContext),
     base,
     simplified && simplified !== base ? simplified : undefined,
   ];
@@ -399,26 +423,10 @@ async function resolveLocation(
   userId: number,
   location: ImportLocation,
   city: string | undefined,
+  destinationContext: string | undefined,
   lang: string | undefined,
   path: string,
 ): Promise<ResolvedLocation> {
-  const suppliedLat = parseNumber(location.lat);
-  const suppliedLng = parseNumber(location.lng);
-  if (hasValidCoordinates(suppliedLat, suppliedLng)) {
-    return {
-      name: clean(location.name) ?? clean(location.query) ?? 'Untitled place',
-      address: clean(location.address) ?? null,
-      lat: suppliedLat,
-      lng: suppliedLng as number,
-      google_place_id: clean(location.google_place_id) ?? null,
-      google_ftid: clean(location.google_ftid) ?? null,
-      osm_id: clean(location.osm_id) ?? null,
-      website: null,
-      phone: null,
-      source: 'provided',
-    };
-  }
-
   const detailsId = clean(location.google_place_id) ?? clean(location.osm_id);
   if (detailsId) {
     try {
@@ -431,7 +439,7 @@ async function resolveLocation(
     }
   }
 
-  const queries = buildLocationSearchQueries(location, city);
+  const queries = buildLocationSearchQueries(location, city, destinationContext);
   let lastSearchError: string | null = null;
   for (const query of queries) {
     try {
@@ -474,8 +482,13 @@ async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: nu
     accommodation: day.accommodation ? ({ ...day.accommodation } as ResolvedAccommodation) : undefined,
   }));
 
-  const jobs: { path: string; location: ImportLocation; city?: string; apply: (resolved: ResolvedLocation) => void }[] =
-    [];
+  const jobs: {
+    path: string;
+    location: ImportLocation;
+    city?: string;
+    destinationContext?: string;
+    apply: (resolved: ResolvedLocation) => void;
+  }[] = [];
 
   resolvedDays.forEach((day, dayIndex) => {
     day.activities.forEach((activity, activityIndex) => {
@@ -483,6 +496,7 @@ async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: nu
         path: `days[${dayIndex}].activities[${activityIndex}].location`,
         location: activity.location,
         city: day.city,
+        destinationContext: input.destination_context,
         apply: (resolved) => {
           activity.resolvedLocation = resolved;
         },
@@ -494,6 +508,7 @@ async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: nu
         path: `days[${dayIndex}].accommodation.location`,
         location: day.accommodation.location,
         city: day.city,
+        destinationContext: input.destination_context,
         apply: (resolved) => {
           if (day.accommodation) day.accommodation.resolvedLocation = resolved;
         },
@@ -502,7 +517,14 @@ async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: nu
   });
 
   await mapWithConcurrency(jobs, GEO_CONCURRENCY, async (job) => {
-    const resolved = await resolveLocation(userId, job.location, job.city, input.lang, job.path);
+    const resolved = await resolveLocation(
+      userId,
+      job.location,
+      job.city,
+      job.destinationContext,
+      input.lang,
+      job.path,
+    );
     job.apply(resolved);
     return resolved;
   });

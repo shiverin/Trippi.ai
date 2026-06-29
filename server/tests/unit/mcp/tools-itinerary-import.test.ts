@@ -126,8 +126,249 @@ async function withHarness(userId: number, fn: (h: McpHarness) => Promise<void>)
   }
 }
 
+function yunnanTenDayPlan() {
+  return [
+    {
+      day_number: 1,
+      date: '2026-10-01',
+      title: 'Kunming arrival',
+      city: 'Kunming',
+      activities: [
+        {
+          title: 'Green Lake Park walk',
+          category: 'nature',
+          start_time: '09:00',
+          end_time: '10:30',
+          duration_minutes: 90,
+          location: { query: 'Green Lake Park' },
+          notes: 'Gentle first-morning stroll.',
+        },
+        {
+          title: 'Yuantong Temple',
+          category: 'attraction',
+          start_time: '11:00',
+          location: { query: 'Yuantong Temple' },
+        },
+      ],
+      accommodation: {
+        title: 'Kunming city center hotel',
+        location: { query: 'Kunming Nanping Pedestrian Street hotel' },
+        check_in: '15:00',
+        check_out: '11:00',
+      },
+    },
+    {
+      day_number: 2,
+      date: '2026-10-02',
+      title: 'Stone Forest',
+      city: 'Kunming',
+      activities: [
+        {
+          title: 'Stone Forest scenic area',
+          category: 'nature',
+          start_time: '08:30',
+          location: { query: 'Stone Forest Scenic Area' },
+        },
+        {
+          title: 'Yunnan Nationalities Village',
+          category: 'attraction',
+          start_time: '16:00',
+          location: { query: 'Yunnan Nationalities Village' },
+        },
+      ],
+    },
+    {
+      day_number: 3,
+      date: '2026-10-03',
+      title: 'Kunming food and market day',
+      city: 'Kunming',
+      activities: [
+        {
+          title: 'Jingxing Bird and Flower Market',
+          category: 'shopping',
+          start_time: '09:30',
+          location: { query: 'Jingxing Bird and Flower Market' },
+        },
+        {
+          title: 'Nanping Pedestrian Street dinner',
+          category: 'restaurant',
+          start_time: '18:30',
+          location: { query: 'Nanping Pedestrian Street' },
+        },
+      ],
+    },
+    {
+      day_number: 4,
+      date: '2026-10-04',
+      title: 'Transfer to Dali',
+      city: 'Dali',
+      activities: [
+        {
+          title: 'Dali Ancient City',
+          category: 'attraction',
+          start_time: '14:00',
+          location: { query: 'Dali Ancient City' },
+        },
+        {
+          title: 'Foreigner Street evening',
+          category: 'restaurant',
+          start_time: '19:00',
+          location: { query: 'Foreigner Street Dali' },
+        },
+      ],
+      accommodation: {
+        title: 'Dali Old Town guesthouse',
+        location: { query: 'Dali Old Town guesthouse' },
+        check_in: '15:00',
+        check_out: '11:00',
+      },
+    },
+    {
+      day_number: 5,
+      date: '2026-10-05',
+      title: 'Erhai and Xizhou',
+      city: 'Dali',
+      activities: [
+        {
+          title: 'Erhai Lake cycling',
+          category: 'nature',
+          start_time: '09:00',
+          location: { query: 'Erhai Lake' },
+        },
+        {
+          title: 'Xizhou Ancient Town',
+          category: 'attraction',
+          start_time: '14:00',
+          location: { query: 'Xizhou Ancient Town' },
+        },
+      ],
+    },
+    {
+      day_number: 6,
+      date: '2026-10-06',
+      title: 'Cangshan and Three Pagodas',
+      city: 'Dali',
+      activities: [
+        {
+          title: 'Cangshan Mountain cable car',
+          category: 'nature',
+          start_time: '09:00',
+          location: { query: 'Cangshan Mountain cable car' },
+        },
+        {
+          title: 'Three Pagodas of Chongsheng Temple',
+          category: 'attraction',
+          start_time: '15:00',
+          location: { query: 'Three Pagodas of Chongsheng Temple' },
+        },
+      ],
+    },
+    {
+      day_number: 7,
+      date: '2026-10-07',
+      title: 'Transfer to Lijiang',
+      city: 'Lijiang',
+      activities: [
+        {
+          title: 'Lijiang Old Town',
+          category: 'attraction',
+          start_time: '14:00',
+          location: { query: 'Lijiang Old Town' },
+        },
+        {
+          title: 'Black Dragon Pool',
+          category: 'nature',
+          start_time: '16:30',
+          location: { query: 'Black Dragon Pool Lijiang' },
+        },
+      ],
+      accommodation: {
+        title: 'Lijiang Old Town boutique hotel',
+        location: { query: 'Lijiang Old Town boutique hotel' },
+        check_in: '15:00',
+        check_out: '11:00',
+      },
+    },
+    {
+      day_number: 8,
+      date: '2026-10-08',
+      title: 'Jade Dragon Snow Mountain',
+      city: 'Lijiang',
+      activities: [
+        {
+          title: 'Jade Dragon Snow Mountain',
+          category: 'nature',
+          start_time: '08:00',
+          location: { query: 'Jade Dragon Snow Mountain' },
+        },
+        {
+          title: 'Blue Moon Valley',
+          category: 'nature',
+          start_time: '14:00',
+          location: { query: 'Blue Moon Valley' },
+        },
+      ],
+    },
+    {
+      day_number: 9,
+      date: '2026-10-09',
+      title: 'Villages around Lijiang',
+      city: 'Lijiang',
+      activities: [
+        {
+          title: 'Baisha Village',
+          category: 'attraction',
+          start_time: '09:30',
+          location: { query: 'Baisha Village' },
+        },
+        {
+          title: 'Shuhe Ancient Town',
+          category: 'attraction',
+          start_time: '14:30',
+          location: { query: 'Shuhe Ancient Town' },
+        },
+      ],
+    },
+    {
+      day_number: 10,
+      date: '2026-10-10',
+      title: 'Tiger Leaping Gorge or departure',
+      city: 'Lijiang',
+      activities: [
+        {
+          title: 'Tiger Leaping Gorge',
+          category: 'nature',
+          start_time: '08:00',
+          location: { query: 'Tiger Leaping Gorge' },
+        },
+        {
+          title: 'Lijiang Sanyi Airport',
+          category: 'transport',
+          start_time: '18:00',
+          location: { query: 'Lijiang Sanyi Airport' },
+        },
+      ],
+    },
+  ];
+}
+
 describe('Tool: apply_itinerary_plan', () => {
-  it('creates a new trip with days, geocoded places, assignments, accommodations, and optional PDF', async () => {
+  it('exposes a strict one-shot schema without raw coordinate fields', async () => {
+    const { user } = createUser(testDb);
+
+    await withHarness(user.id, async (h) => {
+      const result = await h.client.listTools();
+      const applyTool = result.tools.find((tool) => tool.name === 'apply_itinerary_plan');
+
+      expect(applyTool).toBeTruthy();
+      expect(JSON.stringify(applyTool?.inputSchema)).toContain('"exportPdf"');
+      expect(JSON.stringify(applyTool?.inputSchema)).toContain('"destination_context"');
+      expect(JSON.stringify(applyTool?.inputSchema)).not.toContain('"lat":');
+      expect(JSON.stringify(applyTool?.inputSchema)).not.toContain('"lng":');
+    });
+  });
+
+  it('creates a 10-day Yunnan trip with geocoded places, assignments, accommodations, and optional PDF', async () => {
     const { user } = createUser(testDb);
 
     await withHarness(user.id, async (h) => {
@@ -136,52 +377,9 @@ describe('Tool: apply_itinerary_plan', () => {
         arguments: {
           target: { kind: 'new_trip', title: 'Yunnan Highlights', currency: 'CNY' },
           lang: 'en',
+          destination_context: 'Yunnan, China',
           exportPdf: true,
-          days: [
-            {
-              day_number: 1,
-              date: '2026-10-01',
-              title: 'Kunming arrival',
-              city: 'Kunming',
-              activities: [
-                {
-                  title: 'Green Lake Park walk',
-                  category: 'nature',
-                  start_time: '09:00',
-                  end_time: '10:30',
-                  duration_minutes: 90,
-                  location: { query: 'Green Lake Park' },
-                  notes: 'Gentle first-morning stroll.',
-                },
-                {
-                  title: 'Yuantong Temple',
-                  category: 'attraction',
-                  start_time: '11:00',
-                  location: { query: 'Yuantong Temple' },
-                },
-              ],
-              accommodation: {
-                title: 'Kunming city center hotel',
-                location: { query: 'Kunming Nanping Pedestrian Street hotel' },
-                check_in: '15:00',
-                check_out: '11:00',
-              },
-            },
-            {
-              day_number: 2,
-              date: '2026-10-02',
-              title: 'Stone Forest',
-              city: 'Kunming',
-              activities: [
-                {
-                  title: 'Stone Forest scenic area',
-                  category: 'nature',
-                  start_time: '08:30',
-                  location: { query: 'Stone Forest Scenic Area' },
-                },
-              ],
-            },
-          ],
+          days: yunnanTenDayPlan(),
         },
       });
 
@@ -189,11 +387,11 @@ describe('Tool: apply_itinerary_plan', () => {
       expect(data.success).toBe(true);
       expect(data.tripId).toBeGreaterThan(0);
       expect(data.counts).toMatchObject({
-        placesCreated: 4,
-        assignmentsCreated: 3,
-        accommodationsCreated: 1,
-        reservationsCreated: 1,
-        locationsResolved: 4,
+        placesCreated: 23,
+        assignmentsCreated: 20,
+        accommodationsCreated: 3,
+        reservationsCreated: 3,
+        locationsResolved: 23,
       });
       expect(data.pdf).toMatchObject({ filename: 'yunnan.pdf', contentType: 'application/pdf' });
 
@@ -204,11 +402,12 @@ describe('Tool: apply_itinerary_plan', () => {
             count: number;
           }
         ).count,
-      ).toBe(4);
+      ).toBe(23);
       expect((testDb.prepare('SELECT COUNT(*) AS count FROM day_assignments').get() as { count: number }).count).toBe(
-        3,
+        20,
       );
       expect((testDb.prepare('SELECT COUNT(*) AS count FROM day_notes').get() as { count: number }).count).toBe(0);
+      expect((testDb.prepare('SELECT COUNT(*) AS count FROM days').get() as { count: number }).count).toBe(10);
 
       const timed = testDb.prepare("SELECT assignment_time FROM day_assignments WHERE assignment_time = '09:00'").get();
       expect(timed).toBeTruthy();
@@ -216,21 +415,20 @@ describe('Tool: apply_itinerary_plan', () => {
         .prepare('SELECT mcp_import_batch_id FROM places WHERE name LIKE ? LIMIT 1')
         .get('Green Lake Park%') as { mcp_import_batch_id: string | null };
       expect(importedPlace.mcp_import_batch_id).toBe(data.batchId);
+      expect(searchPlacesMock).toHaveBeenCalledWith(user.id, 'Green Lake Park, Kunming, Yunnan, China', 'en');
       expect(exportTripPdfMock).toHaveBeenCalledWith(data.tripId);
       expect(broadcastMock).toHaveBeenCalledWith(data.tripId, 'itinerary:imported', expect.any(Object));
     });
   });
 
-  it('appends to an existing trip and uses supplied coordinates without geocoding', async () => {
+  it('rejects raw coordinates in itinerary location payloads', async () => {
     const { user } = createUser(testDb);
-    const trip = createTrip(testDb, user.id);
-    const day = createDay(testDb, trip.id, { day_number: 1, title: 'Dali' });
 
     await withHarness(user.id, async (h) => {
       const result = await h.client.callTool({
         name: 'apply_itinerary_plan',
         arguments: {
-          target: { kind: 'existing_trip', tripId: trip.id, mode: 'append' },
+          target: { kind: 'new_trip', title: 'Coordinate Rejection Test' },
           days: [
             {
               day_number: 1,
@@ -247,9 +445,43 @@ describe('Tool: apply_itinerary_plan', () => {
           ],
         },
       });
+
+      expect(result.isError).toBe(true);
+      expect(searchPlacesMock).not.toHaveBeenCalled();
+      expect((testDb.prepare('SELECT COUNT(*) AS count FROM trips').get() as { count: number }).count).toBe(0);
+    });
+  });
+
+  it('appends to an existing trip and geocodes supplied location queries', async () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id);
+    const day = createDay(testDb, trip.id, { day_number: 1, title: 'Dali' });
+
+    await withHarness(user.id, async (h) => {
+      const result = await h.client.callTool({
+        name: 'apply_itinerary_plan',
+        arguments: {
+          target: { kind: 'existing_trip', tripId: trip.id, mode: 'append' },
+          destination_context: 'Yunnan, China',
+          days: [
+            {
+              day_number: 1,
+              city: 'Dali',
+              activities: [
+                {
+                  title: 'Dali Ancient City',
+                  category: 'attraction',
+                  start_time: '10:00',
+                  location: { query: 'Dali Ancient City' },
+                },
+              ],
+            },
+          ],
+        },
+      });
       const data = parseToolResult(result) as any;
       expect(data.success).toBe(true);
-      expect(searchPlacesMock).not.toHaveBeenCalled();
+      expect(searchPlacesMock).toHaveBeenCalledWith(user.id, 'Dali Ancient City, Yunnan, China', undefined);
       expect(
         (
           testDb.prepare('SELECT COUNT(*) AS count FROM day_assignments WHERE day_id = ?').get(day.id) as {
@@ -352,7 +584,7 @@ describe('Tool: apply_itinerary_plan', () => {
           days: [
             {
               day_number: 1,
-              activities: [{ title: 'Imported Old Town', location: { query: 'Old Town', lat: 26.88, lng: 100.23 } }],
+              activities: [{ title: 'Imported Old Town', location: { query: 'Old Town' } }],
             },
           ],
         },
@@ -370,7 +602,7 @@ describe('Tool: apply_itinerary_plan', () => {
           days: [
             {
               day_number: 1,
-              activities: [{ title: 'Imported New Town', location: { query: 'New Town', lat: 26.91, lng: 100.21 } }],
+              activities: [{ title: 'Imported New Town', location: { query: 'New Town' } }],
             },
           ],
         },

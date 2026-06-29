@@ -53,6 +53,25 @@ vi.mock('../PDF/TripPDF', () => ({ downloadTripPDF: vi.fn().mockResolvedValue(un
 
 vi.mock('../Map/RouteCalculator', () => ({
   calculateRoute: vi.fn().mockResolvedValue({ distanceText: '5 km', durationText: '1h', coordinates: [] }),
+  calculateRouteWithLegs: vi.fn().mockImplementation(async (waypoints: { lat: number; lng: number }[]) => ({
+    coordinates: waypoints.map((p) => [p.lat, p.lng]),
+    distance: 2800,
+    duration: 240,
+    legs: waypoints.slice(0, -1).map((from, i) => {
+      const to = waypoints[i + 1];
+      return {
+        mid: [(from.lat + to.lat) / 2, (from.lng + to.lng) / 2],
+        from: [from.lat, from.lng],
+        to: [to.lat, to.lng],
+        distance: 2800,
+        duration: 240,
+        walkingText: '34 min',
+        drivingText: '4 min',
+        distanceText: '2.8 km',
+        durationText: '4 min',
+      };
+    }),
+  })),
   generateGoogleMapsUrl: vi.fn().mockReturnValue('https://maps.google.com/...'),
   optimizeRoute: vi.fn().mockImplementation((places) => places),
 }));
@@ -2151,5 +2170,81 @@ describe('DayPlanSidebar', () => {
     const optimizeBtn = screen.getByRole('button', { name: /optimize/i });
     await user.click(optimizeBtn);
     await waitFor(() => expect(onReorder).toHaveBeenCalledWith(10, expect.any(Array)));
+  });
+
+  it('FE-PLANNER-DAYPLAN-101: transport route connector labels render under the transport row', async () => {
+    const hotel = buildPlace({
+      id: 1,
+      name: 'Atour Light Hotel',
+      place_time: '08:00',
+      lat: 32.041,
+      lng: 118.784,
+    });
+    const museum = buildPlace({
+      id: 2,
+      name: 'Suzhou Museum',
+      place_time: '10:30',
+      lat: 31.323,
+      lng: 120.625,
+    });
+    const day = buildDay({ id: 10, date: '2025-12-11', title: 'Nanjing to Suzhou' });
+    const train = buildReservation({
+      id: 77,
+      type: 'train',
+      title: 'Train: Nanjing to Suzhou',
+      reservation_time: '2025-12-11T09:30:00',
+      reservation_end_time: '2025-12-11T10:30:00',
+      day_id: 10,
+      endpoints: [
+        {
+          role: 'from',
+          sequence: 0,
+          name: 'Nanjing South Railway Station',
+          code: null,
+          lat: 31.97,
+          lng: 118.79,
+          timezone: null,
+          local_date: null,
+          local_time: null,
+        },
+        {
+          role: 'to',
+          sequence: 1,
+          name: 'Suzhou Railway Station',
+          code: null,
+          lat: 31.331,
+          lng: 120.606,
+          timezone: null,
+          local_date: null,
+          local_time: null,
+        },
+      ],
+    });
+    const a1 = buildAssignment({ id: 11, day_id: 10, order_index: 0, place: hotel });
+    const a2 = buildAssignment({ id: 22, day_id: 10, order_index: 1, place: museum });
+
+    render(
+      <DayPlanSidebar
+        {...makeDefaultProps({
+          days: [day],
+          places: [hotel, museum],
+          assignments: { '10': [a1, a2] },
+          reservations: [train],
+          selectedDayId: 10,
+          routeShown: true,
+        })}
+      />
+    );
+
+    const trainTitle = screen.getByText('Train: Nanjing to Suzhou');
+    const nextStop = screen.getByText('Suzhou Museum');
+    await waitFor(() => expect(screen.getByText('To departure')).toBeInTheDocument());
+    const toDeparture = screen.getByText('To departure');
+    const fromArrival = screen.getByText('From arrival');
+
+    expect(trainTitle.compareDocumentPosition(toDeparture) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(trainTitle.compareDocumentPosition(fromArrival) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toDeparture.compareDocumentPosition(nextStop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(fromArrival.compareDocumentPosition(nextStop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

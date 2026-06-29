@@ -1,8 +1,16 @@
 import { Car, Footprints, Hotel } from 'lucide-react';
 import type { RouteSegment } from '../../types';
 
-/** Slim travel-time connector shown between two consecutive located stops in a day. */
-export function RouteConnector({ seg, profile }: { seg: RouteSegment; profile: 'driving' | 'walking' }) {
+/** Slim travel-time connector shown beside the row that owns a travel leg. */
+export function RouteConnector({
+  seg,
+  profile,
+  label,
+}: {
+  seg: RouteSegment;
+  profile: 'driving' | 'walking';
+  label?: string;
+}) {
   const driving = profile === 'driving';
   const Icon = driving ? Car : Footprints;
   const line = { flex: 1, height: 1, minHeight: 1, alignSelf: 'center', background: 'var(--border-primary)' };
@@ -21,6 +29,12 @@ export function RouteConnector({ seg, profile }: { seg: RouteSegment; profile: '
       <div style={line} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
         <Icon size={11} strokeWidth={2} />
+        {label && (
+          <>
+            <span>{label}</span>
+            <span style={{ opacity: 0.4 }}>·</span>
+          </>
+        )}
         <span>{seg.durationText ?? (driving ? seg.drivingText : seg.walkingText)}</span>
         <span style={{ opacity: 0.4 }}>·</span>
         <span>{seg.distanceText}</span>

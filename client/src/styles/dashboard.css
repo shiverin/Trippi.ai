@@ -876,11 +876,11 @@
   display: grid;
   grid-template-columns: 520px 1fr;
   gap: 0;
-  min-height: 150px;
+  min-height: 190px;
 }
 .trek-dash .trips.list-view .trip-cover {
   border-radius: var(--r-lg) 0 0 var(--r-lg);
-  height: 150px;
+  height: 190px;
   aspect-ratio: unset;
 }
 .trek-dash .trips.list-view .trip-body {
@@ -1698,7 +1698,7 @@
     min-height: 0;
   }
   .trek-dash .trips.list-view .trip-cover {
-    height: 150px;
+    height: 180px;
     aspect-ratio: unset;
     border-radius: 0;
   }

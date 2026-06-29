@@ -309,7 +309,7 @@ function PricingSection() {
     <section className="landing-section landing-pricing" id="pricing">
       <div className="landing-section__heading landing-section__heading--center">
         <h2>Choose how you want to travel</h2>
-        <p>Start free, self-host, or bring your group onto a managed workspace when you are ready.</p>
+        <p>Start with the basics, upgrade into a richer planner, or unlock autonomous LLM-agent workflows.</p>
       </div>
       <div className="landing-pricing__grid">
         {pricingTiers.map(({ name, price, cadence, description, features, cta, featured, Icon }) => (
@@ -393,7 +393,7 @@ function LandingFooter() {
       </nav>
       <div className="landing-footer__bottom">
         <span>Copyright 2026 trippi.ai</span>
-        <span>Open source friendly. Self-host or use our cloud.</span>
+        <span>All-in-one travel planning for people and AI agents.</span>
       </div>
     </footer>
   );

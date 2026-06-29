@@ -179,41 +179,41 @@ export const supportHighlights = [
 
 export const pricingTiers: PricingTier[] = [
   {
-    name: 'Community',
+    name: 'Beginner',
     price: '$0',
-    description: 'Self-host Trippi, plan unlimited personal trips, and keep your data with you.',
-    features: ['Self-hosted workspace', 'Unlimited personal trips', 'Open-source friendly'],
+    description: 'Start simple with the basics: up to 5 free trips per account and one plain 2D map view.',
+    features: ['Up to 5 free trips', 'Single plain 2D map', 'Basic itinerary only'],
     cta: 'Start free',
-    Icon: Server,
+    Icon: Map,
   },
   {
     name: 'Pro',
-    price: '$8',
+    price: '$9',
     cadence: '/mo',
-    description: 'Hosted workspace with AI planning assist, realtime collaboration, and file storage.',
-    features: ['Hosted workspace', 'AI planning assist', 'Realtime collaboration'],
+    description: 'For serious planners who want more trips, richer maps, and a fully customizable travel workspace.',
+    features: ['Up to 100 trips', 'Customizable workspace', '3D maps and advanced options'],
     cta: 'Get started',
     featured: true,
-    Icon: Globe2,
+    Icon: Sparkles,
   },
   {
-    name: 'Team',
-    price: '$24',
+    name: 'Agentic',
+    price: '$49',
     cadence: '/mo',
-    description: 'Shared workspaces, group permissions, admin controls, and priority support.',
-    features: ['Group workspaces', 'Admin controls', 'Priority support'],
-    cta: 'Contact us',
-    Icon: Users,
+    description: 'Full MCP access for ChatGPT, Gemini, and Claude to plan autonomously and coordinate travel purchases.',
+    features: ['Full MCP agent access', 'Flights, hotels, attractions', '100% agentic workflow'],
+    cta: 'Go agentic',
+    Icon: Bot,
   },
 ];
 
 export const faqItems: FaqItem[] = [
   {
-    id: 'self-host',
-    question: 'Can I self-host Trippi?',
+    id: 'agents',
+    question: 'Can AI agents plan with Trippi?',
     answer:
-      'Yes. The Community path is for people who want to run Trippi themselves and keep trip data under their own control.',
-    Icon: Server,
+      'Yes. The Agentic plan unlocks MCP access so tools like ChatGPT, Gemini, and Claude can help build itineraries, organize details, and coordinate booking workflows.',
+    Icon: Bot,
   },
   {
     id: 'groups',
@@ -233,7 +233,7 @@ export const faqItems: FaqItem[] = [
     id: 'privacy',
     question: 'Is my trip data private?',
     answer:
-      'Trips are private by default. You choose who can view, edit, or collaborate, and self-hosting is available for tighter control.',
+      'Trips are private by default. You choose who can view, edit, or collaborate, and shared plans stay invite-only unless you publish them.',
     Icon: LockKeyhole,
   },
 ];

@@ -24,7 +24,7 @@ vi.mock('../../src/db/database', () => ({ db, closeDb: () => {}, reinitialize: (
 vi.mock('../../src/websocket', () => ({ broadcast: vi.fn() }));
 
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn() }));
-vi.mock('../../src/services/permissions', () => ({ checkPermission }));
+vi.mock('../../src/services/permissions', () => ({ checkPermission, checkPermissionAsync: checkPermission }));
 
 const { svc } = vi.hoisted(() => ({
   svc: {

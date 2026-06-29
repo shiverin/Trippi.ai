@@ -508,11 +508,13 @@ describe('Packing — apply-template, bag members, save-as-template', () => {
   it('PACK-017e — GET /packing/templates lists templates for a trip member', async () => {
     const { user: admin } = createUser(testDb, { role: 'admin' });
     const trip = createTrip(testDb, admin.id);
-    createPackingItem(testDb, trip.id);
-    await request(app)
-      .post(`/api/trips/${trip.id}/packing/save-as-template`)
-      .set('Cookie', authCookie(admin.id))
-      .send({ name: 'Shared Template' });
+    const tpl = testDb.prepare("INSERT INTO packing_templates (name, created_by) VALUES ('Shared Template', ?)").run(admin.id);
+    const cat = testDb
+      .prepare("INSERT INTO packing_template_categories (template_id, name, sort_order) VALUES (?, 'Essentials', 0)")
+      .run(tpl.lastInsertRowid);
+    testDb
+      .prepare("INSERT INTO packing_template_items (category_id, name, sort_order) VALUES (?, 'Passport', 0)")
+      .run(cat.lastInsertRowid);
 
     const res = await request(app)
       .get(`/api/trips/${trip.id}/packing/templates`)

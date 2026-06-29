@@ -247,6 +247,7 @@ export function useTripPlanner() {
   const mobilePlacesScrollTopRef = useRef<number>(0);
   const [deletePlaceId, setDeletePlaceId] = useState<number | null>(null);
   const [deletePlaceIds, setDeletePlaceIds] = useState<number[] | null>(null);
+  const [expandedDayIds, setExpandedDayIds] = useState<Set<number> | null>(null);
 
   useEffect(() => {
     if (!trip) return;
@@ -279,20 +280,29 @@ export function useTripPlanner() {
     window.localStorage.setItem(connectionsStorageKey, JSON.stringify(connectionOverrides));
   }, [connectionsStorageKey, connectionOverrides]);
   const autoConnectionIds = useMemo(() => {
-    if (!selectedDayId) return [];
-    const dayAssignments = assignments[String(selectedDayId)] || [];
-    const dayAssignmentIds = dayAssignments.map((a) => a.id);
+    const activeDayIds = new Set<number>();
+    if (selectedDayId) activeDayIds.add(selectedDayId);
+    if (expandedDayIds) {
+      for (const dayId of expandedDayIds) activeDayIds.add(dayId);
+    }
+    if (activeDayIds.size === 0) return [];
+
     const seen = new Set<number>();
-    return getTransportForDay({ reservations, dayId: selectedDayId, dayAssignmentIds, days })
-      .filter((r) => !r.__leg || r.__leg.index === 0)
-      .filter((r) => (r.endpoints || []).length >= 2)
-      .map((r) => Number(r.id))
-      .filter((id) => {
-        if (!Number.isFinite(id) || seen.has(id)) return false;
+    const ids: number[] = [];
+    for (const dayId of activeDayIds) {
+      const dayAssignments = assignments[String(dayId)] || [];
+      const dayAssignmentIds = dayAssignments.map((a) => a.id);
+      for (const r of getTransportForDay({ reservations, dayId, dayAssignmentIds, days })) {
+        if (r.__leg && r.__leg.index !== 0) continue;
+        if ((r.endpoints || []).length < 2) continue;
+        const id = Number(r.id);
+        if (!Number.isFinite(id) || seen.has(id)) continue;
         seen.add(id);
-        return true;
-      });
-  }, [selectedDayId, assignments, reservations, days]);
+        ids.push(id);
+      }
+    }
+    return ids;
+  }, [selectedDayId, expandedDayIds, assignments, reservations, days]);
   const visibleConnections = useMemo(() => {
     const visible = new Set(autoConnectionIds);
     for (const [rawId, show] of Object.entries(connectionOverrides)) {
@@ -367,8 +377,6 @@ export function useTripPlanner() {
 
   const [mapCategoryFilter, setMapCategoryFilter] = useState<Set<string>>(new Set());
   const [mapPlacesFilter, setMapPlacesFilter] = useState<string>('all');
-
-  const [expandedDayIds, setExpandedDayIds] = useState<Set<number> | null>(null);
 
   const dayRelevantPlaceIds = useMemo(
     () =>

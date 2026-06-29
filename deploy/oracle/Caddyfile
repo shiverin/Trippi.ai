@@ -1,0 +1,10 @@
+{$TRIPPI_DOMAIN} {
+    encode zstd gzip
+
+    # Backup restores and itinerary imports can be large.
+    request_body {
+        max_size 500MB
+    }
+
+    reverse_proxy app:3000
+}

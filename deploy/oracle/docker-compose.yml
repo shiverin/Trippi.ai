@@ -1,0 +1,71 @@
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: trippi-ai:oracle
+    container_name: trippi-ai
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    tmpfs:
+      - /tmp:noexec,nosuid,size=256m
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in deploy/oracle/.env}
+      TZ: ${TZ:-UTC}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-en}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?Set ALLOWED_ORIGINS in deploy/oracle/.env}
+      APP_URL: ${APP_URL:?Set APP_URL in deploy/oracle/.env}
+      FORCE_HTTPS: ${FORCE_HTTPS:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@trippi.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      MCP_RATE_LIMIT: ${MCP_RATE_LIMIT:-300}
+      MCP_MAX_SESSION_PER_USER: ${MCP_MAX_SESSION_PER_USER:-200}
+    volumes:
+      - ${TRIPPI_DATA_DIR:-/opt/trippi/data}:/app/data
+      - ${TRIPPI_UPLOADS_DIR:-/opt/trippi/uploads}:/app/uploads
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: trippi-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      TRIPPI_DOMAIN: ${TRIPPI_DOMAIN:?Set TRIPPI_DOMAIN in deploy/oracle/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${TRIPPI_CADDY_DATA_DIR:-/opt/trippi/caddy/data}:/data
+      - ${TRIPPI_CADDY_CONFIG_DIR:-/opt/trippi/caddy/config}:/config
+
+networks:
+  default:
+    name: trippi-oracle

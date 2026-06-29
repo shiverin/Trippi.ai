@@ -20,14 +20,14 @@
 </p>
 
 <p>
-  With <a href="https://trippi.ai/">trippi.ai</a>, you can build your adventure in one place: interactive maps,
+  Build your adventure in one place: interactive maps,
   drag-and-drop itineraries, route planning, budgets, reservations, and everything else that keeps your trip on track.
 </p>
 
 <p>
-  <a href="https://trippi.ai/">trippi.ai</a> also connects with AI agents on platforms like ChatGPT, Claude, and Gemini,
-  so your AI can help plan your trip with you. Tell it where you want to go, what kind of experience you want, and let it
-  help organize the details.
+  Connect with AI agents like ChatGPT, Claude, and Gemini,
+  so they can help plan your trip with you. Simply tell it where you want to go, what kind of experience you want, and let it
+  handle the rest.
 </p>
 
 <p>Say goodbye to chaotic trip planning.<br />Say hello to your trippi.</p>

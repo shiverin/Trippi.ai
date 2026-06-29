@@ -5,43 +5,43 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/api/:path*"
+      "destination": "http://34.55.197.101/api/:path*"
     },
     {
       "source": "/mcp",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/mcp"
+      "destination": "http://34.55.197.101/mcp"
     },
     {
       "source": "/oauth/authorize",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/oauth/authorize"
+      "destination": "http://34.55.197.101/oauth/authorize"
     },
     {
       "source": "/oauth/register",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/oauth/register"
+      "destination": "http://34.55.197.101/oauth/register"
     },
     {
       "source": "/oauth/token",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/oauth/token"
+      "destination": "http://34.55.197.101/oauth/token"
     },
     {
       "source": "/oauth/revoke",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/oauth/revoke"
+      "destination": "http://34.55.197.101/oauth/revoke"
     },
     {
       "source": "/oauth/userinfo",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/oauth/userinfo"
+      "destination": "http://34.55.197.101/oauth/userinfo"
     },
     {
       "source": "/.well-known/:path*",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/.well-known/:path*"
+      "destination": "http://34.55.197.101/.well-known/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/uploads/:path*"
+      "destination": "http://34.55.197.101/uploads/:path*"
     },
     {
       "source": "/ws",
-      "destination": "https://partner-aaa-created-changes.trycloudflare.com/ws"
+      "destination": "http://34.55.197.101/ws"
     },
     {
       "source": "/:path*",

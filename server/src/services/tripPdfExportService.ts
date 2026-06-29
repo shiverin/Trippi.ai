@@ -158,11 +158,7 @@ interface PdfNetworkGuardStats extends Record<string, number> {
   aborted: number;
 }
 
-async function installPdfNetworkGuards(
-  page: Page,
-  origin: string,
-  stats: PdfNetworkGuardStats,
-): Promise<void> {
+async function installPdfNetworkGuards(page: Page, origin: string, stats: PdfNetworkGuardStats): Promise<void> {
   await page.route('**/*', async (route: Route) => {
     const requestUrl = route.request().url();
     if (requestUrl === 'about:blank' || requestUrl.startsWith('data:') || requestUrl.startsWith('blob:')) {

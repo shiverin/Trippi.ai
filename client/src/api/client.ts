@@ -851,17 +851,15 @@ export const mapsApi = {
   // Overpass can be slow on a fresh (uncached) area, so this call gets a longer
   // timeout than the global default instead of aborting at 8s and showing nothing.
   pois: (category: string, bbox: { south: number; west: number; north: number; east: number }, signal?: AbortSignal) =>
-    apiClient
-      .get('/maps/pois', { params: { category, ...bbox }, signal, timeout: 20000 })
-      .then(
-        (r) =>
-          r.data as {
-            pois: import('../components/Map/poiCategories').Poi[];
-            source: string;
-            truncated: boolean;
-            clamped?: boolean;
-          }
-      ),
+    apiClient.get('/maps/pois', { params: { category, ...bbox }, signal, timeout: 20000 }).then(
+      (r) =>
+        r.data as {
+          pois: import('../components/Map/poiCategories').Poi[];
+          source: string;
+          truncated: boolean;
+          clamped?: boolean;
+        }
+    ),
 };
 
 export const airportsApi = {

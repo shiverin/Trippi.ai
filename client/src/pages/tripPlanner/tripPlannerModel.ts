@@ -4,7 +4,7 @@
  * the FE "page = wiring container + data hook" convention (see PATTERN.md).
  */
 
-import type { Assignment } from '../../types'
+import type { Assignment } from '../../types';
 
 /**
  * Resolve the day-assignment to use when a place is edited from the Places pool,
@@ -15,10 +15,10 @@ import type { Assignment } from '../../types'
  */
 export function resolvePoolAssignmentId(
   assignments: Record<string | number, Assignment[]>,
-  placeId: number,
+  placeId: number
 ): number | null {
   const matches = Object.values(assignments)
     .flat()
-    .filter((a) => a.place?.id === placeId)
-  return matches.length === 1 ? matches[0].id : null
+    .filter((a) => a.place?.id === placeId);
+  return matches.length === 1 ? matches[0].id : null;
 }

@@ -1,4 +1,4 @@
-import type { BudgetItem } from '../../types'
+import type { BudgetItem } from '../../types';
 
 /**
  * A request from a booking modal to open the Costs expense editor — either to
@@ -6,6 +6,6 @@ import type { BudgetItem } from '../../types'
  * booking (the modal saves the booking first so `reservationId` is known).
  */
 export interface BookingExpenseRequest {
-  editItem?: BudgetItem
-  prefill?: { reservationId?: number; name?: string; category?: string; amount?: number }
+  editItem?: BudgetItem;
+  prefill?: { reservationId?: number; name?: string; category?: string; amount?: number };
 }

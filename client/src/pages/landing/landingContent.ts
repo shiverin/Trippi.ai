@@ -11,7 +11,6 @@ import {
   Map,
   Plane,
   Route,
-  Server,
   ShieldCheck,
   Sparkles,
   Users,
@@ -200,7 +199,8 @@ export const pricingTiers: PricingTier[] = [
     name: 'Agentic',
     price: '$49',
     cadence: '/mo',
-    description: 'Full MCP access for ChatGPT, Gemini, and Claude to plan autonomously and coordinate travel purchases.',
+    description:
+      'Full MCP access for ChatGPT, Gemini, and Claude to plan autonomously and coordinate travel purchases.',
     features: ['Full MCP agent access', 'Flights, hotels, attractions', '100% agentic workflow'],
     cta: 'Go agentic',
     Icon: Bot,

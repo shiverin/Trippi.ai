@@ -357,7 +357,7 @@ export async function resolveAuthTogglesAsync(): Promise<{
   passkey_login: boolean;
 }> {
   const get = async (key: string) =>
-    ((await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value ?? null);
+    (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value ?? null;
 
   const passkey_login = (await get('passkey_login')) === 'true';
   const newKeyValues = await Promise.all(
@@ -423,9 +423,11 @@ export async function generateTokenAsync(
   const pv =
     typeof user.password_version === 'number'
       ? user.password_version
-      : ((await asyncDb.prepare('SELECT password_version FROM users WHERE id = ?').get<{ password_version?: number }>(
-          user.id,
-        ))?.password_version ?? 0);
+      : ((
+          await asyncDb
+            .prepare('SELECT password_version FROM users WHERE id = ?')
+            .get<{ password_version?: number }>(user.id)
+        )?.password_version ?? 0);
   const expiresIn = rememberMe ? SESSION_DURATION_REMEMBER_SECONDS : SESSION_DURATION_SECONDS;
   return jwt.sign({ id: user.id, pv }, JWT_SECRET, { expiresIn, algorithm: 'HS256' });
 }
@@ -705,8 +707,7 @@ export async function getAppConfigAsync(authenticatedUser: { id: number } | null
     oidc_configured: oidcConfigured,
     oidc_display_name: oidcConfigured ? oidcDisplayName || 'SSO' : undefined,
     require_mfa: requireMfa,
-    allowed_file_types:
-      (await get('allowed_file_types')) || 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv',
+    allowed_file_types: (await get('allowed_file_types')) || 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv',
     demo_mode: isDemo,
     demo_email: isDemo ? DEMO_EMAIL_PRIMARY : undefined,
     demo_password: isDemo ? 'demo12345' : undefined,
@@ -864,7 +865,8 @@ export async function registerUserAsync(body: {
     (await asyncDb.prepare('SELECT COUNT(*) as count FROM users').get<{ count: number }>()) ?? { count: 0 }
   ).count;
 
-  let validInvite: { id: number; token: string; max_uses: number; used_count: number; expires_at?: string } | null = null;
+  let validInvite: { id: number; token: string; max_uses: number; used_count: number; expires_at?: string } | null =
+    null;
   if (invite_token) {
     validInvite = await asyncDb
       .prepare('SELECT * FROM invite_tokens WHERE token = ?')
@@ -934,7 +936,9 @@ export async function registerUserAsync(body: {
           )
           .run(validInvite.id);
         if (updated.changes === 0) {
-          console.warn(`[Auth] Invite token ${validInvite.token.slice(0, 8)}... exceeded max_uses due to race condition`);
+          console.warn(
+            `[Auth] Invite token ${validInvite.token.slice(0, 8)}... exceeded max_uses due to race condition`,
+          );
         }
       }
 
@@ -1096,9 +1100,9 @@ export async function loginUserAsync(body: { email?: string; password?: string; 
     return { mfa_required: true, mfa_token };
   }
 
-  await asyncDb.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?').run(
-    user.id,
-  );
+  await asyncDb
+    .prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?')
+    .run(user.id);
   const token = await generateTokenAsync(user, remember);
   const userSafe = stripUserForClient(user) as Record<string, unknown>;
 
@@ -1138,7 +1142,9 @@ export function getCurrentUser(
 
 export async function getCurrentUserAsync(
   userId: number,
-): Promise<(Record<string, unknown> & Pick<User, 'id' | 'username' | 'email' | 'role'> & { avatar_url: string }) | null> {
+): Promise<
+  (Record<string, unknown> & Pick<User, 'id' | 'username' | 'email' | 'role'> & { avatar_url: string }) | null
+> {
   const user = await asyncDb
     .prepare(
       'SELECT id, username, email, role, avatar, oidc_issuer, created_at, mfa_enabled, must_change_password FROM users WHERE id = ?',

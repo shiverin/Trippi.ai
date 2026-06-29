@@ -7,12 +7,12 @@
  * Kept separate from authStore to avoid an import cycle
  * (authStore → tripSyncManager → authStore).
  */
-let _authed = false
+let _authed = false;
 
 export function setAuthed(value: boolean): void {
-  _authed = value
+  _authed = value;
 }
 
 export function isAuthed(): boolean {
-  return _authed
+  return _authed;
 }

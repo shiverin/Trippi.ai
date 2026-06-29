@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { useInAppNotificationStore } from '../../store/inAppNotificationStore.ts'
+import { useEffect, useRef, useState } from 'react';
+import { useInAppNotificationStore } from '../../store/inAppNotificationStore.ts';
 
 /**
  * In-app notifications data hook — owns the store wiring, the unread-only
@@ -8,13 +8,14 @@ import { useInAppNotificationStore } from '../../store/inAppNotificationStore.ts
  * the previous in-component logic.
  */
 export function useInAppNotifications() {
-  const { notifications, unreadCount, total, isLoading, hasMore, fetchNotifications, markAllRead, deleteAll } = useInAppNotificationStore()
-  const [unreadOnly, setUnreadOnly] = useState(false)
-  const loaderRef = useRef<HTMLDivElement>(null)
+  const { notifications, unreadCount, total, isLoading, hasMore, fetchNotifications, markAllRead, deleteAll } =
+    useInAppNotificationStore();
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchNotifications(true)
-  }, [])
+    fetchNotifications(true);
+  }, []);
 
   // Reload when filter changes
   useEffect(() => {
@@ -22,26 +23,37 @@ export function useInAppNotifications() {
     // The store fetchNotifications doesn't take a filter param directly,
     // so we use the API directly for filtered view via a side channel.
     // For now, reset and fetch — store always loads all, filter is client-side.
-    fetchNotifications(true)
-  }, [unreadOnly])
+    fetchNotifications(true);
+  }, [unreadOnly]);
 
   // Infinite scroll
   useEffect(() => {
-    if (!loaderRef.current) return
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore && !isLoading) {
-        fetchNotifications(false)
-      }
-    }, { threshold: 0.1 })
-    observer.observe(loaderRef.current)
-    return () => observer.disconnect()
-  }, [hasMore, isLoading])
+    if (!loaderRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+          fetchNotifications(false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, isLoading]);
 
-  const displayed = unreadOnly ? notifications.filter(n => !n.is_read) : notifications
+  const displayed = unreadOnly ? notifications.filter((n) => !n.is_read) : notifications;
 
   return {
-    notifications, unreadCount, total, isLoading, hasMore,
-    unreadOnly, setUnreadOnly, loaderRef, displayed,
-    markAllRead, deleteAll,
-  }
+    notifications,
+    unreadCount,
+    total,
+    isLoading,
+    hasMore,
+    unreadOnly,
+    setUnreadOnly,
+    loaderRef,
+    displayed,
+    markAllRead,
+    deleteAll,
+  };
 }

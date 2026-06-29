@@ -1,6 +1,6 @@
+import { systemNoticeDtoSchema, type SystemNoticeDto } from '@trippi/shared';
 import { create } from 'zustand';
 import axios, { API_TIMEOUTS, parseInDev } from '../api/client';
-import { systemNoticeDtoSchema, type SystemNoticeDto } from '@trippi/shared';
 
 // The notice contract lives in @trippi/shared (single source of truth, shared
 // with the server). Keep the historical name as an alias so the existing
@@ -44,13 +44,13 @@ export const useSystemNoticeStore = create<SystemNoticeState>()((set, get) => ({
   dismiss(id: string) {
     // Optimistic: remove immediately
     const prev = get().notices;
-    set({ notices: prev.filter(n => n.id !== id) });
+    set({ notices: prev.filter((n) => n.id !== id) });
 
     // POST in background; retry once on error
     const post = () => axios.post(`/system-notices/${id}/dismiss`);
     post().catch(() => {
       setTimeout(() => {
-        post().catch(e => console.warn('[systemNotices] dismiss failed:', e));
+        post().catch((e) => console.warn('[systemNotices] dismiss failed:', e));
       }, 2000);
     });
   },

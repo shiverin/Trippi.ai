@@ -1,6 +1,6 @@
 import {
-  Archive,
   AlertCircle,
+  Archive,
   ArrowRight,
   ArrowRightLeft,
   Calendar,
@@ -36,8 +36,8 @@ import '../styles/dashboard.css';
 import { formatTime, splitReservationDateTime } from '../utils/formatters';
 import { convertDistance, getDistanceUnitLabel } from '../utils/units';
 import {
-  type DashboardTrip,
   type DashboardTodo,
+  type DashboardTrip,
   type HeroBundle,
   type TravelStats,
   type UpcomingReservation,
@@ -238,7 +238,7 @@ export default function DashboardPage(): React.ReactElement {
                   </div>
                 )}
 
-                <div className={`trips${viewMode === 'list' ? ' list-view' : ''}`}>
+                <div className={`trips${viewMode === 'list' ? 'list-view' : ''}`}>
                   {gridTrips.map((trip) => (
                     <TripCard
                       key={trip.id}

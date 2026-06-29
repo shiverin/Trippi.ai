@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
-import { shareApi } from '../../api/client'
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { shareApi } from '../../api/client';
 
 /**
  * Shared-trip (public) data hook — owns the token lookup, the read-only share
@@ -10,19 +10,22 @@ import { shareApi } from '../../api/client'
  * Behaviour is identical to the previous in-component logic.
  */
 export function useSharedTrip() {
-  const { token } = useParams<{ token: string }>()
+  const { token } = useParams<{ token: string }>();
   // The shared payload is an open-ended snapshot (trip, days, assignments, …),
   // matched 1:1 from the public share endpoint — kept loosely typed as before.
-  const [data, setData] = useState<any>(null)
-  const [error, setError] = useState(false)
-  const [selectedDay, setSelectedDay] = useState<number | null>(null)
-  const [activeTab, setActiveTab] = useState('plan')
-  const [showLangPicker, setShowLangPicker] = useState(false)
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState('plan');
+  const [showLangPicker, setShowLangPicker] = useState(false);
 
   useEffect(() => {
-    if (!token) return
-    shareApi.getSharedTrip(token).then(setData).catch(() => setError(true))
-  }, [token])
+    if (!token) return;
+    shareApi
+      .getSharedTrip(token)
+      .then(setData)
+      .catch(() => setError(true));
+  }, [token]);
 
-  return { data, error, selectedDay, setSelectedDay, activeTab, setActiveTab, showLangPicker, setShowLangPicker }
+  return { data, error, selectedDay, setSelectedDay, activeTab, setActiveTab, showLangPicker, setShowLangPicker };
 }

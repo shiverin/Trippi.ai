@@ -1,11 +1,11 @@
 // FE-COMP-MOOD-001 to FE-COMP-MOOD-005
 
-import { describe, it, expect } from 'vitest';
-import { MOODS, WEATHERS, getMood, moodColor, tagColors, TAG_STYLES, MOOD_DEFAULT_COLOR } from './moodConfig';
+import { describe, expect, it } from 'vitest';
+import { MOODS, WEATHERS, getMood, moodColor, tagColors } from './moodConfig';
 
 describe('moodConfig', () => {
   it('FE-COMP-MOOD-001: MOODS contains all five mood definitions', () => {
-    const ids = MOODS.map(m => m.id);
+    const ids = MOODS.map((m) => m.id);
     expect(ids).toEqual(['amazing', 'good', 'neutral', 'tired', 'rough']);
     expect(MOODS).toHaveLength(5);
   });
@@ -35,7 +35,7 @@ describe('moodConfig', () => {
 
   it('FE-COMP-MOOD-005: WEATHERS contains all eight entries with icons', () => {
     expect(WEATHERS).toHaveLength(8);
-    const ids = WEATHERS.map(w => w.id);
+    const ids = WEATHERS.map((w) => w.id);
     expect(ids).toContain('sunny');
     expect(ids).toContain('snowy');
     expect(ids).toContain('stormy');

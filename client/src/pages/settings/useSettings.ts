@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { authApi } from '../../api/client'
-import { useAddonStore } from '../../store/addonStore'
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { authApi } from '../../api/client';
+import { useAddonStore } from '../../store/addonStore';
 
 /**
  * Settings page logic — loads addons + the app version, tracks the active tab
@@ -11,28 +11,31 @@ import { useAddonStore } from '../../store/addonStore'
  * Behaviour is identical to the previous in-component logic.
  */
 export function useSettings() {
-  const [searchParams] = useSearchParams()
-  const { isEnabled: addonEnabled, loadAddons } = useAddonStore()
+  const [searchParams] = useSearchParams();
+  const { isEnabled: addonEnabled, loadAddons } = useAddonStore();
 
-  const memoriesEnabled = addonEnabled('memories')
-  const mcpEnabled = addonEnabled('mcp')
-  const airtrailEnabled = addonEnabled('airtrail')
-  const hasIntegrations = memoriesEnabled || mcpEnabled || airtrailEnabled
+  const memoriesEnabled = addonEnabled('memories');
+  const mcpEnabled = addonEnabled('mcp');
+  const airtrailEnabled = addonEnabled('airtrail');
+  const hasIntegrations = memoriesEnabled || mcpEnabled || airtrailEnabled;
 
-  const [appVersion, setAppVersion] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('display')
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('display');
 
   useEffect(() => {
-    loadAddons()
-    authApi.getAppConfig?.().then(c => setAppVersion(c?.version)).catch(() => {})
-  }, [])
+    loadAddons();
+    authApi
+      .getAppConfig?.()
+      .then((c) => setAppVersion(c?.version))
+      .catch(() => {});
+  }, []);
 
   // Auto-switch to account tab when MFA is required
   useEffect(() => {
     if (searchParams.get('mfa') === 'required') {
-      setActiveTab('account')
+      setActiveTab('account');
     }
-  }, [searchParams])
+  }, [searchParams]);
 
-  return { hasIntegrations, appVersion, activeTab, setActiveTab }
+  return { hasIntegrations, appVersion, activeTab, setActiveTab };
 }

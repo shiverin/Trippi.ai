@@ -1,10 +1,10 @@
+export { TransHtml } from './TransHtml';
 export {
-  TranslationProvider,
-  useTranslation,
-  getLocaleForLanguage,
-  getIntlLanguage,
-  isRtlLanguage,
-  detectBrowserLanguage,
   SUPPORTED_LANGUAGES,
-} from './TranslationContext'
-export { TransHtml } from './TransHtml'
+  TranslationProvider,
+  detectBrowserLanguage,
+  getIntlLanguage,
+  getLocaleForLanguage,
+  isRtlLanguage,
+  useTranslation,
+} from './TranslationContext';

@@ -1,6 +1,6 @@
 // FE-UTIL-STRIPMD-001 to FE-UTIL-STRIPMD-006
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { stripMarkdown } from './stripMarkdown';
 
 describe('stripMarkdown', () => {

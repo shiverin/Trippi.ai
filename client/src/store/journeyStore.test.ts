@@ -2,8 +2,8 @@
 import { http, HttpResponse } from 'msw';
 import { server } from '../../tests/helpers/msw/server';
 import { journeyApi } from '../api/client';
-import { useJourneyStore } from './journeyStore';
 import type { JourneyDetail, JourneyEntry, JourneyPhoto } from './journeyStore';
+import { useJourneyStore } from './journeyStore';
 
 const initialState = useJourneyStore.getState();
 
@@ -107,22 +107,14 @@ describe('journeyStore', () => {
   it('FE-STORE-JOURNEY-001: loadJourneys populates store', async () => {
     const j1 = buildJourney({ id: 1 });
     const j2 = buildJourney({ id: 2 });
-    server.use(
-      http.get('/api/journeys', () =>
-        HttpResponse.json({ journeys: [j1, j2] })
-      )
-    );
+    server.use(http.get('/api/journeys', () => HttpResponse.json({ journeys: [j1, j2] })));
     await useJourneyStore.getState().loadJourneys();
     expect(useJourneyStore.getState().journeys).toHaveLength(2);
     expect(useJourneyStore.getState().journeys[0].id).toBe(1);
   });
 
   it('FE-STORE-JOURNEY-002: loadJourneys sets loading false on error', async () => {
-    server.use(
-      http.get('/api/journeys', () =>
-        HttpResponse.json({ error: 'server error' }, { status: 500 })
-      )
-    );
+    server.use(http.get('/api/journeys', () => HttpResponse.json({ error: 'server error' }, { status: 500 })));
     await expect(useJourneyStore.getState().loadJourneys()).rejects.toThrow();
     expect(useJourneyStore.getState().loading).toBe(false);
   });
@@ -131,22 +123,14 @@ describe('journeyStore', () => {
 
   it('FE-STORE-JOURNEY-003: loadJourney sets current journey', async () => {
     const detail = buildJourneyDetail({ id: 5 });
-    server.use(
-      http.get('/api/journeys/5', () =>
-        HttpResponse.json(detail)
-      )
-    );
+    server.use(http.get('/api/journeys/5', () => HttpResponse.json(detail)));
     await useJourneyStore.getState().loadJourney(5);
     expect(useJourneyStore.getState().current?.id).toBe(5);
     expect(useJourneyStore.getState().loading).toBe(false);
   });
 
   it('FE-STORE-JOURNEY-004: loadJourney sets loading false on error', async () => {
-    server.use(
-      http.get('/api/journeys/999', () =>
-        HttpResponse.json({ error: 'not found' }, { status: 404 })
-      )
-    );
+    server.use(http.get('/api/journeys/999', () => HttpResponse.json({ error: 'not found' }, { status: 404 })));
     await expect(useJourneyStore.getState().loadJourney(999)).rejects.toThrow();
     expect(useJourneyStore.getState().loading).toBe(false);
     expect(useJourneyStore.getState().notFound).toBe(true);
@@ -156,22 +140,14 @@ describe('journeyStore', () => {
 
   it('FE-STORE-JOURNEY-005: createJourney adds to store and returns journey', async () => {
     const created = buildJourney({ id: 10, title: 'My Trip' });
-    server.use(
-      http.post('/api/journeys', () =>
-        HttpResponse.json(created)
-      )
-    );
+    server.use(http.post('/api/journeys', () => HttpResponse.json(created)));
     const result = await useJourneyStore.getState().createJourney({ title: 'My Trip' });
     expect(result.id).toBe(10);
     expect(useJourneyStore.getState().journeys).toContainEqual(created);
   });
 
   it('FE-STORE-JOURNEY-006: createJourney throws on API error', async () => {
-    server.use(
-      http.post('/api/journeys', () =>
-        HttpResponse.json({ error: 'Validation failed' }, { status: 422 })
-      )
-    );
+    server.use(http.post('/api/journeys', () => HttpResponse.json({ error: 'Validation failed' }, { status: 422 })));
     await expect(useJourneyStore.getState().createJourney({ title: '' })).rejects.toThrow();
   });
 
@@ -182,11 +158,7 @@ describe('journeyStore', () => {
     const detail = buildJourneyDetail({ id: 20, title: 'Old' });
     useJourneyStore.setState({ journeys: [existing], current: detail });
 
-    server.use(
-      http.patch('/api/journeys/20', () =>
-        HttpResponse.json({ title: 'New' })
-      )
-    );
+    server.use(http.patch('/api/journeys/20', () => HttpResponse.json({ title: 'New' })));
     await useJourneyStore.getState().updateJourney(20, { title: 'New' });
     expect(useJourneyStore.getState().journeys[0].title).toBe('New');
     expect(useJourneyStore.getState().current?.title).toBe('New');
@@ -199,11 +171,7 @@ describe('journeyStore', () => {
     const j2 = buildJourney({ id: 31 });
     useJourneyStore.setState({ journeys: [j1, j2] });
 
-    server.use(
-      http.delete('/api/journeys/30', () =>
-        HttpResponse.json({})
-      )
-    );
+    server.use(http.delete('/api/journeys/30', () => HttpResponse.json({})));
     await useJourneyStore.getState().deleteJourney(30);
     expect(useJourneyStore.getState().journeys).toHaveLength(1);
     expect(useJourneyStore.getState().journeys[0].id).toBe(31);
@@ -213,11 +181,7 @@ describe('journeyStore', () => {
     const detail = buildJourneyDetail({ id: 40 });
     useJourneyStore.setState({ journeys: [buildJourney({ id: 40 })], current: detail });
 
-    server.use(
-      http.delete('/api/journeys/40', () =>
-        HttpResponse.json({})
-      )
-    );
+    server.use(http.delete('/api/journeys/40', () => HttpResponse.json({})));
     await useJourneyStore.getState().deleteJourney(40);
     expect(useJourneyStore.getState().current).toBeNull();
   });
@@ -229,11 +193,7 @@ describe('journeyStore', () => {
     useJourneyStore.setState({ current: detail });
 
     const newEntry = buildEntry({ id: 60, journey_id: 50 });
-    server.use(
-      http.post('/api/journeys/50/entries', () =>
-        HttpResponse.json(newEntry)
-      )
-    );
+    server.use(http.post('/api/journeys/50/entries', () => HttpResponse.json(newEntry)));
     const result = await useJourneyStore.getState().createEntry(50, { title: 'Day 1' });
     expect(result.id).toBe(60);
     expect(useJourneyStore.getState().current?.entries).toHaveLength(1);
@@ -247,11 +207,7 @@ describe('journeyStore', () => {
     const detail = buildJourneyDetail({ id: 50, entries: [entry] });
     useJourneyStore.setState({ current: detail });
 
-    server.use(
-      http.patch('/api/journeys/entries/70', () =>
-        HttpResponse.json({ title: 'New Title' })
-      )
-    );
+    server.use(http.patch('/api/journeys/entries/70', () => HttpResponse.json({ title: 'New Title' })));
     await useJourneyStore.getState().updateEntry(70, { title: 'New Title' });
     expect(useJourneyStore.getState().current?.entries[0].title).toBe('New Title');
   });
@@ -264,11 +220,7 @@ describe('journeyStore', () => {
     const detail = buildJourneyDetail({ id: 50, entries: [entry1, entry2] });
     useJourneyStore.setState({ current: detail });
 
-    server.use(
-      http.delete('/api/journeys/entries/80', () =>
-        HttpResponse.json({})
-      )
-    );
+    server.use(http.delete('/api/journeys/entries/80', () => HttpResponse.json({})));
     await useJourneyStore.getState().deleteEntry(80);
     expect(useJourneyStore.getState().current?.entries).toHaveLength(1);
     expect(useJourneyStore.getState().current?.entries[0].id).toBe(81);
@@ -292,7 +244,7 @@ describe('journeyStore', () => {
     expect(result.succeeded).toHaveLength(1);
     expect(result.succeeded[0].id).toBe(91);
     expect(result.failed).toHaveLength(0);
-    const storedEntry = useJourneyStore.getState().current?.entries.find(e => e.id === 100);
+    const storedEntry = useJourneyStore.getState().current?.entries.find((e) => e.id === 100);
     expect(storedEntry?.photos).toHaveLength(2);
     spy.mockRestore();
   });
@@ -302,17 +254,13 @@ describe('journeyStore', () => {
     const detail = buildJourneyDetail({ id: 50, entries: [entry] });
     useJourneyStore.setState({ current: detail });
 
-    server.use(
-      http.post('/api/journeys/entries/100/photos', () =>
-        HttpResponse.error()
-      )
-    );
+    server.use(http.post('/api/journeys/entries/100/photos', () => HttpResponse.error()));
     const file = new File(['x'], 'fail.jpg', { type: 'image/jpeg' });
     const result = await useJourneyStore.getState().uploadPhotos(100, [file]);
     expect(result.succeeded).toHaveLength(0);
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]).toBe(file);
-    const storedEntry = useJourneyStore.getState().current?.entries.find(e => e.id === 100);
+    const storedEntry = useJourneyStore.getState().current?.entries.find((e) => e.id === 100);
     expect(storedEntry?.photos).toHaveLength(0);
   });
 
@@ -337,7 +285,7 @@ describe('journeyStore', () => {
     expect(result.succeeded).toHaveLength(1);
     expect(result.succeeded[0].id).toBe(photo1.id);
     expect(result.failed).toHaveLength(1);
-    const storedEntry = useJourneyStore.getState().current?.entries.find(e => e.id === 100);
+    const storedEntry = useJourneyStore.getState().current?.entries.find((e) => e.id === 100);
     expect(storedEntry?.photos).toHaveLength(1);
     void photo2; // referenced to avoid lint warning
     spy.mockRestore();
@@ -352,13 +300,9 @@ describe('journeyStore', () => {
     const detail = buildJourneyDetail({ id: 50, entries: [entry] });
     useJourneyStore.setState({ current: detail });
 
-    server.use(
-      http.delete('/api/journeys/photos/200', () =>
-        HttpResponse.json({})
-      )
-    );
+    server.use(http.delete('/api/journeys/photos/200', () => HttpResponse.json({})));
     await useJourneyStore.getState().deletePhoto(200);
-    const storedEntry = useJourneyStore.getState().current?.entries.find(e => e.id === 100);
+    const storedEntry = useJourneyStore.getState().current?.entries.find((e) => e.id === 100);
     expect(storedEntry?.photos).toHaveLength(1);
     expect(storedEntry?.photos[0].id).toBe(201);
   });
@@ -370,17 +314,15 @@ describe('journeyStore', () => {
     useJourneyStore.setState({ current: existing, loading: false });
 
     const loadingValues: boolean[] = [];
-    const unsub = useJourneyStore.subscribe(s => loadingValues.push(s.loading));
+    const unsub = useJourneyStore.subscribe((s) => loadingValues.push(s.loading));
 
     const refreshed = buildJourneyDetail({ id: 5, title: 'Refreshed' });
-    server.use(
-      http.get('/api/journeys/5', () => HttpResponse.json(refreshed))
-    );
+    server.use(http.get('/api/journeys/5', () => HttpResponse.json(refreshed)));
 
     await useJourneyStore.getState().loadJourney(5);
     unsub();
 
-    expect(loadingValues.every(v => v === false)).toBe(true);
+    expect(loadingValues.every((v) => v === false)).toBe(true);
     expect(useJourneyStore.getState().current?.title).toBe('Refreshed');
   });
 
@@ -389,12 +331,10 @@ describe('journeyStore', () => {
     useJourneyStore.setState({ current: existing, loading: false });
 
     const loadingValues: boolean[] = [];
-    const unsub = useJourneyStore.subscribe(s => loadingValues.push(s.loading));
+    const unsub = useJourneyStore.subscribe((s) => loadingValues.push(s.loading));
 
     const other = buildJourneyDetail({ id: 99 });
-    server.use(
-      http.get('/api/journeys/99', () => HttpResponse.json(other))
-    );
+    server.use(http.get('/api/journeys/99', () => HttpResponse.json(other)));
 
     await useJourneyStore.getState().loadJourney(99);
     unsub();
@@ -413,11 +353,9 @@ describe('journeyStore', () => {
     const detail = buildJourneyDetail({ id: 55, entries: [a, b, c] });
     useJourneyStore.setState({ current: detail });
 
-    server.use(
-      http.put('/api/journeys/55/entries/reorder', () => HttpResponse.json({ success: true }))
-    );
+    server.use(http.put('/api/journeys/55/entries/reorder', () => HttpResponse.json({ success: true })));
     await useJourneyStore.getState().reorderEntries(55, [202, 201, 203]);
-    const ids = useJourneyStore.getState().current?.entries.map(e => e.id);
+    const ids = useJourneyStore.getState().current?.entries.map((e) => e.id);
     expect(ids).toEqual([202, 201, 203]);
   });
 
@@ -427,11 +365,9 @@ describe('journeyStore', () => {
     const detail = buildJourneyDetail({ id: 56, entries: [a, b] });
     useJourneyStore.setState({ current: detail });
 
-    server.use(
-      http.put('/api/journeys/56/entries/reorder', () => HttpResponse.json({}, { status: 403 }))
-    );
+    server.use(http.put('/api/journeys/56/entries/reorder', () => HttpResponse.json({}, { status: 403 })));
     await expect(useJourneyStore.getState().reorderEntries(56, [212, 211])).rejects.toBeTruthy();
-    const ids = useJourneyStore.getState().current?.entries.map(e => e.id);
+    const ids = useJourneyStore.getState().current?.entries.map((e) => e.id);
     expect(ids).toEqual([211, 212]);
   });
 

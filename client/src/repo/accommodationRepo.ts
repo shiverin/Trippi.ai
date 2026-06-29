@@ -1,20 +1,19 @@
-import { accommodationsApi } from '../api/client'
-import { offlineDb, upsertAccommodations } from '../db/offlineDb'
-import { onlineThenCache } from './withOfflineFallback'
-import type { Accommodation } from '../types'
+import { accommodationsApi } from '../api/client';
+import { offlineDb, upsertAccommodations } from '../db/offlineDb';
+import type { Accommodation } from '../types';
+import { onlineThenCache } from './withOfflineFallback';
 
 export const accommodationRepo = {
   async list(tripId: number | string): Promise<{ accommodations: Accommodation[] }> {
     return onlineThenCache(
       async () => {
-        const result = await accommodationsApi.list(tripId)
-        upsertAccommodations(result.accommodations || []).catch(() => {})
-        return result
+        const result = await accommodationsApi.list(tripId);
+        upsertAccommodations(result.accommodations || []).catch(() => {});
+        return result;
       },
       async () => ({
-        accommodations: await offlineDb.accommodations
-          .where('trip_id').equals(Number(tripId)).toArray(),
-      }),
-    )
+        accommodations: await offlineDb.accommodations.where('trip_id').equals(Number(tripId)).toArray(),
+      })
+    );
   },
-}
+};

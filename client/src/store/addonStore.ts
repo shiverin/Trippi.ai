@@ -1,33 +1,33 @@
-import { create } from 'zustand'
-import { addonsApi } from '../api/client'
+import { create } from 'zustand';
+import { addonsApi } from '../api/client';
 
 interface Addon {
-  id: string
-  name: string
-  description?: string
-  type: string
-  icon: string
-  enabled: boolean
-  config?: Record<string, unknown>
+  id: string;
+  name: string;
+  description?: string;
+  type: string;
+  icon: string;
+  enabled: boolean;
+  config?: Record<string, unknown>;
   fields?: Array<{
-    key: string
-    label: string
-    input_type: string
-    placeholder?: string | null
-    required: boolean
-    secret: boolean
-    settings_key?: string | null
-    payload_key?: string | null
-    sort_order: number
-  }>
+    key: string;
+    label: string;
+    input_type: string;
+    placeholder?: string | null;
+    required: boolean;
+    secret: boolean;
+    settings_key?: string | null;
+    payload_key?: string | null;
+    sort_order: number;
+  }>;
 }
 
 interface AddonState {
-  addons: Addon[]
-  bagTracking: boolean
-  loaded: boolean
-  loadAddons: () => Promise<void>
-  isEnabled: (id: string) => boolean
+  addons: Addon[];
+  bagTracking: boolean;
+  loaded: boolean;
+  loadAddons: () => Promise<void>;
+  isEnabled: (id: string) => boolean;
 }
 
 export const useAddonStore = create<AddonState>((set, get) => ({
@@ -37,17 +37,17 @@ export const useAddonStore = create<AddonState>((set, get) => ({
 
   loadAddons: async () => {
     try {
-      const data = await addonsApi.enabled()
-      set({ addons: data.addons || [], bagTracking: !!data.bagTracking, loaded: true })
+      const data = await addonsApi.enabled();
+      set({ addons: data.addons || [], bagTracking: !!data.bagTracking, loaded: true });
     } catch {
-      set({ loaded: true })
+      set({ loaded: true });
     }
   },
 
   isEnabled: (id: string) => {
     if (id === 'memories') {
-      return get().addons.some(a => a.type === 'photo_provider' && a.enabled)
+      return get().addons.some((a) => a.type === 'photo_provider' && a.enabled);
     }
-    return get().addons.some(a => a.id === id && a.enabled)
+    return get().addons.some((a) => a.id === id && a.enabled);
   },
-}))
+}));

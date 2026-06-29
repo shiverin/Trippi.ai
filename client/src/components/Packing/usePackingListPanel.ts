@@ -1,36 +1,36 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
-import type { ChangeEvent } from 'react'
-import { useTripStore } from '../../store/tripStore'
-import { useCanDo } from '../../store/permissionsStore'
-import { useAuthStore } from '../../store/authStore'
-import { useToast } from '../shared/Toast'
-import { useTranslation } from '../../i18n'
-import { packingApi, tripsApi } from '../../api/client'
-import { useAddonStore } from '../../store/addonStore'
-import type { PackingItem, PackingBag } from '../../types'
-import { BAG_COLORS, PACKING_PLACEHOLDER_NAME } from './packingListPanel.constants'
-import { parseImportLines } from './packingListPanel.helpers'
+import type { ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { packingApi, tripsApi } from '../../api/client';
+import { useTranslation } from '../../i18n';
+import { useAddonStore } from '../../store/addonStore';
+import { useAuthStore } from '../../store/authStore';
+import { useCanDo } from '../../store/permissionsStore';
+import { useTripStore } from '../../store/tripStore';
+import type { PackingBag, PackingItem } from '../../types';
+import { useToast } from '../shared/Toast';
+import { BAG_COLORS, PACKING_PLACEHOLDER_NAME } from './packingListPanel.constants';
+import { parseImportLines } from './packingListPanel.helpers';
 
 export interface TripMember {
-  id: number
-  username: string
-  avatar?: string | null
-  avatar_url?: string | null
+  id: number;
+  username: string;
+  avatar?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface CategoryAssignee {
-  user_id: number
-  username: string
-  avatar?: string | null
+  user_id: number;
+  username: string;
+  avatar?: string | null;
 }
 
 export interface PackingListPanelProps {
-  tripId: number
-  items: PackingItem[]
-  openImportSignal?: number
-  clearCheckedSignal?: number
-  saveTemplateSignal?: number
-  inlineHeader?: boolean
+  tripId: number;
+  items: PackingItem[];
+  openImportSignal?: number;
+  clearCheckedSignal?: number;
+  saveTemplateSignal?: number;
+  inlineHeader?: boolean;
 }
 
 /**
@@ -40,85 +40,101 @@ export interface PackingListPanelProps {
  * sections below render header, filters, the grouped list, the bag sidebar/
  * modal and the import dialog.
  */
-export function usePackingList({ tripId, items, openImportSignal = 0, clearCheckedSignal = 0, saveTemplateSignal = 0, inlineHeader = true }: PackingListPanelProps) {
-  const [filter, setFilter] = useState('alle') // 'alle' | 'offen' | 'erledigt'
-  const [addingCategory, setAddingCategory] = useState(false)
-  const [newCatName, setNewCatName] = useState('')
-  const { addPackingItem, updatePackingItem, deletePackingItem, togglePackingItem } = useTripStore()
-  const can = useCanDo()
-  const trip = useTripStore((s) => s.trip)
-  const canEdit = can('packing_edit', trip)
-  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
-  const toast = useToast()
-  const { t } = useTranslation()
+export function usePackingList({
+  tripId,
+  items,
+  openImportSignal = 0,
+  clearCheckedSignal = 0,
+  saveTemplateSignal = 0,
+  inlineHeader = true,
+}: PackingListPanelProps) {
+  const [filter, setFilter] = useState('alle'); // 'alle' | 'offen' | 'erledigt'
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const { addPackingItem, updatePackingItem, deletePackingItem, togglePackingItem } = useTripStore();
+  const can = useCanDo();
+  const trip = useTripStore((s) => s.trip);
+  const canEdit = can('packing_edit', trip);
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
+  const toast = useToast();
+  const { t } = useTranslation();
 
   // Trip members & category assignees
-  const [tripMembers, setTripMembers] = useState<TripMember[]>([])
-  const [categoryAssignees, setCategoryAssignees] = useState<Record<string, CategoryAssignee[]>>({})
+  const [tripMembers, setTripMembers] = useState<TripMember[]>([]);
+  const [categoryAssignees, setCategoryAssignees] = useState<Record<string, CategoryAssignee[]>>({});
 
   useEffect(() => {
-    tripsApi.getMembers(tripId).then(data => {
-      const all: TripMember[] = []
-      if (data.owner) all.push({ id: data.owner.id, username: data.owner.username, avatar: data.owner.avatar_url })
-      if (data.members) all.push(...data.members.map((m: any) => ({ id: m.id, username: m.username, avatar: m.avatar_url })))
-      setTripMembers(all)
-    }).catch(() => {})
-    packingApi.getCategoryAssignees(tripId).then(data => {
-      setCategoryAssignees(data.assignees || {})
-    }).catch(() => {})
-  }, [tripId])
+    tripsApi
+      .getMembers(tripId)
+      .then((data) => {
+        const all: TripMember[] = [];
+        if (data.owner) all.push({ id: data.owner.id, username: data.owner.username, avatar: data.owner.avatar_url });
+        if (data.members)
+          all.push(...data.members.map((m: any) => ({ id: m.id, username: m.username, avatar: m.avatar_url })));
+        setTripMembers(all);
+      })
+      .catch(() => {});
+    packingApi
+      .getCategoryAssignees(tripId)
+      .then((data) => {
+        setCategoryAssignees(data.assignees || {});
+      })
+      .catch(() => {});
+  }, [tripId]);
 
   const handleSetAssignees = async (category: string, userIds: number[]) => {
     try {
-      const data = await packingApi.setCategoryAssignees(tripId, category, userIds)
-      setCategoryAssignees(prev => ({ ...prev, [category]: data.assignees || [] }))
+      const data = await packingApi.setCategoryAssignees(tripId, category, userIds);
+      setCategoryAssignees((prev) => ({ ...prev, [category]: data.assignees || [] }));
     } catch {
-      toast.error(t('packing.toast.saveError'))
+      toast.error(t('packing.toast.saveError'));
     }
-  }
+  };
 
   const allCategories = useMemo(() => {
-    const seen: string[] = []
+    const seen: string[] = [];
     for (const item of items) {
-      const cat = item.category || t('packing.defaultCategory')
-      if (!seen.includes(cat)) seen.push(cat)
+      const cat = item.category || t('packing.defaultCategory');
+      if (!seen.includes(cat)) seen.push(cat);
     }
-    return seen
-  }, [items, t])
+    return seen;
+  }, [items, t]);
 
   const gruppiert = useMemo(() => {
-    const filtered = items.filter(i => {
-      if (filter === 'offen') return !i.checked
-      if (filter === 'erledigt') return i.checked
-      return true
-    })
-    const groups: Record<string, PackingItem[]> = {}
+    const filtered = items.filter((i) => {
+      if (filter === 'offen') return !i.checked;
+      if (filter === 'erledigt') return i.checked;
+      return true;
+    });
+    const groups: Record<string, PackingItem[]> = {};
     for (const item of filtered) {
-      const kat = item.category || t('packing.defaultCategory')
-      if (!groups[kat]) groups[kat] = []
-      groups[kat].push(item)
+      const kat = item.category || t('packing.defaultCategory');
+      if (!groups[kat]) groups[kat] = [];
+      groups[kat].push(item);
     }
-    return groups
-  }, [items, filter, t])
+    return groups;
+  }, [items, filter, t]);
 
-  const abgehakt = items.filter(i => i.checked).length
-  const fortschritt = items.length > 0 ? Math.round((abgehakt / items.length) * 100) : 0
+  const abgehakt = items.filter((i) => i.checked).length;
+  const fortschritt = items.length > 0 ? Math.round((abgehakt / items.length) * 100) : 0;
 
   const handleAddItemToCategory = async (category: string, name: string) => {
     try {
       // Reuse the '...' placeholder slot when the category already has one, so a
       // freshly-emptied category keeps its position (and therefore its colour)
       // instead of the new item being appended to the end of the list.
-      const placeholder = useTripStore.getState().packingItems.find(
-        i => i.category === category && i.name === PACKING_PLACEHOLDER_NAME
-      )
+      const placeholder = useTripStore
+        .getState()
+        .packingItems.find((i) => i.category === category && i.name === PACKING_PLACEHOLDER_NAME);
       if (placeholder) {
-        await updatePackingItem(tripId, placeholder.id, { name })
+        await updatePackingItem(tripId, placeholder.id, { name });
       } else {
-        await addPackingItem(tripId, { name, category })
+        await addPackingItem(tripId, { name, category });
       }
-    } catch { toast.error(t('packing.toast.addError')) }
-  }
+    } catch {
+      toast.error(t('packing.toast.addError'));
+    }
+  };
 
   // Deleting an item from a row. When it is the last item of a user-created
   // category, turn that row back into the '...' placeholder in place rather than
@@ -127,230 +143,325 @@ export function usePackingList({ tripId, items, openImportSignal = 0, clearCheck
   // (uncategorized) group and the placeholder row itself are deleted normally —
   // removing the placeholder is how an empty category is dismissed.
   const handleDeleteItem = async (item: PackingItem) => {
-    const category = item.category
-    const isLastInCategory = !!category
-      && item.name !== PACKING_PLACEHOLDER_NAME
-      && !items.some(i => i.id !== item.id && i.category === category)
+    const category = item.category;
+    const isLastInCategory =
+      !!category &&
+      item.name !== PACKING_PLACEHOLDER_NAME &&
+      !items.some((i) => i.id !== item.id && i.category === category);
     try {
       if (isLastInCategory) {
-        if (item.checked) await togglePackingItem(tripId, item.id, false)
+        if (item.checked) await togglePackingItem(tripId, item.id, false);
         await updatePackingItem(tripId, item.id, {
-          name: PACKING_PLACEHOLDER_NAME, weight_grams: null, bag_id: null, quantity: 1,
-        })
+          name: PACKING_PLACEHOLDER_NAME,
+          weight_grams: null,
+          bag_id: null,
+          quantity: 1,
+        });
       } else {
-        await deletePackingItem(tripId, item.id)
+        await deletePackingItem(tripId, item.id);
       }
     } catch {
-      toast.error(t('packing.toast.deleteError'))
+      toast.error(t('packing.toast.deleteError'));
     }
-  }
+  };
 
   const handleAddNewCategory = async () => {
-    if (!newCatName.trim()) return
-    let catName = newCatName.trim()
+    if (!newCatName.trim()) return;
+    let catName = newCatName.trim();
     // Allow duplicate display names — append invisible zero-width spaces to make unique internally
     while (allCategories.includes(catName)) {
-      catName += '​'
+      catName += '​';
     }
     try {
-      await addPackingItem(tripId, { name: '...', category: catName })
-      setNewCatName('')
-      setAddingCategory(false)
-    } catch { toast.error(t('packing.toast.addError')) }
-  }
+      await addPackingItem(tripId, { name: '...', category: catName });
+      setNewCatName('');
+      setAddingCategory(false);
+    } catch {
+      toast.error(t('packing.toast.addError'));
+    }
+  };
 
   const handleRenameCategory = async (oldName: string, newName: string) => {
-    const toUpdate = items.filter(i => (i.category || t('packing.defaultCategory')) === oldName)
+    const toUpdate = items.filter((i) => (i.category || t('packing.defaultCategory')) === oldName);
     for (const item of toUpdate) {
-      await updatePackingItem(tripId, item.id, { category: newName })
+      await updatePackingItem(tripId, item.id, { category: newName });
     }
-  }
+  };
 
   const handleDeleteCategory = async (catItems: PackingItem[]) => {
-    let failed = false
+    let failed = false;
     for (const item of catItems) {
-      try { await deletePackingItem(tripId, item.id) } catch { failed = true }
+      try {
+        await deletePackingItem(tripId, item.id);
+      } catch {
+        failed = true;
+      }
     }
-    if (failed) toast.error(t('packing.toast.deleteError'))
-  }
+    if (failed) toast.error(t('packing.toast.deleteError'));
+  };
 
   const handleClearChecked = async () => {
-    if (!confirm(t('packing.confirm.clearChecked', { count: abgehakt }))) return
-    let failed = false
-    for (const item of items.filter(i => i.checked)) {
-      try { await deletePackingItem(tripId, item.id) } catch { failed = true }
+    if (!confirm(t('packing.confirm.clearChecked', { count: abgehakt }))) return;
+    let failed = false;
+    for (const item of items.filter((i) => i.checked)) {
+      try {
+        await deletePackingItem(tripId, item.id);
+      } catch {
+        failed = true;
+      }
     }
-    if (failed) toast.error(t('packing.toast.deleteError'))
-  }
+    if (failed) toast.error(t('packing.toast.deleteError'));
+  };
 
   // Bag tracking — the global toggle is a packing sub-flag surfaced to every
   // authenticated user via the addon store (loaded on app start), not the
   // admin-only endpoint, so non-admin members see weights/bags too.
-  const bagTrackingEnabled = useAddonStore(s => s.bagTracking)
-  const addonsLoaded = useAddonStore(s => s.loaded)
-  const loadAddons = useAddonStore(s => s.loadAddons)
-  const [bags, setBags] = useState<PackingBag[]>([])
-  const [newBagName, setNewBagName] = useState('')
-  const [showAddBag, setShowAddBag] = useState(false)
-  const [showBagModal, setShowBagModal] = useState(false)
+  const bagTrackingEnabled = useAddonStore((s) => s.bagTracking);
+  const addonsLoaded = useAddonStore((s) => s.loaded);
+  const loadAddons = useAddonStore((s) => s.loadAddons);
+  const [bags, setBags] = useState<PackingBag[]>([]);
+  const [newBagName, setNewBagName] = useState('');
+  const [showAddBag, setShowAddBag] = useState(false);
+  const [showBagModal, setShowBagModal] = useState(false);
 
   useEffect(() => {
-    if (!addonsLoaded) loadAddons()
-  }, [addonsLoaded, loadAddons])
+    if (!addonsLoaded) loadAddons();
+  }, [addonsLoaded, loadAddons]);
 
   useEffect(() => {
-    if (bagTrackingEnabled) packingApi.listBags(tripId).then(r => setBags(r.bags || [])).catch(() => {})
-  }, [tripId, bagTrackingEnabled])
+    if (bagTrackingEnabled)
+      packingApi
+        .listBags(tripId)
+        .then((r) => setBags(r.bags || []))
+        .catch(() => {});
+  }, [tripId, bagTrackingEnabled]);
 
   const handleCreateBag = async () => {
-    if (!newBagName.trim()) return
+    if (!newBagName.trim()) return;
     try {
-      const data = await packingApi.createBag(tripId, { name: newBagName.trim(), color: BAG_COLORS[bags.length % BAG_COLORS.length] })
-      setBags(prev => [...prev, data.bag])
-      setNewBagName(''); setShowAddBag(false)
-    } catch { toast.error(t('packing.toast.saveError')) }
-  }
+      const data = await packingApi.createBag(tripId, {
+        name: newBagName.trim(),
+        color: BAG_COLORS[bags.length % BAG_COLORS.length],
+      });
+      setBags((prev) => [...prev, data.bag]);
+      setNewBagName('');
+      setShowAddBag(false);
+    } catch {
+      toast.error(t('packing.toast.saveError'));
+    }
+  };
 
   const handleCreateBagByName = async (name: string): Promise<PackingBag | undefined> => {
     try {
-      const data = await packingApi.createBag(tripId, { name, color: BAG_COLORS[bags.length % BAG_COLORS.length] })
-      setBags(prev => [...prev, data.bag])
-      return data.bag
-    } catch { toast.error(t('packing.toast.saveError')); return undefined }
-  }
+      const data = await packingApi.createBag(tripId, { name, color: BAG_COLORS[bags.length % BAG_COLORS.length] });
+      setBags((prev) => [...prev, data.bag]);
+      return data.bag;
+    } catch {
+      toast.error(t('packing.toast.saveError'));
+      return undefined;
+    }
+  };
 
   const handleDeleteBag = async (bagId: number) => {
     try {
-      await packingApi.deleteBag(tripId, bagId)
-      setBags(prev => prev.filter(b => b.id !== bagId))
-    } catch { toast.error(t('packing.toast.deleteError')) }
-  }
+      await packingApi.deleteBag(tripId, bagId);
+      setBags((prev) => prev.filter((b) => b.id !== bagId));
+    } catch {
+      toast.error(t('packing.toast.deleteError'));
+    }
+  };
 
   const handleUpdateBag = async (bagId: number, data: Record<string, any>) => {
     try {
-      const result = await packingApi.updateBag(tripId, bagId, data)
-      setBags(prev => prev.map(b => b.id === bagId ? { ...b, ...result.bag } : b))
-    } catch { toast.error(t('common.error')) }
-  }
+      const result = await packingApi.updateBag(tripId, bagId, data);
+      setBags((prev) => prev.map((b) => (b.id === bagId ? { ...b, ...result.bag } : b)));
+    } catch {
+      toast.error(t('common.error'));
+    }
+  };
 
   const handleSetBagMembers = async (bagId: number, userIds: number[]) => {
     try {
-      const result = await packingApi.setBagMembers(tripId, bagId, userIds)
-      setBags(prev => prev.map(b => b.id === bagId ? { ...b, members: result.members } : b))
-    } catch { toast.error(t('common.error')) }
-  }
+      const result = await packingApi.setBagMembers(tripId, bagId, userIds);
+      setBags((prev) => prev.map((b) => (b.id === bagId ? { ...b, members: result.members } : b)));
+    } catch {
+      toast.error(t('common.error'));
+    }
+  };
 
   // Templates
-  const [availableTemplates, setAvailableTemplates] = useState<{ id: number; name: string; item_count: number }[]>([])
-  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false)
-  const [applyingTemplate, setApplyingTemplate] = useState(false)
-  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
-  const [saveTemplateName, setSaveTemplateName] = useState('')
-  const [showImportModal, setShowImportModal] = useState(false)
-  const [importText, setImportText] = useState('')
-  const lastHandledImportSignal = useRef(openImportSignal)
-  const lastHandledClearSignal = useRef(clearCheckedSignal)
-  const lastHandledSaveSignal = useRef(saveTemplateSignal)
+  const [availableTemplates, setAvailableTemplates] = useState<{ id: number; name: string; item_count: number }[]>([]);
+  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [saveTemplateName, setSaveTemplateName] = useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importText, setImportText] = useState('');
+  const lastHandledImportSignal = useRef(openImportSignal);
+  const lastHandledClearSignal = useRef(clearCheckedSignal);
+  const lastHandledSaveSignal = useRef(saveTemplateSignal);
 
   useEffect(() => {
     if (openImportSignal !== lastHandledImportSignal.current && openImportSignal > 0) {
-      setShowImportModal(true)
+      setShowImportModal(true);
     }
-    lastHandledImportSignal.current = openImportSignal
-  }, [openImportSignal])
+    lastHandledImportSignal.current = openImportSignal;
+  }, [openImportSignal]);
 
   useEffect(() => {
     if (clearCheckedSignal !== lastHandledClearSignal.current && clearCheckedSignal > 0) {
-      handleClearChecked()
+      handleClearChecked();
     }
-    lastHandledClearSignal.current = clearCheckedSignal
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clearCheckedSignal])
+    lastHandledClearSignal.current = clearCheckedSignal;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clearCheckedSignal]);
 
   useEffect(() => {
     if (saveTemplateSignal !== lastHandledSaveSignal.current && saveTemplateSignal > 0) {
-      setShowSaveTemplate(true)
+      setShowSaveTemplate(true);
     }
-    lastHandledSaveSignal.current = saveTemplateSignal
-  }, [saveTemplateSignal])
-  const csvInputRef = useRef<HTMLInputElement>(null)
-  const templateDropdownRef = useRef<HTMLDivElement>(null)
+    lastHandledSaveSignal.current = saveTemplateSignal;
+  }, [saveTemplateSignal]);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const templateDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    packingApi.listTemplates(tripId).then(d => setAvailableTemplates(d.templates || [])).catch(() => {})
-  }, [tripId])
+    packingApi
+      .listTemplates(tripId)
+      .then((d) => setAvailableTemplates(d.templates || []))
+      .catch(() => {});
+  }, [tripId]);
 
   useEffect(() => {
-    if (!showTemplateDropdown) return
+    if (!showTemplateDropdown) return;
     const handler = (e: MouseEvent) => {
-      if (templateDropdownRef.current && !templateDropdownRef.current.contains(e.target as Node)) setShowTemplateDropdown(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showTemplateDropdown])
+      if (templateDropdownRef.current && !templateDropdownRef.current.contains(e.target as Node))
+        setShowTemplateDropdown(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showTemplateDropdown]);
 
   const handleApplyTemplate = async (templateId: number) => {
-    setApplyingTemplate(true)
+    setApplyingTemplate(true);
     try {
-      const data = await packingApi.applyTemplate(tripId, templateId)
-      useTripStore.setState(s => ({ packingItems: [...s.packingItems, ...(data.items || [])] }))
-      toast.success(t('packing.templateApplied', { count: data.count }))
-      setShowTemplateDropdown(false)
+      const data = await packingApi.applyTemplate(tripId, templateId);
+      useTripStore.setState((s) => ({ packingItems: [...s.packingItems, ...(data.items || [])] }));
+      toast.success(t('packing.templateApplied', { count: data.count }));
+      setShowTemplateDropdown(false);
     } catch {
-      toast.error(t('packing.templateError'))
+      toast.error(t('packing.templateError'));
     } finally {
-      setApplyingTemplate(false)
+      setApplyingTemplate(false);
     }
-  }
+  };
 
   const handleSaveAsTemplate = async () => {
-    if (!saveTemplateName.trim()) return
+    if (!saveTemplateName.trim()) return;
     try {
-      await packingApi.saveAsTemplate(tripId, saveTemplateName.trim())
-      toast.success(t('packing.templateSaved'))
-      setShowSaveTemplate(false)
-      setSaveTemplateName('')
-      packingApi.listTemplates(tripId).then(d => setAvailableTemplates(d.templates || [])).catch(() => {})
+      await packingApi.saveAsTemplate(tripId, saveTemplateName.trim());
+      toast.success(t('packing.templateSaved'));
+      setShowSaveTemplate(false);
+      setSaveTemplateName('');
+      packingApi
+        .listTemplates(tripId)
+        .then((d) => setAvailableTemplates(d.templates || []))
+        .catch(() => {});
     } catch {
-      toast.error(t('common.error'))
+      toast.error(t('common.error'));
     }
-  }
+  };
 
   const handleBulkImport = async () => {
-    const parsed = parseImportLines(importText)
-    if (parsed.length === 0) { toast.error(t('packing.importEmpty')); return }
+    const parsed = parseImportLines(importText);
+    if (parsed.length === 0) {
+      toast.error(t('packing.importEmpty'));
+      return;
+    }
     try {
-      const result = await packingApi.bulkImport(tripId, parsed)
-      useTripStore.setState(s => ({ packingItems: [...s.packingItems, ...(result.items || [])] }))
-      toast.success(t('packing.importSuccess', { count: result.count }))
-      setImportText('')
-      setShowImportModal(false)
-    } catch { toast.error(t('packing.importError')) }
-  }
+      const result = await packingApi.bulkImport(tripId, parsed);
+      useTripStore.setState((s) => ({ packingItems: [...s.packingItems, ...(result.items || [])] }));
+      toast.success(t('packing.importSuccess', { count: result.count }));
+      setImportText('');
+      setShowImportModal(false);
+    } catch {
+      toast.error(t('packing.importError'));
+    }
+  };
 
   const handleCsvFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = ''
-    const reader = new FileReader()
-    reader.onload = () => { if (typeof reader.result === 'string') setImportText(reader.result) }
-    reader.readAsText(file)
-  }
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setImportText(reader.result);
+    };
+    reader.readAsText(file);
+  };
 
-  const font = { fontFamily: "var(--font-system)" }
+  const font = { fontFamily: 'var(--font-system)' };
 
   return {
-    tripId, items, inlineHeader, t, canEdit, isAdmin, font,
-    filter, setFilter, addingCategory, setAddingCategory, newCatName, setNewCatName,
-    tripMembers, categoryAssignees, handleSetAssignees, allCategories, gruppiert, abgehakt, fortschritt,
-    handleAddItemToCategory, handleAddNewCategory, handleRenameCategory, handleDeleteCategory, handleDeleteItem, handleClearChecked,
-    bagTrackingEnabled, bags, newBagName, setNewBagName, showAddBag, setShowAddBag, showBagModal, setShowBagModal,
-    handleCreateBag, handleCreateBagByName, handleDeleteBag, handleUpdateBag, handleSetBagMembers,
-    availableTemplates, showTemplateDropdown, setShowTemplateDropdown, applyingTemplate,
-    showSaveTemplate, setShowSaveTemplate, saveTemplateName, setSaveTemplateName,
-    showImportModal, setShowImportModal, importText, setImportText,
-    csvInputRef, templateDropdownRef, handleApplyTemplate, handleSaveAsTemplate, parseImportLines, handleBulkImport, handleCsvFile,
-  }
+    tripId,
+    items,
+    inlineHeader,
+    t,
+    canEdit,
+    isAdmin,
+    font,
+    filter,
+    setFilter,
+    addingCategory,
+    setAddingCategory,
+    newCatName,
+    setNewCatName,
+    tripMembers,
+    categoryAssignees,
+    handleSetAssignees,
+    allCategories,
+    gruppiert,
+    abgehakt,
+    fortschritt,
+    handleAddItemToCategory,
+    handleAddNewCategory,
+    handleRenameCategory,
+    handleDeleteCategory,
+    handleDeleteItem,
+    handleClearChecked,
+    bagTrackingEnabled,
+    bags,
+    newBagName,
+    setNewBagName,
+    showAddBag,
+    setShowAddBag,
+    showBagModal,
+    setShowBagModal,
+    handleCreateBag,
+    handleCreateBagByName,
+    handleDeleteBag,
+    handleUpdateBag,
+    handleSetBagMembers,
+    availableTemplates,
+    showTemplateDropdown,
+    setShowTemplateDropdown,
+    applyingTemplate,
+    showSaveTemplate,
+    setShowSaveTemplate,
+    saveTemplateName,
+    setSaveTemplateName,
+    showImportModal,
+    setShowImportModal,
+    importText,
+    setImportText,
+    csvInputRef,
+    templateDropdownRef,
+    handleApplyTemplate,
+    handleSaveAsTemplate,
+    parseImportLines,
+    handleBulkImport,
+    handleCsvFile,
+  };
 }
 
-export type PackingState = ReturnType<typeof usePackingList>
+export type PackingState = ReturnType<typeof usePackingList>;

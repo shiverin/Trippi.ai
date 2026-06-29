@@ -181,7 +181,7 @@ const CATEGORY_NAME_BY_INPUT: Record<ImportCategory, string> = {
   transport: 'Transport',
   shopping: 'Shopping',
   nature: 'Nature',
-  other: 'Other',
+  other: 'Misc',
 };
 
 function isIsoDate(value: string): boolean {

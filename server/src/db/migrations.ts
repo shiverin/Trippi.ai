@@ -3087,6 +3087,15 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_reservations_mcp_import_batch ON reservations(mcp_import_batch_id);
       `);
     },
+    () => {
+      // Default non-location category for itinerary actions/states such as
+      // "pass immigration" or "check in" that belong on the plan timeline but
+      // do not need to behave like pinned map places.
+      db.prepare(
+        'INSERT INTO categories (name, color, icon) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = ?)',
+      )
+        .run('Misc', '#64748b', 'FileText', 'Misc');
+    },
   ];
 
   if (currentVersion < migrations.length) {

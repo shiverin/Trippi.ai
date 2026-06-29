@@ -82,6 +82,7 @@ function seedCategories(db: Database.Database): void {
         { name: 'Bar/Cafe', color: '#f97316', icon: '☕' },
         { name: 'Beach', color: '#06b6d4', icon: '🏖️' },
         { name: 'Nature', color: '#84cc16', icon: '🌿' },
+        { name: 'Misc', color: '#64748b', icon: 'FileText' },
         { name: 'Other', color: '#6366f1', icon: '📍' },
       ];
       const insertCat = db.prepare('INSERT INTO categories (name, color, icon) VALUES (?, ?, ?)');

@@ -244,6 +244,11 @@ export const useAuthStore = create<AuthState>()(
         // Genuinely offline — keep the persisted session so the PWA serves cached
         // data without a scary error. This is the offline-first happy path.
         set({ isLoading: false })
+      } else if (silent && get().isAuthenticated && get().user) {
+        // A persisted session should not show a page-wide outage banner just
+        // because a background refresh timed out during a slow cold start.
+        // Foreground auth checks still surface failures below.
+        set({ isLoading: false, authCheckFailed: false })
       } else {
         // Server erroring (5xx) or unreachable while we're online: keep the session
         // (don't eject the user over a transient outage), but flag it so the UI can

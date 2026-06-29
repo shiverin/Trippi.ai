@@ -57,7 +57,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }));
     } catch (err: unknown) {
       set({ isLoaded: true });
-      console.error('Failed to load settings:', err);
+      if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
+        console.warn('Failed to load settings:', err);
+      }
     }
   },
 

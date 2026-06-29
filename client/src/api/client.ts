@@ -114,10 +114,21 @@ function translateRateLimit(): string {
   }
 }
 
+const parseTimeout = (value: string | undefined, fallback: number): number => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+export const API_TIMEOUTS = {
+  default: parseTimeout((import.meta as { env?: { VITE_API_TIMEOUT_MS?: string } }).env?.VITE_API_TIMEOUT_MS, 20000),
+  background: parseTimeout((import.meta as { env?: { VITE_API_BACKGROUND_TIMEOUT_MS?: string } }).env?.VITE_API_BACKGROUND_TIMEOUT_MS, 12000),
+  heavy: parseTimeout((import.meta as { env?: { VITE_API_HEAVY_TIMEOUT_MS?: string } }).env?.VITE_API_HEAVY_TIMEOUT_MS, 30000),
+}
+
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
-  timeout: 8000,
+  timeout: API_TIMEOUTS.default,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -241,7 +252,7 @@ export const authApi = {
   mfaSetup: () => apiClient.post('/auth/mfa/setup', {}).then(r => r.data),
   mfaEnable: (data: MfaEnableRequest) => apiClient.post('/auth/mfa/enable', data).then(r => r.data as { success: boolean; mfa_enabled: boolean; backup_codes?: string[] }),
   mfaDisable: (data: { password: string; code: string }) => apiClient.post('/auth/mfa/disable', data).then(r => r.data),
-  me: () => apiClient.get('/auth/me').then(r => r.data),
+  me: () => apiClient.get('/auth/me', { timeout: API_TIMEOUTS.default }).then(r => r.data),
   updateMapsKey: (key: string | null) => apiClient.put('/auth/me/maps-key', { maps_api_key: key }).then(r => r.data),
   updateApiKeys: (data: Record<string, string | null>) => apiClient.put('/auth/me/api-keys', data).then(r => r.data),
   updateSettings: (data: Record<string, unknown>) => apiClient.put('/auth/me/settings', data).then(r => r.data),
@@ -249,10 +260,10 @@ export const authApi = {
   listUsers: () => apiClient.get('/auth/users').then(r => r.data),
   uploadAvatar: (formData: FormData) => apiClient.post('/auth/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
   deleteAvatar: () => apiClient.delete('/auth/avatar').then(r => r.data),
-  getAppConfig: () => apiClient.get('/auth/app-config').then(r => r.data),
+  getAppConfig: () => apiClient.get('/auth/app-config', { timeout: API_TIMEOUTS.background }).then(r => r.data),
   updateAppSettings: (data: Record<string, unknown>) => apiClient.put('/auth/app-settings', data).then(r => r.data),
   validateKeys: () => apiClient.get('/auth/validate-keys').then(r => r.data),
-  travelStats: () => apiClient.get('/auth/travel-stats').then(r => r.data),
+  travelStats: () => apiClient.get('/auth/travel-stats', { timeout: API_TIMEOUTS.heavy }).then(r => r.data),
   changePassword: (data: ChangePasswordRequest) => apiClient.put('/auth/me/password', data).then(r => r.data),
   forgotPassword: (data: ForgotPasswordRequest) => apiClient.post('/auth/forgot-password', data).then(r => r.data as { ok: true }),
   resetPassword: (data: ResetPasswordRequest) => apiClient.post('/auth/reset-password', data).then(r => r.data as { success?: true; mfa_required?: true }),
@@ -621,7 +632,7 @@ export const filesApi = {
 
 export const reservationsApi = {
   list: (tripId: number | string) => apiClient.get(`/trips/${tripId}/reservations`).then(r => r.data),
-  upcoming: () => apiClient.get('/reservations/upcoming').then(r => r.data),
+  upcoming: () => apiClient.get('/reservations/upcoming', { timeout: API_TIMEOUTS.default }).then(r => r.data),
   create: (tripId: number | string, data: ReservationCreateRequest) => apiClient.post(`/trips/${tripId}/reservations`, data).then(r => r.data),
   update: (tripId: number | string, id: number, data: ReservationUpdateRequest) => apiClient.put(`/trips/${tripId}/reservations/${id}`, data).then(r => r.data),
   delete: (tripId: number | string, id: number) => apiClient.delete(`/trips/${tripId}/reservations/${id}`).then(r => r.data),
@@ -650,7 +661,7 @@ export const configApi = {
 }
 
 export const settingsApi = {
-  get: () => apiClient.get('/settings').then(r => r.data),
+  get: () => apiClient.get('/settings', { timeout: API_TIMEOUTS.default }).then(r => r.data),
   set: (key: string, value: unknown) => {
     const body: SettingUpsertRequest = { key, value }
     return apiClient.put('/settings', body).then(r => r.data)

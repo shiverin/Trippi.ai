@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import axios, { parseInDev } from '../api/client';
+import axios, { API_TIMEOUTS, parseInDev } from '../api/client';
 import { systemNoticeDtoSchema, type SystemNoticeDto } from '@trippi/shared';
 
 // The notice contract lives in @trippi/shared (single source of truth, shared
@@ -25,12 +25,14 @@ export const useSystemNoticeStore = create<SystemNoticeState>()((set, get) => ({
     if (get().fetching || get().loaded) return;
     set({ fetching: true });
     try {
-      const res = await axios.get('/system-notices/active');
+      const res = await axios.get('/system-notices/active', { timeout: API_TIMEOUTS.background });
       const notices = parseInDev(systemNoticeDtoSchema.array(), res.data, 'systemNotices.fetch');
       set({ notices, loaded: true, fetching: false });
     } catch (err) {
-      // Notices are non-critical. Fail silently; set loaded so UI doesn't hang.
-      console.warn('[systemNotices] failed to fetch:', err);
+      // Notices are non-critical. Fail silently in production; set loaded so UI doesn't hang.
+      if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
+        console.warn('[systemNotices] failed to fetch:', err);
+      }
       set({ loaded: true, fetching: false });
     }
   },

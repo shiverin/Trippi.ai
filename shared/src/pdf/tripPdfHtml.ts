@@ -773,7 +773,7 @@ export function buildTripPdfHtml(input: BuildTripPdfHtmlInput): string {
       const displayDayNumber = day.day_number ?? dayIndex + 1;
 
       return `
-      <div class="day-section${dayIndex > 0 ? ' page-break' : ''}">
+      <div class="day-section">
         <div class="day-header">
           <span class="day-tag">${escHtml(t('dayplan.dayN', { n: displayDayNumber })).toUpperCase()}</span>
           <span class="day-title">${escHtml(day.title || t('dayplan.dayN', { n: displayDayNumber }))}</span>
@@ -797,23 +797,6 @@ export function buildTripPdfHtml(input: BuildTripPdfHtmlInput): string {
   body { font-family: 'Poppins', sans-serif; background: #fff; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   svg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  .pdf-footer {
-    position: fixed;
-    bottom: 20px;
-    left: 0;
-    right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    opacity: 0.3;
-  }
-  .pdf-footer span {
-    font-size: 7px;
-    color: #64748b;
-    letter-spacing: 0.5px;
-  }
-
   .cover {
     width: 100%; min-height: 100vh;
     background: #0f172a;
@@ -823,9 +806,14 @@ export function buildTripPdfHtml(input: BuildTripPdfHtmlInput): string {
   .cover-bg {
     position: absolute; inset: 0;
     background-size: cover; background-position: center;
-    opacity: 0.28;
+    opacity: 1;
   }
-  .cover-dim { position: absolute; inset: 0; background: rgba(8,12,28,0.55); }
+  .cover-dim {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(180deg, rgba(8,12,28,0.08) 0%, rgba(8,12,28,0.42) 48%, rgba(8,12,28,0.88) 100%),
+      linear-gradient(90deg, rgba(8,12,28,0.62) 0%, rgba(8,12,28,0.18) 58%, rgba(8,12,28,0.5) 100%);
+  }
   .cover-brand {
     position: absolute; top: 36px; right: 52px;
     z-index: 2;
@@ -851,10 +839,11 @@ export function buildTripPdfHtml(input: BuildTripPdfHtmlInput): string {
   .cover-stat-num { font-size: 28px; font-weight: 700; color: #fff; line-height: 1; }
   .cover-stat-lbl { font-size: 9px; font-weight: 500; color: rgba(255,255,255,0.4); letter-spacing: 1px; margin-top: 4px; text-transform: uppercase; }
 
-  .page-break { page-break-before: always; }
+  .day-section { page-break-inside: auto; margin-bottom: 10px; }
   .day-header {
     background: #0f172a; padding: 11px 28px;
     display: flex; align-items: center; gap: 8px;
+    page-break-after: avoid;
   }
   .day-tag { font-size: 8px; font-weight: 700; color: #fff; letter-spacing: 0.8px; background: rgba(255,255,255,0.12); border-radius: 4px; padding: 3px 8px; flex-shrink: 0; }
   .day-title { font-size: 13px; font-weight: 600; color: #fff; flex: 1; }
@@ -932,27 +921,19 @@ export function buildTripPdfHtml(input: BuildTripPdfHtmlInput): string {
   @media print {
     body { margin: 0; }
     .cover { min-height: 100vh; page-break-after: always; }
-    @page { margin: 0; }
+    @page { margin: 0 0 26px 0; }
+    @page:first { margin: 0; }
   }
 </style>
 </head>
 <body>
-
-<div class="pdf-footer">
-  <span>made with</span>
-  <img src="${absUrl('/brand/trippi-wordmark.png', input.origin)}" style="height:12px;opacity:0.65;" />
-</div>
 
 <div class="cover">
   ${coverImg ? `<div class="cover-bg" style="background-image:url('${escHtml(coverImg)}')"></div>` : ''}
   <div class="cover-dim"></div>
   <div class="cover-brand"><img src="${absUrl('/brand/trippi-wordmark-light.png', input.origin)}" style="height:30px;opacity:0.6;" /></div>
   <div class="cover-body">
-    ${
-      coverImg
-        ? `<div class="cover-circle"><img src="${escHtml(coverImg)}" /></div>`
-        : '<div class="cover-circle-ph"></div>'
-    }
+    ${coverImg ? '' : '<div class="cover-circle-ph"></div>'}
     <div class="cover-label">${escHtml(t('pdf.travelPlan'))}</div>
     <div class="cover-title">${escHtml(input.trip?.title || 'My Trip')}</div>
     ${input.trip?.description ? `<div class="cover-desc">${escHtml(input.trip.description)}</div>` : ''}

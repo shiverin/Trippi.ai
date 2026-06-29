@@ -1123,7 +1123,7 @@ export async function getPlacePhoto(
 
         // Fetch actual image bytes
         const mediaRes = await googleFetch(
-          `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=400`,
+          `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=1200`,
           `getPlacePhoto/media(${placeId})`,
           { headers: { 'X-Goog-Api-Key': apiKey } },
         );

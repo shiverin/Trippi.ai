@@ -2,17 +2,22 @@ import { db } from '../db/database';
 import { Trip } from '../types';
 import { createAssignment } from './assignmentService';
 import { createAccommodation } from './dayService';
-import { getPlaceDetails, searchPlaces } from './mapsService';
+import { getMapsKey, getPlaceDetails, getPlacePhoto, searchPlaces } from './mapsService';
+import { createPerfTrace, type PerfTrace } from './perfTrace';
 import { createPlace } from './placeService';
 import { exportTripPdf } from './tripPdfExportService';
-import { createTrip, getTrip } from './tripService';
+import { createTrip, getTrip, updateCoverImage } from './tripService';
 
 import { randomUUID } from 'crypto';
+import { performance } from 'node:perf_hooks';
 
 export const MAX_ITINERARY_IMPORT_DAYS = 90;
 export const MAX_ITINERARY_IMPORT_ACTIVITIES = 300;
 
-const GEO_CONCURRENCY = 1;
+const NOMINATIM_GEO_CONCURRENCY = 1;
+const GOOGLE_GEO_CONCURRENCY = 8;
+const COVER_IMAGE_TIMEOUT_MS = 8_000;
+const COVER_IMAGE_MAX_ATTEMPTS = 6;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const RATE_LIMIT_RETRY_DELAY_MS = 1300;
@@ -71,6 +76,7 @@ export interface ApplyItineraryPlanInput {
     | { kind: 'existing_trip'; tripId: number; mode: 'append' | 'replace_imported' };
   lang?: string;
   destination_context?: string;
+  cover_place_query?: string;
   exportPdf?: boolean;
   days: ImportDay[];
 }
@@ -143,6 +149,16 @@ interface ImportCounts {
   reservationsCreated: number;
   locationsResolved: number;
   importedObjectsRemoved: number;
+}
+
+interface CoverCandidate {
+  place: Record<string, unknown>;
+  category?: ImportCategory;
+  title?: string;
+  query?: string;
+  city?: string;
+  dayNumber?: number;
+  order: number;
 }
 
 export interface ApplyItineraryPlanResult {
@@ -245,6 +261,15 @@ function validateInput(input: ApplyItineraryPlanInput): void {
     issues.push({ path: 'days', message: 'At least one day is required.' });
   } else if (input.days.length > MAX_ITINERARY_IMPORT_DAYS) {
     issues.push({ path: 'days', message: `Cannot import more than ${MAX_ITINERARY_IMPORT_DAYS} days.` });
+  }
+
+  if (input.cover_place_query !== undefined) {
+    const coverPlaceQuery = clean(input.cover_place_query);
+    if (!coverPlaceQuery) {
+      issues.push({ path: 'cover_place_query', message: 'Cover place query must not be blank.' });
+    } else if (coverPlaceQuery.length > 300) {
+      issues.push({ path: 'cover_place_query', message: 'Cover place query must be 300 characters or less.' });
+    }
   }
 
   const seenDayNumbers = new Set<number>();
@@ -544,6 +569,7 @@ async function mapWithConcurrency<T, R>(
 async function resolveImportLocations(
   input: ApplyItineraryPlanInput,
   userId: number,
+  perf?: PerfTrace,
 ): Promise<{ resolvedDays: ResolvedDay[]; warnings: string[] }> {
   const resolvedDays = input.days.map((day) => ({
     ...day,
@@ -586,18 +612,72 @@ async function resolveImportLocations(
     }
   });
 
-  await mapWithConcurrency(jobs, GEO_CONCURRENCY, async (job) => {
-    const resolved = await resolveLocation(
-      userId,
-      job.location,
-      job.city,
-      job.destinationContext,
-      input.lang,
-      job.path,
-    );
-    job.apply(resolved.location);
-    if (resolved.warning) warnings.push(resolved.warning);
-    return resolved.location;
+  const cacheKeyForJob = (job: (typeof jobs)[number]) =>
+    [
+      job.location.query.trim().toLowerCase(),
+      clean(job.location.address)?.toLowerCase() ?? '',
+      clean(job.location.google_place_id)?.toLowerCase() ?? '',
+      clean(job.location.google_ftid)?.toLowerCase() ?? '',
+      clean(job.location.osm_id)?.toLowerCase() ?? '',
+      clean(job.city)?.toLowerCase() ?? '',
+      clean(job.destinationContext)?.toLowerCase() ?? '',
+      input.lang ?? '',
+    ].join('\u0000');
+  const uniqueJobCount = new Set(jobs.map(cacheKeyForJob)).size;
+  const hasGoogleKey = Boolean(getMapsKey(userId));
+  const geocodeConcurrency = hasGoogleKey ? GOOGLE_GEO_CONCURRENCY : NOMINATIM_GEO_CONCURRENCY;
+  const resolutionCache = new Map<string, Promise<{ location: ResolvedLocation; warning?: string }>>();
+  const timings: {
+    path: string;
+    query: string;
+    durationMs: number;
+    cached: boolean;
+    success: boolean;
+    error?: string;
+  }[] = [];
+  perf?.event('geocode.queue', {
+    jobs: jobs.length,
+    uniqueJobs: uniqueJobCount,
+    provider: hasGoogleKey ? 'google' : 'nominatim',
+    concurrency: geocodeConcurrency,
+  });
+
+  await mapWithConcurrency(jobs, geocodeConcurrency, async (job) => {
+    const startedAt = performance.now();
+    const cacheKey = cacheKeyForJob(job);
+    const cachedPromise = resolutionCache.get(cacheKey);
+    const resolution =
+      cachedPromise ?? resolveLocation(userId, job.location, job.city, job.destinationContext, input.lang, job.path);
+    if (!cachedPromise) resolutionCache.set(cacheKey, resolution);
+
+    try {
+      const resolved = await resolution;
+      timings.push({
+        path: job.path,
+        query: job.location.query.slice(0, 120),
+        durationMs: Math.round((performance.now() - startedAt) * 10) / 10,
+        cached: Boolean(cachedPromise),
+        success: true,
+      });
+      job.apply(resolved.location);
+      if (resolved.warning) warnings.push(resolved.warning);
+      return resolved.location;
+    } catch (err) {
+      timings.push({
+        path: job.path,
+        query: job.location.query.slice(0, 120),
+        durationMs: Math.round((performance.now() - startedAt) * 10) / 10,
+        cached: Boolean(cachedPromise),
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
+  });
+
+  perf?.event('geocode.slowest', {
+    jobs: timings.length,
+    slowest: [...timings].sort((a, b) => b.durationMs - a.durationMs).slice(0, 5),
   });
 
   return { resolvedDays, warnings };
@@ -773,136 +853,450 @@ function buildEvents(): ImportEvents {
   return { days: [], places: [], assignments: [], accommodations: [] };
 }
 
+const COVER_CATEGORY_SCORE: Record<ImportCategory, number> = {
+  nature: 120,
+  attraction: 100,
+  activity: 35,
+  shopping: 5,
+  other: 0,
+  restaurant: -45,
+  hotel: -70,
+  transport: -90,
+};
+
+const COVER_VISUAL_TERMS = [
+  'scenic',
+  'viewpoint',
+  'view',
+  'park',
+  'lake',
+  'mountain',
+  'temple',
+  'pagoda',
+  'old town',
+  'ancient',
+  'forest',
+  'valley',
+  'gorge',
+  'village',
+  'snow',
+  'river',
+  'pool',
+  'peak',
+  'cave',
+  'garden',
+  'waterfall',
+  'terrace',
+  'island',
+  'beach',
+  'heritage',
+  'landmark',
+  'monastery',
+  'palace',
+  'museum',
+  'canyon',
+  'national park',
+  'stone forest',
+  'green lake',
+  'erhai',
+  'cangshan',
+  'jade dragon',
+  'blue moon',
+  'tiger leaping',
+  'black dragon',
+  'baisha',
+  'shuhe',
+  'xizhou',
+  'dali ancient',
+  'lijiang old',
+  'yuantong',
+];
+
+const COVER_LOW_VISUAL_TERMS = [
+  'hotel',
+  'hostel',
+  'guesthouse',
+  'inn',
+  'airport',
+  'station',
+  'railway',
+  'train',
+  'bus',
+  'restaurant',
+  'cafe',
+  'coffee',
+  'dinner',
+  'lunch',
+  'breakfast',
+  'bar',
+  'mall',
+  'shopping',
+  'street food',
+  'food street',
+  'pedestrian street',
+  'market',
+  'transfer',
+  'departure',
+  'arrival',
+];
+
+function coverCandidateText(candidate: CoverCandidate): string {
+  const place = candidate.place;
+  return [candidate.title, candidate.query, candidate.city, place.name, place.address, place.description, place.notes]
+    .map((value) => clean(value))
+    .filter((value): value is string => Boolean(value))
+    .join(' ')
+    .toLowerCase();
+}
+
+function normalizeCoverMatchText(value: string): string {
+  return compactWhitespace(value.toLowerCase().replace(/[^a-z0-9]+/g, ' '));
+}
+
+function matchesPreferredCover(candidate: CoverCandidate, preferredCoverQuery: string | undefined): boolean {
+  const preferred = clean(preferredCoverQuery);
+  if (!preferred) return false;
+
+  const normalizedPreferred = normalizeCoverMatchText(preferred);
+  if (!normalizedPreferred) return false;
+
+  const normalizedText = normalizeCoverMatchText(coverCandidateText(candidate));
+  if (!normalizedText) return false;
+
+  const candidateNames = [candidate.title, candidate.query, clean(candidate.place.name)]
+    .map((value) => (value ? normalizeCoverMatchText(value) : undefined))
+    .filter((value): value is string => Boolean(value));
+
+  return (
+    normalizedText.includes(normalizedPreferred) ||
+    candidateNames.some((name) => name.includes(normalizedPreferred) || normalizedPreferred.includes(name))
+  );
+}
+
+function coverCandidateScore(candidate: CoverCandidate, preferredCoverQuery: string | undefined): number {
+  const text = coverCandidateText(candidate);
+  let score = COVER_CATEGORY_SCORE[candidate.category ?? 'other'];
+
+  if (matchesPreferredCover(candidate, preferredCoverQuery)) score += 220;
+  if (clean(candidate.place.google_place_id)) score += 24;
+  if (clean(candidate.place.google_ftid)) score += 8;
+  if (clean(candidate.place.osm_id)) score += 4;
+
+  for (const term of COVER_VISUAL_TERMS) {
+    if (text.includes(term)) score += 12;
+  }
+  for (const term of COVER_LOW_VISUAL_TERMS) {
+    if (text.includes(term)) score -= 24;
+  }
+
+  score -= Math.max(0, (candidate.dayNumber ?? 1) - 1) * 0.5;
+  score -= candidate.order * 0.1;
+  return score;
+}
+
+function placePhotoId(place: Record<string, unknown>): string | null {
+  const googlePlaceId = clean(place.google_place_id);
+  if (googlePlaceId) return googlePlaceId;
+  const osmId = clean(place.osm_id);
+  if (osmId) return osmId;
+  const lat = Number(place.lat);
+  const lng = Number(place.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? `coords:${lat}:${lng}` : null;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Timed out while fetching cover image.')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function ensureTripCoverImage(
+  userId: number,
+  tripId: number,
+  candidates: CoverCandidate[],
+  preferredCoverQuery?: string,
+  perf?: PerfTrace,
+): Promise<string | null> {
+  const existing = getTrip(tripId, userId);
+  if (existing?.cover_image) {
+    perf?.event('cover_image.existing', { tripId });
+    return existing.cover_image;
+  }
+
+  const rankedCandidates = candidates
+    .map((candidate) => ({ candidate, score: coverCandidateScore(candidate, preferredCoverQuery) }))
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        (a.candidate.dayNumber ?? Number.MAX_SAFE_INTEGER) - (b.candidate.dayNumber ?? Number.MAX_SAFE_INTEGER) ||
+        a.candidate.order - b.candidate.order,
+    );
+  perf?.event('cover_image.queue', {
+    candidates: candidates.length,
+    attempts: Math.min(rankedCandidates.length, COVER_IMAGE_MAX_ATTEMPTS),
+    preferredCoverQuery: clean(preferredCoverQuery),
+    top: rankedCandidates.slice(0, COVER_IMAGE_MAX_ATTEMPTS).map(({ candidate, score }) => ({
+      name: clean(candidate.place.name)?.slice(0, 120),
+      title: clean(candidate.title)?.slice(0, 120),
+      category: candidate.category,
+      dayNumber: candidate.dayNumber,
+      score: Math.round(score * 10) / 10,
+    })),
+  });
+
+  const attemptedPhotoIds = new Set<string>();
+  for (const { candidate, score } of rankedCandidates) {
+    if (attemptedPhotoIds.size >= COVER_IMAGE_MAX_ATTEMPTS) break;
+    const place = candidate.place;
+    const photoId = placePhotoId(place);
+    const lat = Number(place.lat);
+    const lng = Number(place.lng);
+    if (!photoId || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    if (attemptedPhotoIds.has(photoId)) continue;
+    attemptedPhotoIds.add(photoId);
+
+    const startedAt = performance.now();
+    try {
+      const photo = await withTimeout(
+        getPlacePhoto(userId, photoId, lat, lng, clean(place.name) ?? undefined),
+        COVER_IMAGE_TIMEOUT_MS,
+      );
+      if (photo.photoUrl) {
+        updateCoverImage(tripId, photo.photoUrl);
+        perf?.event('cover_image.attempt', {
+          name: clean(place.name)?.slice(0, 120),
+          title: clean(candidate.title)?.slice(0, 120),
+          category: candidate.category,
+          score: Math.round(score * 10) / 10,
+          durationMs: Math.round((performance.now() - startedAt) * 10) / 10,
+          success: true,
+        });
+        return photo.photoUrl;
+      }
+      perf?.event('cover_image.attempt', {
+        name: clean(place.name)?.slice(0, 120),
+        title: clean(candidate.title)?.slice(0, 120),
+        category: candidate.category,
+        score: Math.round(score * 10) / 10,
+        durationMs: Math.round((performance.now() - startedAt) * 10) / 10,
+        success: false,
+        error: 'No photo URL returned.',
+      });
+    } catch (err) {
+      perf?.event('cover_image.attempt', {
+        name: clean(place.name)?.slice(0, 120),
+        title: clean(candidate.title)?.slice(0, 120),
+        category: candidate.category,
+        score: Math.round(score * 10) / 10,
+        durationMs: Math.round((performance.now() - startedAt) * 10) / 10,
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // A missing or slow photo should not fail the itinerary import or PDF export.
+    }
+  }
+
+  return null;
+}
+
 export async function applyItineraryPlan(
   userId: number,
   input: ApplyItineraryPlanInput,
 ): Promise<ApplyItineraryPlanResult> {
-  validateInput(input);
-  const { resolvedDays, warnings } = await resolveImportLocations(input, userId);
-  const batchId = `mcp_${randomUUID()}`;
-  const counts = buildCounts();
-  const events = buildEvents();
-  counts.locationsResolved = resolvedDays.reduce(
-    (sum, day) => sum + day.activities.length + (day.accommodation ? 1 : 0),
-    0,
-  );
+  const perf = createPerfTrace('mcp.apply_itinerary_plan', {
+    userId,
+    target: input.target.kind,
+    dayCount: input.days.length,
+    activityCount: input.days.reduce((sum, day) => sum + day.activities.length, 0),
+    accommodationCount: input.days.filter((day) => day.accommodation).length,
+    exportPdf: Boolean(input.exportPdf),
+  });
+  let result: ApplyItineraryPlanResult | undefined;
+  let importedTripId: number | undefined;
 
-  const transactionResult = db.transaction(() => {
-    let tripId: number;
+  try {
+    perf.measureSync('validate_input', () => validateInput(input));
+    const { resolvedDays, warnings } = await perf.measure('geocode.resolve_all', () =>
+      resolveImportLocations(input, userId, perf),
+    );
+    const batchId = `mcp_${randomUUID()}`;
+    const counts = buildCounts();
+    const events = buildEvents();
+    counts.locationsResolved = resolvedDays.reduce(
+      (sum, day) => sum + day.activities.length + (day.accommodation ? 1 : 0),
+      0,
+    );
 
-    if (input.target.kind === 'new_trip') {
-      const { startDate, endDate } = inferTripDates(input);
-      const maxDayNumber = Math.max(...resolvedDays.map((day) => day.day_number));
-      const created = createTrip(
+    const transactionResult = perf.measureSync('db.transaction', () =>
+      db.transaction(() => {
+        let tripId: number;
+        const coverCandidates: CoverCandidate[] = [];
+
+        if (input.target.kind === 'new_trip') {
+          const { startDate, endDate } = inferTripDates(input);
+          const maxDayNumber = Math.max(...resolvedDays.map((day) => day.day_number));
+          const created = createTrip(
+            userId,
+            {
+              title: input.target.title.trim(),
+              start_date: startDate,
+              end_date: endDate,
+              currency: input.target.currency,
+              day_count: maxDayNumber,
+            },
+            MAX_ITINERARY_IMPORT_DAYS,
+          );
+          tripId = created.tripId;
+          db.prepare('UPDATE days SET mcp_import_batch_id = ? WHERE trip_id = ?').run(batchId, tripId);
+        } else {
+          const existing = getTrip(input.target.tripId, userId);
+          if (!existing) throw new ItineraryImportError([{ path: 'target.tripId', message: 'Trip not found.' }]);
+          tripId = input.target.tripId;
+          if (input.target.mode === 'replace_imported') counts.importedObjectsRemoved = deleteImportedContent(tripId);
+        }
+
+        const categoryLookup = loadCategoryLookup();
+        const dayByNumber = new Map<number, DayRow>();
+        const markExistingDays = input.target.kind === 'new_trip';
+
+        for (const day of resolvedDays) {
+          const row = ensureDay(tripId, day, batchId, markExistingDays, events, counts);
+          dayByNumber.set(day.day_number, row);
+        }
+
+        for (const day of resolvedDays) {
+          const dayRow = dayByNumber.get(day.day_number);
+          if (!dayRow)
+            throw new ItineraryImportError([{ path: `day ${day.day_number}`, message: 'Day was not created.' }]);
+
+          for (const activity of day.activities) {
+            const place = createImportedPlace(
+              tripId,
+              activity.title,
+              activity.description,
+              categoryIdFor(activity.category, categoryLookup),
+              activity.resolvedLocation,
+              batchId,
+              {
+                notes: activity.notes,
+                price: activity.price,
+                currency: activity.currency,
+                duration_minutes: activity.duration_minutes,
+              },
+            );
+            const assignment = createAssignment(dayRow.id, place.id, activity.notes ?? null, {
+              assignment_time: activity.start_time ?? null,
+              assignment_end_time: activity.end_time ?? null,
+              mcp_import_batch_id: batchId,
+            });
+            events.places.push(place);
+            coverCandidates.push({
+              place: place as unknown as Record<string, unknown>,
+              category: activity.category ?? 'other',
+              title: activity.title,
+              query: activity.location.query,
+              city: day.city,
+              dayNumber: day.day_number,
+              order: coverCandidates.length,
+            });
+            if (assignment) events.assignments.push(assignment);
+            counts.placesCreated++;
+            counts.assignmentsCreated++;
+          }
+
+          if (day.accommodation) {
+            const place = createImportedPlace(
+              tripId,
+              day.accommodation.title,
+              undefined,
+              categoryIdFor('hotel', categoryLookup),
+              day.accommodation.resolvedLocation,
+              batchId,
+              { notes: undefined },
+            );
+            const nextDay = dayByNumber.get(day.day_number + 1);
+            const accommodation = createAccommodation(tripId, {
+              place_id: place.id,
+              start_day_id: dayRow.id,
+              end_day_id: nextDay?.id ?? dayRow.id,
+              check_in: day.accommodation.check_in,
+              check_out: day.accommodation.check_out,
+              notes: day.accommodation.title,
+              mcp_import_batch_id: batchId,
+            });
+            events.places.push(place);
+            coverCandidates.push({
+              place: place as unknown as Record<string, unknown>,
+              category: 'hotel',
+              title: day.accommodation.title,
+              query: day.accommodation.location.query,
+              city: day.city,
+              dayNumber: day.day_number,
+              order: coverCandidates.length,
+            });
+            events.accommodations.push(accommodation);
+            counts.placesCreated++;
+            counts.accommodationsCreated++;
+            counts.reservationsCreated++;
+          }
+        }
+
+        const trip = getTrip(tripId, userId);
+        if (!trip) throw new ItineraryImportError([{ path: 'target.tripId', message: 'Trip not found after import.' }]);
+        return { tripId, trip, coverCandidates };
+      })(),
+    );
+    importedTripId = transactionResult.tripId;
+
+    const coverImage = await perf.measure('cover_image.ensure', () =>
+      ensureTripCoverImage(
         userId,
-        {
-          title: input.target.title.trim(),
-          start_date: startDate,
-          end_date: endDate,
-          currency: input.target.currency,
-          day_count: maxDayNumber,
-        },
-        MAX_ITINERARY_IMPORT_DAYS,
-      );
-      tripId = created.tripId;
-      db.prepare('UPDATE days SET mcp_import_batch_id = ? WHERE trip_id = ?').run(batchId, tripId);
-    } else {
-      const existing = getTrip(input.target.tripId, userId);
-      if (!existing) throw new ItineraryImportError([{ path: 'target.tripId', message: 'Trip not found.' }]);
-      tripId = input.target.tripId;
-      if (input.target.mode === 'replace_imported') counts.importedObjectsRemoved = deleteImportedContent(tripId);
-    }
+        transactionResult.tripId,
+        transactionResult.coverCandidates,
+        input.cover_place_query,
+        perf,
+      ),
+    );
+    const trip = coverImage
+      ? (getTrip(transactionResult.tripId, userId) ?? transactionResult.trip)
+      : transactionResult.trip;
 
-    const categoryLookup = loadCategoryLookup();
-    const dayByNumber = new Map<number, DayRow>();
-    const markExistingDays = input.target.kind === 'new_trip';
+    result = {
+      success: true,
+      tripId: transactionResult.tripId,
+      trip,
+      batchId,
+      counts,
+      warnings,
+      events,
+    };
 
-    for (const day of resolvedDays) {
-      const row = ensureDay(tripId, day, batchId, markExistingDays, events, counts);
-      dayByNumber.set(day.day_number, row);
-    }
-
-    for (const day of resolvedDays) {
-      const dayRow = dayByNumber.get(day.day_number);
-      if (!dayRow) throw new ItineraryImportError([{ path: `day ${day.day_number}`, message: 'Day was not created.' }]);
-
-      for (const activity of day.activities) {
-        const place = createImportedPlace(
-          tripId,
-          activity.title,
-          activity.description,
-          categoryIdFor(activity.category, categoryLookup),
-          activity.resolvedLocation,
-          batchId,
-          {
-            notes: activity.notes,
-            price: activity.price,
-            currency: activity.currency,
-            duration_minutes: activity.duration_minutes,
-          },
-        );
-        const assignment = createAssignment(dayRow.id, place.id, activity.notes ?? null, {
-          assignment_time: activity.start_time ?? null,
-          assignment_end_time: activity.end_time ?? null,
-          mcp_import_batch_id: batchId,
-        });
-        events.places.push(place);
-        if (assignment) events.assignments.push(assignment);
-        counts.placesCreated++;
-        counts.assignmentsCreated++;
-      }
-
-      if (day.accommodation) {
-        const place = createImportedPlace(
-          tripId,
-          day.accommodation.title,
-          undefined,
-          categoryIdFor('hotel', categoryLookup),
-          day.accommodation.resolvedLocation,
-          batchId,
-          { notes: undefined },
-        );
-        const nextDay = dayByNumber.get(day.day_number + 1);
-        const accommodation = createAccommodation(tripId, {
-          place_id: place.id,
-          start_day_id: dayRow.id,
-          end_day_id: nextDay?.id ?? dayRow.id,
-          check_in: day.accommodation.check_in,
-          check_out: day.accommodation.check_out,
-          notes: day.accommodation.title,
-          mcp_import_batch_id: batchId,
-        });
-        events.places.push(place);
-        events.accommodations.push(accommodation);
-        counts.placesCreated++;
-        counts.accommodationsCreated++;
-        counts.reservationsCreated++;
+    if (input.exportPdf) {
+      try {
+        const pdf = await perf.measure('pdf.export_total', () => exportTripPdf(transactionResult.tripId));
+        result.pdf = { ...pdf, contentType: 'application/pdf' };
+      } catch (err) {
+        result.pdfError = err instanceof Error ? err.message : 'PDF export failed.';
       }
     }
 
-    const trip = getTrip(tripId, userId);
-    if (!trip) throw new ItineraryImportError([{ path: 'target.tripId', message: 'Trip not found after import.' }]);
-    return { tripId, trip };
-  })();
-
-  const result: ApplyItineraryPlanResult = {
-    success: true,
-    tripId: transactionResult.tripId,
-    trip: transactionResult.trip,
-    batchId,
-    counts,
-    warnings,
-    events,
-  };
-
-  if (input.exportPdf) {
-    try {
-      const pdf = await exportTripPdf(transactionResult.tripId);
-      result.pdf = { ...pdf, contentType: 'application/pdf' };
-    } catch (err) {
-      result.pdfError = err instanceof Error ? err.message : 'PDF export failed.';
-    }
+    return result;
+  } finally {
+    perf.finish({
+      success: Boolean(result?.success),
+      tripId: importedTripId,
+      pdf: Boolean(result?.pdf),
+      pdfError: result?.pdfError,
+      placesCreated: result?.counts.placesCreated,
+      assignmentsCreated: result?.counts.assignmentsCreated,
+    });
   }
-
-  return result;
 }

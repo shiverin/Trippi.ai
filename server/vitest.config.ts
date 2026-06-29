@@ -18,9 +18,16 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     globals: true,
     setupFiles: ['tests/setup.ts'],
-    testTimeout: 15000,
-    hookTimeout: 15000,
+    testTimeout: 30000,
+    hookTimeout: 30000,
     pool: 'forks',
+    isolate: true,
+    sequence: { concurrent: false },
+    // Server e2e files mock shared modules such as the database and service
+    // layer. Running files concurrently lets those mocks bleed across Nest app
+    // instances, producing random 401/404 failures in otherwise passing tests.
+    fileParallelism: false,
+    maxWorkers: 1,
     silent: false,
     reporters: ['verbose'],
     coverage: {

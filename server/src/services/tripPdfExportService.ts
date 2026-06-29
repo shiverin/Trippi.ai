@@ -1,5 +1,6 @@
 import { listCategories } from './categoryService';
 import { getMcpSafeUrl } from './notifications';
+import { createPerfTrace, type PerfTrace } from './perfTrace';
 import * as placePhotoCache from './placePhotoCache';
 import { listPlaces } from './placeService';
 import { getTripSummary } from './tripService';
@@ -19,8 +20,14 @@ import en from '@trippi/shared/i18n/en';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { Page, Route } from 'playwright';
 
 const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
+const PUBLIC_DIR = path.join(__dirname, '../../public');
+const CLIENT_PUBLIC_DIR = path.join(__dirname, '../../../client/public');
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+const PDF_RENDER_TIMEOUT_MS = 15_000;
+const PDF_ASSET_SETTLE_TIMEOUT_MS = 1_500;
 
 interface SummaryDay {
   id: number | string;
@@ -94,6 +101,121 @@ function getPlacePhotoId(place: TripPdfPlace | null | undefined): string | null 
   );
 }
 
+function safeJoin(root: string, relativePath: string): string | null {
+  const resolvedRoot = path.resolve(root);
+  const resolved = path.resolve(resolvedRoot, relativePath);
+  if (resolved !== resolvedRoot && !resolved.startsWith(`${resolvedRoot}${path.sep}`)) return null;
+  return resolved;
+}
+
+function contentTypeForAsset(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.png') return 'image/png';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.webp') return 'image/webp';
+  if (ext === '.svg') return 'image/svg+xml';
+  if (ext === '.woff2') return 'font/woff2';
+  if (ext === '.woff') return 'font/woff';
+  return 'application/octet-stream';
+}
+
+async function localAssetPathForUrlPath(pathname: string): Promise<string | null> {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+
+  const photoMatch = decoded.match(/^\/api\/maps\/place-photo\/(.+)\/bytes$/);
+  if (photoMatch?.[1]) {
+    const cached = placePhotoCache.get(photoMatch[1]);
+    if (cached) return cached.filePath;
+  }
+
+  const candidates = decoded.startsWith('/brand/')
+    ? [safeJoin(PUBLIC_DIR, decoded.slice(1)), safeJoin(CLIENT_PUBLIC_DIR, decoded.slice(1))]
+    : decoded.startsWith('/uploads/')
+      ? [safeJoin(UPLOADS_DIR, decoded.slice('/uploads/'.length))]
+      : [];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const stat = await fs.stat(candidate);
+      if (stat.isFile()) return candidate;
+    } catch {
+      // Try the next safe local candidate.
+    }
+  }
+
+  return null;
+}
+
+interface PdfNetworkGuardStats extends Record<string, number> {
+  dataOrBlob: number;
+  localAssets: number;
+  aborted: number;
+}
+
+async function installPdfNetworkGuards(
+  page: Page,
+  origin: string,
+  stats: PdfNetworkGuardStats,
+): Promise<void> {
+  await page.route('**/*', async (route: Route) => {
+    const requestUrl = route.request().url();
+    if (requestUrl === 'about:blank' || requestUrl.startsWith('data:') || requestUrl.startsWith('blob:')) {
+      stats.dataOrBlob++;
+      await route.continue();
+      return;
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(requestUrl);
+    } catch {
+      stats.aborted++;
+      await route.abort('blockedbyclient');
+      return;
+    }
+
+    if (parsed.origin === origin) {
+      const assetPath = await localAssetPathForUrlPath(parsed.pathname);
+      if (assetPath) {
+        stats.localAssets++;
+        await route.fulfill({ path: assetPath, contentType: contentTypeForAsset(assetPath) });
+        return;
+      }
+    }
+
+    stats.aborted++;
+    await route.abort('blockedbyclient');
+  });
+}
+
+async function waitForPdfAssets(page: Page): Promise<void> {
+  await page.evaluate((timeoutMs) => {
+    const doc = (globalThis as any).document;
+    const imageReady = Promise.all(
+      Array.from(doc.images || []).map(
+        (image: any) =>
+          new Promise<void>((resolve) => {
+            if (image.complete) {
+              resolve();
+              return;
+            }
+            image.addEventListener('load', () => resolve(), { once: true });
+            image.addEventListener('error', () => resolve(), { once: true });
+          }),
+      ),
+    );
+    const fontReady = doc.fonts?.ready?.then(() => undefined).catch(() => undefined) ?? Promise.resolve();
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, timeoutMs));
+    return Promise.race([Promise.all([imageReady, fontReady]).then(() => undefined), timeout]);
+  }, PDF_ASSET_SETTLE_TIMEOUT_MS);
+}
+
 async function cachedPhotoDataUri(photoId: string | null): Promise<string | null> {
   if (!photoId) return null;
   const cached = placePhotoCache.get(photoId);
@@ -158,54 +280,78 @@ async function buildPhotoMap(days: SummaryDay[], places: TripPdfPlace[]): Promis
 }
 
 export async function exportTripPdf(tripId: number): Promise<{ filename: string; url: string; bytes: number }> {
-  const summary = getTripSummary(tripId) as TripPdfSummary | null;
-  if (!summary?.trip) throw new Error('Trip not found.');
+  const perf: PerfTrace = createPerfTrace('pdf.export_trip_pdf', { tripId });
+  let filename: string | undefined;
+  let bytes: number | undefined;
 
-  const rawDays = Array.isArray(summary.days) ? summary.days : [];
-  const rawPlaces = listPlaces(String(tripId), {}) as TripPdfPlace[];
-  const { days, places } = await inlineCachedImages(rawDays, rawPlaces);
-  const categories = listCategories() as TripPdfCategory[];
-  const origin = getMcpSafeUrl().replace(/\/+$/, '');
-  const html = buildTripPdfHtml({
-    trip: summary.trip,
-    days,
-    places,
-    assignments: buildAssignmentsMap(days),
-    categories,
-    dayNotes: buildDayNotes(days),
-    reservations: Array.isArray(summary.reservations) ? summary.reservations : [],
-    accommodations: Array.isArray(summary.accommodations) ? summary.accommodations : [],
-    photoMap: await buildPhotoMap(days, places),
-    t,
-    locale: 'en-US',
-    origin,
-  });
-
-  await fs.mkdir(EXPORTS_DIR, { recursive: true });
-  const filename = `${slugify(summary.trip.title)}-${Date.now().toString(36)}-${randomUUID()}.pdf`;
-  const filePath = path.join(EXPORTS_DIR, filename);
-
-  const { chromium } = await import('playwright');
-  const browser = await chromium.launch({ headless: true });
   try {
-    const page = await browser.newPage({ viewport: { width: 1000, height: 1414 }, deviceScaleFactor: 1 });
-    await page.setContent(html, { waitUntil: 'networkidle' });
-    await page.emulateMedia({ media: 'print' });
-    await page.pdf({
-      path: filePath,
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-      preferCSSPageSize: true,
-    });
-  } finally {
-    await browser.close();
-  }
+    const summary = perf.measureSync('pdf.get_trip_summary', () => getTripSummary(tripId) as TripPdfSummary | null);
+    if (!summary?.trip) throw new Error('Trip not found.');
 
-  const stat = await fs.stat(filePath);
-  return {
-    filename,
-    url: `${origin}/uploads/exports/${encodeURIComponent(filename)}`,
-    bytes: stat.size,
-  };
+    const rawDays = Array.isArray(summary.days) ? summary.days : [];
+    const rawPlaces = perf.measureSync('pdf.list_places', () => listPlaces(String(tripId), {}) as TripPdfPlace[]);
+    const { days, places } = await perf.measure('pdf.inline_cached_images', () =>
+      inlineCachedImages(rawDays, rawPlaces),
+    );
+    const categories = perf.measureSync('pdf.list_categories', () => listCategories() as TripPdfCategory[]);
+    const origin = getMcpSafeUrl().replace(/\/+$/, '');
+    const photoMap = await perf.measure('pdf.build_photo_map', () => buildPhotoMap(days, places));
+    const html = perf.measureSync('pdf.build_html', () =>
+      buildTripPdfHtml({
+        trip: summary.trip,
+        days,
+        places,
+        assignments: buildAssignmentsMap(days),
+        categories,
+        dayNotes: buildDayNotes(days),
+        reservations: Array.isArray(summary.reservations) ? summary.reservations : [],
+        accommodations: Array.isArray(summary.accommodations) ? summary.accommodations : [],
+        photoMap,
+        t,
+        locale: 'en-US',
+        origin,
+      }),
+    );
+
+    await perf.measure('pdf.ensure_export_dir', () => fs.mkdir(EXPORTS_DIR, { recursive: true }));
+    filename = `${slugify(summary.trip.title)}-${Date.now().toString(36)}-${randomUUID()}.pdf`;
+    const filePath = path.join(EXPORTS_DIR, filename);
+
+    const { chromium } = await perf.measure('pdf.import_playwright', () => import('playwright'));
+    const browser = await perf.measure('pdf.launch_browser', () => chromium.launch({ headless: true }));
+    const networkStats: PdfNetworkGuardStats = { dataOrBlob: 0, localAssets: 0, aborted: 0 };
+    try {
+      const page = await perf.measure('pdf.new_page', () =>
+        browser.newPage({ viewport: { width: 1000, height: 1414 }, deviceScaleFactor: 1 }),
+      );
+      await perf.measure('pdf.install_network_guards', () => installPdfNetworkGuards(page, origin, networkStats));
+      await perf.measure('pdf.set_content', () =>
+        page.setContent(html, { waitUntil: 'domcontentloaded', timeout: PDF_RENDER_TIMEOUT_MS }),
+      );
+      await perf.measure('pdf.wait_assets', () => waitForPdfAssets(page));
+      await perf.measure('pdf.emulate_print', () => page.emulateMedia({ media: 'print' }));
+      await perf.measure('pdf.render_pdf', () =>
+        page.pdf({
+          path: filePath,
+          format: 'A4',
+          printBackground: true,
+          margin: { top: '0', right: '0', bottom: '0', left: '0' },
+          preferCSSPageSize: true,
+        }),
+      );
+      perf.event('pdf.network_guard', networkStats);
+    } finally {
+      await perf.measure('pdf.close_browser', () => browser.close());
+    }
+
+    const stat = await perf.measure('pdf.stat_file', () => fs.stat(filePath));
+    bytes = stat.size;
+    return {
+      filename,
+      url: `${origin}/uploads/exports/${encodeURIComponent(filename)}`,
+      bytes,
+    };
+  } finally {
+    perf.finish({ tripId, filename, bytes });
+  }
 }

@@ -38,6 +38,10 @@ const { authSvc } = vi.hoisted(() => ({
     createResourceToken: vi.fn(),
   },
 }));
+authSvc.getAppConfigAsync = authSvc.getAppConfig;
+authSvc.registerUserAsync = authSvc.registerUser;
+authSvc.loginUserAsync = authSvc.loginUser;
+authSvc.getCurrentUserAsync = authSvc.getCurrentUser;
 vi.mock('../../src/services/authService', () => authSvc);
 
 import { AuthModule } from '../../src/nest/auth/auth.module';

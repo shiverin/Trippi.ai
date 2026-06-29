@@ -45,92 +45,102 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-const ItineraryLocationSchema = z.object({
-  name: z.string().min(1).max(200).optional().describe('Display name for this real-world place.'),
-  query: z
-    .string()
-    .min(1)
-    .max(300)
-    .describe('Search query for backend geocoding. Include city/region/country when coordinates are not supplied.'),
-  address: z.string().max(500).optional().describe('Known street address or area, if available.'),
-  lat: z.number().optional().describe('Latitude for the place. Strongly preferred for full-trip imports when known.'),
-  lng: z.number().optional().describe('Longitude for the place. Strongly preferred for full-trip imports when known.'),
-  google_place_id: z.string().max(200).optional().describe('Google Places ID, if known.'),
-  google_ftid: z.string().max(300).optional().describe('Google Maps feature ID, if known.'),
-  osm_id: z.string().max(120).optional().describe('OpenStreetMap ID, such as node:123, way:123, or relation:123.'),
-});
+const ItineraryLocationSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional().describe('Display name for this real-world place.'),
+    query: z
+      .string()
+      .min(1)
+      .max(300)
+      .describe('Search query for backend geocoding. Do not provide or invent coordinates.'),
+    address: z.string().max(500).optional().describe('Known street address or area, if available.'),
+    google_place_id: z.string().max(200).optional().describe('Google Places ID, if known.'),
+    google_ftid: z.string().max(300).optional().describe('Google Maps feature ID, if known.'),
+    osm_id: z.string().max(120).optional().describe('OpenStreetMap ID, such as node:123, way:123, or relation:123.'),
+  })
+  .strict();
 
-const ItineraryActivitySchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().max(2000).optional(),
-  category: z
-    .enum(['attraction', 'restaurant', 'hotel', 'activity', 'transport', 'shopping', 'nature', 'other'])
-    .optional(),
-  start_time: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-    .optional(),
-  end_time: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-    .optional(),
-  duration_minutes: z.number().positive().optional(),
-  location: ItineraryLocationSchema,
-  notes: z.string().max(2000).optional(),
-  price: z.number().nonnegative().optional(),
-  currency: z
-    .string()
-    .regex(/^[A-Z]{3}$/)
-    .optional(),
-});
-
-const ItineraryAccommodationSchema = z.object({
-  title: z.string().min(1).max(200),
-  location: ItineraryLocationSchema,
-  check_in: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-    .optional(),
-  check_out: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-    .optional(),
-});
-
-const ItineraryDaySchema = z.object({
-  day_number: z.number().int().positive(),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  title: z.string().min(1).max(200).optional(),
-  city: z.string().min(1).max(120).optional(),
-  activities: z.array(ItineraryActivitySchema).max(MAX_ITINERARY_IMPORT_ACTIVITIES),
-  accommodation: ItineraryAccommodationSchema.optional(),
-});
-
-const ItineraryTargetSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('new_trip'),
+const ItineraryActivitySchema = z
+  .object({
     title: z.string().min(1).max(200),
-    start_date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
+    description: z.string().max(2000).optional(),
+    category: z
+      .enum(['attraction', 'restaurant', 'hotel', 'activity', 'transport', 'shopping', 'nature', 'other'])
       .optional(),
-    end_date: z
+    start_time: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
       .optional(),
+    end_time: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+      .optional(),
+    duration_minutes: z.number().positive().optional(),
+    location: ItineraryLocationSchema,
+    notes: z.string().max(2000).optional(),
+    price: z.number().nonnegative().optional(),
     currency: z
       .string()
       .regex(/^[A-Z]{3}$/)
       .optional(),
-  }),
-  z.object({
-    kind: z.literal('existing_trip'),
-    tripId: z.number().int().positive(),
-    mode: z.enum(['append', 'replace_imported']),
-  }),
+  })
+  .strict();
+
+const ItineraryAccommodationSchema = z
+  .object({
+    title: z.string().min(1).max(200),
+    location: ItineraryLocationSchema,
+    check_in: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+      .optional(),
+    check_out: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+      .optional(),
+  })
+  .strict();
+
+const ItineraryDaySchema = z
+  .object({
+    day_number: z.number().int().positive(),
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    title: z.string().min(1).max(200).optional(),
+    city: z.string().min(1).max(120).optional(),
+    activities: z.array(ItineraryActivitySchema).max(MAX_ITINERARY_IMPORT_ACTIVITIES),
+    accommodation: ItineraryAccommodationSchema.optional(),
+  })
+  .strict();
+
+const ItineraryTargetSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('new_trip'),
+      title: z.string().min(1).max(200),
+      start_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      end_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      currency: z
+        .string()
+        .regex(/^[A-Z]{3}$/)
+        .optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('existing_trip'),
+      tripId: z.number().int().positive(),
+      mode: z.enum(['append', 'replace_imported']),
+    })
+    .strict(),
 ]);
 
 export function registerTripTools(
@@ -200,24 +210,30 @@ export function registerTripTools(
       'apply_itinerary_plan',
       {
         description:
-          'Create or update a complete multi-day itinerary in one structured JSON call. Use this for "plan a trip", "full itinerary", "generate travel plan", and PDF itinerary requests. Activities are imported as real places with coordinates and day assignments, never as day notes. The server validates and geocodes everything first, then applies the import atomically.',
+          'Create or update a complete multi-day itinerary in one structured JSON call. Use this as the primary one-shot tool for "plan a trip", "full itinerary", "generate travel plan", and PDF itinerary requests. Activities are imported as real places with day assignments, never as day notes. Do not provide or invent lat/lng; send location query/address/provider IDs and let the server geocode, validate, apply atomically, and optionally export the official Trippi PDF.',
         inputSchema: {
           target: ItineraryTargetSchema.describe(
             'new_trip creates a trip; existing_trip appends or replaces only previous MCP-imported itinerary objects.',
           ),
           lang: z.string().max(16).optional().describe('Preferred language for geocoding/search results.'),
+          destination_context: z
+            .string()
+            .min(1)
+            .max(200)
+            .optional()
+            .describe('Destination region/country appended to geocoding queries, e.g. "Yunnan, China".'),
           exportPdf: z.boolean().optional().describe('When true, also generate the official Trippi PDF export.'),
           days: z
             .array(ItineraryDaySchema)
             .min(1)
             .max(MAX_ITINERARY_IMPORT_DAYS)
             .describe(
-              'Full itinerary payload. Every activity must include a location query. Include lat/lng or provider IDs for each stop whenever possible; otherwise include enough city/region/country text for backend geocoding.',
+              'Full itinerary payload. Every activity must include a location query. Do not include lat/lng. Include day city and destination_context so the backend can geocode accurately.',
             ),
         },
         annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,
       },
-      async ({ target, lang, exportPdf, days }) => {
+      async ({ target, lang, destination_context, exportPdf, days }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (target.kind === 'existing_trip') {
           if (!(await canAccessTrip(target.tripId, userId))) return noAccess();
@@ -226,7 +242,7 @@ export function registerTripTools(
         }
 
         try {
-          const result = await applyItineraryPlan(userId, { target, lang, exportPdf, days });
+          const result = await applyItineraryPlan(userId, { target, lang, destination_context, exportPdf, days });
           const response = {
             success: result.success,
             tripId: result.tripId,
@@ -553,7 +569,7 @@ export function registerTripTools(
       'export_trip_pdf',
       {
         description:
-          "Export a trip's full itinerary as a downloadable PDF file generated by trippi.ai. Use this when the user asks for a PDF itinerary, travel plan PDF, or official Trippi PDF export. Returns a public unguessable download URL and filename.",
+          "Export an existing trip's full itinerary as a downloadable PDF file generated by trippi.ai. Use this to retry PDF export or export an already-created trip; for new full-trip planning with a PDF, prefer apply_itinerary_plan with exportPdf: true. Returns a public unguessable download URL and filename.",
         inputSchema: {
           tripId: z.number().int().positive(),
         },
@@ -564,8 +580,9 @@ export function registerTripTools(
         try {
           const result = await exportTripPdf(tripId);
           return ok({ ...result, contentType: 'application/pdf' });
-        } catch {
-          return { content: [{ type: 'text' as const, text: 'Trip not found.' }], isError: true };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'PDF export failed.';
+          return { content: [{ type: 'text' as const, text: message }], isError: true };
         }
       },
     );

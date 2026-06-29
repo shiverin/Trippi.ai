@@ -106,6 +106,41 @@ function toApiLang(lang: string | undefined, fallback = 'en'): string {
 }
 
 const GOOGLE_FTID_RE = /^0x[0-9a-f]+:0x[0-9a-f]+$/i;
+const DEFAULT_NOMINATIM_MIN_INTERVAL_MS = 1500;
+
+function resolveNominatimMinIntervalMs(): number {
+  const raw = process.env.NOMINATIM_MIN_INTERVAL_MS;
+  if (raw !== undefined) {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_NOMINATIM_MIN_INTERVAL_MS;
+  }
+  return process.env.NODE_ENV === 'test' ? 0 : DEFAULT_NOMINATIM_MIN_INTERVAL_MS;
+}
+
+const NOMINATIM_MIN_INTERVAL_MS = resolveNominatimMinIntervalMs();
+let lastNominatimCall = 0;
+let nominatimQueue = Promise.resolve();
+
+async function throttleNominatim(): Promise<void> {
+  if (NOMINATIM_MIN_INTERVAL_MS <= 0) return;
+
+  const previous = nominatimQueue;
+  let release!: () => void;
+  nominatimQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  await previous;
+  try {
+    const elapsed = Date.now() - lastNominatimCall;
+    if (elapsed < NOMINATIM_MIN_INTERVAL_MS) {
+      await new Promise((resolve) => setTimeout(resolve, NOMINATIM_MIN_INTERVAL_MS - elapsed));
+    }
+    lastNominatimCall = Date.now();
+  } finally {
+    release();
+  }
+}
 
 // Extracts a Google Maps feature id (ftid, 0x..:0x..) from a URL's ?ftid= param.
 // The Places API (New) googleMapsUri is usually a cid-style URL (https://maps.google.com/?cid=NNN)
@@ -172,6 +207,7 @@ export async function searchNominatim(query: string, lang?: string) {
     limit: '10',
     'accept-language': toApiLang(lang),
   });
+  await throttleNominatim();
   const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
     headers: { 'User-Agent': UA },
   });
@@ -216,6 +252,7 @@ export async function lookupNominatim(
     'accept-language': toApiLang(lang),
   });
   try {
+    await throttleNominatim();
     const res = await fetch(`https://nominatim.openstreetmap.org/lookup?${params}`, {
       headers: { 'User-Agent': UA },
     });

@@ -876,18 +876,18 @@
   display: grid;
   grid-template-columns: 520px 1fr;
   gap: 0;
-  height: auto;
+  min-height: 190px;
 }
 .trek-dash .trips.list-view .trip-cover {
   border-radius: var(--r-lg) 0 0 var(--r-lg);
-  height: 100px;
+  height: 190px;
   aspect-ratio: unset;
 }
 .trek-dash .trips.list-view .trip-body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 16px 36px;
+  padding: 22px 40px;
   gap: 28px;
 }
 /* Date rendered as a peer of the counts, set off by a vertical divider rather than
@@ -1698,7 +1698,7 @@
     min-height: 0;
   }
   .trek-dash .trips.list-view .trip-cover {
-    height: 110px;
+    height: 180px;
     aspect-ratio: unset;
     border-radius: 0;
   }
@@ -1719,7 +1719,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 16px;
+    padding: 16px;
   }
   .trek-dash .trips.list-view .trip-dates {
     margin-bottom: 0;

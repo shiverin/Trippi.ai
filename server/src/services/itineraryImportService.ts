@@ -12,9 +12,10 @@ import { randomUUID } from 'crypto';
 export const MAX_ITINERARY_IMPORT_DAYS = 90;
 export const MAX_ITINERARY_IMPORT_ACTIVITIES = 300;
 
-const GEO_CONCURRENCY = 6;
+const GEO_CONCURRENCY = 1;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const RATE_LIMIT_RETRY_DELAY_MS = 1300;
 
 export type ImportCategory =
   | 'attraction'
@@ -30,8 +31,6 @@ export interface ImportLocation {
   name?: string;
   query: string;
   address?: string;
-  lat?: number;
-  lng?: number;
   google_place_id?: string;
   google_ftid?: string;
   osm_id?: string;
@@ -71,6 +70,7 @@ export interface ApplyItineraryPlanInput {
     | { kind: 'new_trip'; title: string; start_date?: string; end_date?: string; currency?: string }
     | { kind: 'existing_trip'; tripId: number; mode: 'append' | 'replace_imported' };
   lang?: string;
+  destination_context?: string;
   exportPdf?: boolean;
   days: ImportDay[];
 }
@@ -101,6 +101,7 @@ interface ResolvedLocation {
   website: string | null;
   phone: string | null;
   source: string | null;
+  approximate?: boolean;
 }
 
 interface ResolvedActivity extends ImportActivity {
@@ -192,20 +193,27 @@ function hasValidCoordinates(lat: number | null, lng: number | null): lat is num
   return lat !== null && lng !== null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
 
-function validateCoordinatePair(location: ImportLocation, path: string, issues: ImportIssue[]): void {
-  const hasLat = location.lat !== undefined;
-  const hasLng = location.lng !== undefined;
-  if (!hasLat && !hasLng) return;
-
-  const lat = parseNumber(location.lat);
-  const lng = parseNumber(location.lng);
-  if (!hasValidCoordinates(lat, lng)) {
-    issues.push({ path, message: 'lat/lng must both be present and within valid coordinate ranges.' });
-  }
-}
-
 function validateTime(value: string | undefined, path: string, issues: ImportIssue[]): void {
   if (value !== undefined && !TIME_RE.test(value)) issues.push({ path, message: 'Expected 24-hour HH:mm time.' });
+}
+
+const LOCATION_FIELDS = new Set(['name', 'query', 'address', 'google_place_id', 'google_ftid', 'osm_id']);
+
+function validateLocation(location: ImportLocation | undefined, path: string, issues: ImportIssue[]): boolean {
+  if (!location || !clean(location.query)) {
+    issues.push({ path: `${path}.query`, message: 'Location query is required.' });
+    return false;
+  }
+
+  for (const key of Object.keys(location as unknown as Record<string, unknown>)) {
+    if (!LOCATION_FIELDS.has(key)) {
+      issues.push({
+        path: `${path}.${key}`,
+        message: 'Unsupported location field. Send query/address/provider IDs only; backend geocodes coordinates.',
+      });
+    }
+  }
+  return true;
 }
 
 function validateInput(input: ApplyItineraryPlanInput): void {
@@ -267,11 +275,8 @@ function validateInput(input: ApplyItineraryPlanInput): void {
       const activityPath = `${dayPath}.activities[${activityIndex}]`;
       if (!clean(activity.title))
         issues.push({ path: `${activityPath}.title`, message: 'Activity title is required.' });
-      if (!activity.location || !clean(activity.location.query)) {
-        issues.push({ path: `${activityPath}.location.query`, message: 'Location query is required.' });
-      } else {
+      if (validateLocation(activity.location, `${activityPath}.location`, issues)) {
         locationCount++;
-        validateCoordinatePair(activity.location, `${activityPath}.location`, issues);
       }
       validateTime(activity.start_time, `${activityPath}.start_time`, issues);
       validateTime(activity.end_time, `${activityPath}.end_time`, issues);
@@ -294,11 +299,8 @@ function validateInput(input: ApplyItineraryPlanInput): void {
       if (!clean(day.accommodation.title)) {
         issues.push({ path: `${accommodationPath}.title`, message: 'Accommodation title is required.' });
       }
-      if (!day.accommodation.location || !clean(day.accommodation.location.query)) {
-        issues.push({ path: `${accommodationPath}.location.query`, message: 'Location query is required.' });
-      } else {
+      if (validateLocation(day.accommodation.location, `${accommodationPath}.location`, issues)) {
         locationCount++;
-        validateCoordinatePair(day.accommodation.location, `${accommodationPath}.location`, issues);
       }
       validateTime(day.accommodation.check_in, `${accommodationPath}.check_in`, issues);
       validateTime(day.accommodation.check_out, `${accommodationPath}.check_out`, issues);
@@ -337,6 +339,50 @@ function locationFromCandidate(candidate: Record<string, unknown>, fallback: Imp
   };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  return /\b429\b|too many requests|rate limit/i.test(message);
+}
+
+const APPROXIMATE_CENTERS: { pattern: RegExp; name: string; lat: number; lng: number }[] = [
+  { pattern: /\bkunming\b|昆明/i, name: 'Kunming', lat: 25.0389, lng: 102.7183 },
+  { pattern: /\bdali\b|大理/i, name: 'Dali', lat: 25.6065, lng: 100.2676 },
+  { pattern: /\blijiang\b|丽江|麗江/i, name: 'Lijiang', lat: 26.8565, lng: 100.2271 },
+  { pattern: /\byunnan\b|云南|雲南/i, name: 'Yunnan', lat: 25.0453, lng: 102.7097 },
+  { pattern: /\bchina\b|中国|中國/i, name: 'China', lat: 35.8617, lng: 104.1954 },
+];
+
+function approximateLocation(
+  location: ImportLocation,
+  city: string | undefined,
+  destinationContext: string | undefined,
+): ResolvedLocation | null {
+  const context = [location.query, location.address, location.name, city, destinationContext]
+    .filter(Boolean)
+    .join(', ');
+  const center = APPROXIMATE_CENTERS.find((candidate) => candidate.pattern.test(context));
+  if (!center) return null;
+
+  const label = clean(location.name) ?? clean(location.query) ?? center.name;
+  return {
+    name: label,
+    address: compactWhitespace([label, city, destinationContext].filter(Boolean).join(', ')),
+    lat: center.lat,
+    lng: center.lng,
+    google_place_id: clean(location.google_place_id) ?? null,
+    google_ftid: clean(location.google_ftid) ?? null,
+    osm_id: clean(location.osm_id) ?? null,
+    website: null,
+    phone: null,
+    source: 'approximate',
+    approximate: true,
+  };
+}
+
 function compactWhitespace(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
@@ -367,18 +413,42 @@ function withContext(
   return `${cleanQuery}${separator}${cleanContext}`;
 }
 
-function buildLocationSearchQueries(location: ImportLocation, city: string | undefined): string[] {
+function withContexts(
+  query: string | undefined,
+  contexts: (string | undefined)[],
+  separator = ', ',
+): string | undefined {
+  return contexts.reduce((current, context) => withContext(current, context, separator), query);
+}
+
+function withCityAndDestination(
+  query: string | undefined,
+  city: string | undefined,
+  destinationContext: string | undefined,
+  citySeparator = ', ',
+): string | undefined {
+  return withContext(withContext(query, city, citySeparator), destinationContext);
+}
+
+function buildLocationSearchQueries(
+  location: ImportLocation,
+  city: string | undefined,
+  destinationContext: string | undefined,
+): string[] {
   const base = clean(location.query);
   const name = clean(location.name);
   const address = clean(location.address);
   const simplified = base ? simplifiedLocationQuery(base) : undefined;
   const candidates = [
-    withContext(withContext(base, address), city),
-    withContext(base, city),
-    withContext(base, city, ' '),
-    withContext(simplified && simplified !== base ? simplified : undefined, city, ' '),
-    withContext(simplified && simplified !== base ? simplified : undefined, city),
-    withContext(name && name !== base ? name : undefined, city),
+    withContexts(base, [address, city, destinationContext]),
+    withCityAndDestination(base, city, destinationContext),
+    withCityAndDestination(base, city, destinationContext, ' '),
+    withCityAndDestination(simplified && simplified !== base ? simplified : undefined, city, destinationContext, ' '),
+    withCityAndDestination(simplified && simplified !== base ? simplified : undefined, city, destinationContext),
+    withCityAndDestination(name && name !== base ? name : undefined, city, destinationContext),
+    withContext(base, destinationContext),
+    withContext(simplified && simplified !== base ? simplified : undefined, destinationContext),
+    withContext(name && name !== base ? name : undefined, destinationContext),
     base,
     simplified && simplified !== base ? simplified : undefined,
   ];
@@ -399,47 +469,51 @@ async function resolveLocation(
   userId: number,
   location: ImportLocation,
   city: string | undefined,
+  destinationContext: string | undefined,
   lang: string | undefined,
   path: string,
-): Promise<ResolvedLocation> {
-  const suppliedLat = parseNumber(location.lat);
-  const suppliedLng = parseNumber(location.lng);
-  if (hasValidCoordinates(suppliedLat, suppliedLng)) {
-    return {
-      name: clean(location.name) ?? clean(location.query) ?? 'Untitled place',
-      address: clean(location.address) ?? null,
-      lat: suppliedLat,
-      lng: suppliedLng as number,
-      google_place_id: clean(location.google_place_id) ?? null,
-      google_ftid: clean(location.google_ftid) ?? null,
-      osm_id: clean(location.osm_id) ?? null,
-      website: null,
-      phone: null,
-      source: 'provided',
-    };
-  }
-
+): Promise<{ location: ResolvedLocation; warning?: string }> {
   const detailsId = clean(location.google_place_id) ?? clean(location.osm_id);
   if (detailsId) {
     try {
       const details = await getPlaceDetails(userId, detailsId, lang);
       const resolved = locationFromCandidate(details.place, location);
-      if (resolved) return resolved;
+      if (resolved) return { location: resolved };
     } catch {
       // Fall through to text search below. A stale provider ID should not make an
       // otherwise searchable itinerary impossible to import.
     }
   }
 
-  const queries = buildLocationSearchQueries(location, city);
+  const queries = buildLocationSearchQueries(location, city, destinationContext);
   let lastSearchError: string | null = null;
   for (const query of queries) {
     try {
       const search = await searchPlaces(userId, query, lang);
       const match = search.places.map((candidate) => locationFromCandidate(candidate, location)).find(Boolean);
-      if (match) return match;
+      if (match) return { location: match };
     } catch (err) {
       lastSearchError = err instanceof Error ? err.message : 'Location search failed.';
+      if (isRateLimitError(err)) {
+        await sleep(RATE_LIMIT_RETRY_DELAY_MS);
+        try {
+          const retry = await searchPlaces(userId, query, lang);
+          const match = retry.places.map((candidate) => locationFromCandidate(candidate, location)).find(Boolean);
+          if (match) return { location: match };
+        } catch (retryErr) {
+          lastSearchError = retryErr instanceof Error ? retryErr.message : lastSearchError;
+        }
+
+        const approximate = approximateLocation(location, city, destinationContext);
+        if (approximate) {
+          return {
+            location: approximate,
+            warning: `${path}: geocoding was rate-limited; used approximate ${
+              city ?? destinationContext ?? 'destination'
+            } coordinates for "${location.query}".`,
+          };
+        }
+      }
     }
   }
 
@@ -467,15 +541,24 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: number): Promise<ResolvedDay[]> {
+async function resolveImportLocations(
+  input: ApplyItineraryPlanInput,
+  userId: number,
+): Promise<{ resolvedDays: ResolvedDay[]; warnings: string[] }> {
   const resolvedDays = input.days.map((day) => ({
     ...day,
     activities: day.activities.map((activity) => ({ ...activity }) as ResolvedActivity),
     accommodation: day.accommodation ? ({ ...day.accommodation } as ResolvedAccommodation) : undefined,
   }));
+  const warnings: string[] = [];
 
-  const jobs: { path: string; location: ImportLocation; city?: string; apply: (resolved: ResolvedLocation) => void }[] =
-    [];
+  const jobs: {
+    path: string;
+    location: ImportLocation;
+    city?: string;
+    destinationContext?: string;
+    apply: (resolved: ResolvedLocation) => void;
+  }[] = [];
 
   resolvedDays.forEach((day, dayIndex) => {
     day.activities.forEach((activity, activityIndex) => {
@@ -483,6 +566,7 @@ async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: nu
         path: `days[${dayIndex}].activities[${activityIndex}].location`,
         location: activity.location,
         city: day.city,
+        destinationContext: input.destination_context,
         apply: (resolved) => {
           activity.resolvedLocation = resolved;
         },
@@ -494,6 +578,7 @@ async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: nu
         path: `days[${dayIndex}].accommodation.location`,
         location: day.accommodation.location,
         city: day.city,
+        destinationContext: input.destination_context,
         apply: (resolved) => {
           if (day.accommodation) day.accommodation.resolvedLocation = resolved;
         },
@@ -502,12 +587,20 @@ async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: nu
   });
 
   await mapWithConcurrency(jobs, GEO_CONCURRENCY, async (job) => {
-    const resolved = await resolveLocation(userId, job.location, job.city, input.lang, job.path);
-    job.apply(resolved);
-    return resolved;
+    const resolved = await resolveLocation(
+      userId,
+      job.location,
+      job.city,
+      job.destinationContext,
+      input.lang,
+      job.path,
+    );
+    job.apply(resolved.location);
+    if (resolved.warning) warnings.push(resolved.warning);
+    return resolved.location;
   });
 
-  return resolvedDays;
+  return { resolvedDays, warnings };
 }
 
 function loadCategoryLookup(): Map<string, number> {
@@ -685,7 +778,7 @@ export async function applyItineraryPlan(
   input: ApplyItineraryPlanInput,
 ): Promise<ApplyItineraryPlanResult> {
   validateInput(input);
-  const resolvedDays = await resolveImportLocations(input, userId);
+  const { resolvedDays, warnings } = await resolveImportLocations(input, userId);
   const batchId = `mcp_${randomUUID()}`;
   const counts = buildCounts();
   const events = buildEvents();
@@ -798,7 +891,7 @@ export async function applyItineraryPlan(
     trip: transactionResult.trip,
     batchId,
     counts,
-    warnings: [],
+    warnings,
     events,
   };
 

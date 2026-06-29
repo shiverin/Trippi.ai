@@ -563,6 +563,9 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
     demo_mode: isDemo,
     demo_email: isDemo ? DEMO_EMAIL_PRIMARY : undefined,
     demo_password: isDemo ? 'demo12345' : undefined,
+    disable_overlays:
+      process.env.TRIPPI_DISABLE_OVERLAYS?.toLowerCase() === 'true' ||
+      process.env.DISABLE_UI_OVERLAYS?.toLowerCase() === 'true',
     timezone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     notification_channel: notifChannel,
     notification_channels: activeChannels,

@@ -3,12 +3,10 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/brand/trippi-wordmark-light.png" />
   <source media="(prefers-color-scheme: light)" srcset="docs/brand/trippi-wordmark.png" />
-  <img src="docs/brand/trippi-wordmark.png" alt="trippi.ai" height="88" />
+  <img src="docs/brand/trippi-wordmark.png" alt="trippi" height="64" />
 </picture>
 
 <br />
-
-<p><a href="https://trippi.ai/"><strong>trippi.ai</strong></a></p>
 
 <p><strong>Your trippi, our troppi.</strong></p>
 

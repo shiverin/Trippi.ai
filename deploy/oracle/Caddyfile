@@ -18,6 +18,10 @@ http://{$TRIPPI_DOMAIN} {
     import trippi_backend
 }
 
+http://:80 {
+    import trippi_backend
+}
+
 {$TRIPPI_DOMAIN} {
     import trippi_backend
 }

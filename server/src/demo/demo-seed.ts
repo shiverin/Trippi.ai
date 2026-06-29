@@ -69,7 +69,7 @@ function ensureDemoMembership(db: Database.Database, adminId: number, demoId: nu
 
 function seedExampleTrips(db: Database.Database, adminId: number, demoId: number): void {
   const insertTrip = db.prepare(
-    'INSERT INTO trips (user_id, title, description, start_date, end_date, currency) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO trips (user_id, title, description, start_date, end_date, currency, cover_image) VALUES (?, ?, ?, ?, ?, ?, ?)',
   );
   const insertDay = db.prepare('INSERT INTO days (trip_id, day_number, date) VALUES (?, ?, ?)');
   const insertPlace = db.prepare(
@@ -100,6 +100,7 @@ function seedExampleTrips(db: Database.Database, adminId: number, demoId: number
     '2026-04-15',
     '2026-04-21',
     'JPY',
+    null,
   );
   const t1 = Number(trip1.lastInsertRowid);
 
@@ -403,6 +404,7 @@ function seedExampleTrips(db: Database.Database, adminId: number, demoId: number
     '2026-05-21',
     '2026-05-24',
     'EUR',
+    null,
   );
   const t2 = Number(trip2.lastInsertRowid);
 
@@ -599,6 +601,7 @@ function seedExampleTrips(db: Database.Database, adminId: number, demoId: number
     '2026-09-18',
     '2026-09-22',
     'USD',
+    '/demo/new-york-cover.jpg',
   );
   const t3 = Number(trip3.lastInsertRowid);
 

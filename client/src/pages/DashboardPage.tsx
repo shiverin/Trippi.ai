@@ -144,6 +144,7 @@ export default function DashboardPage(): React.ReactElement {
     handleArchive,
     handleUnarchive,
     confirmCopy,
+    overlaysDisabled,
   } = useDashboard();
 
   return (
@@ -153,7 +154,7 @@ export default function DashboardPage(): React.ReactElement {
           `.trippi-dash button` reset (which shifted the bell icon + menu items). */}
       <Navbar />
       <div className="trippi-dash trek-dash trek-dash-shell">
-        {demoMode && <DemoBanner />}
+        {demoMode && !overlaysDisabled && <DemoBanner />}
         <div className="trek-dash-scroll">
           <MobileTopBar />
           <main className="page">

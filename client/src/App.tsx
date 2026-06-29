@@ -102,6 +102,7 @@ export default function App() {
     isAuthenticated,
     demoMode,
     setDemoMode,
+    setOverlaysDisabled,
     setDevMode,
     setIsPrerelease,
     setAppVersion,
@@ -137,6 +138,7 @@ export default function App() {
       .then(
         async (config: {
           demo_mode?: boolean;
+          disable_overlays?: boolean;
           dev_mode?: boolean;
           is_prerelease?: boolean;
           has_maps_key?: boolean;
@@ -150,6 +152,7 @@ export default function App() {
           permissions?: Record<string, PermissionLevel>;
         }) => {
           setDemoMode(!!config?.demo_mode);
+          setOverlaysDisabled(!!config?.disable_overlays);
           if (config?.dev_mode) setDevMode(true);
           if (config?.is_prerelease !== undefined) setIsPrerelease(config.is_prerelease);
           if (config?.version) setAppVersion(config.version);

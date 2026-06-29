@@ -35,21 +35,21 @@ trippi.ai is a self-hosted, real-time collaborative travel planner with maps, bu
 
 <div align="center">
 
-<img src="docs/screenshots/dashboard.png" alt="trippi.ai dashboard" width="100%" />
+<img src="docs/screenshots/berlin/dashboard.png" alt="trippi.ai dashboard" width="100%" />
 
 </div>
 
 <br />
 
 <div align="center">
-  <a href="docs/screenshots/dashboard.png"><img src="docs/screenshots/dashboard.png" alt="Dashboard" width="49%" /></a>
-  <a href="docs/screenshots/trip-planner.png"><img src="docs/screenshots/trip-planner.png" alt="Trip planner with 3D map" width="49%" /></a>
-  <a href="docs/screenshots/journey.png"><img src="docs/screenshots/journey.png" alt="Journey journal" width="49%" /></a>
-  <a href="docs/screenshots/budget.png"><img src="docs/screenshots/budget.png" alt="Costs · expense splitting" width="49%" /></a>
-  <a href="docs/screenshots/atlas.png"><img src="docs/screenshots/atlas.png" alt="Atlas · visited countries" width="49%" /></a>
-  <a href="docs/screenshots/vacay.png"><img src="docs/screenshots/vacay.png" alt="Vacay planner" width="49%" /></a>
-  <a href="docs/screenshots/trip-iceland.png"><img src="docs/screenshots/trip-iceland.png" alt="Trip planner · day plan and route" width="49%" /></a>
-  <a href="docs/screenshots/admin.png"><img src="docs/screenshots/admin.png" alt="Admin panel" width="49%" /></a>
+  <a href="docs/screenshots/berlin/dashboard.png"><img src="docs/screenshots/berlin/dashboard.png" alt="Dashboard" width="49%" /></a>
+  <a href="docs/screenshots/berlin/trip-planner.png"><img src="docs/screenshots/berlin/trip-planner.png" alt="Trip planner with 3D map" width="49%" /></a>
+  <a href="docs/screenshots/berlin/journey.png"><img src="docs/screenshots/berlin/journey.png" alt="Journey journal" width="49%" /></a>
+  <a href="docs/screenshots/berlin/budget.png"><img src="docs/screenshots/berlin/budget.png" alt="Costs · expense splitting" width="49%" /></a>
+  <a href="docs/screenshots/berlin/atlas.png"><img src="docs/screenshots/berlin/atlas.png" alt="Atlas · visited countries" width="49%" /></a>
+  <a href="docs/screenshots/berlin/vacay.png"><img src="docs/screenshots/berlin/vacay.png" alt="Vacay planner" width="49%" /></a>
+  <a href="docs/screenshots/berlin/trip-iceland.png"><img src="docs/screenshots/berlin/trip-iceland.png" alt="Trip planner · day plan and route" width="49%" /></a>
+  <a href="docs/screenshots/berlin/admin.png"><img src="docs/screenshots/berlin/admin.png" alt="Admin panel" width="49%" /></a>
 </div>
 
 ---

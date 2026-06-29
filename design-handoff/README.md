@@ -35,13 +35,33 @@ Outputs are written to:
 - `design-handoff/tokens/runtime-tokens.json`
 - `design-handoff/capture-manifest.json`
 
-The script starts trippi.ai's existing E2E backend and Vite frontend against a throwaway seeded database. It does not use your real production data.
+The script starts trippi.ai in demo mode against a throwaway seeded database, then opens the live Vite app and captures the rendered screens. It does not use your real production data.
+
+By default the capture backend runs on port `3101` so it does not collide with the normal local API server. The capture run also sets `TRIPPI_DISABLE_OVERLAYS=true` and `VITE_TRIPPI_DISABLE_OVERLAYS=true` so demo/system notice popups stay out of design references.
 
 ## Seeded Login
 
-The script uses the existing E2E credentials:
+The script uses the demo-mode admin user:
 
-- Email: `e2e@trippi.local`
-- Initial password: `E2eTest12345!`
-- Changed password: `E2eChanged12345!`
+- Email: `admin@trippi.app`
+- Password: `admin12345`
 
+## Captured Screens
+
+The current handoff set includes:
+
+- Desktop: login, demo dashboard, trip planner, trip costs, trip files, Vacay, Atlas, admin.
+- Mobile: dashboard, trip planner, Vacay, Atlas.
+
+Map-based screens wait for rendered Leaflet tiles before screenshotting so the map background is visible in the saved PNGs.
+
+## Useful Overrides
+
+```bash
+TRIPPI_CAPTURE_BACKEND_PORT=3101 \
+TRIPPI_CAPTURE_BASE_URL=http://localhost:5173 \
+TRIPPI_CAPTURE_TRIP_ID=3 \
+node design-handoff/scripts/capture-screens.mjs
+```
+
+The default trip id is `3`, the seeded New York City trip, so the planner map captures focus on city-scale pins. The New York dashboard cover is stored locally at `client/public/demo/new-york-cover.jpg`; source: Wikimedia Commons `Brooklyn Bridge, New York City, United States (Unsplash).jpg`, CC0.

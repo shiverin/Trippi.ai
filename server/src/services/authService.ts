@@ -1885,6 +1885,6 @@ export function verifyMcpToken(rawToken: string): User | null {
  * (MCP bearer, WebSocket handshake, file-download query tokens, photo
  * route) should go through.
  */
-export function verifyJwtToken(token: string): User | null {
+export async function verifyJwtToken(token: string): Promise<User | null> {
   return verifyJwtAndLoadUser(token);
 }

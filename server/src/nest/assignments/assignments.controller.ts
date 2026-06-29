@@ -4,11 +4,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AssignmentsService } from './assignments.service';
 import { Body, Controller, Delete, Get, Headers, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
 
-type Trip = NonNullable<ReturnType<AssignmentsService['verifyTripAccess']>>;
+type Trip = NonNullable<Awaited<ReturnType<AssignmentsService['verifyTripAccess']>>>;
 
 /** Shared trip-access guard (mirrors requireTripAccess → 404 "Trip not found"). */
-function requireTrip(svc: AssignmentsService, tripId: string, user: User): Trip {
-  const trip = svc.verifyTripAccess(tripId, user.id);
+async function requireTrip(svc: AssignmentsService, tripId: string, user: User): Promise<Trip> {
+  const trip = await svc.verifyTripAccess(tripId, user.id);
   if (!trip) {
     throw new HttpException({ error: 'Trip not found' }, 404);
   }
@@ -35,8 +35,8 @@ export class DayAssignmentsController {
   constructor(private readonly assignments: AssignmentsService) {}
 
   @Get()
-  list(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('dayId') dayId: string) {
-    requireTrip(this.assignments, tripId, user);
+  async list(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('dayId') dayId: string) {
+    await requireTrip(this.assignments, tripId, user);
     if (!this.assignments.dayExists(dayId, tripId)) {
       throw new HttpException({ error: 'Day not found' }, 404);
     }
@@ -44,14 +44,14 @@ export class DayAssignmentsController {
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('dayId') dayId: string,
     @Body() body: { place_id?: unknown; notes?: string | null },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = requireTrip(this.assignments, tripId, user);
+    const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
     if (!this.assignments.dayExists(dayId, tripId)) {
       throw new HttpException({ error: 'Day not found' }, 404);
@@ -66,14 +66,14 @@ export class DayAssignmentsController {
   }
 
   @Put('reorder')
-  reorder(
+  async reorder(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('dayId') dayId: string,
     @Body('orderedIds') orderedIds: number[],
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = requireTrip(this.assignments, tripId, user);
+    const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
     if (!this.assignments.dayExists(dayId, tripId)) {
       throw new HttpException({ error: 'Day not found' }, 404);
@@ -84,14 +84,14 @@ export class DayAssignmentsController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('dayId') dayId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = requireTrip(this.assignments, tripId, user);
+    const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
     if (!this.assignments.assignmentExistsInDay(id, dayId, tripId)) {
       throw new HttpException({ error: 'Assignment not found' }, 404);
@@ -117,14 +117,14 @@ export class AssignmentOpsController {
   constructor(private readonly assignments: AssignmentsService) {}
 
   @Put(':id/move')
-  move(
+  async move(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: { new_day_id?: unknown; order_index?: number },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = requireTrip(this.assignments, tripId, user);
+    const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
     const existing = this.assignments.getAssignmentForTrip(id, tripId);
     if (!existing) {
@@ -145,20 +145,20 @@ export class AssignmentOpsController {
   }
 
   @Get(':id/participants')
-  participants(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
-    requireTrip(this.assignments, tripId, user);
+  async participants(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
+    await requireTrip(this.assignments, tripId, user);
     return { participants: this.assignments.getParticipants(id) };
   }
 
   @Put(':id/time')
-  time(
+  async time(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: { place_time?: string | null; end_time?: string | null },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = requireTrip(this.assignments, tripId, user);
+    const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
     if (!this.assignments.getAssignmentForTrip(id, tripId)) {
       throw new HttpException({ error: 'Assignment not found' }, 404);
@@ -169,14 +169,14 @@ export class AssignmentOpsController {
   }
 
   @Put(':id/participants')
-  setParticipants(
+  async setParticipants(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body('user_ids') userIds: unknown,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = requireTrip(this.assignments, tripId, user);
+    const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
     if (!Array.isArray(userIds)) {
       throw new HttpException({ error: 'user_ids must be an array' }, 400);

@@ -1,4 +1,4 @@
-import { canAccessTrip } from '../../db/database';
+import { canAccessTripAsync } from '../../db/asyncDatabase';
 import * as dayService from '../../services/dayService';
 import { checkPermission } from '../../services/permissions';
 import type { User } from '../../types';
@@ -16,8 +16,8 @@ type Trip = { user_id: number };
 @Injectable()
 export class AccommodationsService {
   /** Mirrors the requireTripAccess middleware (owner or member), returning the trip. */
-  verifyTripAccess(tripId: string, userId: number) {
-    return canAccessTrip(Number(tripId), userId) as Trip | null | undefined;
+  async verifyTripAccess(tripId: string, userId: number): Promise<Trip | undefined> {
+    return canAccessTripAsync(Number(tripId), userId);
   }
 
   canEdit(trip: Trip, user: User): boolean {

@@ -6,7 +6,7 @@ import { Injectable } from '@nestjs/common';
 
 import type { Request } from 'express';
 
-type Trip = NonNullable<ReturnType<typeof svc.verifyTripAccess>>;
+type Trip = NonNullable<Awaited<ReturnType<typeof svc.verifyTripAccess>>>;
 type FilePermission = 'file_upload' | 'file_edit' | 'file_delete';
 
 /**

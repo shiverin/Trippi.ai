@@ -11,7 +11,7 @@ import type { Request } from 'express';
  */
 @Injectable()
 export class CookieAuthGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request & { cookies?: Record<string, string> }>();
     const cookieToken = req.cookies?.trippi_session;
     if (!cookieToken) {
@@ -20,7 +20,7 @@ export class CookieAuthGuard implements CanActivate {
         401,
       );
     }
-    const user = verifyJwtAndLoadUser(cookieToken);
+    const user = await verifyJwtAndLoadUser(cookieToken);
     if (!user) {
       throw new HttpException({ error: 'Invalid or expired session', code: 'AUTH_REQUIRED' }, 401);
     }

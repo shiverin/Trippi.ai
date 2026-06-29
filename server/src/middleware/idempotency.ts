@@ -1,4 +1,4 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 
 import { Request, Response, NextFunction } from 'express';
 
@@ -31,6 +31,10 @@ interface IdempotencyRow {
  * Storing happens in idempotency_keys (24h TTL, cleaned by scheduler).
  */
 export function applyIdempotency(req: Request, res: Response, next: NextFunction, userId: number): void {
+  void applyIdempotencyAsync(req, res, next, userId).catch(next);
+}
+
+async function applyIdempotencyAsync(req: Request, res: Response, next: NextFunction, userId: number): Promise<void> {
   if (!MUTATING_METHODS.has(req.method)) {
     next();
     return;
@@ -49,11 +53,11 @@ export function applyIdempotency(req: Request, res: Response, next: NextFunction
   // Return cached response only if the same key was seen for the same
   // user AND the same method+path — avoids a POST's cached body leaking
   // into an unrelated PATCH that reused the idempotency-key string.
-  const existing = db
+  const existing = await asyncDb
     .prepare(
       'SELECT status_code, response_body FROM idempotency_keys WHERE key = ? AND user_id = ? AND method = ? AND path = ?',
     )
-    .get(key, userId, req.method, req.path) as IdempotencyRow | undefined;
+    .get<IdempotencyRow>(key, userId, req.method, req.path);
 
   if (existing) {
     res.status(existing.status_code).json(JSON.parse(existing.response_body));
@@ -67,10 +71,13 @@ export function applyIdempotency(req: Request, res: Response, next: NextFunction
       try {
         const serialized = JSON.stringify(body);
         if (serialized.length <= MAX_CACHED_BODY_BYTES) {
-          db.prepare(
-            `INSERT OR IGNORE INTO idempotency_keys (key, user_id, method, path, status_code, response_body, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          ).run(key, userId, req.method, req.path, res.statusCode, serialized, Math.floor(Date.now() / 1000));
+          void asyncDb
+            .prepare(
+              `INSERT OR IGNORE INTO idempotency_keys (key, user_id, method, path, status_code, response_body, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .run(key, userId, req.method, req.path, res.statusCode, serialized, Math.floor(Date.now() / 1000))
+            .catch(() => {});
         }
       } catch {
         // Non-fatal: if storage fails, the request still succeeds

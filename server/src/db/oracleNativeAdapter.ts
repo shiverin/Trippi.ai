@@ -687,7 +687,7 @@ function lookupNamedBinding(source: Record<string, unknown>, name: string): unkn
   throw new Error(`Missing OracleNativeAdapter named binding: ${name}`);
 }
 
-function buildOracleBinds(args: unknown[], translated: TranslatedSql): BindRecord {
+export function buildOracleBinds(args: unknown[], translated: TranslatedSql): BindRecord {
   const onlyArg = args.length === 1 ? args[0] : undefined;
   const bindSource = Array.isArray(onlyArg) ? onlyArg : isPlainObject(onlyArg) ? onlyArg : args;
   const binds: BindRecord = {};

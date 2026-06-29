@@ -98,7 +98,9 @@ export function resolveFilePath(filename: string): { resolved: string; safe: boo
 // Token-based download auth
 // ---------------------------------------------------------------------------
 
-export function authenticateDownload(req: Request): { userId: number } | { error: string; status: number } {
+export async function authenticateDownload(
+  req: Request,
+): Promise<{ userId: number } | { error: string; status: number }> {
   const cookieToken = (req as any).cookies?.trippi_session as string | undefined;
   const authHeader = req.headers['authorization'];
   const bearerToken = authHeader ? authHeader.split(' ')[1] || undefined : undefined;
@@ -110,7 +112,7 @@ export function authenticateDownload(req: Request): { userId: number } | { error
     // Use the shared helper so the password_version gate applies here too;
     // previously this bypassed the check and stolen download tokens stayed
     // valid across a password reset.
-    const user = verifyJwtAndLoadUser(jwtToken);
+    const user = await verifyJwtAndLoadUser(jwtToken);
     if (!user) return { error: 'Invalid or expired token', status: 401 };
     return { userId: user.id };
   }

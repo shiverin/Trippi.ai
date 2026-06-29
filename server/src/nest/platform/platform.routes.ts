@@ -1,5 +1,5 @@
 import { ADDON_IDS } from '../../addons';
-import { db } from '../../db/database';
+import { asyncDb } from '../../db/asyncDatabase';
 import { mcpHandler } from '../../mcp';
 import { trippiOAuthProvider, trippiClientsStore } from '../../mcp/oauthProvider';
 import { ALL_SCOPES } from '../../mcp/scopes';
@@ -63,41 +63,45 @@ export function applyPlatformUploads(app: express.Application): void {
   // photo's trip. Previously any share token for any trip could request
   // any photo filename by UUID — fine in practice because UUIDs are
   // unguessable, but the auth model was wrong.
-  app.get('/uploads/photos/:filename', (req: Request, res: Response) => {
-    const safeName = path.basename(req.params.filename);
-    const filePath = path.join(UPLOADS_DIR, 'photos', safeName);
-    const resolved = path.resolve(filePath);
-    if (!resolved.startsWith(path.resolve(UPLOADS_DIR, 'photos'))) {
-      return res.status(403).send('Forbidden');
+  app.get('/uploads/photos/:filename', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const safeName = path.basename(req.params.filename);
+      const filePath = path.join(UPLOADS_DIR, 'photos', safeName);
+      const resolved = path.resolve(filePath);
+      if (!resolved.startsWith(path.resolve(UPLOADS_DIR, 'photos'))) {
+        return res.status(403).send('Forbidden');
+      }
+      // existsSync here is cheap and avoids a sendFile error frame; kept
+      // sync because the handler is already short-lived.
+      if (!fs.existsSync(resolved)) return res.status(404).send('Not found');
+
+      const authHeader = req.headers.authorization;
+      const rawToken = (req.query.token as string) || (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null);
+      if (!rawToken) return res.status(401).send('Authentication required');
+
+      // JWT session path (with pv check).
+      const user = await verifyJwtAndLoadUser(rawToken);
+      if (user) return res.sendFile(resolved);
+
+      // Share-token path: require the token to cover the exact trip the
+      // photo belongs to. Expired tokens fall through to 401.
+      const photo = await asyncDb
+        .prepare('SELECT trip_id FROM photos WHERE filename = ?')
+        .get<{ trip_id: number }>(safeName);
+      if (!photo) return res.status(401).send('Authentication required');
+
+      const share = await asyncDb
+        .prepare(
+          "SELECT trip_id FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))",
+        )
+        .get<{ trip_id: number }>(rawToken);
+      if (!share || share.trip_id !== photo.trip_id) {
+        return res.status(401).send('Authentication required');
+      }
+      res.sendFile(resolved);
+    } catch (err) {
+      next(err);
     }
-    // existsSync here is cheap and avoids a sendFile error frame; kept
-    // sync because the handler is already short-lived.
-    if (!fs.existsSync(resolved)) return res.status(404).send('Not found');
-
-    const authHeader = req.headers.authorization;
-    const rawToken = (req.query.token as string) || (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null);
-    if (!rawToken) return res.status(401).send('Authentication required');
-
-    // JWT session path (with pv check).
-    const user = verifyJwtAndLoadUser(rawToken);
-    if (user) return res.sendFile(resolved);
-
-    // Share-token path: require the token to cover the exact trip the
-    // photo belongs to. Expired tokens fall through to 401.
-    const photo = db.prepare('SELECT trip_id FROM photos WHERE filename = ?').get(safeName) as
-      | { trip_id: number }
-      | undefined;
-    if (!photo) return res.status(401).send('Authentication required');
-
-    const share = db
-      .prepare(
-        "SELECT trip_id FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))",
-      )
-      .get(rawToken) as { trip_id: number } | undefined;
-    if (!share || share.trip_id !== photo.trip_id) {
-      return res.status(401).send('Authentication required');
-    }
-    res.sendFile(resolved);
   });
 
   // Block direct access to /uploads/files

@@ -1,11 +1,16 @@
+import { TripsService } from '../../../src/nest/trips/trips.service';
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { dbMock } = vi.hoisted(() => {
+const { asyncDbMock, asyncStmt, canAccessTripAsync } = vi.hoisted(() => {
   const stmt = { get: vi.fn(() => ({ id: 42 })), all: vi.fn(() => []), run: vi.fn() };
-  return { dbMock: { prepare: vi.fn(() => stmt), _stmt: stmt } };
+  return {
+    asyncDbMock: { prepare: vi.fn(() => stmt) },
+    asyncStmt: stmt,
+    canAccessTripAsync: vi.fn(() => ({ user_id: 1 })),
+  };
 });
-const { canAccessTrip } = vi.hoisted(() => ({ canAccessTrip: vi.fn(() => ({ user_id: 1 })) }));
-vi.mock('../../../src/db/database', () => ({ db: dbMock, canAccessTrip, closeDb: () => {}, reinitialize: () => {} }));
+vi.mock('../../../src/db/asyncDatabase', () => ({ asyncDb: asyncDbMock, canAccessTripAsync }));
 
 const { broadcast } = vi.hoisted(() => ({ broadcast: vi.fn() }));
 vi.mock('../../../src/websocket', () => ({ broadcast }));
@@ -14,10 +19,21 @@ vi.mock('../../../src/services/permissions', () => ({ checkPermission }));
 
 const { tripSvc } = vi.hoisted(() => ({
   tripSvc: {
-    listTrips: vi.fn(), createTrip: vi.fn(), getTrip: vi.fn(), updateTrip: vi.fn(), deleteTrip: vi.fn(),
-    getTripRaw: vi.fn(), getTripOwner: vi.fn(), deleteOldCover: vi.fn(), updateCoverImage: vi.fn(),
-    listMembers: vi.fn(() => ({ owner: { id: 1 }, members: [] })), addMember: vi.fn(), removeMember: vi.fn(),
-    exportICS: vi.fn(), copyTripById: vi.fn(), TRIP_SELECT: 'SELECT * FROM trips t',
+    listTrips: vi.fn(),
+    createTrip: vi.fn(),
+    getTrip: vi.fn(),
+    updateTrip: vi.fn(),
+    deleteTrip: vi.fn(),
+    getTripRaw: vi.fn(),
+    getTripOwner: vi.fn(),
+    deleteOldCover: vi.fn(),
+    updateCoverImage: vi.fn(),
+    listMembers: vi.fn(() => ({ owner: { id: 1 }, members: [] })),
+    addMember: vi.fn(),
+    removeMember: vi.fn(),
+    exportICS: vi.fn(),
+    copyTripById: vi.fn(),
+    TRIP_SELECT: 'SELECT * FROM trips t',
   },
 }));
 vi.mock('../../../src/services/tripService', () => tripSvc);
@@ -29,34 +45,51 @@ vi.mock('../../../src/services/budgetService', () => ({ listBudgetItems: () => [
 vi.mock('../../../src/services/reservationService', () => ({ listReservations: () => [] }));
 vi.mock('../../../src/services/fileService', () => ({ listFiles: () => [] }));
 
-import { TripsService } from '../../../src/nest/trips/trips.service';
-
-function svc() { return new TripsService(); }
+function svc() {
+  return new TripsService();
+}
 beforeEach(() => vi.clearAllMocks());
 
 describe('TripsService (wrapper delegation + bundle/copy/notify helpers)', () => {
-  it('delegates the simple wrappers to tripService', () => {
+  it('delegates the simple wrappers to tripService', async () => {
     const s = svc();
-    s.list(1, 0); expect(tripSvc.listTrips).toHaveBeenCalledWith(1, 0);
-    s.create(1, { title: 'T' } as never); expect(tripSvc.createTrip).toHaveBeenCalledWith(1, { title: 'T' });
-    s.get('9', 1); expect(tripSvc.getTrip).toHaveBeenCalledWith('9', 1);
-    s.getRaw('9'); expect(tripSvc.getTripRaw).toHaveBeenCalledWith('9');
-    s.getOwner('9'); expect(tripSvc.getTripOwner).toHaveBeenCalledWith('9');
-    s.update('9', 1, {} as never, 'user'); expect(tripSvc.updateTrip).toHaveBeenCalledWith('9', 1, {}, 'user');
-    s.remove('9', 1, 'user'); expect(tripSvc.deleteTrip).toHaveBeenCalledWith('9', 1, 'user');
-    s.deleteOldCover('/old.jpg'); expect(tripSvc.deleteOldCover).toHaveBeenCalledWith('/old.jpg');
-    s.updateCoverImage('9', '/n.jpg'); expect(tripSvc.updateCoverImage).toHaveBeenCalledWith('9', '/n.jpg');
-    s.copy('9', 1, 'C'); expect(tripSvc.copyTripById).toHaveBeenCalledWith('9', 1, 'C');
-    s.listMembers('9', 1); expect(tripSvc.listMembers).toHaveBeenCalledWith('9', 1);
-    s.addMember('9', 'b@x.y', 1, 1); expect(tripSvc.addMember).toHaveBeenCalledWith('9', 'b@x.y', 1, 1);
-    s.removeMember('9', 2); expect(tripSvc.removeMember).toHaveBeenCalledWith('9', 2);
-    s.exportICS('9'); expect(tripSvc.exportICS).toHaveBeenCalledWith('9');
+    await s.list(1, 0);
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE (t.user_id = :userId OR m.user_id IS NOT NULL) AND t.is_archived = :archived'),
+    );
+    expect(asyncStmt.all).toHaveBeenCalledWith({ userId: 1, archived: 0 });
+    s.create(1, { title: 'T' } as never);
+    expect(tripSvc.createTrip).toHaveBeenCalledWith(1, { title: 'T' });
+    await s.get('9', 1);
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('WHERE t.id = :tripId'));
+    s.getRaw('9');
+    expect(tripSvc.getTripRaw).toHaveBeenCalledWith('9');
+    s.getOwner('9');
+    expect(tripSvc.getTripOwner).toHaveBeenCalledWith('9');
+    s.update('9', 1, {} as never, 'user');
+    expect(tripSvc.updateTrip).toHaveBeenCalledWith('9', 1, {}, 'user');
+    s.remove('9', 1, 'user');
+    expect(tripSvc.deleteTrip).toHaveBeenCalledWith('9', 1, 'user');
+    s.deleteOldCover('/old.jpg');
+    expect(tripSvc.deleteOldCover).toHaveBeenCalledWith('/old.jpg');
+    s.updateCoverImage('9', '/n.jpg');
+    expect(tripSvc.updateCoverImage).toHaveBeenCalledWith('9', '/n.jpg');
+    s.copy('9', 1, 'C');
+    expect(tripSvc.copyTripById).toHaveBeenCalledWith('9', 1, 'C');
+    s.listMembers('9', 1);
+    expect(tripSvc.listMembers).toHaveBeenCalledWith('9', 1);
+    s.addMember('9', 'b@x.y', 1, 1);
+    expect(tripSvc.addMember).toHaveBeenCalledWith('9', 'b@x.y', 1, 1);
+    s.removeMember('9', 2);
+    expect(tripSvc.removeMember).toHaveBeenCalledWith('9', 2);
+    s.exportICS('9');
+    expect(tripSvc.exportICS).toHaveBeenCalledWith('9');
   });
 
-  it('canAccessTrip delegates to the db helper', () => {
-    canAccessTrip.mockReturnValueOnce({ user_id: 7 });
-    expect(svc().canAccessTrip('9', 7)).toEqual({ user_id: 7 });
-    expect(canAccessTrip).toHaveBeenCalledWith('9', 7);
+  it('canAccessTrip delegates to the async db helper', async () => {
+    canAccessTripAsync.mockResolvedValueOnce({ user_id: 7 });
+    await expect(svc().canAccessTrip('9', 7)).resolves.toEqual({ user_id: 7 });
+    expect(canAccessTripAsync).toHaveBeenCalledWith('9', 7);
   });
 
   it('can() delegates to checkPermission; broadcast forwards', () => {
@@ -66,9 +99,9 @@ describe('TripsService (wrapper delegation + bundle/copy/notify helpers)', () =>
     expect(broadcast).toHaveBeenCalledWith('9', 'trip:updated', { a: 1 }, 'sock');
   });
 
-  it('getCopiedTrip re-reads via the TRIP_SELECT query', () => {
-    expect(svc().getCopiedTrip(42, 1)).toEqual({ id: 42 });
-    expect(dbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM trips t'));
+  it('getCopiedTrip re-reads via the TRIP_SELECT query', async () => {
+    await expect(svc().getCopiedTrip(42, 1)).resolves.toEqual({ id: 42 });
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM trips t'));
   });
 
   it('bundle aggregates every sub-collection + the member list', () => {

@@ -1,4 +1,5 @@
-import { db, canAccessTrip } from '../db/database';
+import { canAccessTripAsync } from '../db/asyncDatabase';
+import { db } from '../db/database';
 import type { Journey, JourneyEntry, JourneyPhoto, JourneyContributor } from '../types';
 import { broadcastToUser } from '../websocket';
 import {
@@ -103,14 +104,14 @@ export function listJourneys(userId: number) {
   })[];
 }
 
-export function createJourney(
+export async function createJourney(
   userId: number,
   data: {
     title: string;
     subtitle?: string;
     trip_ids?: number[];
   },
-): Journey {
+): Promise<Journey> {
   const now = ts();
   const res = db
     .prepare(
@@ -134,7 +135,7 @@ export function createJourney(
   // link trips and sync skeleton entries
   if (data.trip_ids?.length) {
     for (const tripId of data.trip_ids) {
-      addTripToJourney(journeyId, tripId, userId);
+      await addTripToJourney(journeyId, tripId, userId);
     }
 
     // inherit cover image from first selected trip
@@ -307,12 +308,12 @@ export function deleteJourney(journeyId: number, userId: number): boolean {
 
 // ── Trip management ──────────────────────────────────────────────────────
 
-export function addTripToJourney(journeyId: number, tripId: number, userId: number): boolean {
+export async function addTripToJourney(journeyId: number, tripId: number, userId: number): Promise<boolean> {
   // Only attach a trip the caller can actually access — otherwise a journey
   // owner could pull an arbitrary trip's places + photos into their journey
   // (cross-tenant leak). Mirrors the trip-access gate every other trip-scoped
   // path enforces.
-  if (!canAccessTrip(tripId, userId)) return false;
+  if (!(await canAccessTripAsync(tripId, userId))) return false;
   const now = ts();
   try {
     db.prepare('INSERT OR IGNORE INTO journey_trips (journey_id, trip_id, added_at) VALUES (?, ?, ?)').run(

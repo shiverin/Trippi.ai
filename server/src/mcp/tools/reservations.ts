@@ -1,4 +1,4 @@
-import { canAccessTrip } from '../../db/database';
+import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
 import { placeExists, getAssignmentForTrip } from '../../services/assignmentService';
 import { isDemoUser } from '../../services/authService';
 import { linkBudgetItemToReservation } from '../../services/budgetService';
@@ -98,7 +98,7 @@ export function registerReservationTools(server: McpServer, userId: number, scop
       budget_category,
     }) => {
       if (isDemoUser(userId)) return demoDenied();
-      if (!canAccessTrip(tripId, userId)) return noAccess();
+      if (!(await canAccessTrip(tripId, userId))) return noAccess();
       if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
 
       // Validate that all referenced IDs belong to this trip
@@ -222,7 +222,7 @@ export function registerReservationTools(server: McpServer, userId: number, scop
       assignment_id,
     }) => {
       if (isDemoUser(userId)) return demoDenied();
-      if (!canAccessTrip(tripId, userId)) return noAccess();
+      if (!(await canAccessTrip(tripId, userId))) return noAccess();
       if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
       const existing = getReservation(reservationId, tripId);
       if (!existing) return { content: [{ type: 'text' as const, text: 'Reservation not found.' }], isError: true };
@@ -268,7 +268,7 @@ export function registerReservationTools(server: McpServer, userId: number, scop
     },
     async ({ tripId, reservationId }) => {
       if (isDemoUser(userId)) return demoDenied();
-      if (!canAccessTrip(tripId, userId)) return noAccess();
+      if (!(await canAccessTrip(tripId, userId))) return noAccess();
       if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
       const { deleted, accommodationDeleted } = deleteReservation(reservationId, tripId);
       if (!deleted) return { content: [{ type: 'text' as const, text: 'Reservation not found.' }], isError: true };
@@ -300,7 +300,7 @@ export function registerReservationTools(server: McpServer, userId: number, scop
     },
     async ({ tripId, positions, dayId }) => {
       if (isDemoUser(userId)) return demoDenied();
-      if (!canAccessTrip(tripId, userId)) return noAccess();
+      if (!(await canAccessTrip(tripId, userId))) return noAccess();
       if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
       updateReservationPositions(tripId, positions, dayId);
       safeBroadcast(tripId, 'reservation:positions', { positions, dayId });
@@ -326,7 +326,7 @@ export function registerReservationTools(server: McpServer, userId: number, scop
     },
     async ({ tripId, reservationId, place_id, start_day_id, end_day_id, check_in, check_out }) => {
       if (isDemoUser(userId)) return demoDenied();
-      if (!canAccessTrip(tripId, userId)) return noAccess();
+      if (!(await canAccessTrip(tripId, userId))) return noAccess();
       if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
       const current = getReservation(reservationId, tripId);
       if (!current) return { content: [{ type: 'text' as const, text: 'Reservation not found.' }], isError: true };

@@ -17,8 +17,8 @@ import { airtrailImportSchema, type AirtrailImport, type AirtrailImportResult } 
 @Controller('api/trips/:tripId/reservations/import')
 @UseGuards(AirtrailAddonGuard, JwtAuthGuard)
 export class AirtrailImportController {
-  private requireEdit(tripId: string, user: User): void {
-    const trip = verifyTripAccess(tripId, user.id);
+  private async requireEdit(tripId: string, user: User): Promise<void> {
+    const trip = await verifyTripAccess(tripId, user.id);
     if (!trip) throw new HttpException({ error: 'Trip not found' }, 404);
     if (!checkPermission('reservation_edit', user.role, trip.user_id, user.id, trip.user_id !== user.id)) {
       throw new HttpException({ error: 'No permission' }, 403);
@@ -32,7 +32,7 @@ export class AirtrailImportController {
     @Body(new ZodValidationPipe(airtrailImportSchema)) body: AirtrailImport,
     @Headers('x-socket-id') socketId?: string,
   ): Promise<AirtrailImportResult> {
-    this.requireEdit(tripId, user);
+    await this.requireEdit(tripId, user);
     try {
       return await importAirtrailFlights(tripId, user.id, body.flightIds, socketId);
     } catch (err: any) {

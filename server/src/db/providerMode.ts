@@ -1,4 +1,4 @@
-export type TrippiDbProvider = 'sqlite' | 'oracle-backed' | 'oracle-native-blocking';
+export type TrippiDbProvider = 'sqlite' | 'oracle-backed' | 'oracle-native-blocking' | 'oracle-async';
 
 function providerValue(env: NodeJS.ProcessEnv = process.env): string {
   return (env.TRIPPI_DB_PROVIDER || env.TRIPPI_DB_MODE || '').trim().toLowerCase();
@@ -14,6 +14,9 @@ export function requestedOracleNative(env: NodeJS.ProcessEnv = process.env): boo
 
 export function resolveDbProvider(env: NodeJS.ProcessEnv = process.env): TrippiDbProvider {
   const provider = providerValue(env);
+  if (provider === 'oracle-async') {
+    return 'oracle-async';
+  }
   if (provider === 'oracle-native') {
     return oracleNativeBlockingAllowed(env) ? 'oracle-native-blocking' : 'oracle-backed';
   }

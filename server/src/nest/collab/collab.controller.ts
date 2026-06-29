@@ -69,15 +69,15 @@ const NOTE_UPLOAD = {
 export class CollabController {
   constructor(private readonly collab: CollabService) {}
 
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.collab.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User) {
+    const trip = await this.collab.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     return trip;
   }
 
-  private requireEdit(trip: NonNullable<ReturnType<CollabService['verifyTripAccess']>>, user: User): void {
+  private requireEdit(trip: NonNullable<Awaited<ReturnType<CollabService['verifyTripAccess']>>>, user: User): void {
     if (!this.collab.canEdit(trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
@@ -85,19 +85,19 @@ export class CollabController {
 
   // ── Notes ───────────────────────────────────────────────────────────────
   @Get('notes')
-  listNotes(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async listNotes(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { notes: this.collab.listNotes(tripId) };
   }
 
   @Post('notes')
-  createNote(
+  async createNote(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: { title?: string; content?: string; category?: string; color?: string; website?: string },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!body.title) {
       throw new HttpException({ error: 'Title is required' }, 400);
@@ -115,7 +115,7 @@ export class CollabController {
   }
 
   @Put('notes/:id')
-  updateNote(
+  async updateNote(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
@@ -130,7 +130,7 @@ export class CollabController {
     },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const note = this.collab.updateNote(tripId, id, {
       title: body.title,
@@ -148,13 +148,13 @@ export class CollabController {
   }
 
   @Delete('notes/:id')
-  deleteNote(
+  async deleteNote(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.collab.deleteNote(tripId, id)) {
       throw new HttpException({ error: 'Note not found' }, 404);
@@ -165,14 +165,14 @@ export class CollabController {
 
   @Post('notes/:id/files')
   @UseInterceptors(FileInterceptor('file', NOTE_UPLOAD))
-  addNoteFile(
+  async addNoteFile(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (!this.collab.canUploadFiles(trip, user)) {
       throw new HttpException({ error: 'No permission to upload files' }, 403);
     }
@@ -188,14 +188,14 @@ export class CollabController {
   }
 
   @Delete('notes/:id/files/:fileId')
-  deleteNoteFile(
+  async deleteNoteFile(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Param('fileId') fileId: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.collab.deleteNoteFile(id, fileId)) {
       throw new HttpException({ error: 'File not found' }, 404);
@@ -206,20 +206,20 @@ export class CollabController {
 
   // ── Polls ───────────────────────────────────────────────────────────────
   @Get('polls')
-  listPolls(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async listPolls(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { polls: this.collab.listPolls(tripId) };
   }
 
   @Post('polls')
-  createPoll(
+  async createPoll(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body()
     body: { question?: string; options?: unknown[]; multiple?: boolean; multiple_choice?: boolean; deadline?: string },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!body.question) {
       throw new HttpException({ error: 'Question is required' }, 400);
@@ -240,14 +240,14 @@ export class CollabController {
 
   @Post('polls/:id/vote')
   @HttpCode(200)
-  votePoll(
+  async votePoll(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body('option_index') optionIndex: number,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const result = this.collab.votePoll(tripId, id, user.id, optionIndex);
     if (result.error === 'not_found') throw new HttpException({ error: 'Poll not found' }, 404);
@@ -258,13 +258,13 @@ export class CollabController {
   }
 
   @Put('polls/:id/close')
-  closePoll(
+  async closePoll(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const poll = this.collab.closePoll(tripId, id);
     if (!poll) {
@@ -275,13 +275,13 @@ export class CollabController {
   }
 
   @Delete('polls/:id')
-  deletePoll(
+  async deletePoll(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.collab.deletePoll(tripId, id)) {
       throw new HttpException({ error: 'Poll not found' }, 404);
@@ -292,13 +292,13 @@ export class CollabController {
 
   // ── Messages ────────────────────────────────────────────────────────────
   @Get('messages')
-  listMessages(@CurrentUser() user: User, @Param('tripId') tripId: string, @Query('before') before?: string) {
-    this.requireTrip(tripId, user);
+  async listMessages(@CurrentUser() user: User, @Param('tripId') tripId: string, @Query('before') before?: string) {
+    await this.requireTrip(tripId, user);
     return { messages: this.collab.listMessages(tripId, before) };
   }
 
   @Post('messages')
-  createMessage(
+  async createMessage(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: { text?: string; reply_to?: number | null },
@@ -307,7 +307,7 @@ export class CollabController {
     if (body.text && body.text.length > 5000) {
       throw new HttpException({ error: 'text must be 5000 characters or less' }, 400);
     }
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!body.text || !body.text.trim()) {
       throw new HttpException({ error: 'Message text is required' }, 400);
@@ -324,14 +324,14 @@ export class CollabController {
 
   @Post('messages/:id/react')
   @HttpCode(200)
-  react(
+  async react(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body('emoji') emoji: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!emoji) {
       throw new HttpException({ error: 'Emoji is required' }, 400);
@@ -350,13 +350,13 @@ export class CollabController {
   }
 
   @Delete('messages/:id')
-  deleteMessage(
+  async deleteMessage(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const result = this.collab.deleteMessage(tripId, id, user.id);
     if (result.error === 'not_found') throw new HttpException({ error: 'Message not found' }, 404);

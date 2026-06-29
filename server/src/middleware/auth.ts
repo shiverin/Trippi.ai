@@ -1,5 +1,5 @@
 import { JWT_SECRET } from '../config';
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { logWarn } from '../services/auditLog';
 import { isDemoEmail } from '../services/demo';
 import { AuthRequest, OptionalAuthRequest, User } from '../types';
@@ -27,7 +27,7 @@ export function extractToken(req: Request): string | null {
  * paths called `jwt.verify` directly and skipped the DB lookup, so a
  * stolen token kept working after the victim reset.
  */
-export function verifyJwtAndLoadUser(token: string): User | null {
+export async function verifyJwtAndLoadUser(token: string): Promise<User | null> {
   const startedAt = Date.now();
   try {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as {
@@ -39,9 +39,9 @@ export function verifyJwtAndLoadUser(token: string): User | null {
     // secret but are not full session tokens — only their dedicated endpoint
     // may accept them, so reject any token carrying a purpose claim here.
     if (decoded.purpose) return null;
-    const row = db
+    const row = await asyncDb
       .prepare('SELECT id, username, email, role, password_version FROM users WHERE id = ?')
-      .get(decoded.id) as (User & { password_version?: number }) | undefined;
+      .get<User & { password_version?: number }>(decoded.id);
     if (!row) return null;
     // Session invalidation: any token whose embedded password_version
     // predates the user's current one is rejected. Tokens issued before
@@ -64,50 +64,56 @@ export function verifyJwtAndLoadUser(token: string): User | null {
 }
 
 const authenticate = (req: Request, res: Response, next: NextFunction): void => {
-  const token = extractToken(req);
+  void (async () => {
+    const token = extractToken(req);
 
-  if (!token) {
-    res.status(401).json({ error: 'Access token required', code: 'AUTH_REQUIRED' });
-    return;
-  }
+    if (!token) {
+      res.status(401).json({ error: 'Access token required', code: 'AUTH_REQUIRED' });
+      return;
+    }
 
-  const user = verifyJwtAndLoadUser(token);
-  if (!user) {
-    res.status(401).json({ error: 'Invalid or expired token', code: 'AUTH_REQUIRED' });
-    return;
-  }
-  (req as AuthRequest).user = user;
-  applyIdempotency(req, res, next, user.id);
+    const user = await verifyJwtAndLoadUser(token);
+    if (!user) {
+      res.status(401).json({ error: 'Invalid or expired token', code: 'AUTH_REQUIRED' });
+      return;
+    }
+    (req as AuthRequest).user = user;
+    applyIdempotency(req, res, next, user.id);
+  })().catch(next);
 };
 
 /** Like `authenticate` but rejects requests that don't carry an httpOnly session cookie.
  *  Used on state-mutating OAuth endpoints (consent POST, client CRUD, session revoke)
  *  to prevent Bearer JWT tokens obtained by other means from managing OAuth clients. */
 const requireCookieAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const cookieToken = (req as any).cookies?.trippi_session;
-  if (!cookieToken) {
-    res.status(401).json({ error: 'Cookie session required for this endpoint', code: 'COOKIE_AUTH_REQUIRED' });
-    return;
-  }
-  const user = verifyJwtAndLoadUser(cookieToken);
-  if (!user) {
-    res.status(401).json({ error: 'Invalid or expired session', code: 'AUTH_REQUIRED' });
-    return;
-  }
-  (req as AuthRequest).user = user;
-  next();
+  void (async () => {
+    const cookieToken = (req as any).cookies?.trippi_session;
+    if (!cookieToken) {
+      res.status(401).json({ error: 'Cookie session required for this endpoint', code: 'COOKIE_AUTH_REQUIRED' });
+      return;
+    }
+    const user = await verifyJwtAndLoadUser(cookieToken);
+    if (!user) {
+      res.status(401).json({ error: 'Invalid or expired session', code: 'AUTH_REQUIRED' });
+      return;
+    }
+    (req as AuthRequest).user = user;
+    next();
+  })().catch(next);
 };
 
 const optionalAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const token = extractToken(req);
+  void (async () => {
+    const token = extractToken(req);
 
-  if (!token) {
-    (req as OptionalAuthRequest).user = null;
-    return next();
-  }
+    if (!token) {
+      (req as OptionalAuthRequest).user = null;
+      return next();
+    }
 
-  (req as OptionalAuthRequest).user = verifyJwtAndLoadUser(token) || null;
-  next();
+    (req as OptionalAuthRequest).user = (await verifyJwtAndLoadUser(token)) || null;
+    next();
+  })().catch(next);
 };
 
 const adminOnly = (req: Request, res: Response, next: NextFunction): void => {

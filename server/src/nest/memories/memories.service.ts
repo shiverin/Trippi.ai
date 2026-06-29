@@ -57,7 +57,7 @@ export class MemoriesService {
     tripId: string,
     assetId: string,
     provider: string,
-  ): boolean {
+  ): Promise<boolean> {
     return canAccessUserPhoto(requestingUserId, ownerUserId, tripId, assetId, provider);
   }
 

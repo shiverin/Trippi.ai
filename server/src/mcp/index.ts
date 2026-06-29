@@ -195,7 +195,7 @@ interface VerifyTokenResult {
   isStaticToken: boolean;
 }
 
-function verifyToken(authHeader: string | undefined): VerifyTokenResult | null {
+async function verifyToken(authHeader: string | undefined): Promise<VerifyTokenResult | null> {
   if (!authHeader) return null;
   // M8: strictly require "Bearer" scheme (RFC 6750)
   const spaceIdx = authHeader.indexOf(' ');
@@ -223,7 +223,7 @@ function verifyToken(authHeader: string | undefined): VerifyTokenResult | null {
   }
 
   // Short-lived JWT (trippi.ai web session used directly) — full access, no notice
-  const user = verifyJwtToken(token);
+  const user = await verifyJwtToken(token);
   if (!user) return null;
   return { user, scopes: null, clientId: null, isStaticToken: false };
 }
@@ -248,7 +248,7 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const tokenResult = verifyToken(req.headers['authorization']);
+  const tokenResult = await verifyToken(req.headers['authorization']);
   if (!tokenResult) {
     setAuthChallenge(res);
     res.status(401).json({ error: 'Access token required' });

@@ -4,7 +4,7 @@ import type { User } from '../../types';
 import { broadcast } from '../../websocket';
 import { Injectable } from '@nestjs/common';
 
-type Trip = NonNullable<ReturnType<typeof dayNoteService.verifyTripAccess>>;
+type Trip = NonNullable<Awaited<ReturnType<typeof dayNoteService.verifyTripAccess>>>;
 
 /**
  * Thin Nest wrapper around the existing day-note service. Trip access + the

@@ -310,18 +310,13 @@ export function getConsent(clientId: string, userId: number): string[] | null {
 }
 
 function usesEphemeralConsent(clientId: string): boolean {
-  const row = db
-    .prepare('SELECT created_via FROM oauth_clients WHERE client_id = ?')
-    .get(clientId) as Pick<OAuthClientRow, 'created_via'> | undefined;
+  const row = db.prepare('SELECT created_via FROM oauth_clients WHERE client_id = ?').get(clientId) as
+    | Pick<OAuthClientRow, 'created_via'>
+    | undefined;
   return row?.created_via === 'dcr';
 }
 
-export function revokeConsent(
-  clientId: string,
-  userId: number,
-  ip?: string | null,
-  reason?: string,
-): void {
+export function revokeConsent(clientId: string, userId: number, ip?: string | null, reason?: string): void {
   const result = db.prepare('DELETE FROM oauth_consents WHERE client_id = ? AND user_id = ?').run(clientId, userId);
   if (result.changes > 0) {
     writeAudit({

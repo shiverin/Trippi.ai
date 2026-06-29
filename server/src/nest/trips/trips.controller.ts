@@ -72,8 +72,8 @@ export class TripsController {
   constructor(private readonly trips: TripsService) {}
 
   @Get()
-  list(@CurrentUser() user: User, @Query('archived') archived?: string) {
-    return { trips: this.trips.list(user.id, archived === '1' ? 1 : 0) };
+  async list(@CurrentUser() user: User, @Query('archived') archived?: string) {
+    return { trips: await this.trips.list(user.id, archived === '1' ? 1 : 0) };
   }
 
   @Post()
@@ -114,8 +114,8 @@ export class TripsController {
   }
 
   @Get(':id')
-  get(@CurrentUser() user: User, @Param('id') id: string) {
-    const trip = this.trips.get(id, user.id);
+  async get(@CurrentUser() user: User, @Param('id') id: string) {
+    const trip = await this.trips.get(id, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -123,14 +123,14 @@ export class TripsController {
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const access = this.trips.canAccessTrip(id, user.id);
+    const access = await this.trips.canAccessTrip(id, user.id);
     if (!access) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -182,14 +182,18 @@ export class TripsController {
 
   @Post(':id/cover')
   @UseInterceptors(FileInterceptor('cover', COVER_UPLOAD))
-  cover(@CurrentUser() user: User, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
+  async cover(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
     if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(user.email)) {
       throw new HttpException(
         { error: 'Uploads are disabled in demo mode. Self-host trippi.ai for full functionality.' },
         403,
       );
     }
-    const access = this.trips.canAccessTrip(id, user.id);
+    const access = await this.trips.canAccessTrip(id, user.id);
     if (!access?.user_id) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -211,7 +215,7 @@ export class TripsController {
 
   @Post(':id/copy')
   @HttpCode(201)
-  copy(
+  async copy(
     @CurrentUser() user: User,
     @Param('id') id: string,
     @Body('title') title: string | undefined,
@@ -220,7 +224,7 @@ export class TripsController {
     if (!this.trips.can('trip_create', user.role, null, user.id, false)) {
       throw new HttpException({ error: 'No permission to create trips' }, 403);
     }
-    if (!this.trips.canAccessTrip(id, user.id)) {
+    if (!(await this.trips.canAccessTrip(id, user.id))) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     try {
@@ -231,7 +235,7 @@ export class TripsController {
         ip: getClientIp(req),
         details: { sourceTripId: Number(id), newTripId, title },
       });
-      return { trip: this.trips.getCopiedTrip(newTripId, user.id) };
+      return { trip: await this.trips.getCopiedTrip(newTripId, user.id) };
     } catch {
       throw new HttpException({ error: 'Failed to copy trip' }, 500);
     }
@@ -265,8 +269,8 @@ export class TripsController {
   }
 
   @Get(':id/members')
-  members(@CurrentUser() user: User, @Param('id') id: string) {
-    const access = this.trips.canAccessTrip(id, user.id);
+  async members(@CurrentUser() user: User, @Param('id') id: string) {
+    const access = await this.trips.canAccessTrip(id, user.id);
     if (!access) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -276,8 +280,8 @@ export class TripsController {
 
   @Post(':id/members')
   @HttpCode(201)
-  addMember(@CurrentUser() user: User, @Param('id') id: string, @Body('identifier') identifier: string) {
-    const access = this.trips.canAccessTrip(id, user.id);
+  async addMember(@CurrentUser() user: User, @Param('id') id: string, @Body('identifier') identifier: string) {
+    const access = await this.trips.canAccessTrip(id, user.id);
     if (!access) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -296,8 +300,8 @@ export class TripsController {
   }
 
   @Delete(':id/members/:userId')
-  removeMember(@CurrentUser() user: User, @Param('id') id: string, @Param('userId') userId: string) {
-    const access = this.trips.canAccessTrip(id, user.id);
+  async removeMember(@CurrentUser() user: User, @Param('id') id: string, @Param('userId') userId: string) {
+    const access = await this.trips.canAccessTrip(id, user.id);
     if (!access) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -313,8 +317,8 @@ export class TripsController {
   }
 
   @Get(':id/bundle')
-  bundle(@CurrentUser() user: User, @Param('id') id: string) {
-    const trip = this.trips.get(id, user.id) as { user_id: number } | undefined;
+  async bundle(@CurrentUser() user: User, @Param('id') id: string) {
+    const trip = (await this.trips.get(id, user.id)) as { user_id: number } | undefined;
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -322,8 +326,8 @@ export class TripsController {
   }
 
   @Get(':id/export.ics')
-  exportIcs(@CurrentUser() user: User, @Param('id') id: string, @Res() res: Response) {
-    if (!this.trips.canAccessTrip(id, user.id)) {
+  async exportIcs(@CurrentUser() user: User, @Param('id') id: string, @Res() res: Response) {
+    if (!(await this.trips.canAccessTrip(id, user.id))) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     try {

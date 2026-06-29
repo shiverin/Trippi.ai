@@ -1,4 +1,5 @@
-import { db, canAccessTrip } from '../../db/database';
+import { asyncDb, canAccessTripAsync } from '../../db/asyncDatabase';
+import { logWarn } from '../../services/auditLog';
 import { listBudgetItems } from '../../services/budgetService';
 import { listDays, listAccommodations } from '../../services/dayService';
 import { listFiles } from '../../services/fileService';
@@ -21,8 +22,8 @@ import { Injectable } from '@nestjs/common';
  */
 @Injectable()
 export class TripsService {
-  canAccessTrip(tripId: string, userId: number) {
-    return canAccessTrip(tripId, userId) as { user_id: number } | null | undefined;
+  async canAccessTrip(tripId: string, userId: number): Promise<{ user_id: number } | undefined> {
+    return canAccessTripAsync(tripId, userId);
   }
 
   can(action: string, role: string, ownerId: number | null, userId: number, isMember: boolean): boolean {
@@ -33,16 +34,53 @@ export class TripsService {
     broadcast(tripId, event, payload, socketId);
   }
 
-  list(userId: number, archived: number) {
-    return tripSvc.listTrips(userId, archived);
+  async list(userId: number, archived: number | null) {
+    const startedAt = Date.now();
+    try {
+      if (archived === null) {
+        return asyncDb
+          .prepare(
+            `
+      ${tripSvc.TRIP_SELECT}
+      LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = :userId
+      WHERE (t.user_id = :userId OR m.user_id IS NOT NULL)
+      ORDER BY t.created_at DESC
+    `,
+          )
+          .all({ userId });
+      }
+      return asyncDb
+        .prepare(
+          `
+    ${tripSvc.TRIP_SELECT}
+    LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = :userId
+    WHERE (t.user_id = :userId OR m.user_id IS NOT NULL) AND t.is_archived = :archived
+    ORDER BY t.created_at DESC
+  `,
+        )
+        .all({ userId, archived });
+    } finally {
+      const ms = Date.now() - startedAt;
+      if (ms >= 1000) {
+        logWarn(`[perf] async TripsService.list archived=${archived ?? 'all'} took ${ms}ms`);
+      }
+    }
   }
 
   create(userId: number, data: Parameters<typeof tripSvc.createTrip>[1]) {
     return tripSvc.createTrip(userId, data);
   }
 
-  get(tripId: string, userId: number) {
-    return tripSvc.getTrip(tripId, userId);
+  async get(tripId: string, userId: number) {
+    return asyncDb
+      .prepare(
+        `
+    ${tripSvc.TRIP_SELECT}
+    LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = :userId
+    WHERE t.id = :tripId AND (t.user_id = :userId OR m.user_id IS NOT NULL)
+  `,
+      )
+      .get({ userId, tripId });
   }
 
   getRaw(tripId: string) {
@@ -74,8 +112,8 @@ export class TripsService {
   }
 
   /** Re-read a freshly copied trip in list shape (mirrors the route's TRIP_SELECT query). */
-  getCopiedTrip(newTripId: number, userId: number) {
-    return db.prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`).get({ userId, tripId: newTripId });
+  async getCopiedTrip(newTripId: number, userId: number) {
+    return asyncDb.prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`).get({ userId, tripId: newTripId });
   }
 
   listMembers(tripId: string, ownerId: number) {

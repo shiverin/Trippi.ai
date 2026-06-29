@@ -18,8 +18,13 @@ export class FilesDownloadController {
   constructor(private readonly files: FilesService) {}
 
   @Get(':id/download')
-  download(@Req() req: Request, @Res() res: Response, @Param('tripId') tripId: string, @Param('id') id: string): void {
-    const auth = this.files.authenticateDownload(req);
+  async download(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+  ): Promise<void> {
+    const auth = await this.files.authenticateDownload(req);
     if ('error' in auth) {
       throw new HttpException({ error: auth.error }, auth.status);
     }

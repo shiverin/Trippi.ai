@@ -1,9 +1,9 @@
-import { db, canAccessTrip } from './db/database';
+import { asyncDb, canAccessTripAsync } from './db/asyncDatabase';
 import { consumeEphemeralTokenWithMeta } from './services/ephemeralTokens';
 import { User } from './types';
 
 import http from 'node:http';
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer, WebSocket, RawData } from 'ws';
 
 interface NomadWebSocket extends WebSocket {
   isAlive: boolean;
@@ -60,123 +60,137 @@ function setupWebSocket(server: http.Server): void {
   wss.on('close', () => clearInterval(heartbeat));
 
   wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
-    const nws = ws as NomadWebSocket;
-    // Extract token from query param
-    const url = new URL(req.url, 'http://localhost');
-    const token = url.searchParams.get('token');
-
-    if (!token) {
-      nws.close(4001, 'Authentication required');
-      return;
-    }
-
-    const consumed = consumeEphemeralTokenWithMeta(token, 'ws');
-    if (!consumed) {
-      nws.close(4001, 'Invalid or expired token');
-      return;
-    }
-    const { userId } = consumed;
-
-    let row: (User & { password_version?: number }) | undefined;
-    row = db
-      .prepare('SELECT id, username, email, role, mfa_enabled, password_version FROM users WHERE id = ?')
-      .get(userId) as (User & { password_version?: number }) | undefined;
-    if (!row) {
-      nws.close(4001, 'User not found');
-      return;
-    }
-    // Session gate (defence-in-depth): reject a ws-token minted before a
-    // password change. Tokens carry the pv they were issued with; tokens
-    // minted without a pv (legacy) are treated as version 0, matching the
-    // JWT `pv` claim semantics in verifyJwtAndLoadUser.
-    const tokenPv = typeof consumed.pv === 'number' ? consumed.pv : 0;
-    const currentPv = typeof row.password_version === 'number' ? row.password_version : 0;
-    if (tokenPv !== currentPv) {
-      nws.close(4001, 'Invalid or expired token');
-      return;
-    }
-    // Don't leak password_version beyond the handshake.
-    const { password_version: _pv, ...user } = row;
-    const requireMfa =
-      (db.prepare("SELECT value FROM app_settings WHERE key = 'require_mfa'").get() as { value: string } | undefined)
-        ?.value === 'true';
-    const mfaOk = user.mfa_enabled === 1 || user.mfa_enabled === true;
-    if (requireMfa && !mfaOk) {
-      nws.close(4403, 'MFA required');
-      return;
-    }
-
-    nws.isAlive = true;
-    const sid = nextSocketId++;
-    socketId.set(nws, sid);
-    socketUser.set(nws, user);
-    socketRooms.set(nws, new Set());
-    nws.send(JSON.stringify({ type: 'welcome', socketId: sid }));
-
-    nws.on('pong', () => {
-      nws.isAlive = true;
-    });
-
-    socketMsgCounts.set(nws, { count: 0, windowStart: Date.now() });
-
-    nws.on('message', (data) => {
-      // Rate limiting
-      const rate = socketMsgCounts.get(nws);
-      const now = Date.now();
-      if (now - rate.windowStart > WS_MSG_WINDOW) {
-        rate.count = 1;
-        rate.windowStart = now;
-      } else {
-        rate.count++;
-        if (rate.count > WS_MSG_LIMIT) {
-          nws.send(JSON.stringify({ type: 'error', message: 'Rate limit exceeded' }));
-          return;
-        }
-      }
-
-      let msg: { type: string; tripId?: number | string };
+    void handleConnection(ws, req).catch(() => {
       try {
-        msg = JSON.parse(data.toString());
+        ws.close(1011, 'Internal error');
       } catch {
-        return; // Malformed JSON, ignore
-      }
-
-      // Basic validation
-      if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return;
-
-      if (msg.type === 'join' && msg.tripId) {
-        const tripId = Number(msg.tripId);
-        // Verify the user has access to this trip
-        if (!canAccessTrip(tripId, user.id)) {
-          nws.send(JSON.stringify({ type: 'error', message: 'Access denied' }));
-          return;
-        }
-        // Add to room
-        if (!rooms.has(tripId)) rooms.set(tripId, new Set());
-        rooms.get(tripId).add(nws);
-        socketRooms.get(nws).add(tripId);
-        nws.send(JSON.stringify({ type: 'joined', tripId }));
-      }
-
-      if (msg.type === 'leave' && msg.tripId) {
-        const tripId = Number(msg.tripId);
-        leaveRoom(nws, tripId);
-        nws.send(JSON.stringify({ type: 'left', tripId }));
-      }
-    });
-
-    nws.on('close', () => {
-      // Clean up all rooms this socket was in
-      const myRooms = socketRooms.get(nws);
-      if (myRooms) {
-        for (const tripId of myRooms) {
-          leaveRoom(nws, tripId);
-        }
+        /* connection may already be closed */
       }
     });
   });
 
   console.log('WebSocket server attached at /ws');
+}
+
+async function handleConnection(ws: WebSocket, req: http.IncomingMessage): Promise<void> {
+  const nws = ws as NomadWebSocket;
+  // Extract token from query param
+  const url = new URL(req.url, 'http://localhost');
+  const token = url.searchParams.get('token');
+
+  if (!token) {
+    nws.close(4001, 'Authentication required');
+    return;
+  }
+
+  const consumed = consumeEphemeralTokenWithMeta(token, 'ws');
+  if (!consumed) {
+    nws.close(4001, 'Invalid or expired token');
+    return;
+  }
+  const { userId } = consumed;
+
+  let row: (User & { password_version?: number }) | undefined;
+  row = await asyncDb
+    .prepare('SELECT id, username, email, role, mfa_enabled, password_version FROM users WHERE id = ?')
+    .get<User & { password_version?: number }>(userId);
+  if (!row) {
+    nws.close(4001, 'User not found');
+    return;
+  }
+  // Session gate (defence-in-depth): reject a ws-token minted before a
+  // password change. Tokens carry the pv they were issued with; tokens
+  // minted without a pv (legacy) are treated as version 0, matching the
+  // JWT `pv` claim semantics in verifyJwtAndLoadUser.
+  const tokenPv = typeof consumed.pv === 'number' ? consumed.pv : 0;
+  const currentPv = typeof row.password_version === 'number' ? row.password_version : 0;
+  if (tokenPv !== currentPv) {
+    nws.close(4001, 'Invalid or expired token');
+    return;
+  }
+  // Don't leak password_version beyond the handshake.
+  const { password_version: _pv, ...user } = row;
+  const requireMfa =
+    (await asyncDb.prepare("SELECT value FROM app_settings WHERE key = 'require_mfa'").get<{ value: string }>())
+      ?.value === 'true';
+  const mfaOk = user.mfa_enabled === 1 || user.mfa_enabled === true;
+  if (requireMfa && !mfaOk) {
+    nws.close(4403, 'MFA required');
+    return;
+  }
+
+  nws.isAlive = true;
+  const sid = nextSocketId++;
+  socketId.set(nws, sid);
+  socketUser.set(nws, user);
+  socketRooms.set(nws, new Set());
+  nws.send(JSON.stringify({ type: 'welcome', socketId: sid }));
+
+  nws.on('pong', () => {
+    nws.isAlive = true;
+  });
+
+  socketMsgCounts.set(nws, { count: 0, windowStart: Date.now() });
+
+  nws.on('message', (data) => {
+    void handleMessage(nws, data, user);
+  });
+
+  nws.on('close', () => {
+    // Clean up all rooms this socket was in
+    const myRooms = socketRooms.get(nws);
+    if (myRooms) {
+      for (const tripId of myRooms) {
+        leaveRoom(nws, tripId);
+      }
+    }
+  });
+}
+
+async function handleMessage(nws: NomadWebSocket, data: RawData, user: User): Promise<void> {
+  // Rate limiting
+  const rate = socketMsgCounts.get(nws);
+  const now = Date.now();
+  if (now - rate.windowStart > WS_MSG_WINDOW) {
+    rate.count = 1;
+    rate.windowStart = now;
+  } else {
+    rate.count++;
+    if (rate.count > WS_MSG_LIMIT) {
+      nws.send(JSON.stringify({ type: 'error', message: 'Rate limit exceeded' }));
+      return;
+    }
+  }
+
+  let msg: { type: string; tripId?: number | string };
+  try {
+    msg = JSON.parse(data.toString());
+  } catch {
+    return; // Malformed JSON, ignore
+  }
+
+  // Basic validation
+  if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return;
+
+  if (msg.type === 'join' && msg.tripId) {
+    const tripId = Number(msg.tripId);
+    // Verify the user has access to this trip
+    if (!(await canAccessTripAsync(tripId, user.id))) {
+      nws.send(JSON.stringify({ type: 'error', message: 'Access denied' }));
+      return;
+    }
+    // Add to room
+    if (!rooms.has(tripId)) rooms.set(tripId, new Set());
+    rooms.get(tripId).add(nws);
+    socketRooms.get(nws).add(tripId);
+    nws.send(JSON.stringify({ type: 'joined', tripId }));
+  }
+
+  if (msg.type === 'leave' && msg.tripId) {
+    const tripId = Number(msg.tripId);
+    leaveRoom(nws, tripId);
+    nws.send(JSON.stringify({ type: 'left', tripId }));
+  }
 }
 
 function leaveRoom(ws: NomadWebSocket, tripId: number): void {

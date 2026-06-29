@@ -25,34 +25,37 @@ type ReservationBody = Record<string, unknown> & {
 export class ReservationsController {
   constructor(private readonly reservations: ReservationsService) {}
 
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.reservations.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User) {
+    const trip = await this.reservations.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     return trip;
   }
 
-  private requireEdit(trip: ReturnType<ReservationsService['verifyTripAccess']>, user: User): void {
+  private requireEdit(
+    trip: NonNullable<Awaited<ReturnType<ReservationsService['verifyTripAccess']>>>,
+    user: User,
+  ): void {
     if (!this.reservations.canEdit(trip!, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
 
   @Get()
-  list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { reservations: this.reservations.list(tripId) };
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: ReservationBody,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!body.title) {
       throw new HttpException({ error: 'Title is required' }, 400);
@@ -75,13 +78,13 @@ export class ReservationsController {
   }
 
   @Put('positions')
-  updatePositions(
+  async updatePositions(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: { positions?: unknown; day_id?: unknown },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!Array.isArray(body.positions)) {
       throw new HttpException({ error: 'positions must be an array' }, 400);
@@ -101,14 +104,14 @@ export class ReservationsController {
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: ReservationBody,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const current = this.reservations.getReservation(id, tripId);
     if (!current) {
@@ -140,13 +143,13 @@ export class ReservationsController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const { deleted, accommodationDeleted, deletedBudgetItemId } = this.reservations.remove(id, tripId);
     if (!deleted) {

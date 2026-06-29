@@ -18,28 +18,28 @@ import { Body, Controller, Delete, Get, Headers, HttpException, Param, Post, Put
 export class TodoController {
   constructor(private readonly todo: TodoService) {}
 
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.todo.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User) {
+    const trip = await this.todo.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     return trip;
   }
 
-  private requireEdit(trip: ReturnType<TodoService['verifyTripAccess']>, user: User): void {
+  private requireEdit(trip: NonNullable<Awaited<ReturnType<TodoService['verifyTripAccess']>>>, user: User): void {
     if (!this.todo.canEdit(trip!, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
 
   @Get()
-  list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { items: this.todo.listItems(tripId) };
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body()
@@ -53,7 +53,7 @@ export class TodoController {
     },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!body.name) {
       throw new HttpException({ error: 'Item name is required' }, 400);
@@ -65,22 +65,22 @@ export class TodoController {
   }
 
   @Put('reorder')
-  reorder(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body('orderedIds') orderedIds: number[]) {
-    const trip = this.requireTrip(tripId, user);
+  async reorder(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body('orderedIds') orderedIds: number[]) {
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     this.todo.reorderItems(tripId, orderedIds);
     return { success: true };
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const { name, checked, category, due_date, description, assigned_user_id, priority } = body as Record<
       string,
@@ -100,13 +100,13 @@ export class TodoController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.todo.deleteItem(tripId, id)) {
       throw new HttpException({ error: 'Item not found' }, 404);
@@ -116,20 +116,20 @@ export class TodoController {
   }
 
   @Get('category-assignees')
-  categoryAssignees(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async categoryAssignees(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { assignees: this.todo.getCategoryAssignees(tripId) };
   }
 
   @Put('category-assignees/:categoryName')
-  updateCategoryAssignees(
+  async updateCategoryAssignees(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('categoryName') categoryName: string,
     @Body('user_ids') userIds: number[],
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const category = decodeURIComponent(categoryName);
     const rows = this.todo.updateCategoryAssignees(tripId, category, userIds);

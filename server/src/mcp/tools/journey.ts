@@ -163,7 +163,7 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
       },
       async ({ title, subtitle, trip_ids }) => {
         if (isDemoUser(userId)) return demoDenied();
-        const journey = createJourney(userId, { title, subtitle, trip_ids });
+        const journey = await createJourney(userId, { title, subtitle, trip_ids });
         // Return the fully-hydrated journey (entries/contributors/trips/stats/my_role),
         // matching get_journey, rather than the bare row.
         return ok({ journey: getJourneyFull(journey.id, userId) ?? journey });

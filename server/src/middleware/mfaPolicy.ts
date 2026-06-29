@@ -1,4 +1,4 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { DEMO_EMAILS } from '../services/demo';
 import { extractToken, verifyJwtAndLoadUser } from './auth';
 
@@ -39,6 +39,10 @@ export function isMfaSetupExemptPath(method: string, pathNoQuery: string): boole
  * except for public routes and MFA setup endpoints.
  */
 export function enforceGlobalMfaPolicy(req: Request, res: Response, next: NextFunction): void {
+  void enforceGlobalMfaPolicyAsync(req, res, next).catch(next);
+}
+
+async function enforceGlobalMfaPolicyAsync(req: Request, res: Response, next: NextFunction): Promise<void> {
   const pathNoQuery = (req.originalUrl || req.url || '').split('?')[0];
 
   if (!pathNoQuery.startsWith('/api')) {
@@ -64,16 +68,16 @@ export function enforceGlobalMfaPolicy(req: Request, res: Response, next: NextFu
   // Use the shared verify helper so the `password_version` gate applies
   // here too — a JWT stolen before a password reset would otherwise
   // continue to satisfy this middleware until its natural 24h expiry.
-  const verified = verifyJwtAndLoadUser(token);
+  const verified = await verifyJwtAndLoadUser(token);
   if (!verified) {
     next();
     return;
   }
   const userId = verified.id;
 
-  const requireRow = db.prepare("SELECT value FROM app_settings WHERE key = 'require_mfa'").get() as
-    | { value: string }
-    | undefined;
+  const requireRow = await asyncDb
+    .prepare("SELECT value FROM app_settings WHERE key = 'require_mfa'")
+    .get<{ value: string }>();
   if (requireRow?.value !== 'true') {
     next();
     return;
@@ -84,9 +88,9 @@ export function enforceGlobalMfaPolicy(req: Request, res: Response, next: NextFu
     return;
   }
 
-  const row = db.prepare('SELECT mfa_enabled FROM users WHERE id = ?').get(userId) as
-    | { mfa_enabled: number | boolean }
-    | undefined;
+  const row = await asyncDb
+    .prepare('SELECT mfa_enabled FROM users WHERE id = ?')
+    .get<{ mfa_enabled: number | boolean }>(userId);
   if (!row) {
     next();
     return;
@@ -96,7 +100,9 @@ export function enforceGlobalMfaPolicy(req: Request, res: Response, next: NextFu
   // owning at least one satisfies the require_mfa policy exactly like TOTP does.
   // (All stored passkeys were registered with userVerification required.)
   const mfaOk = row.mfa_enabled === 1 || row.mfa_enabled === true;
-  const passkeyOk = !!db.prepare('SELECT 1 FROM webauthn_credentials WHERE user_id = ? LIMIT 1').get(userId);
+  const passkeyOk = !!(await asyncDb
+    .prepare('SELECT 1 FROM webauthn_credentials WHERE user_id = ? LIMIT 1')
+    .get(userId));
   if (mfaOk || passkeyOk) {
     next();
     return;

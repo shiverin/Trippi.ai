@@ -4,6 +4,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AccommodationsService } from './accommodations.service';
 import { Body, Controller, Delete, Get, Headers, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
 
+type Trip = NonNullable<Awaited<ReturnType<AccommodationsService['verifyTripAccess']>>>;
+
 type AccommodationBody = {
   place_id?: number;
   start_day_id?: number;
@@ -30,34 +32,34 @@ type AccommodationBody = {
 export class AccommodationsController {
   constructor(private readonly accommodations: AccommodationsService) {}
 
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.accommodations.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User): Promise<Trip> {
+    const trip = await this.accommodations.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     return trip;
   }
 
-  private requireEdit(trip: NonNullable<ReturnType<AccommodationsService['verifyTripAccess']>>, user: User): void {
+  private requireEdit(trip: Trip, user: User): void {
     if (!this.accommodations.canEdit(trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
 
   @Get()
-  list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { accommodations: this.accommodations.list(tripId) };
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: AccommodationBody,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const { place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes } = body;
     if (!place_id || !start_day_id || !end_day_id) {
@@ -83,14 +85,14 @@ export class AccommodationsController {
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: AccommodationBody,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const existing = this.accommodations.get(id, tripId);
     if (!existing) {
@@ -111,13 +113,13 @@ export class AccommodationsController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.accommodations.get(id, tripId)) {
       throw new HttpException({ error: 'Accommodation not found' }, 404);

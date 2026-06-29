@@ -2247,4 +2247,44 @@ describe('DayPlanSidebar', () => {
     expect(toDeparture.compareDocumentPosition(nextStop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(fromArrival.compareDocumentPosition(nextStop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it('FE-PLANNER-DAYPLAN-102: activity route connectors name the next stop', async () => {
+    const museum = buildPlace({
+      id: 1,
+      name: 'Suzhou Museum',
+      place_time: '14:00',
+      lat: 31.323,
+      lng: 120.625,
+    });
+    const market = buildPlace({
+      id: 2,
+      name: 'Shuangta Market',
+      place_time: '15:30',
+      lat: 31.301,
+      lng: 120.633,
+    });
+    const day = buildDay({ id: 10, date: '2025-12-11', title: 'Suzhou afternoon' });
+    const a1 = buildAssignment({ id: 11, day_id: 10, order_index: 0, place: museum });
+    const a2 = buildAssignment({ id: 22, day_id: 10, order_index: 1, place: market });
+
+    render(
+      <DayPlanSidebar
+        {...makeDefaultProps({
+          days: [day],
+          places: [museum, market],
+          assignments: { '10': [a1, a2] },
+          selectedDayId: 10,
+          routeShown: true,
+        })}
+      />
+    );
+
+    const museumTitle = screen.getByText('Suzhou Museum');
+    const marketTitle = screen.getByText('Shuangta Market');
+    await waitFor(() => expect(screen.getByText('Drive to Shuangta Market')).toBeInTheDocument());
+    const connectorLabel = screen.getByText('Drive to Shuangta Market');
+
+    expect(museumTitle.compareDocumentPosition(connectorLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(connectorLabel.compareDocumentPosition(marketTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

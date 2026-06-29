@@ -84,14 +84,14 @@ export class AuthController {
   }
 
   @Put('me/password')
-  changePassword(
+  async changePassword(
     @CurrentUser() user: User,
     @Body() body: unknown,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     this.limit('login', req, 5);
-    const result = this.auth.changePassword(user.id, user.email, body);
+    const result = await this.auth.changePassword(user.id, user.email, body);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -103,8 +103,8 @@ export class AuthController {
   }
 
   @Delete('me')
-  deleteAccount(@CurrentUser() user: User, @Req() req: Request) {
-    const result = this.auth.deleteAccount(user.id, user.email, user.role);
+  async deleteAccount(@CurrentUser() user: User, @Req() req: Request) {
+    const result = await this.auth.deleteAccount(user.id, user.email, user.role);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -113,18 +113,18 @@ export class AuthController {
   }
 
   @Put('me/maps-key')
-  mapsKey(@CurrentUser() user: User, @Body() body: { maps_api_key?: unknown }) {
+  async mapsKey(@CurrentUser() user: User, @Body() body: { maps_api_key?: unknown }) {
     return this.auth.updateMapsKey(user.id, body.maps_api_key);
   }
 
   @Put('me/api-keys')
-  apiKeys(@CurrentUser() user: User, @Body() body: unknown) {
+  async apiKeys(@CurrentUser() user: User, @Body() body: unknown) {
     return this.auth.updateApiKeys(user.id, body);
   }
 
   @Put('me/settings')
-  updateSettings(@CurrentUser() user: User, @Body() body: unknown) {
-    const result = this.auth.updateSettings(user.id, body);
+  async updateSettings(@CurrentUser() user: User, @Body() body: unknown) {
+    const result = await this.auth.updateSettings(user.id, body);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -132,8 +132,8 @@ export class AuthController {
   }
 
   @Get('me/settings')
-  getSettings(@CurrentUser() user: User) {
-    const result = this.auth.getSettings(user.id);
+  async getSettings(@CurrentUser() user: User) {
+    const result = await this.auth.getSettings(user.id);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -162,8 +162,8 @@ export class AuthController {
   }
 
   @Get('users')
-  users(@CurrentUser() user: User) {
-    return { users: this.auth.listUsers(user.id) };
+  async users(@CurrentUser() user: User) {
+    return { users: await this.auth.listUsers(user.id) };
   }
 
   @Get('validate-keys')
@@ -176,8 +176,8 @@ export class AuthController {
   }
 
   @Get('app-settings')
-  getAppSettings(@CurrentUser() user: User) {
-    const result = this.auth.getAppSettings(user.id);
+  async getAppSettings(@CurrentUser() user: User) {
+    const result = await this.auth.getAppSettings(user.id);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -185,8 +185,8 @@ export class AuthController {
   }
 
   @Put('app-settings')
-  updateAppSettings(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
-    const result = this.auth.updateAppSettings(user.id, body);
+  async updateAppSettings(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
+    const result = await this.auth.updateAppSettings(user.id, body);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -201,14 +201,14 @@ export class AuthController {
   }
 
   @Get('travel-stats')
-  travelStats(@CurrentUser() user: User) {
+  async travelStats(@CurrentUser() user: User) {
     return this.auth.getTravelStats(user.id);
   }
 
   @Post('mfa/setup')
   @HttpCode(200)
   async mfaSetup(@CurrentUser() user: User) {
-    const result = this.auth.setupMfa(user.id, user.email);
+    const result = await this.auth.setupMfa(user.id, user.email);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -223,9 +223,9 @@ export class AuthController {
 
   @Post('mfa/enable')
   @HttpCode(200)
-  mfaEnable(@CurrentUser() user: User, @Body() body: { code?: unknown }, @Req() req: Request) {
+  async mfaEnable(@CurrentUser() user: User, @Body() body: { code?: unknown }, @Req() req: Request) {
     this.limit('mfa', req, 5);
-    const result = this.auth.enableMfa(user.id, body.code);
+    const result = await this.auth.enableMfa(user.id, body.code);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -235,9 +235,9 @@ export class AuthController {
 
   @Post('mfa/disable')
   @HttpCode(200)
-  mfaDisable(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
+  async mfaDisable(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
     this.limit('login', req, 5);
-    const result = this.auth.disableMfa(user.id, user.email, body);
+    const result = await this.auth.disableMfa(user.id, user.email, body);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -246,15 +246,15 @@ export class AuthController {
   }
 
   @Get('mcp-tokens')
-  listMcpTokens(@CurrentUser() user: User) {
-    return { tokens: this.auth.listMcpTokens(user.id) };
+  async listMcpTokens(@CurrentUser() user: User) {
+    return { tokens: await this.auth.listMcpTokens(user.id) };
   }
 
   @Post('mcp-tokens')
   @HttpCode(201)
-  createMcpToken(@CurrentUser() user: User, @Body() body: { name?: unknown }, @Req() req: Request) {
+  async createMcpToken(@CurrentUser() user: User, @Body() body: { name?: unknown }, @Req() req: Request) {
     this.limit('login', req, 5);
-    const result = this.auth.createMcpToken(user.id, body.name);
+    const result = await this.auth.createMcpToken(user.id, body.name);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -262,8 +262,8 @@ export class AuthController {
   }
 
   @Delete('mcp-tokens/:id')
-  deleteMcpToken(@CurrentUser() user: User, @Param('id') id: string) {
-    const result = this.auth.deleteMcpToken(user.id, id);
+  async deleteMcpToken(@CurrentUser() user: User, @Param('id') id: string) {
+    const result = await this.auth.deleteMcpToken(user.id, id);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -272,8 +272,8 @@ export class AuthController {
 
   @Post('ws-token')
   @HttpCode(200)
-  wsToken(@CurrentUser() user: User) {
-    const result = this.auth.createWsToken(user.id);
+  async wsToken(@CurrentUser() user: User) {
+    const result = await this.auth.createWsToken(user.id);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }

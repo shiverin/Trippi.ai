@@ -1,7 +1,8 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { broadcastToUser } from '../websocket';
 import { getAction } from './inAppNotificationActions';
-import { isEnabledForEvent, type NotifEventType } from './notificationPreferencesService';
+import { isEnabledForEvent, isEnabledForEventAsync, type NotifEventType } from './notificationPreferencesService';
 
 // SQLite's CURRENT_TIMESTAMP is UTC but the string ('YYYY-MM-DD HH:MM:SS') has
 // no 'T'/'Z', so `new Date(...)` parses it as LOCAL time. Normalize to ISO-UTC
@@ -90,6 +91,36 @@ export function resolveRecipients(scope: NotificationScope, target: number, excl
   }
 
   // Only exclude sender for group scopes (trip/admin) — for user scope, the target is explicit
+  if (excludeUserId != null && scope !== 'user') {
+    userIds = userIds.filter((id) => id !== excludeUserId);
+  }
+
+  return userIds;
+}
+
+export async function resolveRecipientsAsync(
+  scope: NotificationScope,
+  target: number,
+  excludeUserId?: number | null,
+): Promise<number[]> {
+  let userIds: number[] = [];
+
+  if (scope === 'trip') {
+    const owner = await asyncDb.prepare('SELECT user_id FROM trips WHERE id = ?').get<{ user_id: number }>(target);
+    const members = await asyncDb
+      .prepare('SELECT user_id FROM trip_members WHERE trip_id = ?')
+      .all<{ user_id: number }>(target);
+    const ids = new Set<number>();
+    if (owner) ids.add(owner.user_id);
+    for (const m of members) ids.add(m.user_id);
+    userIds = Array.from(ids);
+  } else if (scope === 'user') {
+    userIds = [target];
+  } else if (scope === 'admin') {
+    const admins = await asyncDb.prepare('SELECT id FROM users WHERE role = ?').all<{ id: number }>('admin');
+    userIds = admins.map((a) => a.id);
+  }
+
   if (excludeUserId != null && scope !== 'user') {
     userIds = userIds.filter((id) => id !== excludeUserId);
   }
@@ -189,6 +220,92 @@ function createNotification(input: NotificationInput): number[] {
   return insertedPairs.map((p) => p.id);
 }
 
+async function createNotificationAsync(input: NotificationInput): Promise<number[]> {
+  const recipients = await resolveRecipientsAsync(input.scope, input.target, input.sender_id);
+  if (recipients.length === 0) return [];
+
+  const titleParams = JSON.stringify(input.title_params ?? {});
+  const textParams = JSON.stringify(input.text_params ?? {});
+  const insertedPairs: Array<{ id: number; recipientId: number }> = [];
+
+  await asyncDb.transaction(async () => {
+    const stmt = asyncDb.prepare(`
+      INSERT INTO notifications (
+        type, scope, target, sender_id, recipient_id,
+        title_key, title_params, text_key, text_params,
+        positive_text_key, negative_text_key, positive_callback, negative_callback,
+        navigate_text_key, navigate_target
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const recipientId of recipients) {
+      if (input.event_type && !(await isEnabledForEventAsync(recipientId, input.event_type, 'inapp'))) {
+        continue;
+      }
+
+      let positiveTextKey: string | null = null;
+      let negativeTextKey: string | null = null;
+      let positiveCallback: string | null = null;
+      let negativeCallback: string | null = null;
+      let navigateTextKey: string | null = null;
+      let navigateTarget: string | null = null;
+
+      if (input.type === 'boolean') {
+        positiveTextKey = input.positive_text_key;
+        negativeTextKey = input.negative_text_key;
+        positiveCallback = JSON.stringify(input.positive_callback);
+        negativeCallback = JSON.stringify(input.negative_callback);
+      } else if (input.type === 'navigate') {
+        navigateTextKey = input.navigate_text_key;
+        navigateTarget = input.navigate_target;
+      }
+
+      const result = await stmt.run(
+        input.type,
+        input.scope,
+        input.target,
+        input.sender_id,
+        recipientId,
+        input.title_key,
+        titleParams,
+        input.text_key,
+        textParams,
+        positiveTextKey,
+        negativeTextKey,
+        positiveCallback,
+        negativeCallback,
+        navigateTextKey,
+        navigateTarget,
+      );
+
+      insertedPairs.push({ id: Number(result.lastInsertRowid), recipientId });
+    }
+  })();
+
+  const sender = input.sender_id
+    ? ((await asyncDb
+        .prepare('SELECT username, avatar FROM users WHERE id = ?')
+        .get<{ username: string; avatar: string | null }>(input.sender_id)) ?? null)
+    : null;
+
+  for (const { id: notificationId, recipientId } of insertedPairs) {
+    const row = await asyncDb.prepare('SELECT * FROM notifications WHERE id = ?').get<NotificationRow>(notificationId);
+    if (!row) continue;
+
+    broadcastToUser(recipientId, {
+      type: 'notification:new',
+      notification: {
+        ...row,
+        created_at: toUtcIso(row.created_at),
+        sender_username: sender?.username ?? null,
+        sender_avatar: sender?.avatar ? `/uploads/avatars/${sender.avatar}` : null,
+      },
+    });
+  }
+
+  return insertedPairs.map((p) => p.id);
+}
+
 /**
  * Insert a single in-app notification for one pre-resolved recipient and broadcast via WebSocket.
  * Used by notificationService.send() which handles recipient resolution externally.
@@ -264,6 +381,77 @@ export function createNotificationForRecipient(
   return notificationId;
 }
 
+export async function createNotificationForRecipientAsync(
+  input: NotificationInput,
+  recipientId: number,
+  sender: { username: string; avatar: string | null } | null,
+): Promise<number | null> {
+  const titleParams = JSON.stringify(input.title_params ?? {});
+  const textParams = JSON.stringify(input.text_params ?? {});
+
+  let positiveTextKey: string | null = null;
+  let negativeTextKey: string | null = null;
+  let positiveCallback: string | null = null;
+  let negativeCallback: string | null = null;
+  let navigateTextKey: string | null = null;
+  let navigateTarget: string | null = null;
+
+  if (input.type === 'boolean') {
+    positiveTextKey = input.positive_text_key;
+    negativeTextKey = input.negative_text_key;
+    positiveCallback = JSON.stringify(input.positive_callback);
+    negativeCallback = JSON.stringify(input.negative_callback);
+  } else if (input.type === 'navigate') {
+    navigateTextKey = input.navigate_text_key;
+    navigateTarget = input.navigate_target;
+  }
+
+  const result = await asyncDb
+    .prepare(
+      `
+    INSERT INTO notifications (
+      type, scope, target, sender_id, recipient_id,
+      title_key, title_params, text_key, text_params,
+      positive_text_key, negative_text_key, positive_callback, negative_callback,
+      navigate_text_key, navigate_target
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `,
+    )
+    .run(
+      input.type,
+      input.scope,
+      input.target,
+      input.sender_id,
+      recipientId,
+      input.title_key,
+      titleParams,
+      input.text_key,
+      textParams,
+      positiveTextKey,
+      negativeTextKey,
+      positiveCallback,
+      negativeCallback,
+      navigateTextKey,
+      navigateTarget,
+    );
+
+  const notificationId = Number(result.lastInsertRowid);
+  const row = await asyncDb.prepare('SELECT * FROM notifications WHERE id = ?').get<NotificationRow>(notificationId);
+  if (!row) return null;
+
+  broadcastToUser(recipientId, {
+    type: 'notification:new',
+    notification: {
+      ...row,
+      created_at: toUtcIso(row.created_at),
+      sender_username: sender?.username ?? null,
+      sender_avatar: sender?.avatar ? `/uploads/avatars/${sender.avatar}` : null,
+    },
+  });
+
+  return notificationId;
+}
+
 function getNotifications(
   userId: number,
   options: { limit?: number; offset?: number; unreadOnly?: boolean } = {},
@@ -304,6 +492,49 @@ function getNotifications(
   return { notifications: mapped, total, unread_count };
 }
 
+async function getNotificationsAsync(
+  userId: number,
+  options: { limit?: number; offset?: number; unreadOnly?: boolean } = {},
+): Promise<{ notifications: NotificationRow[]; total: number; unread_count: number }> {
+  const limit = Math.min(options.limit ?? 20, 50);
+  const offset = options.offset ?? 0;
+  const unreadOnly = options.unreadOnly ?? false;
+
+  const whereAliased = unreadOnly ? 'WHERE n.recipient_id = ? AND n.is_read = 0' : 'WHERE n.recipient_id = ?';
+  const wherePlain = unreadOnly ? 'WHERE recipient_id = ? AND is_read = 0' : 'WHERE recipient_id = ?';
+
+  const rows = await asyncDb
+    .prepare(
+      `
+    SELECT n.*, u.username AS sender_username, u.avatar AS sender_avatar
+    FROM notifications n
+    LEFT JOIN users u ON n.sender_id = u.id
+    ${whereAliased}
+    ORDER BY n.created_at DESC
+    LIMIT ? OFFSET ?
+  `,
+    )
+    .all<NotificationRow>(userId, limit, offset);
+
+  const total =
+    (await asyncDb.prepare(`SELECT COUNT(*) as total FROM notifications ${wherePlain}`).get<{ total: number }>(userId))
+      ?.total ?? 0;
+  const unread_count =
+    (
+      await asyncDb
+        .prepare('SELECT COUNT(*) as unread_count FROM notifications WHERE recipient_id = ? AND is_read = 0')
+        .get<{ unread_count: number }>(userId)
+    )?.unread_count ?? 0;
+
+  const mapped = rows.map((r) => ({
+    ...r,
+    created_at: toUtcIso(r.created_at),
+    sender_avatar: r.sender_avatar ? `/uploads/avatars/${r.sender_avatar}` : null,
+  }));
+
+  return { notifications: mapped, total, unread_count };
+}
+
 function getUnreadCount(userId: number): number {
   const row = db
     .prepare('SELECT COUNT(*) as count FROM notifications WHERE recipient_id = ? AND is_read = 0')
@@ -311,8 +542,22 @@ function getUnreadCount(userId: number): number {
   return row.count;
 }
 
+async function getUnreadCountAsync(userId: number): Promise<number> {
+  const row = await asyncDb
+    .prepare('SELECT COUNT(*) as count FROM notifications WHERE recipient_id = ? AND is_read = 0')
+    .get<{ count: number }>(userId);
+  return row?.count ?? 0;
+}
+
 function markRead(notificationId: number, userId: number): boolean {
   const result = db
+    .prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND recipient_id = ?')
+    .run(notificationId, userId);
+  return result.changes > 0;
+}
+
+async function markReadAsync(notificationId: number, userId: number): Promise<boolean> {
+  const result = await asyncDb
     .prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND recipient_id = ?')
     .run(notificationId, userId);
   return result.changes > 0;
@@ -325,8 +570,22 @@ function markUnread(notificationId: number, userId: number): boolean {
   return result.changes > 0;
 }
 
+async function markUnreadAsync(notificationId: number, userId: number): Promise<boolean> {
+  const result = await asyncDb
+    .prepare('UPDATE notifications SET is_read = 0 WHERE id = ? AND recipient_id = ?')
+    .run(notificationId, userId);
+  return result.changes > 0;
+}
+
 function markAllRead(userId: number): number {
   const result = db.prepare('UPDATE notifications SET is_read = 1 WHERE recipient_id = ? AND is_read = 0').run(userId);
+  return result.changes;
+}
+
+async function markAllReadAsync(userId: number): Promise<number> {
+  const result = await asyncDb
+    .prepare('UPDATE notifications SET is_read = 1 WHERE recipient_id = ? AND is_read = 0')
+    .run(userId);
   return result.changes;
 }
 
@@ -335,8 +594,20 @@ function deleteNotification(notificationId: number, userId: number): boolean {
   return result.changes > 0;
 }
 
+async function deleteNotificationAsync(notificationId: number, userId: number): Promise<boolean> {
+  const result = await asyncDb
+    .prepare('DELETE FROM notifications WHERE id = ? AND recipient_id = ?')
+    .run(notificationId, userId);
+  return result.changes > 0;
+}
+
 function deleteAll(userId: number): number {
   const result = db.prepare('DELETE FROM notifications WHERE recipient_id = ?').run(userId);
+  return result.changes;
+}
+
+async function deleteAllAsync(userId: number): Promise<number> {
+  const result = await asyncDb.prepare('DELETE FROM notifications WHERE recipient_id = ?').run(userId);
   return result.changes;
 }
 
@@ -402,16 +673,89 @@ async function respondToBoolean(
   return { success: true, notification: mappedUpdated };
 }
 
+async function respondToBooleanAsync(
+  notificationId: number,
+  userId: number,
+  response: NotificationResponse,
+): Promise<{ success: boolean; error?: string; notification?: NotificationRow }> {
+  const notification = await asyncDb
+    .prepare('SELECT * FROM notifications WHERE id = ? AND recipient_id = ?')
+    .get<NotificationRow>(notificationId, userId);
+
+  if (!notification) return { success: false, error: 'Notification not found' };
+  if (notification.type !== 'boolean') return { success: false, error: 'Not a boolean notification' };
+  if (notification.response !== null) return { success: false, error: 'Already responded' };
+
+  const callbackJson = response === 'positive' ? notification.positive_callback : notification.negative_callback;
+  if (!callbackJson) return { success: false, error: 'No callback defined' };
+
+  let callback: { action: string; payload: Record<string, unknown> };
+  try {
+    callback = JSON.parse(callbackJson);
+  } catch {
+    return { success: false, error: 'Invalid callback format' };
+  }
+
+  const handler = getAction(callback.action);
+  if (!handler) return { success: false, error: `Unknown action: ${callback.action}` };
+
+  try {
+    await handler(callback.payload, userId);
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Action failed' };
+  }
+
+  const result = await asyncDb
+    .prepare(
+      'UPDATE notifications SET response = ?, is_read = 1 WHERE id = ? AND recipient_id = ? AND response IS NULL',
+    )
+    .run(response, notificationId, userId);
+
+  if (result.changes === 0) return { success: false, error: 'Already responded' };
+
+  const updated = await asyncDb
+    .prepare(
+      `
+    SELECT n.*, u.username AS sender_username, u.avatar AS sender_avatar
+    FROM notifications n
+    LEFT JOIN users u ON n.sender_id = u.id
+    WHERE n.id = ?
+  `,
+    )
+    .get<NotificationRow>(notificationId);
+
+  if (!updated) return { success: false, error: 'Notification not found' };
+
+  const mappedUpdated = {
+    ...updated,
+    created_at: toUtcIso(updated.created_at),
+    sender_avatar: updated.sender_avatar ? `/uploads/avatars/${updated.sender_avatar}` : null,
+  };
+
+  broadcastToUser(userId, { type: 'notification:updated', notification: mappedUpdated });
+
+  return { success: true, notification: mappedUpdated };
+}
+
 export {
   createNotification,
+  createNotificationAsync,
   getNotifications,
+  getNotificationsAsync,
   getUnreadCount,
+  getUnreadCountAsync,
   markRead,
+  markReadAsync,
   markUnread,
+  markUnreadAsync,
   markAllRead,
+  markAllReadAsync,
   deleteNotification,
+  deleteNotificationAsync,
   deleteAll,
+  deleteAllAsync,
   respondToBoolean,
+  respondToBooleanAsync,
 };
 
 export type { NotificationInput, NotificationRow, NotificationType, NotificationScope, NotificationResponse };

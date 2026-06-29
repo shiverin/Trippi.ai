@@ -1,8 +1,9 @@
+import { asyncDb } from '../../db/asyncDatabase';
 import { db } from '../../db/database';
 import { checkSsrf, safeFetch } from '../../utils/ssrfGuard';
 import { maybe_encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
-import { writeAudit } from '../auditLog';
-import { getAlbumIdFromLink, updateSyncTimeForAlbumLink, Selection, pipeAsset } from './helpersService';
+import { writeAuditAsync } from '../auditLog';
+import { getAlbumIdFromLink, updateSyncTimeForAlbumLinkAsync, Selection, pipeAsset } from './helpersService';
 import { addTripPhotos } from './unifiedService';
 
 import { Response } from 'express';
@@ -15,6 +16,16 @@ export function getImmichCredentials(userId: number) {
   const apiKey = decrypt_api_key(user.immich_api_key);
   if (!apiKey) return null;
   return { immich_url: user.immich_url as string, immich_api_key: apiKey };
+}
+
+export async function getImmichCredentialsAsync(userId: number) {
+  const user = await asyncDb
+    .prepare('SELECT immich_url, immich_api_key FROM users WHERE id = ?')
+    .get<{ immich_url?: string | null; immich_api_key?: string | null }>(userId);
+  if (!user?.immich_url || !user?.immich_api_key) return null;
+  const apiKey = decrypt_api_key(user.immich_api_key);
+  if (!apiKey) return null;
+  return { immich_url: user.immich_url, immich_api_key: apiKey };
 }
 
 /** Validate that an asset ID is a safe UUID-like string (no path traversal). */
@@ -36,8 +47,24 @@ export function getConnectionSettings(userId: number) {
   };
 }
 
+export async function getConnectionSettingsAsync(userId: number) {
+  const creds = await getImmichCredentialsAsync(userId);
+  const prefs = await asyncDb
+    .prepare('SELECT immich_auto_upload FROM users WHERE id = ?')
+    .get<{ immich_auto_upload?: number }>(userId);
+  return {
+    immich_url: creds?.immich_url || '',
+    connected: !!(creds?.immich_url && creds?.immich_api_key),
+    auto_upload: !!prefs?.immich_auto_upload,
+  };
+}
+
 export function setImmichAutoUpload(userId: number, enabled: boolean): void {
   db.prepare('UPDATE users SET immich_auto_upload = ? WHERE id = ?').run(enabled ? 1 : 0, userId);
+}
+
+export async function setImmichAutoUploadAsync(userId: number, enabled: boolean): Promise<void> {
+  await asyncDb.prepare('UPDATE users SET immich_auto_upload = ? WHERE id = ?').run(enabled ? 1 : 0, userId);
 }
 
 export async function saveImmichSettings(
@@ -51,13 +78,13 @@ export async function saveImmichSettings(
     if (!ssrf.allowed) {
       return { success: false, error: `Invalid Immich URL: ${ssrf.error}` };
     }
-    db.prepare('UPDATE users SET immich_url = ?, immich_api_key = ? WHERE id = ?').run(
+    await asyncDb.prepare('UPDATE users SET immich_url = ?, immich_api_key = ? WHERE id = ?').run(
       immichUrl.trim(),
       maybe_encrypt_api_key(immichApiKey),
       userId,
     );
     if (ssrf.isPrivate) {
-      writeAudit({
+      await writeAuditAsync({
         userId,
         action: 'immich.private_ip_configured',
         ip: clientIp,
@@ -69,7 +96,7 @@ export async function saveImmichSettings(
       };
     }
   } else {
-    db.prepare('UPDATE users SET immich_url = ?, immich_api_key = ? WHERE id = ?').run(
+    await asyncDb.prepare('UPDATE users SET immich_url = ?, immich_api_key = ? WHERE id = ?').run(
       null,
       maybe_encrypt_api_key(immichApiKey),
       userId,
@@ -118,7 +145,7 @@ export async function testConnection(
 export async function getConnectionStatus(
   userId: number,
 ): Promise<{ connected: boolean; error?: string; user?: { name?: string; email?: string } }> {
-  const creds = getImmichCredentials(userId);
+  const creds = await getImmichCredentialsAsync(userId);
   if (!creds) return { connected: false, error: 'Not configured' };
   try {
     const resp = await safeFetch(`${creds.immich_url}/api/users/me`, {
@@ -136,7 +163,7 @@ export async function getConnectionStatus(
 // ── Browse Timeline / Search ───────────────────────────────────────────────
 
 export async function browseTimeline(userId: number): Promise<{ buckets?: any; error?: string; status?: number }> {
-  const creds = getImmichCredentials(userId);
+  const creds = await getImmichCredentialsAsync(userId);
   if (!creds) return { error: 'Immich not configured', status: 400 };
 
   try {
@@ -160,7 +187,7 @@ export async function searchPhotos(
   page: number = 1,
   size: number = 50,
 ): Promise<{ assets?: any[]; hasMore?: boolean; error?: string; status?: number }> {
-  const creds = getImmichCredentials(userId);
+  const creds = await getImmichCredentialsAsync(userId);
   if (!creds) return { error: 'Immich not configured', status: 400 };
 
   try {
@@ -199,7 +226,7 @@ export async function getAssetInfo(
   ownerUserId?: number,
 ): Promise<{ data?: any; error?: string; status?: number }> {
   const effectiveUserId = ownerUserId ?? userId;
-  const creds = getImmichCredentials(effectiveUserId);
+  const creds = await getImmichCredentialsAsync(effectiveUserId);
   if (!creds) return { error: 'Not found', status: 404 };
 
   try {
@@ -241,7 +268,7 @@ export async function fetchImmichThumbnailBytes(
   ownerUserId?: number,
 ): Promise<{ bytes: Buffer; contentType: string } | { error: string; status: number }> {
   const effectiveUserId = ownerUserId ?? userId;
-  const creds = getImmichCredentials(effectiveUserId);
+  const creds = await getImmichCredentialsAsync(effectiveUserId);
   if (!creds) return { error: 'Not found', status: 404 };
 
   const url = `${creds.immich_url}/api/assets/${assetId}/thumbnail?size=thumbnail`;
@@ -267,7 +294,7 @@ export async function streamImmichAsset(
   ownerUserId?: number,
 ): Promise<{ error?: string; status?: number } | void> {
   const effectiveUserId = ownerUserId ?? userId;
-  const creds = getImmichCredentials(effectiveUserId);
+  const creds = await getImmichCredentialsAsync(effectiveUserId);
   if (!creds) return { error: 'Not found', status: 404 };
 
   const timeout = kind === 'thumbnail' ? 10000 : 30000;
@@ -288,7 +315,7 @@ export async function streamImmichAsset(
 // ── Albums ──────────────────────────────────────────────────────────────────
 
 export async function listAlbums(userId: number): Promise<{ albums?: any[]; error?: string; status?: number }> {
-  const creds = getImmichCredentials(userId);
+  const creds = await getImmichCredentialsAsync(userId);
   if (!creds) return { error: 'Immich not configured', status: 400 };
 
   try {
@@ -331,7 +358,7 @@ export async function getAlbumPhotos(
   userId: number,
   albumId: string,
 ): Promise<{ assets?: any[]; error?: string; status?: number }> {
-  const creds = getImmichCredentials(userId);
+  const creds = await getImmichCredentialsAsync(userId);
   if (!creds) return { error: 'Immich not configured', status: 400 };
 
   try {
@@ -364,7 +391,7 @@ export async function syncAlbumAssets(
   const response = await getAlbumIdFromLink(tripId, linkId, userId);
   if (!response.success) return { error: 'Album link not found', status: 404 };
 
-  const creds = getImmichCredentials(userId);
+  const creds = await getImmichCredentialsAsync(userId);
   if (!creds) return { error: 'Immich not configured', status: 400 };
 
   try {
@@ -384,7 +411,7 @@ export async function syncAlbumAssets(
     const result = await addTripPhotos(tripId, userId, true, [selection], sid, linkId);
     if ('error' in result) return { error: result.error.message, status: result.error.status };
 
-    updateSyncTimeForAlbumLink(linkId);
+    await updateSyncTimeForAlbumLinkAsync(linkId);
 
     return { success: true, added: result.data.added, total: assets.length };
   } catch {
@@ -395,7 +422,7 @@ export async function syncAlbumAssets(
 // ── Upload to Immich ──────────────────────────────────────────────────────
 
 export async function uploadToImmich(userId: number, filePath: string, fileName: string): Promise<string | null> {
-  const creds = getImmichCredentials(userId);
+  const creds = await getImmichCredentialsAsync(userId);
   if (!creds) return null;
 
   const fs = await import('node:fs');
@@ -457,3 +484,18 @@ export async function uploadToImmich(userId: number, filePath: string, fileName:
     return null;
   }
 }
+
+export {
+  saveImmichSettings as saveImmichSettingsAsync,
+  testConnection as testConnectionAsync,
+  getConnectionStatus as getConnectionStatusAsync,
+  browseTimeline as browseTimelineAsync,
+  searchPhotos as searchPhotosAsync,
+  getAssetInfo as getAssetInfoAsync,
+  fetchImmichThumbnailBytes as fetchImmichThumbnailBytesAsync,
+  streamImmichAsset as streamImmichAssetAsync,
+  listAlbums as listAlbumsAsync,
+  getAlbumPhotos as getAlbumPhotosAsync,
+  syncAlbumAssets as syncAlbumAssetsAsync,
+  uploadToImmich as uploadToImmichAsync,
+};

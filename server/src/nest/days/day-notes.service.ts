@@ -48,7 +48,7 @@ export class DayNotesService {
     return dayNoteService.updateNote(id, current, fields);
   }
 
-  remove(id: string): void {
-    dayNoteService.deleteNote(id);
+  remove(id: string) {
+    return dayNoteService.deleteNote(id);
   }
 }

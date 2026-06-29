@@ -37,13 +37,18 @@ export class FilesService {
   }
 
   listFiles(tripId: string, showTrash: boolean) {
-    return svc.listFiles(tripId, showTrash);
+    const fn = (svc as typeof svc & { listFilesAsync?: typeof svc.listFiles }).listFilesAsync ?? svc.listFiles;
+    return fn(tripId, showTrash);
   }
   getFileById(id: string, tripId: string) {
-    return svc.getFileById(id, tripId);
+    const fn = (svc as typeof svc & { getFileByIdAsync?: typeof svc.getFileById }).getFileByIdAsync ?? svc.getFileById;
+    return fn(id, tripId);
   }
   getDeletedFile(id: string, tripId: string) {
-    return svc.getDeletedFile(id, tripId);
+    const fn =
+      (svc as typeof svc & { getDeletedFileAsync?: typeof svc.getDeletedFile }).getDeletedFileAsync ??
+      svc.getDeletedFile;
+    return fn(id, tripId);
   }
   createFile(
     tripId: string,
@@ -51,19 +56,28 @@ export class FilesService {
     userId: number,
     opts: Parameters<typeof svc.createFile>[3],
   ) {
-    return svc.createFile(tripId, file, userId, opts);
+    const fn = (svc as typeof svc & { createFileAsync?: typeof svc.createFile }).createFileAsync ?? svc.createFile;
+    return fn(tripId, file, userId, opts);
   }
   updateFile(id: string, current: TripFile, updates: Parameters<typeof svc.updateFile>[2]) {
-    return svc.updateFile(id, current, updates);
+    const fn = (svc as typeof svc & { updateFileAsync?: typeof svc.updateFile }).updateFileAsync ?? svc.updateFile;
+    return fn(id, current, updates);
   }
   toggleStarred(id: string, currentStarred: number | undefined) {
-    return svc.toggleStarred(id, currentStarred);
+    const fn =
+      (svc as typeof svc & { toggleStarredAsync?: typeof svc.toggleStarred }).toggleStarredAsync ??
+      svc.toggleStarred;
+    return fn(id, currentStarred);
   }
   softDeleteFile(id: string) {
-    return svc.softDeleteFile(id);
+    const fn =
+      (svc as typeof svc & { softDeleteFileAsync?: typeof svc.softDeleteFile }).softDeleteFileAsync ??
+      svc.softDeleteFile;
+    return fn(id);
   }
   restoreFile(id: string) {
-    return svc.restoreFile(id);
+    const fn = (svc as typeof svc & { restoreFileAsync?: typeof svc.restoreFile }).restoreFileAsync ?? svc.restoreFile;
+    return fn(id);
   }
   permanentDeleteFile(file: TripFile) {
     return svc.permanentDeleteFile(file);
@@ -72,12 +86,19 @@ export class FilesService {
     return svc.emptyTrash(tripId);
   }
   createFileLink(id: string, opts: Parameters<typeof svc.createFileLink>[1]) {
-    return svc.createFileLink(id, opts);
+    const fn =
+      (svc as typeof svc & { createFileLinkAsync?: typeof svc.createFileLink }).createFileLinkAsync ??
+      svc.createFileLink;
+    return fn(id, opts);
   }
   deleteFileLink(linkId: string, id: string) {
-    return svc.deleteFileLink(linkId, id);
+    const fn =
+      (svc as typeof svc & { deleteFileLinkAsync?: typeof svc.deleteFileLink }).deleteFileLinkAsync ??
+      svc.deleteFileLink;
+    return fn(linkId, id);
   }
   getFileLinks(id: string) {
-    return svc.getFileLinks(id);
+    const fn = (svc as typeof svc & { getFileLinksAsync?: typeof svc.getFileLinks }).getFileLinksAsync ?? svc.getFileLinks;
+    return fn(id);
   }
 }

@@ -1,3 +1,5 @@
+import { asyncDb } from '../db/asyncDatabase';
+import type { AsyncStatement } from '../db/asyncTypes';
 import { db } from '../db/database';
 import { decrypt_api_key } from './apiKeyCrypto';
 
@@ -53,6 +55,12 @@ function getAppSetting(key: string): string | null {
   );
 }
 
+async function getAppSettingAsync(key: string): Promise<string | null> {
+  return (
+    (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value || null
+  );
+}
+
 // ── Active channels (admin-configured) ────────────────────────────────────
 
 /**
@@ -62,6 +70,16 @@ function getAppSetting(key: string): string | null {
  */
 export function getActiveChannels(): NotifChannel[] {
   const raw = getAppSetting('notification_channels') || getAppSetting('notification_channel') || 'none';
+  if (raw === 'none') return [];
+  return raw
+    .split(',')
+    .map((c) => c.trim())
+    .filter((c): c is NotifChannel => c === 'email' || c === 'webhook' || c === 'ntfy');
+}
+
+export async function getActiveChannelsAsync(): Promise<NotifChannel[]> {
+  const raw =
+    (await getAppSettingAsync('notification_channels')) || (await getAppSettingAsync('notification_channel')) || 'none';
   if (raw === 'none') return [];
   return raw
     .split(',')
@@ -84,6 +102,17 @@ export function getAvailableChannels(): AvailableChannels {
   };
 }
 
+export async function getAvailableChannelsAsync(): Promise<AvailableChannels> {
+  const hasSmtp = !!(process.env.SMTP_HOST || (await getAppSettingAsync('smtp_host')));
+  const activeChannels = await getActiveChannelsAsync();
+  return {
+    email: hasSmtp,
+    webhook: activeChannels.includes('webhook'),
+    ntfy: activeChannels.includes('ntfy'),
+    inapp: true,
+  };
+}
+
 // ── Per-user preference checks ─────────────────────────────────────────────
 
 /**
@@ -96,6 +125,19 @@ export function isEnabledForEvent(userId: number, eventType: NotifEventType, cha
       'SELECT enabled FROM notification_channel_preferences WHERE user_id = ? AND event_type = ? AND channel = ?',
     )
     .get(userId, eventType, channel) as { enabled: number } | undefined;
+  return row === undefined || row.enabled === 1;
+}
+
+export async function isEnabledForEventAsync(
+  userId: number,
+  eventType: NotifEventType,
+  channel: NotifChannel,
+): Promise<boolean> {
+  const row = await asyncDb
+    .prepare(
+      'SELECT enabled FROM notification_channel_preferences WHERE user_id = ? AND event_type = ? AND channel = ?',
+    )
+    .get<{ enabled: number }>(userId, eventType, channel);
   return row === undefined || row.enabled === 1;
 }
 
@@ -183,6 +225,70 @@ export function getPreferencesMatrix(
   };
 }
 
+export async function getPreferencesMatrixAsync(
+  userId: number,
+  userRole: string,
+  scope: 'user' | 'admin' = 'user',
+): Promise<PreferencesMatrix> {
+  const rows = await asyncDb
+    .prepare('SELECT event_type, channel, enabled FROM notification_channel_preferences WHERE user_id = ?')
+    .all<{ event_type: string; channel: string; enabled: number }>(userId);
+
+  const stored: Partial<Record<string, Partial<Record<string, boolean>>>> = {};
+  for (const row of rows) {
+    if (!stored[row.event_type]) stored[row.event_type] = {};
+    stored[row.event_type]![row.channel] = row.enabled === 1;
+  }
+
+  const preferences: Partial<Record<NotifEventType, Partial<Record<NotifChannel, boolean>>>> = {};
+  const allEvents = Object.keys(IMPLEMENTED_COMBOS) as NotifEventType[];
+
+  for (const eventType of allEvents) {
+    const channels = IMPLEMENTED_COMBOS[eventType];
+    preferences[eventType] = {};
+    for (const channel of channels) {
+      if (
+        scope === 'admin' &&
+        ADMIN_SCOPED_EVENTS.has(eventType) &&
+        (channel === 'email' || channel === 'webhook' || channel === 'ntfy')
+      ) {
+        preferences[eventType]![channel] = await getAdminGlobalPrefAsync(eventType, channel);
+      } else {
+        preferences[eventType]![channel] = stored[eventType]?.[channel] ?? true;
+      }
+    }
+  }
+
+  const event_types =
+    scope === 'admin'
+      ? allEvents.filter((e) => ADMIN_SCOPED_EVENTS.has(e))
+      : allEvents.filter((e) => !ADMIN_SCOPED_EVENTS.has(e));
+
+  let available_channels: AvailableChannels;
+  if (scope === 'admin') {
+    const hasSmtp = !!(process.env.SMTP_HOST || (await getAppSettingAsync('smtp_host')));
+    const hasAdminWebhook = !!(await getAppSettingAsync('admin_webhook_url'));
+    const hasAdminNtfy = !!(await getAppSettingAsync('admin_ntfy_topic'));
+    available_channels = { email: hasSmtp, webhook: hasAdminWebhook, ntfy: hasAdminNtfy, inapp: true };
+  } else {
+    const activeChannels = await getActiveChannelsAsync();
+    available_channels = {
+      email: activeChannels.includes('email'),
+      webhook: activeChannels.includes('webhook'),
+      ntfy: activeChannels.includes('ntfy'),
+      inapp: true,
+    };
+  }
+
+  return {
+    preferences,
+    available_channels,
+    event_types,
+    implemented_combos: IMPLEMENTED_COMBOS,
+    ...(scope === 'user' && { defaults: { ntfyServer: (await getAppSettingAsync('admin_ntfy_server')) || null } }),
+  };
+}
+
 // ── Admin global preferences (stored in app_settings) ─────────────────────
 
 const ADMIN_GLOBAL_CHANNELS: NotifChannel[] = ['email', 'webhook', 'ntfy'];
@@ -197,11 +303,29 @@ export function getAdminGlobalPref(event: NotifEventType, channel: 'email' | 'we
   return val !== '0';
 }
 
+export async function getAdminGlobalPrefAsync(
+  event: NotifEventType,
+  channel: 'email' | 'webhook' | 'ntfy',
+): Promise<boolean> {
+  const val = await getAppSettingAsync(`admin_notif_pref_${event}_${channel}`);
+  return val !== '0';
+}
+
 function setAdminGlobalPref(event: NotifEventType, channel: 'email' | 'webhook' | 'ntfy', enabled: boolean): void {
   db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)').run(
     `admin_notif_pref_${event}_${channel}`,
     enabled ? '1' : '0',
   );
+}
+
+async function setAdminGlobalPrefAsync(
+  event: NotifEventType,
+  channel: 'email' | 'webhook' | 'ntfy',
+  enabled: boolean,
+): Promise<void> {
+  await asyncDb
+    .prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)')
+    .run(`admin_notif_pref_${event}_${channel}`, enabled ? '1' : '0');
 }
 
 // ── Preferences update ─────────────────────────────────────────────────────
@@ -227,6 +351,24 @@ function applyUserChannelPrefs(
   }
 }
 
+async function applyUserChannelPrefsAsync(
+  userId: number,
+  prefs: Partial<Record<string, Partial<Record<string, boolean>>>>,
+  upsert: AsyncStatement,
+  del: AsyncStatement,
+): Promise<void> {
+  for (const [eventType, channels] of Object.entries(prefs)) {
+    if (!channels) continue;
+    for (const [channel, enabled] of Object.entries(channels)) {
+      if (enabled) {
+        await del.run(userId, eventType, channel);
+      } else {
+        await upsert.run(userId, eventType, channel, 0);
+      }
+    }
+  }
+}
+
 /**
  * Bulk-update preferences from the matrix UI.
  * Inserts disabled rows (enabled=0) and removes rows that are enabled (default).
@@ -239,6 +381,19 @@ export function setPreferences(userId: number, prefs: Partial<Record<string, Par
     'DELETE FROM notification_channel_preferences WHERE user_id = ? AND event_type = ? AND channel = ?',
   );
   db.transaction(() => applyUserChannelPrefs(userId, prefs, upsert, del))();
+}
+
+export async function setPreferencesAsync(
+  userId: number,
+  prefs: Partial<Record<string, Partial<Record<string, boolean>>>>,
+): Promise<void> {
+  const upsert = asyncDb.prepare(
+    'INSERT OR REPLACE INTO notification_channel_preferences (user_id, event_type, channel, enabled) VALUES (?, ?, ?, ?)',
+  );
+  const del = asyncDb.prepare(
+    'DELETE FROM notification_channel_preferences WHERE user_id = ? AND event_type = ? AND channel = ?',
+  );
+  await asyncDb.transaction(() => applyUserChannelPrefsAsync(userId, prefs, upsert, del))();
 }
 
 /**
@@ -286,12 +441,57 @@ export function setAdminPreferences(
   db.transaction(() => applyUserChannelPrefs(userId, userPrefs, upsert, del))();
 }
 
+export async function setAdminPreferencesAsync(
+  userId: number,
+  prefs: Partial<Record<string, Partial<Record<string, boolean>>>>,
+): Promise<void> {
+  const upsert = asyncDb.prepare(
+    'INSERT OR REPLACE INTO notification_channel_preferences (user_id, event_type, channel, enabled) VALUES (?, ?, ?, ?)',
+  );
+  const del = asyncDb.prepare(
+    'DELETE FROM notification_channel_preferences WHERE user_id = ? AND event_type = ? AND channel = ?',
+  );
+
+  const globalPrefs: Partial<Record<string, Partial<Record<string, boolean>>>> = {};
+  const userPrefs: Partial<Record<string, Partial<Record<string, boolean>>>> = {};
+
+  for (const [eventType, channels] of Object.entries(prefs)) {
+    if (!channels) continue;
+    for (const [channel, enabled] of Object.entries(channels)) {
+      if (ADMIN_GLOBAL_CHANNELS.includes(channel as NotifChannel)) {
+        if (!globalPrefs[eventType]) globalPrefs[eventType] = {};
+        globalPrefs[eventType]![channel] = enabled;
+      } else {
+        if (!userPrefs[eventType]) userPrefs[eventType] = {};
+        userPrefs[eventType]![channel] = enabled;
+      }
+    }
+  }
+
+  for (const [eventType, channels] of Object.entries(globalPrefs)) {
+    if (!channels) continue;
+    for (const [channel, enabled] of Object.entries(channels)) {
+      await setAdminGlobalPrefAsync(eventType as NotifEventType, channel as 'email' | 'webhook' | 'ntfy', enabled);
+    }
+  }
+
+  await asyncDb.transaction(() => applyUserChannelPrefsAsync(userId, userPrefs, upsert, del))();
+}
+
 // ── SMTP availability helper (for authService) ─────────────────────────────
 
 export function isSmtpConfigured(): boolean {
   return !!(process.env.SMTP_HOST || getAppSetting('smtp_host'));
 }
 
+export async function isSmtpConfiguredAsync(): Promise<boolean> {
+  return !!(process.env.SMTP_HOST || (await getAppSettingAsync('smtp_host')));
+}
+
 export function isWebhookConfigured(): boolean {
   return getActiveChannels().includes('webhook');
+}
+
+export async function isWebhookConfiguredAsync(): Promise<boolean> {
+  return (await getActiveChannelsAsync()).includes('webhook');
 }

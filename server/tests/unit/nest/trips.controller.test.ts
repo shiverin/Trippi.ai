@@ -292,19 +292,19 @@ describe('TripsController (parity with the legacy /api/trips route)', () => {
       });
     });
 
-    it('deletes, audits and broadcasts', () => {
+    it('deletes, audits and broadcasts', async () => {
       const remove = vi.fn().mockReturnValue({ tripId: 9, title: 'T', isAdminDelete: false });
       const broadcast = vi.fn();
       const s = svc({ getOwner: vi.fn().mockReturnValue({ user_id: 1 }), remove, broadcast } as Partial<TripsService>);
-      expect(new TripsController(s).remove(user, '9', req, 'sock')).toEqual({ success: true });
+      expect(await new TripsController(s).remove(user, '9', req, 'sock')).toEqual({ success: true });
       expect(broadcast).toHaveBeenCalledWith('9', 'trip:deleted', { id: 9 }, 'sock');
     });
 
-    it('admin delete logs the owner', () => {
+    it('admin delete logs the owner', async () => {
       const remove = vi.fn().mockReturnValue({ tripId: 9, title: 'T', isAdminDelete: true, ownerEmail: 'owner@x.y' });
       const broadcast = vi.fn();
       const s = svc({ getOwner: vi.fn().mockReturnValue({ user_id: 2 }), remove, broadcast } as Partial<TripsService>);
-      expect(new TripsController(s).remove(user, '9', req)).toEqual({ success: true });
+      expect(await new TripsController(s).remove(user, '9', req)).toEqual({ success: true });
       expect(broadcast).toHaveBeenCalledWith('9', 'trip:deleted', { id: 9 }, undefined);
     });
   });

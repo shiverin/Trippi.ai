@@ -1,3 +1,4 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import type { User } from '../types';
 import { generateToken, stripUserForClient, avatarUrl } from './authService';
@@ -401,5 +402,22 @@ export function adminResetPasskeys(targetUserId: number): {
     | undefined;
   if (!target) return { error: 'User not found', status: 404 };
   const result = db.prepare('DELETE FROM webauthn_credentials WHERE user_id = ?').run(targetUserId);
+  return { success: true, deleted: result.changes, email: target.email };
+}
+
+/** Admin: clear all of a user's passkeys via async DB for Nest admin request paths. */
+export async function adminResetPasskeysAsync(targetUserId: number): Promise<{
+  error?: string;
+  status?: number;
+  success?: boolean;
+  deleted?: number;
+  email?: string;
+}> {
+  const target = await asyncDb.prepare('SELECT id, email FROM users WHERE id = ?').get<{
+    id: number;
+    email: string;
+  }>(targetUserId);
+  if (!target) return { error: 'User not found', status: 404 };
+  const result = await asyncDb.prepare('DELETE FROM webauthn_credentials WHERE user_id = ?').run(targetUserId);
   return { success: true, deleted: result.changes, email: target.email };
 }

@@ -12,9 +12,16 @@ import { getFlightDistanceKm } from './distanceService';
 import { createEphemeralToken } from './ephemeralTokens';
 import { encryptMfaSecret, decryptMfaSecret } from './mfaCrypto';
 import { validatePassword } from './passwordPolicy';
-import { getAllPermissions } from './permissions';
+import { getAllPermissions, getAllPermissionsAsync } from './permissions';
 import { deleteUserCompletely } from './userCleanupService';
-import { isPasskeyConfigured, isPasskeyConfiguredAsync } from './webauthnConfig';
+import { isPasskeyConfigured, isPasskeyConfiguredAsync, resolveWebauthnConfigAsync } from './webauthnConfig';
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+  type AuthenticatorTransportFuture,
+} from '@simplewebauthn/server';
 
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -721,7 +728,7 @@ export async function getAppConfigAsync(authenticatedUser: { id: number } | null
     places_photos_enabled: placesPhotosEnabled,
     places_autocomplete_enabled: placesAutocompleteEnabled,
     places_details_enabled: placesDetailsEnabled,
-    permissions: authenticatedUser ? getAllPermissions() : undefined,
+    permissions: authenticatedUser ? await getAllPermissionsAsync() : undefined,
     dev_mode: process.env.NODE_ENV === 'development',
   };
 }
@@ -741,6 +748,22 @@ export function demoLogin(): { error?: string; status?: number; token?: string; 
   return { token, user: { ...safe, avatar_url: avatarUrl(user) } };
 }
 
+export async function demoLoginAsync(): Promise<{
+  error?: string;
+  status?: number;
+  token?: string;
+  user?: Record<string, unknown>;
+}> {
+  if (process.env.DEMO_MODE !== 'true') {
+    return { error: 'Not found', status: 404 };
+  }
+  const user = await asyncDb.prepare('SELECT * FROM users WHERE email = ?').get<User>(DEMO_EMAIL_PRIMARY);
+  if (!user) return { error: 'Demo user not found', status: 500 };
+  const token = await generateTokenAsync(user);
+  const safe = stripUserForClient(user) as Record<string, unknown>;
+  return { token, user: { ...safe, avatar_url: avatarUrl(user) } };
+}
+
 export function validateInviteToken(token: string): {
   error?: string;
   status?: number;
@@ -750,6 +773,25 @@ export function validateInviteToken(token: string): {
   expires_at?: string;
 } {
   const invite = db.prepare('SELECT * FROM invite_tokens WHERE token = ?').get(token) as any;
+  if (!invite) return { error: 'Invalid invite link', status: 404 };
+  if (invite.max_uses > 0 && invite.used_count >= invite.max_uses)
+    return { error: 'Invite link has been fully used', status: 410 };
+  if (invite.expires_at && new Date(invite.expires_at) < new Date())
+    return { error: 'Invite link has expired', status: 410 };
+  return { valid: true, max_uses: invite.max_uses, used_count: invite.used_count, expires_at: invite.expires_at };
+}
+
+export async function validateInviteTokenAsync(token: string): Promise<{
+  error?: string;
+  status?: number;
+  valid?: boolean;
+  max_uses?: number;
+  used_count?: number;
+  expires_at?: string;
+}> {
+  const invite = await asyncDb
+    .prepare('SELECT * FROM invite_tokens WHERE token = ?')
+    .get<{ max_uses: number; used_count: number; expires_at?: string }>(token);
   if (!invite) return { error: 'Invalid invite link', status: 404 };
   if (invite.max_uses > 0 && invite.used_count >= invite.max_uses)
     return { error: 'Invite link has been fully used', status: 410 };
@@ -1219,6 +1261,61 @@ export function changePassword(
   return { success: true, token };
 }
 
+export async function changePasswordAsync(
+  userId: number,
+  userEmail: string,
+  body: { current_password?: string; new_password?: string },
+): Promise<{ error?: string; status?: number; success?: boolean; token?: string }> {
+  if (await isOidcOnlyModeAsync()) {
+    return { error: 'Password authentication is disabled.', status: 403 };
+  }
+  if (process.env.DEMO_MODE === 'true' && isDemoEmail(userEmail)) {
+    return { error: 'Password change is disabled in demo mode.', status: 403 };
+  }
+
+  const { current_password, new_password } = body;
+  if (!current_password) return { error: 'Current password is required', status: 400 };
+  if (!new_password) return { error: 'New password is required', status: 400 };
+
+  const pwCheck = validatePassword(new_password);
+  if (!pwCheck.ok) return { error: pwCheck.reason, status: 400 };
+
+  const user = await asyncDb
+    .prepare('SELECT password_hash, password_version FROM users WHERE id = ?')
+    .get<{ password_hash: string; password_version?: number }>(userId);
+  if (!user || !bcrypt.compareSync(current_password, user.password_hash)) {
+    return { error: 'Current password is incorrect', status: 401 };
+  }
+
+  const hash = bcrypt.hashSync(new_password, BCRYPT_COST);
+  const newPv = (user.password_version ?? 0) + 1;
+
+  await asyncDb.transaction(async () => {
+    await asyncDb
+      .prepare(
+        'UPDATE users SET password_hash = ?, must_change_password = 0, password_version = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      )
+      .run(hash, newPv, userId);
+    await asyncDb.prepare('DELETE FROM mcp_tokens WHERE user_id = ?').run(userId);
+    try {
+      await asyncDb
+        .prepare('UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL')
+        .run(userId);
+    } catch {
+      /* oauth_tokens table may not exist in very old installs */
+    }
+  })();
+
+  try {
+    revokeUserSessions?.(userId);
+  } catch {
+    /* best-effort */
+  }
+
+  const token = await generateTokenAsync({ id: userId, password_version: newPv });
+  return { success: true, token };
+}
+
 export function deleteAccount(
   userId: number,
   userEmail: string,
@@ -1239,6 +1336,36 @@ export function deleteAccount(
   return { success: true };
 }
 
+export async function deleteAccountAsync(
+  userId: number,
+  userEmail: string,
+  userRole: string,
+): Promise<{ error?: string; status?: number; success?: boolean }> {
+  if (process.env.DEMO_MODE === 'true' && isDemoEmail(userEmail)) {
+    return { error: 'Account deletion is disabled in demo mode.', status: 403 };
+  }
+  if (userRole === 'admin') {
+    const adminCount =
+      (await asyncDb.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get<{ count: number }>())
+        ?.count ?? 0;
+    if (adminCount <= 1) {
+      return { error: 'Cannot delete the last admin account', status: 400 };
+    }
+  }
+
+  await asyncDb.transaction(async () => {
+    await asyncDb.prepare('UPDATE trip_members SET invited_by = NULL WHERE invited_by = ?').run(userId);
+    await asyncDb.prepare('UPDATE budget_items SET paid_by_user_id = NULL WHERE paid_by_user_id = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM share_tokens WHERE created_by = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM journey_share_tokens WHERE created_by = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM journeys WHERE user_id = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM journey_entries WHERE author_id = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM journey_contributors WHERE user_id = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  })();
+  return { success: true };
+}
+
 // ---------------------------------------------------------------------------
 // API keys
 // ---------------------------------------------------------------------------
@@ -1248,6 +1375,13 @@ export function updateMapsKey(userId: number, maps_api_key: string | null | unde
     maybe_encrypt_api_key(maps_api_key),
     userId,
   );
+  return { success: true, maps_api_key: mask_stored_api_key(maps_api_key) };
+}
+
+export async function updateMapsKeyAsync(userId: number, maps_api_key: string | null | undefined) {
+  await asyncDb
+    .prepare('UPDATE users SET maps_api_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(maybe_encrypt_api_key(maps_api_key), userId);
   return { success: true, maps_api_key: mask_stored_api_key(maps_api_key) };
 }
 
@@ -1276,6 +1410,49 @@ export function updateApiKeys(userId: number, body: { maps_api_key?: string; ope
         'id' | 'username' | 'email' | 'role' | 'maps_api_key' | 'openweather_api_key' | 'avatar' | 'mfa_enabled'
       >
     | undefined;
+
+  const u = updated
+    ? { ...updated, mfa_enabled: !!(updated.mfa_enabled === 1 || updated.mfa_enabled === true) }
+    : undefined;
+  return {
+    success: true,
+    user: {
+      ...u,
+      maps_api_key: mask_stored_api_key(u?.maps_api_key),
+      openweather_api_key: mask_stored_api_key(u?.openweather_api_key),
+      avatar_url: avatarUrl(updated || {}),
+    },
+  };
+}
+
+export async function updateApiKeysAsync(
+  userId: number,
+  body: { maps_api_key?: string; openweather_api_key?: string },
+) {
+  const current = await asyncDb
+    .prepare('SELECT maps_api_key, openweather_api_key FROM users WHERE id = ?')
+    .get<Pick<User, 'maps_api_key' | 'openweather_api_key'>>(userId);
+
+  await asyncDb
+    .prepare('UPDATE users SET maps_api_key = ?, openweather_api_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(
+      body.maps_api_key !== undefined ? maybe_encrypt_api_key(body.maps_api_key) : current!.maps_api_key,
+      body.openweather_api_key !== undefined
+        ? maybe_encrypt_api_key(body.openweather_api_key)
+        : current!.openweather_api_key,
+      userId,
+    );
+
+  const updated = await asyncDb
+    .prepare(
+      'SELECT id, username, email, role, maps_api_key, openweather_api_key, avatar, mfa_enabled FROM users WHERE id = ?',
+    )
+    .get<
+      Pick<
+        User,
+        'id' | 'username' | 'email' | 'role' | 'maps_api_key' | 'openweather_api_key' | 'avatar' | 'mfa_enabled'
+      >
+    >(userId);
 
   const u = updated
     ? { ...updated, mfa_enabled: !!(updated.mfa_enabled === 1 || updated.mfa_enabled === true) }
@@ -1371,10 +1548,108 @@ export function updateSettings(
   };
 }
 
+export async function updateSettingsAsync(
+  userId: number,
+  body: { maps_api_key?: string; openweather_api_key?: string; username?: string; email?: string },
+): Promise<{ error?: string; status?: number; success?: boolean; user?: Record<string, unknown> }> {
+  const { maps_api_key, openweather_api_key, username, email } = body;
+
+  if (username !== undefined) {
+    const trimmed = username.trim();
+    if (!trimmed || trimmed.length < 2 || trimmed.length > 50) {
+      return { error: 'Username must be between 2 and 50 characters', status: 400 };
+    }
+    if (!/^[a-zA-Z0-9_.-]+$/.test(trimmed)) {
+      return { error: 'Username can only contain letters, numbers, underscores, dots and hyphens', status: 400 };
+    }
+    const conflict = await asyncDb
+      .prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?')
+      .get(trimmed, userId);
+    if (conflict) return { error: 'Username already taken', status: 409 };
+  }
+
+  if (email !== undefined) {
+    const trimmed = email.trim();
+    if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
+      return { error: 'Invalid email format', status: 400 };
+    }
+    const conflict = await asyncDb
+      .prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?')
+      .get(trimmed, userId);
+    if (conflict) return { error: 'Email already taken', status: 409 };
+  }
+
+  const updates: string[] = [];
+  const params: (string | number | null)[] = [];
+
+  if (maps_api_key !== undefined) {
+    updates.push('maps_api_key = ?');
+    params.push(maybe_encrypt_api_key(maps_api_key));
+  }
+  if (openweather_api_key !== undefined) {
+    updates.push('openweather_api_key = ?');
+    params.push(maybe_encrypt_api_key(openweather_api_key));
+  }
+  if (username !== undefined) {
+    updates.push('username = ?');
+    params.push(username.trim());
+  }
+  if (email !== undefined) {
+    updates.push('email = ?');
+    params.push(email.trim());
+  }
+
+  if (updates.length > 0) {
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(userId);
+    await asyncDb.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  }
+
+  const updated = await asyncDb
+    .prepare(
+      'SELECT id, username, email, role, maps_api_key, openweather_api_key, avatar, mfa_enabled FROM users WHERE id = ?',
+    )
+    .get<
+      Pick<
+        User,
+        'id' | 'username' | 'email' | 'role' | 'maps_api_key' | 'openweather_api_key' | 'avatar' | 'mfa_enabled'
+      >
+    >(userId);
+
+  const u = updated
+    ? { ...updated, mfa_enabled: !!(updated.mfa_enabled === 1 || updated.mfa_enabled === true) }
+    : undefined;
+  return {
+    success: true,
+    user: {
+      ...u,
+      maps_api_key: mask_stored_api_key(u?.maps_api_key),
+      openweather_api_key: mask_stored_api_key(u?.openweather_api_key),
+      avatar_url: avatarUrl(updated || {}),
+    },
+  };
+}
+
 export function getSettings(userId: number): { error?: string; status?: number; settings?: Record<string, unknown> } {
   const user = db.prepare('SELECT role, maps_api_key, openweather_api_key FROM users WHERE id = ?').get(userId) as
     | Pick<User, 'role' | 'maps_api_key' | 'openweather_api_key'>
     | undefined;
+  if (user?.role !== 'admin') return { error: 'Admin access required', status: 403 };
+
+  return {
+    settings: {
+      maps_api_key: decrypt_api_key(user.maps_api_key),
+      openweather_api_key: decrypt_api_key(user.openweather_api_key),
+    },
+  };
+}
+
+export async function getSettingsAsync(
+  userId: number,
+): Promise<{ error?: string; status?: number; settings?: Record<string, unknown> }> {
+  const user = await asyncDb
+    .prepare('SELECT role, maps_api_key, openweather_api_key FROM users WHERE id = ?')
+    .get<Pick<User, 'role' | 'maps_api_key' | 'openweather_api_key'>>(userId);
   if (user?.role !== 'admin') return { error: 'Admin access required', status: 403 };
 
   return {
@@ -1390,9 +1665,7 @@ export function getSettings(userId: number): { error?: string; status?: number; 
 // ---------------------------------------------------------------------------
 
 export async function saveAvatar(userId: number, filename: string) {
-  const current = db.prepare('SELECT avatar FROM users WHERE id = ?').get(userId) as
-    | { avatar: string | null }
-    | undefined;
+  const current = await asyncDb.prepare('SELECT avatar FROM users WHERE id = ?').get<{ avatar: string | null }>(userId);
   if (current && current.avatar) {
     // Fire-and-forget: leftover files are harmless; the DB update is
     // the source of truth for which avatar is current.
@@ -1400,23 +1673,21 @@ export async function saveAvatar(userId: number, filename: string) {
     await fs.promises.rm(oldPath, { force: true }).catch(() => {});
   }
 
-  db.prepare('UPDATE users SET avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(filename, userId);
+  await asyncDb.prepare('UPDATE users SET avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(filename, userId);
 
-  const updated = db.prepare('SELECT id, username, email, role, avatar FROM users WHERE id = ?').get(userId) as
-    | Pick<User, 'id' | 'username' | 'email' | 'role' | 'avatar'>
-    | undefined;
+  const updated = await asyncDb
+    .prepare('SELECT id, username, email, role, avatar FROM users WHERE id = ?')
+    .get<Pick<User, 'id' | 'username' | 'email' | 'role' | 'avatar'>>(userId);
   return { success: true, avatar_url: avatarUrl(updated || {}) };
 }
 
 export async function deleteAvatar(userId: number) {
-  const current = db.prepare('SELECT avatar FROM users WHERE id = ?').get(userId) as
-    | { avatar: string | null }
-    | undefined;
+  const current = await asyncDb.prepare('SELECT avatar FROM users WHERE id = ?').get<{ avatar: string | null }>(userId);
   if (current && current.avatar) {
     const filePath = path.join(avatarDir, current.avatar);
     await fs.promises.rm(filePath, { force: true }).catch(() => {});
   }
-  db.prepare('UPDATE users SET avatar = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(userId);
+  await asyncDb.prepare('UPDATE users SET avatar = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(userId);
   return { success: true };
 }
 
@@ -1428,6 +1699,13 @@ export function listUsers(excludeUserId: number) {
   const users = db
     .prepare('SELECT id, username, avatar FROM users WHERE id != ? ORDER BY username ASC')
     .all(excludeUserId) as Pick<User, 'id' | 'username' | 'avatar'>[];
+  return users.map((u) => ({ ...u, avatar_url: avatarUrl(u) }));
+}
+
+export async function listUsersAsync(excludeUserId: number) {
+  const users = await asyncDb
+    .prepare('SELECT id, username, avatar FROM users WHERE id != ? ORDER BY username ASC')
+    .all<Pick<User, 'id' | 'username' | 'avatar'>>(excludeUserId);
   return users.map((u) => ({ ...u, avatar_url: avatarUrl(u) }));
 }
 
@@ -1449,9 +1727,9 @@ export async function validateKeys(userId: number): Promise<{
     error_raw: string | null;
   };
 }> {
-  const user = db.prepare('SELECT role, maps_api_key, openweather_api_key FROM users WHERE id = ?').get(userId) as
-    | Pick<User, 'role' | 'maps_api_key' | 'openweather_api_key'>
-    | undefined;
+  const user = await asyncDb
+    .prepare('SELECT role, maps_api_key, openweather_api_key FROM users WHERE id = ?')
+    .get<Pick<User, 'role' | 'maps_api_key' | 'openweather_api_key'>>(userId);
   if (user?.role !== 'admin')
     return { error: 'Admin access required', status: 403, maps: false, weather: false, maps_details: null };
 
@@ -1543,6 +1821,24 @@ export function getAppSettings(userId: number): { error?: string; status?: numbe
   const result: Record<string, string> = {};
   for (const key of ADMIN_SETTINGS_KEYS) {
     const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined;
+    if (row)
+      result[key] =
+        key === 'smtp_pass' || key === 'admin_webhook_url' || key === 'admin_ntfy_token' ? '••••••••' : row.value;
+  }
+  return { data: result };
+}
+
+export async function getAppSettingsAsync(
+  userId: number,
+): Promise<{ error?: string; status?: number; data?: Record<string, string> }> {
+  const user = await asyncDb.prepare('SELECT role FROM users WHERE id = ?').get<{ role: string }>(userId);
+  if (user?.role !== 'admin') return { error: 'Admin access required', status: 403 };
+
+  const result: Record<string, string> = {};
+  for (const key of ADMIN_SETTINGS_KEYS) {
+    const row = await asyncDb
+      .prepare('SELECT value FROM app_settings WHERE key = ?')
+      .get<{ value: string }>(key);
     if (row)
       result[key] =
         key === 'smtp_pass' || key === 'admin_webhook_url' || key === 'admin_ntfy_token' ? '••••••••' : row.value;
@@ -1646,9 +1942,108 @@ export function updateAppSettings(
   return { success: true, auditSummary: summary, auditDebugDetails: debugDetails, shouldRestartScheduler };
 }
 
+export async function updateAppSettingsAsync(
+  userId: number,
+  body: Record<string, unknown>,
+): Promise<{
+  error?: string;
+  status?: number;
+  success?: boolean;
+  auditSummary?: Record<string, unknown>;
+  auditDebugDetails?: Record<string, unknown>;
+  shouldRestartScheduler?: boolean;
+}> {
+  const user = await asyncDb.prepare('SELECT role FROM users WHERE id = ?').get<{ role: string }>(userId);
+  if (user?.role !== 'admin') return { error: 'Admin access required', status: 403 };
+
+  const { require_mfa } = body;
+  if (require_mfa === true || require_mfa === 'true') {
+    const adminMfa = await asyncDb
+      .prepare('SELECT mfa_enabled FROM users WHERE id = ?')
+      .get<{ mfa_enabled: number }>(userId);
+    const adminHasPasskey = !!(await asyncDb
+      .prepare('SELECT 1 FROM webauthn_credentials WHERE user_id = ? LIMIT 1')
+      .get(userId));
+    if (!(adminMfa?.mfa_enabled === 1) && !adminHasPasskey) {
+      return {
+        error: 'Secure your own account with two-factor authentication or a passkey before requiring it for all users.',
+        status: 400,
+      };
+    }
+  }
+
+  if (body.password_login !== undefined || body.oidc_login !== undefined) {
+    const get = async (key: string) =>
+      (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value;
+    const current = await resolveAuthTogglesAsync();
+    const oidcConfigured = !!(
+      (process.env.OIDC_ISSUER || (await get('oidc_issuer'))) &&
+      (process.env.OIDC_CLIENT_ID || (await get('oidc_client_id')))
+    );
+    const nextPasswordLogin =
+      body.password_login !== undefined ? String(body.password_login) === 'true' : current.password_login;
+    const nextOidcLogin = body.oidc_login !== undefined ? String(body.oidc_login) === 'true' : current.oidc_login;
+    if (!nextPasswordLogin && (!nextOidcLogin || !oidcConfigured)) {
+      return { error: 'Cannot disable all login methods. At least one must remain enabled.', status: 400 };
+    }
+  }
+
+  for (const key of ADMIN_SETTINGS_KEYS) {
+    if (body[key] !== undefined) {
+      let val = String(body[key]);
+      if (key === 'require_mfa') {
+        val = body[key] === true || val === 'true' ? 'true' : 'false';
+      }
+      if (key === 'smtp_pass' && val === '••••••••') continue;
+      if (key === 'smtp_pass') val = encrypt_api_key(val);
+      if (key === 'admin_webhook_url' && val === '••••••••') continue;
+      if (key === 'admin_webhook_url' && val) val = maybe_encrypt_api_key(val) ?? val;
+      if (key === 'admin_ntfy_token' && val === '••••••••') continue;
+      if (key === 'admin_ntfy_token' && val) val = maybe_encrypt_api_key(val) ?? val;
+      await asyncDb.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)').run(key, val);
+    }
+  }
+
+  const changedKeys = ADMIN_SETTINGS_KEYS.filter(
+    (k) => body[k] !== undefined && !(k === 'smtp_pass' && String(body[k]) === '••••••••'),
+  );
+
+  const summary: Record<string, unknown> = {};
+  const smtpChanged = changedKeys.some((k) => k.startsWith('smtp_'));
+  if (changedKeys.includes('notification_channels')) summary.notification_channels = body.notification_channels;
+  if (changedKeys.includes('admin_webhook_url')) summary.admin_webhook_url_updated = true;
+  if (changedKeys.some((k) => k.startsWith('admin_ntfy_'))) summary.admin_ntfy_updated = true;
+  if (smtpChanged) summary.smtp_settings_updated = true;
+  if (changedKeys.includes('allow_registration')) summary.allow_registration = body.allow_registration;
+  if (changedKeys.includes('allowed_file_types')) summary.allowed_file_types_updated = true;
+  if (changedKeys.includes('require_mfa')) summary.require_mfa = body.require_mfa;
+
+  const debugDetails: Record<string, unknown> = {};
+  for (const k of changedKeys) {
+    debugDetails[k] = k === 'smtp_pass' ? '***' : body[k];
+  }
+
+  const notifRelated = ['notification_channels', 'smtp_host'];
+  const shouldRestartScheduler = changedKeys.some((k) => notifRelated.includes(k));
+  if (shouldRestartScheduler) {
+    startTripReminders();
+  }
+
+  return { success: true, auditSummary: summary, auditDebugDetails: debugDetails, shouldRestartScheduler };
+}
+
 // ---------------------------------------------------------------------------
 // Travel stats
 // ---------------------------------------------------------------------------
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export function getTravelStats(userId: number) {
   const places = db
@@ -1733,6 +2128,109 @@ export function getTravelStats(userId: number) {
   };
 }
 
+export async function getTravelStatsAsync(userId: number) {
+  const places = await asyncDb
+    .prepare(
+      `
+    SELECT DISTINCT p.address, p.lat, p.lng
+    FROM places p
+    JOIN trips t ON p.trip_id = t.id
+    LEFT JOIN trip_members tm ON t.id = tm.trip_id
+    WHERE t.user_id = ? OR tm.user_id = ?
+  `,
+    )
+    .all<{ address: string | null; lat: number | null; lng: number | null }>(userId, userId);
+
+  const tripStats = await asyncDb
+    .prepare(
+      `
+    SELECT COUNT(DISTINCT t.id) as trips,
+           COUNT(DISTINCT d.id) as days
+    FROM trips t
+    LEFT JOIN days d ON d.trip_id = t.id
+    LEFT JOIN trip_members tm ON t.id = tm.trip_id
+    WHERE (t.user_id = ? OR tm.user_id = ?)
+  `,
+    )
+    .get<{ trips: number; days: number }>(userId, userId);
+
+  const cities = new Set<string>();
+  const coords: { lat: number; lng: number }[] = [];
+
+  places.forEach((p) => {
+    if (p.lat && p.lng) coords.push({ lat: p.lat, lng: p.lng });
+    if (p.address) {
+      const parts = p.address.split(',').map((s) =>
+        s
+          .trim()
+          .replace(/\d{3,}/g, '')
+          .trim(),
+      );
+      const cityPart = parts.find((s) => !KNOWN_COUNTRIES.has(s) && /^[A-Za-z\u00C0-\u00FF\s-]{2,}$/.test(s));
+      if (cityPart) cities.add(cityPart);
+    }
+  });
+
+  const countryCodes = new Set<string>();
+  const manualCountries = await asyncDb
+    .prepare('SELECT country_code FROM visited_countries WHERE user_id = ?')
+    .all<{ country_code: string }>(userId);
+  manualCountries.forEach((m) => {
+    if (m.country_code) countryCodes.add(m.country_code.toUpperCase());
+  });
+
+  const placeRegionCodes = await asyncDb
+    .prepare(
+      `
+    SELECT DISTINCT pr.country_code
+    FROM place_regions pr
+    JOIN places p ON p.id = pr.place_id
+    JOIN trips t ON p.trip_id = t.id
+    LEFT JOIN trip_members tm ON t.id = tm.trip_id
+    WHERE (t.user_id = ? OR tm.user_id = ?) AND pr.country_code IS NOT NULL
+  `,
+    )
+    .all<{ country_code: string }>(userId, userId);
+  placeRegionCodes.forEach((r) => {
+    if (r.country_code) countryCodes.add(r.country_code.toUpperCase());
+  });
+
+  const flightRows = await asyncDb
+    .prepare(
+      `
+    SELECT re.reservation_id, re.lat, re.lng
+    FROM reservation_endpoints re
+    JOIN reservations r ON r.id = re.reservation_id
+    JOIN trips t ON t.id = r.trip_id
+    LEFT JOIN trip_members tm ON tm.trip_id = t.id AND tm.user_id = ?
+    WHERE (t.user_id = ? OR tm.user_id IS NOT NULL)
+      AND r.type = 'flight'
+      AND r.status != 'cancelled'
+    ORDER BY re.reservation_id, re.sequence
+  `,
+    )
+    .all<{ reservation_id: number; lat: number; lng: number }>(userId, userId);
+
+  let totalDistance = 0;
+  let prev: { id: number; lat: number; lng: number } | null = null;
+  for (const point of flightRows) {
+    if (prev && prev.id === point.reservation_id) {
+      totalDistance += haversineKm(prev.lat, prev.lng, point.lat, point.lng);
+    }
+    prev = { id: point.reservation_id, lat: point.lat, lng: point.lng };
+  }
+
+  return {
+    countries: [...countryCodes],
+    cities: [...cities],
+    coords,
+    totalTrips: tripStats?.trips || 0,
+    totalDays: tripStats?.days || 0,
+    totalPlaces: places.length,
+    totalDistanceKm: Math.round(totalDistance),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // MFA
 // ---------------------------------------------------------------------------
@@ -1747,6 +2245,31 @@ export function setupMfa(
   const row = db.prepare('SELECT mfa_enabled FROM users WHERE id = ?').get(userId) as
     | { mfa_enabled: number }
     | undefined;
+  if (row?.mfa_enabled) {
+    return { error: 'MFA is already enabled', status: 400 };
+  }
+  let secret: string, otpauth_url: string;
+  try {
+    secret = authenticator.generateSecret();
+    mfaSetupPending.set(userId, { secret, exp: Date.now() + MFA_SETUP_TTL_MS });
+    otpauth_url = authenticator.keyuri(userEmail, 'trippi.ai', secret);
+  } catch (err) {
+    console.error('[MFA] Setup error:', err);
+    return { error: 'MFA setup failed', status: 500 };
+  }
+  return { secret, otpauth_url, qrPromise: QRCode.toString(otpauth_url, { type: 'svg', width: 250 }) };
+}
+
+export async function setupMfaAsync(
+  userId: number,
+  userEmail: string,
+): Promise<{ error?: string; status?: number; secret?: string; otpauth_url?: string; qrPromise?: Promise<string> }> {
+  if (process.env.DEMO_MODE === 'true' && isDemoEmail(userEmail)) {
+    return { error: 'MFA is not available in demo mode.', status: 403 };
+  }
+  const row = await asyncDb
+    .prepare('SELECT mfa_enabled FROM users WHERE id = ?')
+    .get<{ mfa_enabled: number }>(userId);
   if (row?.mfa_enabled) {
     return { error: 'MFA is already enabled', status: 400 };
   }
@@ -1788,6 +2311,34 @@ export function enableMfa(
   return { success: true, mfa_enabled: true, backup_codes: backupCodes };
 }
 
+export async function enableMfaAsync(
+  userId: number,
+  code?: string,
+): Promise<{ error?: string; status?: number; success?: boolean; mfa_enabled?: boolean; backup_codes?: string[] }> {
+  if (!code) {
+    return { error: 'Verification code is required', status: 400 };
+  }
+  const pending = getPendingMfaSecret(userId);
+  if (!pending) {
+    return { error: 'No MFA setup in progress. Start the setup again.', status: 400 };
+  }
+  const tokenStr = String(code).replace(/\s/g, '');
+  const ok = authenticator.verify({ token: tokenStr, secret: pending });
+  if (!ok) {
+    return { error: 'Invalid verification code', status: 401 };
+  }
+  const backupCodes = generateBackupCodes();
+  const backupHashes = backupCodes.map(hashBackupCodeBcrypt);
+  const enc = encryptMfaSecret(pending);
+  await asyncDb
+    .prepare(
+      'UPDATE users SET mfa_enabled = 1, mfa_secret = ?, mfa_backup_codes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    )
+    .run(enc, JSON.stringify(backupHashes), userId);
+  mfaSetupPending.delete(userId);
+  return { success: true, mfa_enabled: true, backup_codes: backupCodes };
+}
+
 export function disableMfa(
   userId: number,
   userEmail: string,
@@ -1822,6 +2373,46 @@ export function disableMfa(
   db.prepare(
     'UPDATE users SET mfa_enabled = 0, mfa_secret = NULL, mfa_backup_codes = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
   ).run(userId);
+  mfaSetupPending.delete(userId);
+  return { success: true, mfa_enabled: false };
+}
+
+export async function disableMfaAsync(
+  userId: number,
+  userEmail: string,
+  body: { password?: string; code?: string },
+): Promise<{ error?: string; status?: number; success?: boolean; mfa_enabled?: boolean }> {
+  if (process.env.DEMO_MODE === 'true' && isDemoEmail(userEmail)) {
+    return { error: 'MFA cannot be changed in demo mode.', status: 403 };
+  }
+  const policy = await asyncDb
+    .prepare("SELECT value FROM app_settings WHERE key = 'require_mfa'")
+    .get<{ value: string }>();
+  if (policy?.value === 'true') {
+    return { error: 'Two-factor authentication cannot be disabled while it is required for all users.', status: 403 };
+  }
+  const { password, code } = body;
+  if (!password || !code) {
+    return { error: 'Password and authenticator code are required', status: 400 };
+  }
+  const user = await asyncDb.prepare('SELECT * FROM users WHERE id = ?').get<User>(userId);
+  if (!user?.mfa_enabled || !user.mfa_secret) {
+    return { error: 'MFA is not enabled', status: 400 };
+  }
+  if (!user.password_hash || !bcrypt.compareSync(password, user.password_hash)) {
+    return { error: 'Incorrect password', status: 401 };
+  }
+  const secret = decryptMfaSecret(user.mfa_secret);
+  const tokenStr = String(code).replace(/\s/g, '');
+  const ok = authenticator.verify({ token: tokenStr, secret });
+  if (!ok) {
+    return { error: 'Invalid verification code', status: 401 };
+  }
+  await asyncDb
+    .prepare(
+      'UPDATE users SET mfa_enabled = 0, mfa_secret = NULL, mfa_backup_codes = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    )
+    .run(userId);
   mfaSetupPending.delete(userId);
   return { success: true, mfa_enabled: false };
 }
@@ -1869,6 +2460,58 @@ export function verifyMfaLogin(body: { mfa_token?: string; code?: string; rememb
       user.id,
     );
     const sessionToken = generateToken(user, remember);
+    const userSafe = stripUserForClient(user) as Record<string, unknown>;
+    return {
+      token: sessionToken,
+      user: { ...userSafe, avatar_url: avatarUrl(user) },
+      remember,
+      auditUserId: Number(user.id),
+    };
+  } catch {
+    return { error: 'Invalid or expired verification token', status: 401 };
+  }
+}
+
+export async function verifyMfaLoginAsync(body: { mfa_token?: string; code?: string; remember_me?: boolean }): Promise<{
+  error?: string;
+  status?: number;
+  token?: string;
+  user?: Record<string, unknown>;
+  remember?: boolean;
+  auditUserId?: number;
+}> {
+  const { mfa_token, code, remember_me } = body;
+  const remember = remember_me === true;
+  if (!mfa_token || !code) {
+    return { error: 'Verification token and code are required', status: 400 };
+  }
+  try {
+    const decoded = jwt.verify(mfa_token, JWT_SECRET, { algorithms: ['HS256'] }) as { id: number; purpose?: string };
+    if (decoded.purpose !== 'mfa_login') {
+      return { error: 'Invalid verification token', status: 401 };
+    }
+    const user = await asyncDb.prepare('SELECT * FROM users WHERE id = ?').get<User>(decoded.id);
+    if (!user || !(user.mfa_enabled === 1 || user.mfa_enabled === true) || !user.mfa_secret) {
+      return { error: 'Invalid session', status: 401 };
+    }
+    const secret = decryptMfaSecret(user.mfa_secret);
+    const tokenStr = String(code).trim();
+    const okTotp = authenticator.verify({ token: tokenStr.replace(/\s/g, ''), secret });
+    if (!okTotp) {
+      const hashes = parseBackupCodeHashes(user.mfa_backup_codes);
+      const idx = hashes.findIndex((h) => matchBackupCode(tokenStr, h));
+      if (idx === -1) {
+        return { error: 'Invalid verification code', status: 401 };
+      }
+      hashes.splice(idx, 1);
+      await asyncDb
+        .prepare('UPDATE users SET mfa_backup_codes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(JSON.stringify(hashes), user.id);
+    }
+    await asyncDb
+      .prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?')
+      .run(user.id);
+    const sessionToken = await generateTokenAsync(user, remember);
     const userSafe = stripUserForClient(user) as Record<string, unknown>;
     return {
       token: sessionToken,
@@ -1998,6 +2641,66 @@ export function requestPasswordReset(rawEmail: string, createdIp: string | null)
   return { tokenForDelivery: raw, userId: user.id, userEmail: user.email, reason: 'issued' };
 }
 
+export async function requestPasswordResetAsync(
+  rawEmail: string,
+  createdIp: string | null,
+): Promise<PasswordResetRequestOutcome> {
+  const email = String(rawEmail || '')
+    .trim()
+    .toLowerCase();
+  const looksLikeEmail = email.length > 0 && /.+@.+\..+/.test(email);
+
+  const toggles = await resolveAuthTogglesAsync();
+  if (!toggles.password_login) {
+    return { tokenForDelivery: null, userId: null, userEmail: null, reason: 'password_login_disabled' };
+  }
+
+  const throttleKey = email || '__noemail__';
+  const now = Date.now();
+  const record = perEmailResetAttempts.get(throttleKey);
+  if (
+    record &&
+    record.count >= PASSWORD_RESET_PER_EMAIL_MAX &&
+    now - record.first < PASSWORD_RESET_PER_EMAIL_WINDOW_MS
+  ) {
+    return { tokenForDelivery: null, userId: null, userEmail: null, reason: 'throttled_per_email' };
+  }
+  if (!record || now - record.first >= PASSWORD_RESET_PER_EMAIL_WINDOW_MS) {
+    perEmailResetAttempts.set(throttleKey, { count: 1, first: now });
+  } else {
+    record.count++;
+  }
+
+  if (!looksLikeEmail) {
+    return { tokenForDelivery: null, userId: null, userEmail: null, reason: 'no_user' };
+  }
+
+  const user = await asyncDb
+    .prepare('SELECT id, email, password_hash, oidc_sub FROM users WHERE email = ?')
+    .get<{ id: number; email: string; password_hash: string | null; oidc_sub: string | null }>(email);
+
+  if (!user) {
+    return { tokenForDelivery: null, userId: null, userEmail: null, reason: 'no_user' };
+  }
+  if (user.oidc_sub) {
+    return { tokenForDelivery: null, userId: user.id, userEmail: user.email, reason: 'oidc_only' };
+  }
+
+  await asyncDb
+    .prepare('UPDATE password_reset_tokens SET consumed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND consumed_at IS NULL')
+    .run(user.id);
+
+  const raw = randomBytes(PASSWORD_RESET_TOKEN_BYTES).toString('base64url');
+  const token_hash = hashResetToken(raw);
+  const expires_at = new Date(Date.now() + PASSWORD_RESET_TTL_MS).toISOString();
+
+  await asyncDb
+    .prepare('INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_ip) VALUES (?, ?, ?, ?)')
+    .run(user.id, token_hash, expires_at, createdIp);
+
+  return { tokenForDelivery: raw, userId: user.id, userEmail: user.email, reason: 'issued' };
+}
+
 export interface ResetPasswordOutcome {
   error?: string;
   status?: number;
@@ -2121,12 +2824,448 @@ export function resetPassword(body: {
   return { success: true, userId: user.id };
 }
 
+export async function resetPasswordAsync(body: {
+  token?: string;
+  new_password?: string;
+  mfa_code?: string;
+}): Promise<ResetPasswordOutcome> {
+  const { token, new_password, mfa_code } = body;
+  if (!token || typeof token !== 'string') {
+    return { error: 'Reset token is required', status: 400 };
+  }
+  if (!new_password || typeof new_password !== 'string') {
+    return { error: 'New password is required', status: 400 };
+  }
+  const pwCheck = validatePassword(new_password);
+  if (!pwCheck.ok) return { error: pwCheck.reason!, status: 400 };
+
+  const tokenHash = hashResetToken(token);
+  const row = await asyncDb
+    .prepare('SELECT id, user_id, expires_at, consumed_at FROM password_reset_tokens WHERE token_hash = ?')
+    .get<{ id: number; user_id: number; expires_at: string; consumed_at: string | null }>(tokenHash);
+
+  if (!row) return { error: 'Invalid or expired reset link', status: 400 };
+  if (row.consumed_at) return { error: 'This reset link has already been used', status: 400 };
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    return { error: 'Reset link has expired. Please request a new one.', status: 400 };
+  }
+
+  const user = await asyncDb
+    .prepare('SELECT id, email, mfa_enabled, mfa_secret, mfa_backup_codes, password_version FROM users WHERE id = ?')
+    .get<{
+      id: number;
+      email: string;
+      mfa_enabled: number | boolean;
+      mfa_secret: string | null;
+      mfa_backup_codes: string | null;
+      password_version: number;
+    }>(row.user_id);
+
+  if (!user) return { error: 'Invalid or expired reset link', status: 400 };
+
+  const mfaOn = user.mfa_enabled === 1 || user.mfa_enabled === true;
+  let backupCodeConsumedIndex: number | null = null;
+  if (mfaOn) {
+    if (!user.mfa_secret) {
+      return { error: 'MFA is enabled but not configured. Contact your administrator.', status: 500 };
+    }
+    const supplied = typeof mfa_code === 'string' ? mfa_code.trim() : '';
+    if (!supplied) return { mfa_required: true, status: 200 };
+
+    const secret = decryptMfaSecret(user.mfa_secret);
+    const okTotp = authenticator.verify({ token: supplied.replace(/\s/g, ''), secret });
+    if (!okTotp) {
+      const hashes = parseBackupCodeHashes(user.mfa_backup_codes);
+      const idx = hashes.findIndex((h) => matchBackupCode(supplied, h));
+      if (idx === -1) return { error: 'Invalid MFA code', status: 401 };
+      backupCodeConsumedIndex = idx;
+    }
+  }
+
+  const newHash = bcrypt.hashSync(new_password, BCRYPT_COST);
+  const newPv = (user.password_version ?? 0) + 1;
+
+  await asyncDb.transaction(async () => {
+    await asyncDb.prepare('UPDATE password_reset_tokens SET consumed_at = CURRENT_TIMESTAMP WHERE id = ?').run(row.id);
+    await asyncDb
+      .prepare(
+        'UPDATE password_reset_tokens SET consumed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND consumed_at IS NULL AND id != ?',
+      )
+      .run(user.id, row.id);
+    await asyncDb
+      .prepare(
+        'UPDATE users SET password_hash = ?, must_change_password = 0, password_version = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      )
+      .run(newHash, newPv, user.id);
+    if (backupCodeConsumedIndex !== null) {
+      const hashes = parseBackupCodeHashes(user.mfa_backup_codes);
+      hashes.splice(backupCodeConsumedIndex, 1);
+      await asyncDb.prepare('UPDATE users SET mfa_backup_codes = ? WHERE id = ?').run(JSON.stringify(hashes), user.id);
+    }
+    await asyncDb.prepare('DELETE FROM mcp_tokens WHERE user_id = ?').run(user.id);
+    try {
+      await asyncDb
+        .prepare('UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL')
+        .run(user.id);
+    } catch {
+      /* oauth_tokens table may not exist in very old installs */
+    }
+  })();
+
+  try {
+    revokeUserSessions?.(user.id);
+  } catch {
+    /* best-effort */
+  }
+
+  return { success: true, userId: user.id };
+}
+
+// ---------------------------------------------------------------------------
+// Passkeys
+// ---------------------------------------------------------------------------
+
+const PASSKEY_CHALLENGE_TTL_MS = 5 * 60 * 1000;
+const PASSKEY_SUPPORTED_ALGORITHM_IDS = [-8, -7, -257];
+const PASSKEY_NOT_CONFIGURED = { error: 'Passkey login is not configured for this server.', status: 400 } as const;
+const PASSKEY_AUTH_FAILED = { error: 'Authentication failed', status: 401 } as const;
+
+interface WebauthnCredentialRow {
+  id: number;
+  user_id: number;
+  credential_id: string;
+  public_key: Buffer;
+  counter: number;
+  transports: string | null;
+  device_type: string | null;
+  backed_up: number;
+  name: string | null;
+  aaguid: string | null;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+async function purgeExpiredPasskeyChallenges(now: number): Promise<void> {
+  await asyncDb.prepare('DELETE FROM webauthn_challenges WHERE expires_at < ?').run(now);
+}
+
+async function storePasskeyChallenge(
+  challenge: string,
+  userId: number | null,
+  type: 'registration' | 'authentication',
+  now: number,
+): Promise<void> {
+  await asyncDb
+    .prepare('INSERT INTO webauthn_challenges (challenge, user_id, type, expires_at) VALUES (?, ?, ?, ?)')
+    .run(challenge, userId, type, now + PASSKEY_CHALLENGE_TTL_MS);
+}
+
+async function claimPasskeyChallenge(
+  challenge: string,
+  type: 'registration' | 'authentication',
+  now: number,
+): Promise<{ user_id: number | null } | null> {
+  return asyncDb.transaction(async () => {
+    const row = await asyncDb
+      .prepare('SELECT id, user_id FROM webauthn_challenges WHERE challenge = ? AND type = ? AND expires_at > ?')
+      .get<{ id: number; user_id: number | null }>(challenge, type, now);
+    if (!row) return null;
+    const result = await asyncDb.prepare('DELETE FROM webauthn_challenges WHERE id = ?').run(row.id);
+    return result.changes > 0 ? { user_id: row.user_id } : null;
+  })();
+}
+
+function passkeyChallengeFromResponse(resp: unknown): string | null {
+  try {
+    const cdj = (resp as { response?: { clientDataJSON?: unknown } })?.response?.clientDataJSON;
+    if (typeof cdj !== 'string') return null;
+    const parsed = JSON.parse(Buffer.from(cdj, 'base64url').toString('utf8')) as { challenge?: unknown };
+    return typeof parsed.challenge === 'string' ? parsed.challenge : null;
+  } catch {
+    return null;
+  }
+}
+
+function parsePasskeyTransports(raw: string | null): AuthenticatorTransportFuture[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as AuthenticatorTransportFuture[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function sanitizePasskeyName(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim().slice(0, 60);
+  return trimmed || null;
+}
+
+function defaultPasskeyName(deviceType: string | undefined): string {
+  return deviceType === 'multiDevice' ? 'Passkey (synced)' : 'Passkey';
+}
+
+export async function passkeyRegisterOptionsAsync(
+  userId: number,
+  password: string | undefined,
+): Promise<{ error?: string; status?: number; options?: Awaited<ReturnType<typeof generateRegistrationOptions>> }> {
+  const cfg = await resolveWebauthnConfigAsync();
+  if (!cfg) return { ...PASSKEY_NOT_CONFIGURED };
+
+  const user = await asyncDb.prepare('SELECT * FROM users WHERE id = ?').get<User>(userId);
+  if (!user) return { error: 'User not found', status: 404 };
+  if (!password || !user.password_hash || !bcrypt.compareSync(password, user.password_hash)) {
+    return { error: 'Incorrect password', status: 401 };
+  }
+
+  const existing = await asyncDb
+    .prepare('SELECT credential_id, transports FROM webauthn_credentials WHERE user_id = ?')
+    .all<{ credential_id: string; transports: string | null }>(userId);
+
+  const now = Date.now();
+  await purgeExpiredPasskeyChallenges(now);
+
+  const options = await generateRegistrationOptions({
+    rpName: cfg.rpName,
+    rpID: cfg.rpID,
+    userName: user.email,
+    userDisplayName: user.username,
+    userID: new TextEncoder().encode(String(user.id)),
+    attestationType: 'none',
+    excludeCredentials: existing.map((c) => ({
+      id: c.credential_id,
+      transports: parsePasskeyTransports(c.transports),
+    })),
+    authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
+    supportedAlgorithmIDs: PASSKEY_SUPPORTED_ALGORITHM_IDS,
+  });
+
+  await storePasskeyChallenge(options.challenge, userId, 'registration', now);
+  return { options };
+}
+
+export async function passkeyRegisterVerifyAsync(
+  userId: number,
+  body: { attestationResponse?: unknown; name?: unknown },
+): Promise<{ error?: string; status?: number; success?: boolean; credential?: unknown }> {
+  const cfg = await resolveWebauthnConfigAsync();
+  if (!cfg) return { ...PASSKEY_NOT_CONFIGURED };
+
+  const resp = body?.attestationResponse;
+  if (!resp) return { error: 'Invalid registration response', status: 400 };
+
+  const challenge = passkeyChallengeFromResponse(resp);
+  if (!challenge) return { error: 'Invalid registration response', status: 400 };
+
+  const now = Date.now();
+  const claimed = await claimPasskeyChallenge(challenge, 'registration', now);
+  if (!claimed || claimed.user_id !== userId) {
+    return { error: 'Registration challenge expired. Please try again.', status: 400 };
+  }
+
+  let verification;
+  try {
+    verification = await verifyRegistrationResponse({
+      response: resp as Parameters<typeof verifyRegistrationResponse>[0]['response'],
+      expectedChallenge: challenge,
+      expectedOrigin: cfg.origins,
+      expectedRPID: cfg.rpID,
+      requireUserVerification: true,
+    });
+  } catch {
+    return { error: 'Could not register this passkey.', status: 400 };
+  }
+
+  if (!verification.verified || !verification.registrationInfo) {
+    return { error: 'Could not register this passkey.', status: 400 };
+  }
+
+  const { credential, credentialDeviceType, credentialBackedUp, aaguid } = verification.registrationInfo;
+
+  if (
+    await asyncDb.prepare('SELECT id FROM webauthn_credentials WHERE credential_id = ?').get(credential.id)
+  ) {
+    return { error: 'This passkey is already registered.', status: 409 };
+  }
+
+  const name = sanitizePasskeyName(body?.name) || defaultPasskeyName(credentialDeviceType);
+  try {
+    await asyncDb
+      .prepare(
+        `INSERT INTO webauthn_credentials
+           (user_id, credential_id, public_key, counter, transports, device_type, backed_up, name, aaguid, last_used_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+      )
+      .run(
+        userId,
+        credential.id,
+        Buffer.from(credential.publicKey),
+        credential.counter ?? 0,
+        credential.transports ? JSON.stringify(credential.transports) : null,
+        credentialDeviceType ?? null,
+        credentialBackedUp ? 1 : 0,
+        name,
+        aaguid ?? null,
+      );
+  } catch {
+    return { error: 'Could not register this passkey.', status: 400 };
+  }
+
+  const created = await asyncDb
+    .prepare(
+      'SELECT id, name, device_type, backed_up, created_at, last_used_at FROM webauthn_credentials WHERE credential_id = ?',
+    )
+    .get<{ backed_up: number } & Record<string, unknown>>(credential.id);
+  return { success: true, credential: created ? { ...created, backed_up: created.backed_up === 1 } : undefined };
+}
+
+export async function passkeyLoginOptionsAsync(): Promise<{
+  error?: string;
+  status?: number;
+  options?: Awaited<ReturnType<typeof generateAuthenticationOptions>>;
+}> {
+  const cfg = await resolveWebauthnConfigAsync();
+  if (!cfg) return { ...PASSKEY_NOT_CONFIGURED };
+
+  const now = Date.now();
+  await purgeExpiredPasskeyChallenges(now);
+
+  const options = await generateAuthenticationOptions({
+    rpID: cfg.rpID,
+    userVerification: 'required',
+  });
+
+  await storePasskeyChallenge(options.challenge, null, 'authentication', now);
+  return { options };
+}
+
+export async function passkeyLoginVerifyAsync(body: { assertionResponse?: unknown }): Promise<{
+  error?: string;
+  status?: number;
+  token?: string;
+  user?: Record<string, unknown>;
+  auditUserId?: number | null;
+  auditAction?: string;
+}> {
+  const cfg = await resolveWebauthnConfigAsync();
+  if (!cfg) return { ...PASSKEY_NOT_CONFIGURED };
+
+  const resp = body?.assertionResponse;
+  if (!resp) return { ...PASSKEY_AUTH_FAILED };
+
+  const challenge = passkeyChallengeFromResponse(resp);
+  if (!challenge) return { ...PASSKEY_AUTH_FAILED };
+
+  const now = Date.now();
+  if (!(await claimPasskeyChallenge(challenge, 'authentication', now))) return { ...PASSKEY_AUTH_FAILED };
+
+  const credId = (resp as { id?: unknown; rawId?: unknown }).id ?? (resp as { rawId?: unknown }).rawId;
+  if (typeof credId !== 'string') return { ...PASSKEY_AUTH_FAILED };
+
+  const cred = await asyncDb
+    .prepare('SELECT * FROM webauthn_credentials WHERE credential_id = ?')
+    .get<WebauthnCredentialRow>(credId);
+  if (!cred) return { ...PASSKEY_AUTH_FAILED };
+
+  let verification;
+  try {
+    verification = await verifyAuthenticationResponse({
+      response: resp as Parameters<typeof verifyAuthenticationResponse>[0]['response'],
+      expectedChallenge: challenge,
+      expectedOrigin: cfg.origins,
+      expectedRPID: cfg.rpID,
+      requireUserVerification: true,
+      credential: {
+        id: cred.credential_id,
+        publicKey: new Uint8Array(cred.public_key),
+        counter: cred.counter,
+        transports: parsePasskeyTransports(cred.transports),
+      },
+    });
+  } catch {
+    return { ...PASSKEY_AUTH_FAILED };
+  }
+
+  if (!verification.verified) return { ...PASSKEY_AUTH_FAILED };
+
+  const { newCounter } = verification.authenticationInfo;
+  if (cred.counter > 0 && newCounter <= cred.counter) {
+    return { ...PASSKEY_AUTH_FAILED, auditUserId: cred.user_id, auditAction: 'user.passkey_clone_suspected' };
+  }
+
+  const user = await asyncDb.prepare('SELECT * FROM users WHERE id = ?').get<User>(cred.user_id);
+  if (!user) return { ...PASSKEY_AUTH_FAILED };
+
+  await asyncDb.transaction(async () => {
+    await asyncDb
+      .prepare('UPDATE webauthn_credentials SET counter = ?, last_used_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(newCounter, cred.id);
+    await asyncDb
+      .prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?')
+      .run(user.id);
+  })();
+
+  const token = await generateTokenAsync(user);
+  const userSafe = stripUserForClient(user) as Record<string, unknown>;
+  return { token, user: { ...userSafe, avatar_url: avatarUrl(user) }, auditUserId: Number(user.id) };
+}
+
+export async function listPasskeysAsync(userId: number): Promise<Array<Record<string, unknown>>> {
+  const rows = await asyncDb
+    .prepare(
+      'SELECT id, name, device_type, backed_up, created_at, last_used_at FROM webauthn_credentials WHERE user_id = ? ORDER BY created_at DESC',
+    )
+    .all<Array<{ backed_up: number } & Record<string, unknown>>[number]>(userId);
+  return rows.map((r) => ({ ...r, backed_up: r.backed_up === 1 }));
+}
+
+export async function renamePasskeyAsync(
+  userId: number,
+  id: string,
+  name: unknown,
+): Promise<{ error?: string; status?: number; success?: boolean }> {
+  const cleanName = sanitizePasskeyName(name);
+  if (!cleanName) return { error: 'Name is required', status: 400 };
+  const result = await asyncDb
+    .prepare('UPDATE webauthn_credentials SET name = ? WHERE id = ? AND user_id = ?')
+    .run(cleanName, Number(id), userId);
+  if (result.changes === 0) return { error: 'Passkey not found', status: 404 };
+  return { success: true };
+}
+
+export async function deletePasskeyAsync(
+  userId: number,
+  id: string,
+  password: string | undefined,
+): Promise<{ error?: string; status?: number; success?: boolean }> {
+  const user = await asyncDb
+    .prepare('SELECT password_hash FROM users WHERE id = ?')
+    .get<{ password_hash: string }>(userId);
+  if (!user || !user.password_hash || !password || !bcrypt.compareSync(password, user.password_hash)) {
+    return { error: 'Incorrect password', status: 401 };
+  }
+  const result = await asyncDb
+    .prepare('DELETE FROM webauthn_credentials WHERE id = ? AND user_id = ?')
+    .run(Number(id), userId);
+  if (result.changes === 0) return { error: 'Passkey not found', status: 404 };
+  return { success: true };
+}
+
 // ---------------------------------------------------------------------------
 // MCP tokens
 // ---------------------------------------------------------------------------
 
 export function listMcpTokens(userId: number) {
   return db
+    .prepare(
+      'SELECT id, name, token_prefix, created_at, last_used_at FROM mcp_tokens WHERE user_id = ? ORDER BY created_at DESC',
+    )
+    .all(userId);
+}
+
+export async function listMcpTokensAsync(userId: number) {
+  return asyncDb
     .prepare(
       'SELECT id, name, token_prefix, created_at, last_used_at FROM mcp_tokens WHERE user_id = ? ORDER BY created_at DESC',
     )
@@ -2160,6 +3299,33 @@ export function createMcpToken(
   return { token: { ...(token as object), raw_token: rawToken } };
 }
 
+export async function createMcpTokenAsync(
+  userId: number,
+  name?: string,
+): Promise<{ error?: string; status?: number; token?: Record<string, unknown> }> {
+  if (!name?.trim()) return { error: 'Token name is required', status: 400 };
+  if (name.trim().length > 100) return { error: 'Token name must be 100 characters or less', status: 400 };
+
+  const tokenCount =
+    (await asyncDb.prepare('SELECT COUNT(*) as count FROM mcp_tokens WHERE user_id = ?').get<{ count: number }>(userId))
+      ?.count ?? 0;
+  if (tokenCount >= 10) return { error: 'Maximum of 10 tokens per user reached', status: 400 };
+
+  const rawToken = 'trippi_' + randomBytes(24).toString('hex');
+  const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+  const tokenPrefix = rawToken.slice(0, 13);
+
+  const result = await asyncDb
+    .prepare('INSERT INTO mcp_tokens (user_id, name, token_hash, token_prefix) VALUES (?, ?, ?, ?)')
+    .run(userId, name.trim(), tokenHash, tokenPrefix);
+
+  const token = await asyncDb
+    .prepare('SELECT id, name, token_prefix, created_at, last_used_at FROM mcp_tokens WHERE id = ?')
+    .get(result.lastInsertRowid);
+
+  return { token: { ...(token as object), raw_token: rawToken } };
+}
+
 export function deleteMcpToken(
   userId: number,
   tokenId: string,
@@ -2167,6 +3333,17 @@ export function deleteMcpToken(
   const token = db.prepare('SELECT id FROM mcp_tokens WHERE id = ? AND user_id = ?').get(tokenId, userId);
   if (!token) return { error: 'Token not found', status: 404 };
   db.prepare('DELETE FROM mcp_tokens WHERE id = ?').run(tokenId);
+  revokeUserSessions(userId);
+  return { success: true };
+}
+
+export async function deleteMcpTokenAsync(
+  userId: number,
+  tokenId: string,
+): Promise<{ error?: string; status?: number; success?: boolean }> {
+  const token = await asyncDb.prepare('SELECT id FROM mcp_tokens WHERE id = ? AND user_id = ?').get(tokenId, userId);
+  if (!token) return { error: 'Token not found', status: 404 };
+  await asyncDb.prepare('DELETE FROM mcp_tokens WHERE id = ?').run(tokenId);
   revokeUserSessions(userId);
   return { success: true };
 }
@@ -2184,6 +3361,15 @@ export function createWsToken(userId: number): { error?: string; status?: number
         | { password_version?: number }
         | undefined
     )?.password_version ?? 0;
+  const token = createEphemeralToken(userId, 'ws', { pv });
+  if (!token) return { error: 'Service unavailable', status: 503 };
+  return { token };
+}
+
+export async function createWsTokenAsync(userId: number): Promise<{ error?: string; status?: number; token?: string }> {
+  const pv =
+    (await asyncDb.prepare('SELECT password_version FROM users WHERE id = ?').get<{ password_version?: number }>(userId))
+      ?.password_version ?? 0;
   const token = createEphemeralToken(userId, 'ws', { pv });
   if (!token) return { error: 'Service unavailable', status: 503 };
   return { token };
@@ -2211,6 +3397,12 @@ export function isDemoUser(userId: number): boolean {
   return isDemoEmail(user?.email);
 }
 
+export async function isDemoUserAsync(userId: number): Promise<boolean> {
+  if (process.env.DEMO_MODE !== 'true') return false;
+  const user = await asyncDb.prepare('SELECT email FROM users WHERE id = ?').get<{ email: string }>(userId);
+  return isDemoEmail(user?.email);
+}
+
 export function verifyMcpToken(rawToken: string): User | null {
   const hash = createHash('sha256').update(rawToken).digest('hex');
   const row = db
@@ -2225,6 +3417,25 @@ export function verifyMcpToken(rawToken: string): User | null {
     .get(hash) as User | undefined;
   if (row) {
     db.prepare('UPDATE mcp_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE token_hash = ?').run(hash);
+    return row;
+  }
+  return null;
+}
+
+export async function verifyMcpTokenAsync(rawToken: string): Promise<User | null> {
+  const hash = createHash('sha256').update(rawToken).digest('hex');
+  const row = await asyncDb
+    .prepare(
+      `
+    SELECT u.id, u.username, u.email, u.role
+    FROM mcp_tokens mt
+    JOIN users u ON mt.user_id = u.id
+    WHERE mt.token_hash = ?
+  `,
+    )
+    .get<User>(hash);
+  if (row) {
+    await asyncDb.prepare('UPDATE mcp_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE token_hash = ?').run(hash);
     return row;
   }
   return null;

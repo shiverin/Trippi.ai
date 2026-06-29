@@ -1,14 +1,14 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { writeAudit } from '../services/auditLog';
 import { getMcpSafeUrl } from '../services/notifications';
 import {
-  createOAuthClient,
+  createOAuthClientAsync,
   consumeAuthCode,
-  issueTokens,
-  refreshTokens,
-  revokeToken as serviceRevokeToken,
+  issueTokensAsync,
+  refreshTokensAsync,
+  revokeTokenAsync as serviceRevokeTokenAsync,
   verifyPKCE,
-  getUserByAccessToken,
+  getUserByAccessTokenAsync,
 } from '../services/oauthService';
 import { ALL_SCOPES } from './scopes';
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients';
@@ -96,11 +96,11 @@ function rowToInfo(row: OAuthClientRow): OAuthClientInformationFull {
 
 export const trippiClientsStore: OAuthRegisteredClientsStore = {
   async getClient(clientId: string): Promise<OAuthClientInformationFull | undefined> {
-    const row = db
+    const row = await asyncDb
       .prepare(
         'SELECT client_id, name, redirect_uris, allowed_scopes, is_public, created_via FROM oauth_clients WHERE client_id = ?',
       )
-      .get(clientId) as OAuthClientRow | undefined;
+      .get<OAuthClientRow>(clientId);
     return row ? rowToInfo(row) : undefined;
   },
 
@@ -120,7 +120,7 @@ export const trippiClientsStore: OAuthRegisteredClientsStore = {
     const scopes = rawScopes.filter((s) => (ALL_SCOPES as string[]).includes(s));
     if (scopes.length === 0) throw new InvalidClientMetadataError('No valid scopes requested');
 
-    const result = createOAuthClient(null, name, uris, scopes, null, { isPublic, createdVia: 'dcr' });
+    const result = await createOAuthClientAsync(null, name, uris, scopes, null, { isPublic, createdVia: 'dcr' });
     if (result.error) throw new InvalidClientMetadataError(result.error);
 
     const c = result.client!;
@@ -201,7 +201,13 @@ export const trippiOAuthProvider: OAuthServerProvider = {
     if (codeVerifier && !verifyPKCE(codeVerifier, pending.codeChallenge))
       throw new Error('Authorization grant is invalid.');
 
-    const tokens = issueTokens(client.client_id, pending.userId, pending.scopes, null, pending.resource ?? null);
+    const tokens = await issueTokensAsync(
+      client.client_id,
+      pending.userId,
+      pending.scopes,
+      null,
+      pending.resource ?? null,
+    );
     writeAudit({
       userId: pending.userId,
       action: 'oauth.token.issue',
@@ -217,7 +223,7 @@ export const trippiOAuthProvider: OAuthServerProvider = {
     _scopes?: string[],
     _resource?: URL,
   ): Promise<OAuthTokens> {
-    const result = refreshTokens(refreshToken, client.client_id, client.client_secret, null);
+    const result = await refreshTokensAsync(refreshToken, client.client_id, client.client_secret, null);
     if (result.error)
       throw new Error(
         result.error === 'invalid_client' ? 'Invalid client credentials' : 'Refresh token is invalid or expired',
@@ -226,7 +232,7 @@ export const trippiOAuthProvider: OAuthServerProvider = {
   },
 
   async verifyAccessToken(token: string): Promise<AuthInfo> {
-    const info = getUserByAccessToken(token);
+    const info = await getUserByAccessTokenAsync(token);
     if (!info) throw new Error('Invalid or expired token');
     return {
       token,
@@ -237,6 +243,6 @@ export const trippiOAuthProvider: OAuthServerProvider = {
   },
 
   async revokeToken(client: OAuthClientInformationFull, request: OAuthTokenRevocationRequest): Promise<void> {
-    serviceRevokeToken(request.token, client.client_id, undefined, null);
+    await serviceRevokeTokenAsync(request.token, client.client_id, undefined, null);
   },
 };

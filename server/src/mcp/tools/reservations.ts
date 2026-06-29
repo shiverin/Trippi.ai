@@ -1,13 +1,13 @@
-import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
+import { asyncDb, canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
 import { placeExists, getAssignmentForTrip } from '../../services/assignmentService';
-import { isDemoUser } from '../../services/authService';
-import { linkBudgetItemToReservation } from '../../services/budgetService';
 import { getDay } from '../../services/dayService';
+import { isDemoEmail } from '../../services/demo';
 import {
+  createLinkedBudgetItemForReservation,
   createReservation,
+  deleteReservation,
   getReservation,
   updateReservation,
-  deleteReservation,
   updatePositions as updateReservationPositions,
 } from '../../services/reservationService';
 import { canWrite } from '../scopes';
@@ -25,6 +25,12 @@ import {
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
+
+async function isDemoUser(userId: number): Promise<boolean> {
+  if (process.env.DEMO_MODE !== 'true') return false;
+  const user = await asyncDb.prepare('SELECT email FROM users WHERE id = ?').get<{ email: string }>(userId);
+  return isDemoEmail(user?.email);
+}
 
 export function registerReservationTools(server: McpServer, userId: number, scopes: string[] | null): void {
   if (!canWrite(scopes, 'reservations')) return;
@@ -97,26 +103,26 @@ export function registerReservationTools(server: McpServer, userId: number, scop
       price,
       budget_category,
     }) => {
-      if (isDemoUser(userId)) return demoDenied();
+      if (await isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
+      if (!(await hasTripPermission('reservation_edit', tripId, userId))) return permissionDenied();
 
       // Validate that all referenced IDs belong to this trip
-      if (day_id && !getDay(day_id, tripId))
+      if (day_id && !(await getDay(day_id, tripId)))
         return { content: [{ type: 'text' as const, text: 'day_id does not belong to this trip.' }], isError: true };
-      if (place_id && !placeExists(place_id, tripId))
+      if (place_id && !(await placeExists(place_id, tripId)))
         return { content: [{ type: 'text' as const, text: 'place_id does not belong to this trip.' }], isError: true };
-      if (start_day_id && !getDay(start_day_id, tripId))
+      if (start_day_id && !(await getDay(start_day_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'start_day_id does not belong to this trip.' }],
           isError: true,
         };
-      if (end_day_id && !getDay(end_day_id, tripId))
+      if (end_day_id && !(await getDay(end_day_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'end_day_id does not belong to this trip.' }],
           isError: true,
         };
-      if (assignment_id && !getAssignmentForTrip(assignment_id, tripId))
+      if (assignment_id && !(await getAssignmentForTrip(assignment_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'assignment_id does not belong to this trip.' }],
           isError: true,
@@ -136,7 +142,7 @@ export function registerReservationTools(server: McpServer, userId: number, scop
 
       const metadata = price != null ? { price: String(price) } : undefined;
 
-      const { reservation, accommodationCreated } = createReservation(tripId, {
+      const { reservation, accommodationCreated } = await createReservation(tripId, {
         title,
         type,
         reservation_time,
@@ -155,7 +161,7 @@ export function registerReservationTools(server: McpServer, userId: number, scop
       }
 
       if (price != null && price > 0) {
-        const item = linkBudgetItemToReservation(tripId, reservation.id, {
+        const item = await createLinkedBudgetItemForReservation(tripId, reservation.id, {
           name: title,
           category: budget_category || type,
           total_price: price,
@@ -221,21 +227,21 @@ export function registerReservationTools(server: McpServer, userId: number, scop
       place_id,
       assignment_id,
     }) => {
-      if (isDemoUser(userId)) return demoDenied();
+      if (await isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
-      const existing = getReservation(reservationId, tripId);
+      if (!(await hasTripPermission('reservation_edit', tripId, userId))) return permissionDenied();
+      const existing = await getReservation(reservationId, tripId);
       if (!existing) return { content: [{ type: 'text' as const, text: 'Reservation not found.' }], isError: true };
 
-      if (place_id != null && !placeExists(place_id, tripId))
+      if (place_id != null && !(await placeExists(place_id, tripId)))
         return { content: [{ type: 'text' as const, text: 'place_id does not belong to this trip.' }], isError: true };
-      if (assignment_id != null && !getAssignmentForTrip(assignment_id, tripId))
+      if (assignment_id != null && !(await getAssignmentForTrip(assignment_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'assignment_id does not belong to this trip.' }],
           isError: true,
         };
 
-      const { reservation } = updateReservation(
+      const { reservation } = await updateReservation(
         reservationId,
         tripId,
         {
@@ -267,10 +273,10 @@ export function registerReservationTools(server: McpServer, userId: number, scop
       annotations: TOOL_ANNOTATIONS_DELETE,
     },
     async ({ tripId, reservationId }) => {
-      if (isDemoUser(userId)) return demoDenied();
+      if (await isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
-      const { deleted, accommodationDeleted } = deleteReservation(reservationId, tripId);
+      if (!(await hasTripPermission('reservation_edit', tripId, userId))) return permissionDenied();
+      const { deleted, accommodationDeleted } = await deleteReservation(reservationId, tripId);
       if (!deleted) return { content: [{ type: 'text' as const, text: 'Reservation not found.' }], isError: true };
       if (accommodationDeleted) {
         safeBroadcast(tripId, 'accommodation:deleted', { accommodationId: deleted.accommodation_id });
@@ -299,10 +305,10 @@ export function registerReservationTools(server: McpServer, userId: number, scop
       annotations: TOOL_ANNOTATIONS_WRITE,
     },
     async ({ tripId, positions, dayId }) => {
-      if (isDemoUser(userId)) return demoDenied();
+      if (await isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
-      updateReservationPositions(tripId, positions, dayId);
+      if (!(await hasTripPermission('reservation_edit', tripId, userId))) return permissionDenied();
+      await updateReservationPositions(tripId, positions, dayId);
       safeBroadcast(tripId, 'reservation:positions', { positions, dayId });
       return ok({ success: true });
     },
@@ -325,29 +331,29 @@ export function registerReservationTools(server: McpServer, userId: number, scop
       annotations: TOOL_ANNOTATIONS_WRITE,
     },
     async ({ tripId, reservationId, place_id, start_day_id, end_day_id, check_in, check_out }) => {
-      if (isDemoUser(userId)) return demoDenied();
+      if (await isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
-      const current = getReservation(reservationId, tripId);
+      if (!(await hasTripPermission('reservation_edit', tripId, userId))) return permissionDenied();
+      const current = await getReservation(reservationId, tripId);
       if (!current) return { content: [{ type: 'text' as const, text: 'Reservation not found.' }], isError: true };
       if (current.type !== 'hotel')
         return { content: [{ type: 'text' as const, text: 'Reservation is not of type hotel.' }], isError: true };
 
-      if (!placeExists(place_id, tripId))
+      if (!(await placeExists(place_id, tripId)))
         return { content: [{ type: 'text' as const, text: 'place_id does not belong to this trip.' }], isError: true };
-      if (!getDay(start_day_id, tripId))
+      if (!(await getDay(start_day_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'start_day_id does not belong to this trip.' }],
           isError: true,
         };
-      if (!getDay(end_day_id, tripId))
+      if (!(await getDay(end_day_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'end_day_id does not belong to this trip.' }],
           isError: true,
         };
 
       const isNewAccommodation = !current.accommodation_id;
-      const { reservation } = updateReservation(
+      const { reservation } = await updateReservation(
         reservationId,
         tripId,
         {

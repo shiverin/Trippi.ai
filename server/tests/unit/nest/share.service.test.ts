@@ -10,10 +10,15 @@ vi.mock('../../../src/services/permissions', () => ({ checkPermission }));
 const { share } = vi.hoisted(() => ({
   share: {
     createOrUpdateShareLink: vi.fn(),
+    createOrUpdateShareLinkAsync: vi.fn(),
     getShareLink: vi.fn(),
+    getShareLinkAsync: vi.fn(),
     deleteShareLink: vi.fn(),
+    deleteShareLinkAsync: vi.fn(),
     getSharedTripData: vi.fn(),
+    getSharedTripDataAsync: vi.fn(),
     getSharedPlacePhotoPath: vi.fn(),
+    getSharedPlacePhotoPathAsync: vi.fn(),
   },
 }));
 vi.mock('../../../src/services/shareService', () => share);
@@ -51,26 +56,26 @@ describe('ShareService', () => {
   });
 
   it('createOrUpdate delegates to the legacy share service', () => {
-    share.createOrUpdateShareLink.mockReturnValue({ token: 't', created: true });
+    share.createOrUpdateShareLinkAsync.mockReturnValue({ token: 't', created: true });
     const perms = { share_map: true };
     expect(svc().createOrUpdate('5', 2, perms)).toEqual({ token: 't', created: true });
-    expect(share.createOrUpdateShareLink).toHaveBeenCalledWith('5', 2, perms);
+    expect(share.createOrUpdateShareLinkAsync).toHaveBeenCalledWith('5', 2, perms);
   });
 
   it('get / remove / getSharedTripData / getSharedPlacePhotoPath delegate', () => {
-    share.getShareLink.mockReturnValue({ token: 't' });
+    share.getShareLinkAsync.mockReturnValue({ token: 't' });
     expect(svc().get('5')).toEqual({ token: 't' });
-    expect(share.getShareLink).toHaveBeenCalledWith('5');
+    expect(share.getShareLinkAsync).toHaveBeenCalledWith('5');
 
     svc().remove('5');
-    expect(share.deleteShareLink).toHaveBeenCalledWith('5');
+    expect(share.deleteShareLinkAsync).toHaveBeenCalledWith('5');
 
-    share.getSharedTripData.mockReturnValue({ trip: { id: 9 } });
+    share.getSharedTripDataAsync.mockReturnValue({ trip: { id: 9 } });
     expect(svc().getSharedTripData('tok')).toEqual({ trip: { id: 9 } });
-    expect(share.getSharedTripData).toHaveBeenCalledWith('tok');
+    expect(share.getSharedTripDataAsync).toHaveBeenCalledWith('tok');
 
-    share.getSharedPlacePhotoPath.mockReturnValue('/cache/p1.jpg');
+    share.getSharedPlacePhotoPathAsync.mockReturnValue('/cache/p1.jpg');
     expect(svc().getSharedPlacePhotoPath('tok', 'p1')).toBe('/cache/p1.jpg');
-    expect(share.getSharedPlacePhotoPath).toHaveBeenCalledWith('tok', 'p1');
+    expect(share.getSharedPlacePhotoPathAsync).toHaveBeenCalledWith('tok', 'p1');
   });
 });

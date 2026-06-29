@@ -38,20 +38,20 @@ type LocationBias = { low: { lat: number; lng: number }; high: { lat: number; ln
 export class MapsService {
   constructor(private readonly database: DatabaseService) {}
 
-  private isSettingDisabled(key: string): boolean {
-    const row = this.database.get<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', key);
+  private async isSettingDisabled(key: string): Promise<boolean> {
+    const row = await this.database.get<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', key);
     return row?.value === 'false';
   }
 
-  autocompleteDisabled(): boolean {
+  autocompleteDisabled(): Promise<boolean> {
     return this.isSettingDisabled('places_autocomplete_enabled');
   }
 
-  detailsDisabled(): boolean {
+  detailsDisabled(): Promise<boolean> {
     return this.isSettingDisabled('places_details_enabled');
   }
 
-  photosDisabled(): boolean {
+  photosDisabled(): Promise<boolean> {
     return this.isSettingDisabled('places_photos_enabled');
   }
 

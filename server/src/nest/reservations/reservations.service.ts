@@ -1,11 +1,6 @@
-import { db } from '../../db/database';
-import {
-  createBudgetItem,
-  updateBudgetItem,
-  deleteBudgetItem,
-  linkBudgetItemToReservation,
-} from '../../services/budgetService';
-import { checkPermission } from '../../services/permissions';
+import { asyncDb } from '../../db/asyncDatabase';
+import { resolveDbProvider } from '../../db/providerMode';
+import { checkPermissionAsync } from '../../services/permissions';
 import * as svc from '../../services/reservationService';
 import type { User } from '../../types';
 import { broadcast } from '../../websocket';
@@ -24,68 +19,68 @@ type BudgetEntry = { total_price?: number; category?: string } | undefined;
  */
 @Injectable()
 export class ReservationsService {
-  verifyTripAccess(tripId: string, userId: number) {
-    return svc.verifyTripAccess(tripId, userId);
+  async verifyTripAccess(tripId: string, userId: number) {
+    return await svc.verifyTripAccess(tripId, userId);
   }
 
-  canEdit(trip: Trip, user: User): boolean {
-    return checkPermission('reservation_edit', user.role, trip.user_id, user.id, trip.user_id !== user.id);
+  async canEdit(trip: Trip, user: User): Promise<boolean> {
+    return checkPermissionAsync('reservation_edit', user.role, trip.user_id, user.id, trip.user_id !== user.id);
   }
 
   broadcast(tripId: string, event: string, payload: Record<string, unknown>, socketId: string | undefined): void {
     broadcast(tripId, event, payload, socketId);
   }
 
-  list(tripId: string) {
-    return svc.listReservations(tripId);
+  async list(tripId: string) {
+    return await svc.listReservations(tripId);
   }
 
   // Cross-trip "upcoming reservations" feed (dashboard widget). Reuses the legacy
   // query unchanged; the default limit (6) matches the legacy inline handler.
-  listUpcoming(userId: number) {
-    return svc.getUpcomingReservations(userId);
+  async listUpcoming(userId: number) {
+    return await svc.getUpcomingReservations(userId);
   }
 
-  create(tripId: string, data: Parameters<typeof svc.createReservation>[1]) {
-    return svc.createReservation(tripId, data);
+  async create(tripId: string, data: Parameters<typeof svc.createReservation>[1]) {
+    return await svc.createReservation(tripId, data);
   }
 
-  updatePositions(tripId: string, positions: Parameters<typeof svc.updatePositions>[1], dayId: unknown): void {
-    svc.updatePositions(tripId, positions, dayId as Parameters<typeof svc.updatePositions>[2]);
+  async updatePositions(tripId: string, positions: Parameters<typeof svc.updatePositions>[1], dayId: unknown) {
+    await svc.updatePositions(tripId, positions, dayId as Parameters<typeof svc.updatePositions>[2]);
   }
 
-  getReservation(id: string, tripId: string) {
-    return svc.getReservation(id, tripId);
+  async getReservation(id: string, tripId: string) {
+    return await svc.getReservation(id, tripId);
   }
 
-  update(
+  async update(
     id: string,
     tripId: string,
     data: Parameters<typeof svc.updateReservation>[2],
     current: Parameters<typeof svc.updateReservation>[3],
   ) {
-    return svc.updateReservation(id, tripId, data, current);
+    return await svc.updateReservation(id, tripId, data, current);
   }
 
-  remove(id: string, tripId: string) {
-    return svc.deleteReservation(id, tripId);
+  async remove(id: string, tripId: string) {
+    return await svc.deleteReservation(id, tripId);
   }
 
   /** POST side effect: auto-create a linked budget item when a price is provided. */
-  syncBudgetOnCreate(
+  async syncBudgetOnCreate(
     tripId: string,
     reservationId: number,
     title: string,
     type: string | undefined,
     entry: BudgetEntry,
     socketId: string | undefined,
-  ): void {
+  ): Promise<void> {
     if (!entry || !(Number(entry.total_price) > 0)) return;
     try {
-      const item = linkBudgetItemToReservation(tripId, reservationId, {
+      const item = await svc.createLinkedBudgetItemForReservation(tripId, reservationId, {
         name: title,
         category: entry.category || type || 'Other',
-        total_price: entry.total_price!,
+        total_price: Number(entry.total_price),
       });
       broadcast(tripId, 'budget:created', { item }, socketId);
     } catch (err) {
@@ -94,7 +89,7 @@ export class ReservationsService {
   }
 
   /** PUT side effect: drop the linked budget item when the price is cleared, else create/update it. */
-  syncBudgetOnUpdate(
+  async syncBudgetOnUpdate(
     tripId: string,
     id: string,
     title: string,
@@ -103,19 +98,17 @@ export class ReservationsService {
     currentType: string | undefined,
     entry: BudgetEntry,
     socketId: string | undefined,
-  ): void {
+  ): Promise<void> {
     // When the booking type changes, keep a linked expense's category in sync —
     // but only if it still carries the auto-derived category (so a manual pick in
     // the Costs editor is preserved). Runs regardless of create_budget_entry.
     if (type && currentType && type !== currentType) {
-      const linked = db
-        .prepare('SELECT id, category FROM budget_items WHERE trip_id = ? AND reservation_id = ?')
-        .get(tripId, id) as { id: number; category: string } | undefined;
+      const linked = await svc.getLinkedReservationBudgetItem(tripId, id);
       if (linked) {
         const oldCat = typeToCostCategory(currentType);
         const newCat = typeToCostCategory(type);
         if (oldCat !== newCat && linked.category === oldCat) {
-          const updated = updateBudgetItem(linked.id, tripId, { category: newCat });
+          const updated = await svc.updateReservationBudgetItem(linked.id, tripId, { category: newCat });
           broadcast(tripId, 'budget:updated', { item: updated }, socketId);
         }
       }
@@ -128,11 +121,9 @@ export class ReservationsService {
 
     if (!(Number(entry.total_price) > 0)) {
       // Explicit clear (total_price 0/empty) — drop the linked item.
-      const linked = db
-        .prepare('SELECT id FROM budget_items WHERE trip_id = ? AND reservation_id = ?')
-        .get(tripId, id) as { id: number } | undefined;
+      const linked = await svc.getLinkedReservationBudgetItem(tripId, id);
       if (linked) {
-        deleteBudgetItem(linked.id, tripId);
+        await svc.deleteReservationBudgetItem(linked.id, tripId);
         broadcast(tripId, 'budget:deleted', { itemId: linked.id }, socketId);
       }
       return;
@@ -141,20 +132,20 @@ export class ReservationsService {
     try {
       const itemName = title || currentTitle;
       const category = entry.category || type || currentType || 'Other';
-      const existing = db
-        .prepare('SELECT id FROM budget_items WHERE trip_id = ? AND reservation_id = ?')
-        .get(tripId, id) as { id: number } | undefined;
+      const existing = await svc.getLinkedReservationBudgetItem(tripId, id);
       if (existing) {
-        const updated = updateBudgetItem(existing.id, tripId, {
+        const updated = await svc.updateReservationBudgetItem(existing.id, tripId, {
           name: itemName,
           category,
-          total_price: entry.total_price,
+          total_price: Number(entry.total_price),
         });
         broadcast(tripId, 'budget:updated', { item: updated }, socketId);
       } else {
-        const item = createBudgetItem(tripId, { name: itemName, category, total_price: entry.total_price });
-        db.prepare('UPDATE budget_items SET reservation_id = ? WHERE id = ?').run(id, item.id);
-        item.reservation_id = Number(id);
+        const item = await svc.createLinkedBudgetItemForReservation(tripId, Number(id), {
+          name: itemName,
+          category,
+          total_price: Number(entry.total_price),
+        });
         broadcast(tripId, 'budget:created', { item }, socketId);
       }
     } catch (err) {
@@ -164,21 +155,24 @@ export class ReservationsService {
 
   /** Fire-and-forget booking-change notification, mirroring the legacy dynamic import. */
   notifyBookingChange(tripId: string, actor: User, booking: string, type: string): void {
-    import('../../services/notificationService').then(({ send }) => {
-      const tripInfo = db.prepare('SELECT title FROM trips WHERE id = ?').get(tripId) as { title: string } | undefined;
-      send({
-        event: 'booking_change',
-        actorId: actor.id,
-        scope: 'trip',
-        targetId: Number(tripId),
-        params: {
-          trip: tripInfo?.title || 'Untitled',
-          actor: actor.email,
-          booking,
-          type: type || 'booking',
-          tripId: String(tripId),
-        },
-      }).catch(() => {});
-    });
+    if (resolveDbProvider() === 'oracle-async') return;
+    void import('../../services/notificationService')
+      .then(async ({ send }) => {
+        const tripInfo = await asyncDb.prepare('SELECT title FROM trips WHERE id = ?').get<{ title: string }>(tripId);
+        send({
+          event: 'booking_change',
+          actorId: actor.id,
+          scope: 'trip',
+          targetId: Number(tripId),
+          params: {
+            trip: tripInfo?.title || 'Untitled',
+            actor: actor.email,
+            booking,
+            type: type || 'booking',
+            tripId: String(tripId),
+          },
+        }).catch(() => {});
+      })
+      .catch(() => {});
   }
 }

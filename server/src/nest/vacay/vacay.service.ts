@@ -14,7 +14,7 @@ export class VacayService {
     return svc.getPlanData(userId);
   }
 
-  getActivePlanId(userId: number): number {
+  getActivePlanId(userId: number) {
     return svc.getActivePlanId(userId);
   }
 
@@ -46,7 +46,7 @@ export class VacayService {
     return svc.updateHolidayCalendar(id, planId, body, socketId);
   }
 
-  deleteHolidayCalendar(id: number, planId: number, socketId: string | undefined): boolean {
+  deleteHolidayCalendar(id: number, planId: number, socketId: string | undefined) {
     return svc.deleteHolidayCalendar(id, planId, socketId);
   }
 
@@ -54,8 +54,8 @@ export class VacayService {
     return svc.getPlanUsers(planId);
   }
 
-  setUserColor(userId: number, planId: number, color: string | undefined, socketId: string | undefined): void {
-    svc.setUserColor(userId, planId, color, socketId);
+  setUserColor(userId: number, planId: number, color: string | undefined, socketId: string | undefined) {
+    return svc.setUserColor(userId, planId, color, socketId);
   }
 
   sendInvite(planId: number, inviterId: number, inviterUsername: string, inviterEmail: string, targetUserId: number) {
@@ -66,31 +66,31 @@ export class VacayService {
     return svc.acceptInvite(userId, planId, socketId);
   }
 
-  declineInvite(userId: number, planId: number, socketId: string | undefined): void {
-    svc.declineInvite(userId, planId, socketId);
+  declineInvite(userId: number, planId: number, socketId: string | undefined) {
+    return svc.declineInvite(userId, planId, socketId);
   }
 
-  cancelInvite(planId: number, targetUserId: number): void {
-    svc.cancelInvite(planId, targetUserId);
+  cancelInvite(planId: number, targetUserId: number) {
+    return svc.cancelInvite(planId, targetUserId);
   }
 
-  dissolvePlan(userId: number, socketId: string | undefined): void {
-    svc.dissolvePlan(userId, socketId);
+  dissolvePlan(userId: number, socketId: string | undefined) {
+    return svc.dissolvePlan(userId, socketId);
   }
 
   getAvailableUsers(userId: number, planId: number) {
     return svc.getAvailableUsers(userId, planId);
   }
 
-  listYears(planId: number): number[] {
+  listYears(planId: number) {
     return svc.listYears(planId);
   }
 
-  addYear(planId: number, year: number, socketId: string | undefined): number[] {
+  addYear(planId: number, year: number, socketId: string | undefined) {
     return svc.addYear(planId, year, socketId);
   }
 
-  deleteYear(planId: number, year: number, socketId: string | undefined): number[] {
+  deleteYear(planId: number, year: number, socketId: string | undefined) {
     return svc.deleteYear(planId, year, socketId);
   }
 
@@ -110,8 +110,8 @@ export class VacayService {
     return svc.getStats(planId, year);
   }
 
-  updateStats(userId: number, planId: number, year: number, vacationDays: number, socketId: string | undefined): void {
-    svc.updateStats(userId, planId, year, vacationDays, socketId);
+  updateStats(userId: number, planId: number, year: number, vacationDays: number, socketId: string | undefined) {
+    return svc.updateStats(userId, planId, year, vacationDays, socketId);
   }
 
   getCountries() {

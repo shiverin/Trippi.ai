@@ -50,7 +50,7 @@ export class PackingController {
   @Get()
   async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { items: this.packing.listItems(tripId) };
+    return { items: await this.packing.listItems(tripId) };
   }
 
   @Post('import')
@@ -65,7 +65,7 @@ export class PackingController {
     if (!Array.isArray(items) || items.length === 0) {
       throw new HttpException({ error: 'items must be a non-empty array' }, 400);
     }
-    const created = this.packing.bulkImport(tripId, items);
+    const created = await this.packing.bulkImport(tripId, items);
     for (const item of created) {
       this.packing.broadcast(tripId, 'packing:created', { item }, socketId);
     }
@@ -84,7 +84,11 @@ export class PackingController {
     if (!body.name) {
       throw new HttpException({ error: 'Item name is required' }, 400);
     }
-    const item = this.packing.createItem(tripId, { name: body.name, category: body.category, checked: body.checked });
+    const item = await this.packing.createItem(tripId, {
+      name: body.name,
+      category: body.category,
+      checked: body.checked,
+    });
     this.packing.broadcast(tripId, 'packing:created', { item }, socketId);
     return { item };
   }
@@ -98,7 +102,7 @@ export class PackingController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    this.packing.reorderItems(tripId, orderedIds);
+    await this.packing.reorderItems(tripId, orderedIds);
     return { success: true };
   }
 
@@ -113,7 +117,7 @@ export class PackingController {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const { name, checked, category, weight_grams, bag_id, quantity } = body as Record<string, never>;
-    const updated = this.packing.updateItem(
+    const updated = await this.packing.updateItem(
       tripId,
       id,
       { name, checked, category, weight_grams, bag_id, quantity },
@@ -135,7 +139,7 @@ export class PackingController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.packing.deleteItem(tripId, id)) {
+    if (!(await this.packing.deleteItem(tripId, id))) {
       throw new HttpException({ error: 'Item not found' }, 404);
     }
     this.packing.broadcast(tripId, 'packing:deleted', { itemId: Number(id) }, socketId);
@@ -145,7 +149,7 @@ export class PackingController {
   @Get('bags')
   async listBags(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { bags: this.packing.listBags(tripId) };
+    return { bags: await this.packing.listBags(tripId) };
   }
 
   @Post('bags')
@@ -160,7 +164,7 @@ export class PackingController {
     if (!body.name?.trim()) {
       throw new HttpException({ error: 'Name is required' }, 400);
     }
-    const bag = this.packing.createBag(tripId, { name: body.name, color: body.color });
+    const bag = await this.packing.createBag(tripId, { name: body.name, color: body.color });
     this.packing.broadcast(tripId, 'packing:bag-created', { bag }, socketId);
     return { bag };
   }
@@ -176,7 +180,7 @@ export class PackingController {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const { name, color, weight_limit_grams, user_id } = body as Record<string, never>;
-    const updated = this.packing.updateBag(
+    const updated = await this.packing.updateBag(
       tripId,
       bagId,
       { name, color, weight_limit_grams, user_id },
@@ -198,7 +202,7 @@ export class PackingController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.packing.deleteBag(tripId, bagId)) {
+    if (!(await this.packing.deleteBag(tripId, bagId))) {
       throw new HttpException({ error: 'Bag not found' }, 404);
     }
     this.packing.broadcast(tripId, 'packing:bag-deleted', { bagId: Number(bagId) }, socketId);
@@ -208,7 +212,7 @@ export class PackingController {
   @Get('templates')
   async listTemplates(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { templates: this.packing.listTemplates() };
+    return { templates: await this.packing.listTemplates() };
   }
 
   @Post('apply-template/:templateId')
@@ -221,7 +225,7 @@ export class PackingController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const added = this.packing.applyTemplate(tripId, templateId);
+    const added = await this.packing.applyTemplate(tripId, templateId);
     if (!added) {
       throw new HttpException({ error: 'Template not found or empty' }, 404);
     }
@@ -239,7 +243,7 @@ export class PackingController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const members = this.packing.setBagMembers(tripId, bagId, Array.isArray(userIds) ? userIds : []);
+    const members = await this.packing.setBagMembers(tripId, bagId, Array.isArray(userIds) ? userIds : []);
     if (!members) {
       throw new HttpException({ error: 'Bag not found' }, 404);
     }
@@ -256,7 +260,7 @@ export class PackingController {
     if (!name?.trim()) {
       throw new HttpException({ error: 'Template name is required' }, 400);
     }
-    const template = this.packing.saveAsTemplate(tripId, user.id, name.trim());
+    const template = await this.packing.saveAsTemplate(tripId, user.id, name.trim());
     if (!template) {
       throw new HttpException({ error: 'No items to save' }, 400);
     }
@@ -266,7 +270,7 @@ export class PackingController {
   @Get('category-assignees')
   async categoryAssignees(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { assignees: this.packing.getCategoryAssignees(tripId) };
+    return { assignees: await this.packing.getCategoryAssignees(tripId) };
   }
 
   @Put('category-assignees/:categoryName')
@@ -280,7 +284,7 @@ export class PackingController {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const category = decodeURIComponent(categoryName);
-    const rows = this.packing.updateCategoryAssignees(tripId, category, userIds);
+    const rows = await this.packing.updateCategoryAssignees(tripId, category, userIds);
     this.packing.broadcast(tripId, 'packing:assignees', { category, assignees: rows }, socketId);
     this.packing.notifyTagged(tripId, user, category, userIds);
     return { assignees: rows };

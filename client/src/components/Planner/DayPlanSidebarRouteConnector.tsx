@@ -27,17 +27,26 @@ export function RouteConnector({
       }}
     >
       <div style={line} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-        <Icon size={11} strokeWidth={2} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 }}>
+        <Icon size={11} strokeWidth={2} style={{ flexShrink: 0 }} />
         {label && (
           <>
-            <span>{label}</span>
+            <span
+              style={{
+                maxWidth: 150,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label}
+            </span>
             <span style={{ opacity: 0.4 }}>·</span>
           </>
         )}
-        <span>{seg.durationText ?? (driving ? seg.drivingText : seg.walkingText)}</span>
+        <span style={{ flexShrink: 0 }}>{seg.durationText ?? (driving ? seg.drivingText : seg.walkingText)}</span>
         <span style={{ opacity: 0.4 }}>·</span>
-        <span>{seg.distanceText}</span>
+        <span style={{ flexShrink: 0 }}>{seg.distanceText}</span>
       </div>
       <div style={line} />
     </div>

@@ -1,3 +1,4 @@
+import { asyncDb } from '../../db/asyncDatabase';
 import { db } from '../../db/database';
 
 import { Response } from 'express';
@@ -46,6 +47,27 @@ export function getFresh(key: string): { filePath: string; contentType: string }
   return { filePath: fp, contentType: row.content_type };
 }
 
+export async function getFreshAsync(key: string): Promise<{ filePath: string; contentType: string } | null> {
+  const row = await asyncDb
+    .prepare('SELECT content_type, fetched_at FROM trippi_photo_cache_meta WHERE cache_key = ?')
+    .get<{ content_type: string; fetched_at: number }>(key);
+
+  if (!row) return null;
+
+  if (Date.now() - row.fetched_at >= CACHE_TTL) {
+    await asyncDb.prepare('DELETE FROM trippi_photo_cache_meta WHERE cache_key = ?').run(key);
+    return null;
+  }
+
+  const fp = cachedFilePath(key);
+  if (!fs.existsSync(fp)) {
+    await asyncDb.prepare('DELETE FROM trippi_photo_cache_meta WHERE cache_key = ?').run(key);
+    return null;
+  }
+
+  return { filePath: fp, contentType: row.content_type };
+}
+
 export async function put(key: string, bytes: Buffer, contentType: string): Promise<void> {
   ensureDir();
   const fp = cachedFilePath(key);
@@ -54,13 +76,23 @@ export async function put(key: string, bytes: Buffer, contentType: string): Prom
   await fsPromises.writeFile(tmp, bytes);
   await fsPromises.rename(tmp, fp);
 
-  db.prepare(
+  await asyncDb.prepare(
     'INSERT OR REPLACE INTO trippi_photo_cache_meta (cache_key, content_type, fetched_at) VALUES (?, ?, ?)',
   ).run(key, contentType, Date.now());
 }
 
 export function serveFresh(res: Response, key: string): boolean {
   const entry = getFresh(key);
+  if (!entry) return false;
+
+  res.set('Content-Type', entry.contentType);
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.sendFile(entry.filePath);
+  return true;
+}
+
+export async function serveFreshAsync(res: Response, key: string): Promise<boolean> {
+  const entry = await getFreshAsync(key);
   if (!entry) return false;
 
   res.set('Content-Type', entry.contentType);

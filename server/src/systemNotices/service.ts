@@ -1,5 +1,6 @@
+import { asyncDb } from '../db/asyncDatabase.js';
 import { db } from '../db/database.js';
-import { evaluate } from './conditions.js';
+import { evaluate, evaluateAsync } from './conditions.js';
 import { SYSTEM_NOTICES } from './registry.js';
 import type { SystemNotice, SystemNoticeDTO } from './types.js';
 
@@ -80,6 +81,46 @@ export function getActiveNoticesFor(userId: number): SystemNoticeDTO[] {
     .map(({ conditions: _c, publishedAt: _p, minVersion: _mn, maxVersion: _mx, priority: _pr, ...dto }) => dto);
 }
 
+export async function getActiveNoticesForAsync(userId: number): Promise<SystemNoticeDTO[]> {
+  const user = await asyncDb.prepare('SELECT login_count, first_seen_version, role FROM users WHERE id = ?').get<{
+    login_count: number;
+    first_seen_version: string;
+    role: string;
+  }>(userId);
+
+  if (!user) return [];
+
+  const tripCount =
+    (await asyncDb.prepare('SELECT COUNT(*) AS count FROM trips WHERE user_id = ?').get<{ count: number }>(userId))
+      ?.count ?? 0;
+
+  const dismissedRows = await asyncDb
+    .prepare('SELECT notice_id FROM user_notice_dismissals WHERE user_id = ?')
+    .all<{ notice_id: string }>(userId);
+  const dismissedIds = new Set<string>(dismissedRows.map((r) => r.notice_id));
+
+  const now = new Date();
+  const currentAppVersion = getCurrentAppVersion();
+  const ctx = { user: { ...user, noTrips: tripCount }, currentAppVersion, now };
+  const active: SystemNotice[] = [];
+
+  for (const notice of SYSTEM_NOTICES) {
+    if (dismissedIds.has(notice.id)) continue;
+    if (!isNoticeVersionActive(notice, currentAppVersion)) continue;
+    if (await evaluateAsync(notice, ctx)) active.push(notice);
+  }
+
+  return active
+    .sort((a, b) => {
+      const pw = (b.priority ?? 0) - (a.priority ?? 0);
+      if (pw !== 0) return pw;
+      const sw = severityWeight(b.severity) - severityWeight(a.severity);
+      if (sw !== 0) return sw;
+      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+    })
+    .map(({ conditions: _c, publishedAt: _p, minVersion: _mn, maxVersion: _mx, priority: _pr, ...dto }) => dto);
+}
+
 export function dismissNotice(userId: number, noticeId: string): boolean {
   const exists = SYSTEM_NOTICES.some((n) => n.id === noticeId);
   if (!exists) return false;
@@ -89,5 +130,19 @@ export function dismissNotice(userId: number, noticeId: string): boolean {
     VALUES (?, ?, ?)
   `,
   ).run(userId, noticeId, Date.now());
+  return true;
+}
+
+export async function dismissNoticeAsync(userId: number, noticeId: string): Promise<boolean> {
+  const exists = SYSTEM_NOTICES.some((n) => n.id === noticeId);
+  if (!exists) return false;
+  await asyncDb
+    .prepare(
+      `
+    INSERT OR IGNORE INTO user_notice_dismissals (user_id, notice_id, dismissed_at)
+    VALUES (?, ?, ?)
+  `,
+    )
+    .run(userId, noticeId, Date.now());
   return true;
 }

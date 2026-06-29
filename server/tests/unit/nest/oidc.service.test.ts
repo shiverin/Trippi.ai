@@ -7,6 +7,7 @@ import type { Request, Response } from 'express';
 const { oidc } = vi.hoisted(() => ({
   oidc: {
     getOidcConfig: vi.fn(),
+    getOidcConfigAsync: vi.fn(),
     discover: vi.fn(),
     createState: vi.fn(),
     consumeState: vi.fn(),
@@ -14,8 +15,11 @@ const { oidc } = vi.hoisted(() => ({
     verifyIdToken: vi.fn(),
     getUserInfo: vi.fn(),
     findOrCreateUser: vi.fn(),
+    findOrCreateUserAsync: vi.fn(),
     touchLastLogin: vi.fn(),
+    touchLastLoginAsync: vi.fn(),
     generateToken: vi.fn(),
+    generateTokenAsync: vi.fn(),
     createAuthCode: vi.fn(),
     consumeAuthCode: vi.fn(),
     frontendUrl: vi.fn(),
@@ -26,8 +30,8 @@ vi.mock('../../../src/services/oidcService', () => oidc);
 const { getAppUrl } = vi.hoisted(() => ({ getAppUrl: vi.fn() }));
 vi.mock('../../../src/services/notifications', () => ({ getAppUrl }));
 
-const { resolveAuthToggles } = vi.hoisted(() => ({ resolveAuthToggles: vi.fn() }));
-vi.mock('../../../src/services/authService', () => ({ resolveAuthToggles }));
+const { resolveAuthTogglesAsync } = vi.hoisted(() => ({ resolveAuthTogglesAsync: vi.fn() }));
+vi.mock('../../../src/services/authService', () => ({ resolveAuthTogglesAsync }));
 
 const { setAuthCookie } = vi.hoisted(() => ({ setAuthCookie: vi.fn() }));
 vi.mock('../../../src/services/cookie', () => ({ setAuthCookie }));
@@ -41,17 +45,17 @@ beforeEach(() => {
 });
 
 describe('OidcService', () => {
-  it('oidcLoginEnabled reads the resolved auth toggle', () => {
-    resolveAuthToggles.mockReturnValue({ oidc_login: true });
-    expect(s.oidcLoginEnabled()).toBe(true);
-    resolveAuthToggles.mockReturnValue({ oidc_login: false });
-    expect(s.oidcLoginEnabled()).toBe(false);
+  it('oidcLoginEnabled reads the resolved auth toggle', async () => {
+    resolveAuthTogglesAsync.mockResolvedValue({ oidc_login: true });
+    await expect(s.oidcLoginEnabled()).resolves.toBe(true);
+    resolveAuthTogglesAsync.mockResolvedValue({ oidc_login: false });
+    await expect(s.oidcLoginEnabled()).resolves.toBe(false);
   });
 
-  it('getOidcConfig delegates to the legacy helper', () => {
+  it('getOidcConfig delegates to the legacy helper', async () => {
     const cfg = { issuer: 'https://idp' };
-    oidc.getOidcConfig.mockReturnValue(cfg);
-    expect(s.getOidcConfig()).toBe(cfg);
+    oidc.getOidcConfigAsync.mockResolvedValue(cfg);
+    await expect(s.getOidcConfig()).resolves.toBe(cfg);
   });
 
   it('getAppUrl delegates to notifications.getAppUrl', () => {
@@ -59,16 +63,16 @@ describe('OidcService', () => {
     expect(s.getAppUrl()).toBe('https://app');
   });
 
-  it('discover forwards the issuer and discovery url', () => {
+  it('discover forwards the issuer and discovery url', async () => {
     const doc = { authorization_endpoint: 'https://idp/auth' };
-    oidc.discover.mockReturnValue(doc);
-    expect(s.discover('https://idp', 'https://idp/.well-known')).toBe(doc);
+    oidc.discover.mockResolvedValue(doc);
+    await expect(s.discover('https://idp', 'https://idp/.well-known')).resolves.toBe(doc);
     expect(oidc.discover).toHaveBeenCalledWith('https://idp', 'https://idp/.well-known');
   });
 
-  it('discover works without a discovery url', () => {
-    oidc.discover.mockReturnValue('doc');
-    expect(s.discover('https://idp')).toBe('doc');
+  it('discover works without a discovery url', async () => {
+    oidc.discover.mockResolvedValue('doc');
+    await expect(s.discover('https://idp')).resolves.toBe('doc');
     expect(oidc.discover).toHaveBeenCalledWith('https://idp', undefined);
   });
 
@@ -91,44 +95,45 @@ describe('OidcService', () => {
     expect(oidc.consumeState).toHaveBeenCalledWith('st');
   });
 
-  it('exchangeCodeForToken spreads all arguments through', () => {
-    oidc.exchangeCodeForToken.mockReturnValue({ _ok: true });
+  it('exchangeCodeForToken spreads all arguments through', async () => {
+    oidc.exchangeCodeForToken.mockResolvedValue({ _ok: true });
     const doc = { token_endpoint: 'https://idp/token' } as never;
-    expect(s.exchangeCodeForToken(doc, 'code', 'redir', 'cid', 'secret', 'verifier')).toEqual({ _ok: true });
+    await expect(s.exchangeCodeForToken(doc, 'code', 'redir', 'cid', 'secret', 'verifier')).resolves.toEqual({ _ok: true });
     expect(oidc.exchangeCodeForToken).toHaveBeenCalledWith(doc, 'code', 'redir', 'cid', 'secret', 'verifier');
   });
 
-  it('verifyIdToken spreads all arguments through', () => {
-    oidc.verifyIdToken.mockReturnValue({ ok: true });
+  it('verifyIdToken spreads all arguments through', async () => {
+    oidc.verifyIdToken.mockResolvedValue({ ok: true });
     const doc = { issuer: 'https://idp' } as never;
-    expect(s.verifyIdToken('id_token', doc, 'cid', 'https://idp')).toEqual({ ok: true });
+    await expect(s.verifyIdToken('id_token', doc, 'cid', 'https://idp')).resolves.toEqual({ ok: true });
     expect(oidc.verifyIdToken).toHaveBeenCalledWith('id_token', doc, 'cid', 'https://idp');
   });
 
-  it('getUserInfo forwards the endpoint and access token', () => {
-    oidc.getUserInfo.mockReturnValue({ email: 'a@b.c' });
-    expect(s.getUserInfo('https://idp/ui', 'at')).toEqual({ email: 'a@b.c' });
+  it('getUserInfo forwards the endpoint and access token', async () => {
+    oidc.getUserInfo.mockResolvedValue({ email: 'a@b.c' });
+    await expect(s.getUserInfo('https://idp/ui', 'at')).resolves.toEqual({ email: 'a@b.c' });
     expect(oidc.getUserInfo).toHaveBeenCalledWith('https://idp/ui', 'at');
   });
 
-  it('findOrCreateUser spreads all arguments through', () => {
+  it('findOrCreateUser spreads all arguments through', async () => {
     const result = { user: { id: 1 } };
-    oidc.findOrCreateUser.mockReturnValue(result);
+    oidc.findOrCreateUserAsync.mockResolvedValue(result);
     const info = { email: 'a@b.c' } as never;
     const cfg = { issuer: 'https://idp' } as never;
-    expect(s.findOrCreateUser(info, cfg, 'inv')).toBe(result);
-    expect(oidc.findOrCreateUser).toHaveBeenCalledWith(info, cfg, 'inv');
+    await expect(s.findOrCreateUser(info, cfg, 'inv')).resolves.toBe(result);
+    expect(oidc.findOrCreateUserAsync).toHaveBeenCalledWith(info, cfg, 'inv');
   });
 
-  it('touchLastLogin forwards the user id', () => {
-    s.touchLastLogin(42);
-    expect(oidc.touchLastLogin).toHaveBeenCalledWith(42);
+  it('touchLastLogin forwards the user id', async () => {
+    oidc.touchLastLoginAsync.mockResolvedValue(undefined);
+    await s.touchLastLogin(42);
+    expect(oidc.touchLastLoginAsync).toHaveBeenCalledWith(42);
   });
 
-  it('generateToken forwards the user', () => {
-    oidc.generateToken.mockReturnValue('jwt');
-    expect(s.generateToken({ id: 7 })).toBe('jwt');
-    expect(oidc.generateToken).toHaveBeenCalledWith({ id: 7 });
+  it('generateToken forwards the user', async () => {
+    oidc.generateTokenAsync.mockResolvedValue('jwt');
+    await expect(s.generateToken({ id: 7 })).resolves.toBe('jwt');
+    expect(oidc.generateTokenAsync).toHaveBeenCalledWith({ id: 7 });
   });
 
   it('createAuthCode forwards the token', () => {

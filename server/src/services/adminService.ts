@@ -1,13 +1,20 @@
 import { updateJwtSecret } from '../config';
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { revokeUserSessions, revokeUserSessionsForClient } from '../mcp';
 import { User, Addon } from '../types';
 import { maybe_encrypt_api_key, decrypt_api_key } from './apiKeyCrypto';
-import { resolveAuthToggles } from './authService';
+import { resolveAuthToggles, resolveAuthTogglesAsync } from './authService';
 import { getPhotoProviderConfig } from './memories/helpersService';
 import { send as sendNotification } from './notificationService';
 import { validatePassword } from './passwordPolicy';
-import { getAllPermissions, savePermissions as savePerms, PERMISSION_ACTIONS } from './permissions';
+import {
+  getAllPermissions,
+  getAllPermissionsAsync,
+  savePermissions as savePerms,
+  savePermissionsAsync as savePermsAsync,
+  PERMISSION_ACTIONS,
+} from './permissions';
 import { deleteUserCompletely } from './userCleanupService';
 
 import bcrypt from 'bcryptjs';
@@ -89,6 +96,33 @@ export function listUsers() {
   }));
 }
 
+export async function listUsersAsync() {
+  const users = await asyncDb
+    .prepare(
+      'SELECT id, username, email, role, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC',
+    )
+    .all<
+      Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & {
+        avatar?: string | null;
+      }
+    >();
+  let onlineUserIds = new Set<number>();
+  try {
+    const { getOnlineUserIds } = require('../websocket');
+    onlineUserIds = getOnlineUserIds();
+  } catch {
+    /* */
+  }
+  return users.map((u) => ({
+    ...u,
+    avatar_url: u.avatar ? `/uploads/avatars/${u.avatar}` : null,
+    created_at: utcSuffix(u.created_at),
+    updated_at: utcSuffix(u.updated_at as string),
+    last_login: utcSuffix(u.last_login),
+    online: onlineUserIds.has(u.id),
+  }));
+}
+
 export function createUser(data: { username: string; email: string; password: string; role?: string }) {
   const username = data.username?.trim();
   const email = data.email?.trim();
@@ -118,6 +152,45 @@ export function createUser(data: { username: string; email: string; password: st
     .run(username, email, passwordHash, data.role || 'user');
 
   const user = db
+    .prepare('SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?')
+    .get(result.lastInsertRowid);
+
+  return {
+    user,
+    insertedId: Number(result.lastInsertRowid),
+    auditDetails: { username, email, role: data.role || 'user' },
+  };
+}
+
+export async function createUserAsync(data: { username: string; email: string; password: string; role?: string }) {
+  const username = data.username?.trim();
+  const email = data.email?.trim();
+  const password = data.password?.trim();
+
+  if (!username || !email || !password) {
+    return { error: 'Username, email and password are required', status: 400 };
+  }
+
+  const pwCheck = validatePassword(password);
+  if (!pwCheck.ok) return { error: pwCheck.reason, status: 400 };
+
+  if (data.role && !['user', 'admin'].includes(data.role)) {
+    return { error: 'Invalid role', status: 400 };
+  }
+
+  const existingUsername = await asyncDb.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  if (existingUsername) return { error: 'Username already taken', status: 409 };
+
+  const existingEmail = await asyncDb.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  if (existingEmail) return { error: 'Email already taken', status: 409 };
+
+  const passwordHash = bcrypt.hashSync(password, BCRYPT_COST);
+
+  const result = await asyncDb
+    .prepare('INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)')
+    .run(username, email, passwordHash, data.role || 'user');
+
+  const user = await asyncDb
     .prepare('SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
 
@@ -196,6 +269,77 @@ export function updateUser(id: string, data: { username?: string; email?: string
   };
 }
 
+export async function updateUserAsync(
+  id: string,
+  data: { username?: string; email?: string; role?: string; password?: string },
+) {
+  const username = typeof data.username === 'string' ? data.username.trim() : data.username;
+  const email = typeof data.email === 'string' ? data.email.trim() : data.email;
+  const { role, password } = data;
+  const user = await asyncDb.prepare('SELECT * FROM users WHERE id = ?').get<User>(id);
+
+  if (!user) return { error: 'User not found', status: 404 };
+
+  if (role && !['user', 'admin'].includes(role)) {
+    return { error: 'Invalid role', status: 400 };
+  }
+
+  if (username && username !== user.username) {
+    const conflict = await asyncDb.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, id);
+    if (conflict) return { error: 'Username already taken', status: 409 };
+  }
+  if (email && email !== user.email) {
+    const conflict = await asyncDb.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, id);
+    if (conflict) return { error: 'Email already taken', status: 409 };
+  }
+
+  if (password) {
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.ok) return { error: pwCheck.reason, status: 400 };
+  }
+  const passwordHash = password ? bcrypt.hashSync(password, BCRYPT_COST) : null;
+
+  if (role && role !== 'admin') {
+    const current = await asyncDb.prepare('SELECT role FROM users WHERE id = ?').get<{ role?: string }>(id);
+    if (current?.role === 'admin') {
+      const adminCount =
+        (await asyncDb.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get<{ count: number }>())
+          ?.count ?? 0;
+      if (adminCount <= 1) return { error: 'Cannot remove the last admin', status: 400 };
+    }
+  }
+
+  await asyncDb
+    .prepare(
+      `
+    UPDATE users SET
+      username = COALESCE(?, username),
+      email = COALESCE(?, email),
+      role = COALESCE(?, role),
+      password_hash = COALESCE(?, password_hash),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `,
+    )
+    .run(username || null, email || null, role || null, passwordHash, id);
+
+  const updated = await asyncDb
+    .prepare('SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?')
+    .get(id);
+
+  const changed: string[] = [];
+  if (username) changed.push('username');
+  if (email) changed.push('email');
+  if (role) changed.push('role');
+  if (password) changed.push('password');
+
+  return {
+    user: updated,
+    previousEmail: user.email,
+    changed,
+  };
+}
+
 export function deleteUser(id: string, currentUserId: number) {
   if (parseInt(id) === currentUserId) {
     return { error: 'Cannot delete own account', status: 400 };
@@ -210,6 +354,31 @@ export function deleteUser(id: string, currentUserId: number) {
   return { email: userToDel.email };
 }
 
+export async function deleteUserAsync(id: string, currentUserId: number) {
+  if (parseInt(id) === currentUserId) {
+    return { error: 'Cannot delete own account', status: 400 };
+  }
+
+  const userToDel = await asyncDb.prepare('SELECT id, email FROM users WHERE id = ?').get<{
+    id: number;
+    email: string;
+  }>(id);
+  if (!userToDel) return { error: 'User not found', status: 404 };
+
+  await asyncDb.transaction(async (userId: number) => {
+    await asyncDb.prepare('UPDATE trip_members SET invited_by = NULL WHERE invited_by = ?').run(userId);
+    await asyncDb.prepare('UPDATE budget_items SET paid_by_user_id = NULL WHERE paid_by_user_id = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM share_tokens WHERE created_by = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM journey_share_tokens WHERE created_by = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM journeys WHERE user_id = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM journey_entries WHERE author_id = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM journey_contributors WHERE user_id = ?').run(userId);
+    await asyncDb.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  })(userToDel.id);
+
+  return { email: userToDel.email };
+}
+
 // ── Stats ──────────────────────────────────────────────────────────────────
 
 export function getStats() {
@@ -217,6 +386,18 @@ export function getStats() {
   const totalTrips = (db.prepare('SELECT COUNT(*) as count FROM trips').get() as { count: number }).count;
   const totalPlaces = (db.prepare('SELECT COUNT(*) as count FROM places').get() as { count: number }).count;
   const totalFiles = (db.prepare('SELECT COUNT(*) as count FROM trip_files').get() as { count: number }).count;
+  return { totalUsers, totalTrips, totalPlaces, totalFiles };
+}
+
+export async function getStatsAsync() {
+  const totalUsers =
+    (await asyncDb.prepare('SELECT COUNT(*) as count FROM users').get<{ count: number }>())?.count ?? 0;
+  const totalTrips =
+    (await asyncDb.prepare('SELECT COUNT(*) as count FROM trips').get<{ count: number }>())?.count ?? 0;
+  const totalPlaces =
+    (await asyncDb.prepare('SELECT COUNT(*) as count FROM places').get<{ count: number }>())?.count ?? 0;
+  const totalFiles =
+    (await asyncDb.prepare('SELECT COUNT(*) as count FROM trip_files').get<{ count: number }>())?.count ?? 0;
   return { totalUsers, totalTrips, totalPlaces, totalFiles };
 }
 
@@ -236,6 +417,22 @@ export function getPermissions() {
 export function savePermissions(permissions: Record<string, string>) {
   const { skipped } = savePerms(permissions);
   return { permissions: getAllPermissions(), skipped };
+}
+
+export async function getPermissionsAsync() {
+  const current = await getAllPermissionsAsync();
+  const actions = PERMISSION_ACTIONS.map((a) => ({
+    key: a.key,
+    level: current[a.key],
+    defaultLevel: a.defaultLevel,
+    allowedLevels: a.allowedLevels,
+  }));
+  return { permissions: actions };
+}
+
+export async function savePermissionsAsync(permissions: Record<string, string>) {
+  const { skipped } = await savePermsAsync(permissions);
+  return { permissions: await getAllPermissionsAsync(), skipped };
 }
 
 // ── Audit Log ──────────────────────────────────────────────────────────────
@@ -289,6 +486,55 @@ export function getAuditLog(query: { limit?: string; offset?: string }) {
   return { entries, total, limit, offset };
 }
 
+export async function getAuditLogAsync(query: { limit?: string; offset?: string }) {
+  const limitRaw = parseInt(String(query.limit || '100'), 10);
+  const offsetRaw = parseInt(String(query.offset || '0'), 10);
+  const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 100, 1), 500);
+  const offset = Math.max(Number.isFinite(offsetRaw) ? offsetRaw : 0, 0);
+
+  type Row = {
+    id: number;
+    created_at: string;
+    user_id: number | null;
+    username: string | null;
+    user_email: string | null;
+    action: string;
+    resource: string | null;
+    details: string | null;
+    ip: string | null;
+  };
+
+  const rows = await asyncDb
+    .prepare(
+      `
+    SELECT a.id, a.created_at, a.user_id, u.username, u.email as user_email, a.action, a.resource, a.details, a.ip
+    FROM audit_log a
+    LEFT JOIN users u ON u.id = a.user_id
+    ORDER BY a.id DESC
+    LIMIT ? OFFSET ?
+  `,
+    )
+    .all<Row>(limit, offset);
+
+  const total = (await asyncDb.prepare('SELECT COUNT(*) as c FROM audit_log').get<{ c: number }>())?.c ?? 0;
+
+  const entries = rows.map((r) => {
+    let details: Record<string, unknown> | null = null;
+    if (r.details) {
+      try {
+        details = JSON.parse(r.details) as Record<string, unknown>;
+      } catch {
+        details = { _parse_error: true };
+      }
+    }
+    const created_at =
+      r.created_at && !r.created_at.endsWith('Z') ? r.created_at.replace(' ', 'T') + 'Z' : r.created_at;
+    return { ...r, created_at, details };
+  });
+
+  return { entries, total, limit, offset };
+}
+
 // ── OIDC Settings ──────────────────────────────────────────────────────────
 
 export function getOidcSettings() {
@@ -302,6 +548,20 @@ export function getOidcSettings() {
     display_name: get('oidc_display_name'),
     oidc_only: get('oidc_only') === 'true',
     discovery_url: get('oidc_discovery_url'),
+  };
+}
+
+export async function getOidcSettingsAsync() {
+  const get = async (key: string) =>
+    (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value || '';
+  const secret = decrypt_api_key(await get('oidc_client_secret'));
+  return {
+    issuer: await get('oidc_issuer'),
+    client_id: await get('oidc_client_id'),
+    client_secret_set: !!secret,
+    display_name: await get('oidc_display_name'),
+    oidc_only: (await get('oidc_only')) === 'true',
+    discovery_url: await get('oidc_discovery_url'),
   };
 }
 
@@ -327,6 +587,31 @@ export function updateOidcSettings(data: {
   if (data.client_secret !== undefined) set('oidc_client_secret', maybe_encrypt_api_key(data.client_secret) ?? '');
   set('oidc_display_name', data.display_name ?? '');
   set('oidc_discovery_url', data.discovery_url ?? '');
+  return { success: true };
+}
+
+export async function updateOidcSettingsAsync(data: {
+  issuer?: string;
+  client_id?: string;
+  client_secret?: string;
+  display_name?: string;
+  discovery_url?: string;
+}): Promise<{ error?: string; status?: number; success?: boolean }> {
+  if ((data.issuer === '' || data.client_id === '') && !(await resolveAuthTogglesAsync()).password_login) {
+    return {
+      error: 'Cannot remove SSO configuration while password login is disabled. Enable password login first.',
+      status: 400,
+    };
+  }
+
+  const set = (key: string, val: string) =>
+    asyncDb.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)').run(key, val || '');
+  await set('oidc_issuer', data.issuer ?? '');
+  await set('oidc_client_id', data.client_id ?? '');
+  if (data.client_secret !== undefined)
+    await set('oidc_client_secret', maybe_encrypt_api_key(data.client_secret) ?? '');
+  await set('oidc_display_name', data.display_name ?? '');
+  await set('oidc_discovery_url', data.discovery_url ?? '');
   return { success: true };
 }
 
@@ -454,16 +739,15 @@ export async function checkAndNotifyVersion(): Promise<void> {
     if (!result.update_available) return;
 
     const lastNotified = (
-      db.prepare('SELECT value FROM app_settings WHERE key = ?').get('last_notified_version') as
-        | { value: string }
-        | undefined
+      await asyncDb
+        .prepare('SELECT value FROM app_settings WHERE key = ?')
+        .get<{ value: string }>('last_notified_version')
     )?.value;
     if (lastNotified === result.latest) return;
 
-    db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)').run(
-      'last_notified_version',
-      result.latest,
-    );
+    await asyncDb
+      .prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)')
+      .run('last_notified_version', result.latest);
 
     await sendNotification({
       event: 'version_available',
@@ -481,6 +765,19 @@ export async function checkAndNotifyVersion(): Promise<void> {
 
 export function listInvites() {
   return db
+    .prepare(
+      `
+    SELECT i.*, u.username as created_by_name
+    FROM invite_tokens i
+    JOIN users u ON i.created_by = u.id
+    ORDER BY i.created_at DESC
+  `,
+    )
+    .all();
+}
+
+export async function listInvitesAsync() {
+  return asyncDb
     .prepare(
       `
     SELECT i.*, u.username as created_by_name
@@ -522,10 +819,47 @@ export function createInvite(
   return { invite, inviteId, uses, expiresInDays: data.expires_in_days ?? null };
 }
 
+export async function createInviteAsync(
+  createdBy: number,
+  data: { max_uses?: string | number; expires_in_days?: string | number },
+) {
+  const rawUses = parseInt(String(data.max_uses));
+  const uses = rawUses === 0 ? 0 : Math.min(Math.max(rawUses || 1, 1), 5);
+  const token = crypto.randomBytes(16).toString('hex');
+  const expiresAt = data.expires_in_days
+    ? new Date(Date.now() + parseInt(String(data.expires_in_days)) * 86400000).toISOString()
+    : null;
+
+  const ins = await asyncDb
+    .prepare('INSERT INTO invite_tokens (token, max_uses, expires_at, created_by) VALUES (?, ?, ?, ?)')
+    .run(token, uses, expiresAt, createdBy);
+
+  const inviteId = Number(ins.lastInsertRowid);
+  const invite = await asyncDb
+    .prepare(
+      `
+    SELECT i.*, u.username as created_by_name
+    FROM invite_tokens i
+    JOIN users u ON i.created_by = u.id
+    WHERE i.id = ?
+  `,
+    )
+    .get(inviteId);
+
+  return { invite, inviteId, uses, expiresInDays: data.expires_in_days ?? null };
+}
+
 export function deleteInvite(id: string) {
   const invite = db.prepare('SELECT id FROM invite_tokens WHERE id = ?').get(id);
   if (!invite) return { error: 'Invite not found', status: 404 };
   db.prepare('DELETE FROM invite_tokens WHERE id = ?').run(id);
+  return {};
+}
+
+export async function deleteInviteAsync(id: string) {
+  const invite = await asyncDb.prepare('SELECT id FROM invite_tokens WHERE id = ?').get(id);
+  if (!invite) return { error: 'Invite not found', status: 404 };
+  await asyncDb.prepare('DELETE FROM invite_tokens WHERE id = ?').run(id);
   return {};
 }
 
@@ -538,10 +872,24 @@ export function getBagTracking() {
   return { enabled: row?.value === 'true' };
 }
 
+export async function getBagTrackingAsync() {
+  const row = await asyncDb
+    .prepare("SELECT value FROM app_settings WHERE key = 'bag_tracking_enabled'")
+    .get<{ value: string }>();
+  return { enabled: row?.value === 'true' };
+}
+
 export function updateBagTracking(enabled: boolean) {
   db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('bag_tracking_enabled', ?)").run(
     enabled ? 'true' : 'false',
   );
+  return { enabled: !!enabled };
+}
+
+export async function updateBagTrackingAsync(enabled: boolean) {
+  await asyncDb
+    .prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('bag_tracking_enabled', ?)")
+    .run(enabled ? 'true' : 'false');
   return { enabled: !!enabled };
 }
 
@@ -554,10 +902,24 @@ export function getPlacesPhotos() {
   return { enabled: row?.value !== 'false' };
 }
 
+export async function getPlacesPhotosAsync() {
+  const row = await asyncDb
+    .prepare("SELECT value FROM app_settings WHERE key = 'places_photos_enabled'")
+    .get<{ value: string }>();
+  return { enabled: row?.value !== 'false' };
+}
+
 export function updatePlacesPhotos(enabled: boolean) {
   db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('places_photos_enabled', ?)").run(
     enabled ? 'true' : 'false',
   );
+  return { enabled: !!enabled };
+}
+
+export async function updatePlacesPhotosAsync(enabled: boolean) {
+  await asyncDb
+    .prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('places_photos_enabled', ?)")
+    .run(enabled ? 'true' : 'false');
   return { enabled: !!enabled };
 }
 
@@ -570,10 +932,24 @@ export function getPlacesAutocomplete() {
   return { enabled: row?.value !== 'false' };
 }
 
+export async function getPlacesAutocompleteAsync() {
+  const row = await asyncDb
+    .prepare("SELECT value FROM app_settings WHERE key = 'places_autocomplete_enabled'")
+    .get<{ value: string }>();
+  return { enabled: row?.value !== 'false' };
+}
+
 export function updatePlacesAutocomplete(enabled: boolean) {
   db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('places_autocomplete_enabled', ?)").run(
     enabled ? 'true' : 'false',
   );
+  return { enabled: !!enabled };
+}
+
+export async function updatePlacesAutocompleteAsync(enabled: boolean) {
+  await asyncDb
+    .prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('places_autocomplete_enabled', ?)")
+    .run(enabled ? 'true' : 'false');
   return { enabled: !!enabled };
 }
 
@@ -586,10 +962,24 @@ export function getPlacesDetails() {
   return { enabled: row?.value !== 'false' };
 }
 
+export async function getPlacesDetailsAsync() {
+  const row = await asyncDb
+    .prepare("SELECT value FROM app_settings WHERE key = 'places_details_enabled'")
+    .get<{ value: string }>();
+  return { enabled: row?.value !== 'false' };
+}
+
 export function updatePlacesDetails(enabled: boolean) {
   db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('places_details_enabled', ?)").run(
     enabled ? 'true' : 'false',
   );
+  return { enabled: !!enabled };
+}
+
+export async function updatePlacesDetailsAsync(enabled: boolean) {
+  await asyncDb
+    .prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('places_details_enabled', ?)")
+    .run(enabled ? 'true' : 'false');
   return { enabled: !!enabled };
 }
 
@@ -608,6 +998,22 @@ export function getCollabFeatures() {
       "SELECT key, value FROM app_settings WHERE key IN ('collab_chat_enabled', 'collab_notes_enabled', 'collab_polls_enabled', 'collab_whatsnext_enabled')",
     )
     .all() as { key: string; value: string }[];
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.key] = r.value;
+  return {
+    chat: map['collab_chat_enabled'] !== 'false',
+    notes: map['collab_notes_enabled'] !== 'false',
+    polls: map['collab_polls_enabled'] !== 'false',
+    whatsnext: map['collab_whatsnext_enabled'] !== 'false',
+  };
+}
+
+export async function getCollabFeaturesAsync() {
+  const rows = await asyncDb
+    .prepare(
+      "SELECT key, value FROM app_settings WHERE key IN ('collab_chat_enabled', 'collab_notes_enabled', 'collab_polls_enabled', 'collab_whatsnext_enabled')",
+    )
+    .all<{ key: string; value: string }>();
   const map: Record<string, string> = {};
   for (const r of rows) map[r.key] = r.value;
   return {
@@ -637,10 +1043,44 @@ export function updateCollabFeatures(features: {
   return getCollabFeatures();
 }
 
+export async function updateCollabFeaturesAsync(features: {
+  chat?: boolean;
+  notes?: boolean;
+  polls?: boolean;
+  whatsnext?: boolean;
+}) {
+  const mapping: Record<string, string> = {
+    chat: 'collab_chat_enabled',
+    notes: 'collab_notes_enabled',
+    polls: 'collab_polls_enabled',
+    whatsnext: 'collab_whatsnext_enabled',
+  };
+  const stmt = asyncDb.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
+  for (const [feat, key] of Object.entries(mapping)) {
+    if (features[feat] !== undefined) await stmt.run(key, features[feat] ? 'true' : 'false');
+  }
+  return getCollabFeaturesAsync();
+}
+
 // ── Packing Templates ──────────────────────────────────────────────────────
 
 export function listPackingTemplates() {
   return db
+    .prepare(
+      `
+    SELECT pt.*, u.username as created_by_name,
+      (SELECT COUNT(*) FROM packing_template_items ti JOIN packing_template_categories tc ON ti.category_id = tc.id WHERE tc.template_id = pt.id) as item_count,
+      (SELECT COUNT(*) FROM packing_template_categories WHERE template_id = pt.id) as category_count
+    FROM packing_templates pt
+    JOIN users u ON pt.created_by = u.id
+    ORDER BY pt.created_at DESC
+  `,
+    )
+    .all();
+}
+
+export async function listPackingTemplatesAsync() {
+  return asyncDb
     .prepare(
       `
     SELECT pt.*, u.username as created_by_name,
@@ -672,12 +1112,39 @@ export function getPackingTemplate(id: string) {
   return { template, categories, items };
 }
 
+export async function getPackingTemplateAsync(id: string) {
+  const template = await asyncDb.prepare('SELECT * FROM packing_templates WHERE id = ?').get(id);
+  if (!template) return { error: 'Template not found', status: 404 };
+  const categories = await asyncDb
+    .prepare('SELECT * FROM packing_template_categories WHERE template_id = ? ORDER BY sort_order, id')
+    .all(id);
+  const items = await asyncDb
+    .prepare(
+      `
+    SELECT ti.* FROM packing_template_items ti
+    JOIN packing_template_categories tc ON ti.category_id = tc.id
+    WHERE tc.template_id = ? ORDER BY ti.sort_order, ti.id
+  `,
+    )
+    .all(id);
+  return { template, categories, items };
+}
+
 export function createPackingTemplate(name: string, createdBy: number) {
   if (!name?.trim()) return { error: 'Name is required', status: 400 };
   const result = db
     .prepare('INSERT INTO packing_templates (name, created_by) VALUES (?, ?)')
     .run(name.trim(), createdBy);
   const template = db.prepare('SELECT * FROM packing_templates WHERE id = ?').get(result.lastInsertRowid);
+  return { template };
+}
+
+export async function createPackingTemplateAsync(name: string, createdBy: number) {
+  if (!name?.trim()) return { error: 'Name is required', status: 400 };
+  const result = await asyncDb
+    .prepare('INSERT INTO packing_templates (name, created_by) VALUES (?, ?)')
+    .run(name.trim(), createdBy);
+  const template = await asyncDb.prepare('SELECT * FROM packing_templates WHERE id = ?').get(result.lastInsertRowid);
   return { template };
 }
 
@@ -688,10 +1155,26 @@ export function updatePackingTemplate(id: string, data: { name?: string }) {
   return { template: db.prepare('SELECT * FROM packing_templates WHERE id = ?').get(id) };
 }
 
+export async function updatePackingTemplateAsync(id: string, data: { name?: string }) {
+  const template = await asyncDb.prepare('SELECT * FROM packing_templates WHERE id = ?').get(id);
+  if (!template) return { error: 'Template not found', status: 404 };
+  if (data.name?.trim()) {
+    await asyncDb.prepare('UPDATE packing_templates SET name = ? WHERE id = ?').run(data.name.trim(), id);
+  }
+  return { template: await asyncDb.prepare('SELECT * FROM packing_templates WHERE id = ?').get(id) };
+}
+
 export function deletePackingTemplate(id: string) {
   const template = db.prepare('SELECT * FROM packing_templates WHERE id = ?').get(id) as { name?: string } | undefined;
   if (!template) return { error: 'Template not found', status: 404 };
   db.prepare('DELETE FROM packing_templates WHERE id = ?').run(id);
+  return { name: template.name };
+}
+
+export async function deletePackingTemplateAsync(id: string) {
+  const template = await asyncDb.prepare('SELECT * FROM packing_templates WHERE id = ?').get<{ name?: string }>(id);
+  if (!template) return { error: 'Template not found', status: 404 };
+  await asyncDb.prepare('DELETE FROM packing_templates WHERE id = ?').run(id);
   return { name: template.name };
 }
 
@@ -710,6 +1193,23 @@ export function createTemplateCategory(templateId: string, name: string) {
   return { category: db.prepare('SELECT * FROM packing_template_categories WHERE id = ?').get(result.lastInsertRowid) };
 }
 
+export async function createTemplateCategoryAsync(templateId: string, name: string) {
+  if (!name?.trim()) return { error: 'Category name is required', status: 400 };
+  const template = await asyncDb.prepare('SELECT * FROM packing_templates WHERE id = ?').get(templateId);
+  if (!template) return { error: 'Template not found', status: 404 };
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM packing_template_categories WHERE template_id = ?')
+    .get<{ max: number | null }>(templateId);
+  const result = await asyncDb
+    .prepare('INSERT INTO packing_template_categories (template_id, name, sort_order) VALUES (?, ?, ?)')
+    .run(templateId, name.trim(), (maxOrder?.max ?? -1) + 1);
+  return {
+    category: await asyncDb
+      .prepare('SELECT * FROM packing_template_categories WHERE id = ?')
+      .get(result.lastInsertRowid),
+  };
+}
+
 export function updateTemplateCategory(templateId: string, catId: string, data: { name?: string }) {
   const cat = db
     .prepare('SELECT * FROM packing_template_categories WHERE id = ? AND template_id = ?')
@@ -720,12 +1220,32 @@ export function updateTemplateCategory(templateId: string, catId: string, data: 
   return { category: db.prepare('SELECT * FROM packing_template_categories WHERE id = ?').get(catId) };
 }
 
+export async function updateTemplateCategoryAsync(templateId: string, catId: string, data: { name?: string }) {
+  const cat = await asyncDb
+    .prepare('SELECT * FROM packing_template_categories WHERE id = ? AND template_id = ?')
+    .get(catId, templateId);
+  if (!cat) return { error: 'Category not found', status: 404 };
+  if (data.name?.trim()) {
+    await asyncDb.prepare('UPDATE packing_template_categories SET name = ? WHERE id = ?').run(data.name.trim(), catId);
+  }
+  return { category: await asyncDb.prepare('SELECT * FROM packing_template_categories WHERE id = ?').get(catId) };
+}
+
 export function deleteTemplateCategory(templateId: string, catId: string) {
   const cat = db
     .prepare('SELECT * FROM packing_template_categories WHERE id = ? AND template_id = ?')
     .get(catId, templateId);
   if (!cat) return { error: 'Category not found', status: 404 };
   db.prepare('DELETE FROM packing_template_categories WHERE id = ?').run(catId);
+  return {};
+}
+
+export async function deleteTemplateCategoryAsync(templateId: string, catId: string) {
+  const cat = await asyncDb
+    .prepare('SELECT * FROM packing_template_categories WHERE id = ? AND template_id = ?')
+    .get(catId, templateId);
+  if (!cat) return { error: 'Category not found', status: 404 };
+  await asyncDb.prepare('DELETE FROM packing_template_categories WHERE id = ?').run(catId);
   return {};
 }
 
@@ -746,12 +1266,38 @@ export function createTemplateItem(templateId: string, catId: string, name: stri
   return { item: db.prepare('SELECT * FROM packing_template_items WHERE id = ?').get(result.lastInsertRowid) };
 }
 
+export async function createTemplateItemAsync(templateId: string, catId: string, name: string) {
+  if (!name?.trim()) return { error: 'Item name is required', status: 400 };
+  const cat = await asyncDb
+    .prepare('SELECT * FROM packing_template_categories WHERE id = ? AND template_id = ?')
+    .get(catId, templateId);
+  if (!cat) return { error: 'Category not found', status: 404 };
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM packing_template_items WHERE category_id = ?')
+    .get<{ max: number | null }>(catId);
+  const result = await asyncDb
+    .prepare('INSERT INTO packing_template_items (category_id, name, sort_order) VALUES (?, ?, ?)')
+    .run(catId, name.trim(), (maxOrder?.max ?? -1) + 1);
+  return {
+    item: await asyncDb.prepare('SELECT * FROM packing_template_items WHERE id = ?').get(result.lastInsertRowid),
+  };
+}
+
 export function updateTemplateItem(itemId: string, data: { name?: string }) {
   const item = db.prepare('SELECT * FROM packing_template_items WHERE id = ?').get(itemId);
   if (!item) return { error: 'Item not found', status: 404 };
   if (data.name?.trim())
     db.prepare('UPDATE packing_template_items SET name = ? WHERE id = ?').run(data.name.trim(), itemId);
   return { item: db.prepare('SELECT * FROM packing_template_items WHERE id = ?').get(itemId) };
+}
+
+export async function updateTemplateItemAsync(itemId: string, data: { name?: string }) {
+  const item = await asyncDb.prepare('SELECT * FROM packing_template_items WHERE id = ?').get(itemId);
+  if (!item) return { error: 'Item not found', status: 404 };
+  if (data.name?.trim()) {
+    await asyncDb.prepare('UPDATE packing_template_items SET name = ? WHERE id = ?').run(data.name.trim(), itemId);
+  }
+  return { item: await asyncDb.prepare('SELECT * FROM packing_template_items WHERE id = ?').get(itemId) };
 }
 
 export function deleteTemplateItem(itemId: string) {
@@ -761,10 +1307,22 @@ export function deleteTemplateItem(itemId: string) {
   return {};
 }
 
+export async function deleteTemplateItemAsync(itemId: string) {
+  const item = await asyncDb.prepare('SELECT * FROM packing_template_items WHERE id = ?').get(itemId);
+  if (!item) return { error: 'Item not found', status: 404 };
+  await asyncDb.prepare('DELETE FROM packing_template_items WHERE id = ?').run(itemId);
+  return {};
+}
+
 // ── Addons ─────────────────────────────────────────────────────────────────
 
 export function isAddonEnabled(addonId: string): boolean {
   const addon = db.prepare('SELECT enabled FROM addons WHERE id = ?').get(addonId) as { enabled: number } | undefined;
+  return !!addon?.enabled;
+}
+
+export async function isAddonEnabledAsync(addonId: string): Promise<boolean> {
+  const addon = await asyncDb.prepare('SELECT enabled FROM addons WHERE id = ?').get<{ enabled: number }>(addonId);
   return !!addon?.enabled;
 }
 
@@ -806,6 +1364,77 @@ export function listAddons() {
     payload_key?: string | null;
     sort_order: number;
   }>;
+  const fieldsByProvider = new Map<string, typeof fields>();
+  for (const field of fields) {
+    const arr = fieldsByProvider.get(field.provider_id) || [];
+    arr.push(field);
+    fieldsByProvider.set(field.provider_id, arr);
+  }
+
+  return [
+    ...addons.map((a) => ({ ...a, enabled: !!a.enabled, config: JSON.parse(a.config || '{}') })),
+    ...providers.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      type: 'photo_provider',
+      icon: p.icon,
+      enabled: !!p.enabled,
+      config: getPhotoProviderConfig(p.id),
+      fields: (fieldsByProvider.get(p.id) || []).map((f) => ({
+        key: f.field_key,
+        label: f.label,
+        input_type: f.input_type,
+        placeholder: f.placeholder || '',
+        required: !!f.required,
+        secret: !!f.secret,
+        settings_key: f.settings_key || null,
+        payload_key: f.payload_key || null,
+        sort_order: f.sort_order,
+      })),
+      sort_order: p.sort_order,
+    })),
+  ];
+}
+
+export async function listAddonsAsync() {
+  const addons = await asyncDb.prepare('SELECT * FROM addons ORDER BY sort_order, id').all<Addon>();
+  const providers = await asyncDb
+    .prepare(
+      `
+    SELECT id, name, description, icon, enabled, sort_order
+    FROM photo_providers
+    ORDER BY sort_order, id
+  `,
+    )
+    .all<{
+      id: string;
+      name: string;
+      description?: string | null;
+      icon: string;
+      enabled: number;
+      sort_order: number;
+    }>();
+  const fields = await asyncDb
+    .prepare(
+      `
+    SELECT provider_id, field_key, label, input_type, placeholder, required, secret, settings_key, payload_key, sort_order
+    FROM photo_provider_fields
+    ORDER BY sort_order, id
+  `,
+    )
+    .all<{
+      provider_id: string;
+      field_key: string;
+      label: string;
+      input_type: string;
+      placeholder?: string | null;
+      required: number;
+      secret: number;
+      settings_key?: string | null;
+      payload_key?: string | null;
+      sort_order: number;
+    }>();
   const fieldsByProvider = new Map<string, typeof fields>();
   for (const field of fields) {
     const arr = fieldsByProvider.get(field.provider_id) || [];
@@ -884,10 +1513,79 @@ export function updateAddon(id: string, data: { enabled?: boolean; config?: Reco
   };
 }
 
+export async function updateAddonAsync(id: string, data: { enabled?: boolean; config?: Record<string, unknown> }) {
+  const addon = await asyncDb.prepare('SELECT * FROM addons WHERE id = ?').get<Addon>(id);
+  const provider = await asyncDb.prepare('SELECT * FROM photo_providers WHERE id = ?').get<{
+    id: string;
+    name: string;
+    description?: string | null;
+    icon: string;
+    enabled: number;
+    sort_order: number;
+  }>(id);
+  if (!addon && !provider) return { error: 'Addon not found', status: 404 };
+
+  if (addon) {
+    if (data.enabled !== undefined) {
+      await asyncDb.prepare('UPDATE addons SET enabled = ? WHERE id = ?').run(data.enabled ? 1 : 0, id);
+    }
+    if (data.config !== undefined) {
+      await asyncDb.prepare('UPDATE addons SET config = ? WHERE id = ?').run(JSON.stringify(data.config), id);
+    }
+  } else if (data.enabled !== undefined) {
+    await asyncDb.prepare('UPDATE photo_providers SET enabled = ? WHERE id = ?').run(data.enabled ? 1 : 0, id);
+  }
+
+  const updatedAddon = await asyncDb.prepare('SELECT * FROM addons WHERE id = ?').get<Addon>(id);
+  const updatedProvider = await asyncDb.prepare('SELECT * FROM photo_providers WHERE id = ?').get<{
+    id: string;
+    name: string;
+    description?: string | null;
+    icon: string;
+    enabled: number;
+    sort_order: number;
+  }>(id);
+  const updated = updatedAddon
+    ? { ...updatedAddon, enabled: !!updatedAddon.enabled, config: JSON.parse(updatedAddon.config || '{}') }
+    : updatedProvider
+      ? {
+          id: updatedProvider.id,
+          name: updatedProvider.name,
+          description: updatedProvider.description,
+          type: 'photo_provider',
+          icon: updatedProvider.icon,
+          enabled: !!updatedProvider.enabled,
+          config: getPhotoProviderConfig(updatedProvider.id),
+          sort_order: updatedProvider.sort_order,
+        }
+      : null;
+
+  return {
+    addon: updated,
+    auditDetails: {
+      enabled: data.enabled !== undefined ? !!data.enabled : undefined,
+      config_changed: data.config !== undefined,
+    },
+  };
+}
+
 // ── MCP Tokens ─────────────────────────────────────────────────────────────
 
 export function listMcpTokens() {
   return db
+    .prepare(
+      `
+    SELECT t.id, t.name, t.token_prefix, t.created_at, t.last_used_at, t.user_id, u.username
+    FROM mcp_tokens t
+    JOIN users u ON u.id = t.user_id
+    ORDER BY t.created_at DESC
+  `,
+    )
+    .all();
+}
+
+export async function listMcpTokensAsync() {
+  return asyncDb
     .prepare(
       `
     SELECT t.id, t.name, t.token_prefix, t.created_at, t.last_used_at, t.user_id, u.username
@@ -905,6 +1603,17 @@ export function deleteMcpToken(id: string) {
     | undefined;
   if (!token) return { error: 'Token not found', status: 404 };
   db.prepare('DELETE FROM mcp_tokens WHERE id = ?').run(id);
+  revokeUserSessions(token.user_id);
+  return {};
+}
+
+export async function deleteMcpTokenAsync(id: string) {
+  const token = await asyncDb.prepare('SELECT id, user_id FROM mcp_tokens WHERE id = ?').get<{
+    id: number;
+    user_id: number;
+  }>(id);
+  if (!token) return { error: 'Token not found', status: 404 };
+  await asyncDb.prepare('DELETE FROM mcp_tokens WHERE id = ?').run(id);
   revokeUserSessions(token.user_id);
   return {};
 }
@@ -929,6 +1638,24 @@ export function listOAuthSessions() {
   return rows.map((r) => ({ ...r, scopes: JSON.parse(r.scopes) }));
 }
 
+export async function listOAuthSessionsAsync() {
+  const rows = await asyncDb
+    .prepare(
+      `
+    SELECT ot.id, ot.client_id, oc.name AS client_name, ot.user_id, u.username,
+           ot.scopes, ot.access_token_expires_at, ot.refresh_token_expires_at, ot.created_at
+    FROM oauth_tokens ot
+    JOIN oauth_clients oc ON ot.client_id = oc.client_id
+    JOIN users u ON u.id = ot.user_id
+    WHERE ot.revoked_at IS NULL
+      AND ot.refresh_token_expires_at > CURRENT_TIMESTAMP
+    ORDER BY ot.created_at DESC
+  `,
+    )
+    .all<Record<string, unknown> & { scopes: string }>();
+  return rows.map((r) => ({ ...r, scopes: JSON.parse(r.scopes) }));
+}
+
 export function revokeOAuthSession(id: string) {
   const row = db.prepare('SELECT id, user_id, client_id FROM oauth_tokens WHERE id = ?').get(id) as
     | { id: number; user_id: number; client_id: string }
@@ -936,6 +1663,21 @@ export function revokeOAuthSession(id: string) {
   if (!row) return { error: 'Session not found', status: 404 };
   db.prepare('UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
   db.prepare('DELETE FROM oauth_consents WHERE client_id = ? AND user_id = ?').run(row.client_id, row.user_id);
+  revokeUserSessionsForClient(row.user_id, row.client_id);
+  return {};
+}
+
+export async function revokeOAuthSessionAsync(id: string) {
+  const row = await asyncDb.prepare('SELECT id, user_id, client_id FROM oauth_tokens WHERE id = ?').get<{
+    id: number;
+    user_id: number;
+    client_id: string;
+  }>(id);
+  if (!row) return { error: 'Session not found', status: 404 };
+  await asyncDb.prepare('UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
+  await asyncDb
+    .prepare('DELETE FROM oauth_consents WHERE client_id = ? AND user_id = ?')
+    .run(row.client_id, row.user_id);
   revokeUserSessionsForClient(row.user_id, row.client_id);
   return {};
 }

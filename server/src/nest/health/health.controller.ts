@@ -22,8 +22,8 @@ export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Get('health')
-  getHealth() {
-    return { ok: true, ...this.healthService.info() };
+  async getHealth() {
+    return { ok: true, ...(await this.healthService.info()) };
   }
 
   /** Guarded: returns the authenticated user, proving JwtAuthGuard + @CurrentUser. */

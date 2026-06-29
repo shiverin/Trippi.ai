@@ -62,7 +62,7 @@ afterAll(() => {
 // ── saveAsTemplate ────────────────────────────────────────────────────────────
 
 describe('saveAsTemplate', () => {
-  it('PACK-SVC-001: saves packing items as a template with correct categories and item count', () => {
+  it('PACK-SVC-001: saves packing items as a template with correct categories and item count', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
@@ -70,7 +70,7 @@ describe('saveAsTemplate', () => {
     testDb.prepare('INSERT INTO packing_items (trip_id, name, category, checked, sort_order) VALUES (?, ?, ?, 0, ?)').run(trip.id, 'Shorts', 'Clothes', 1);
     testDb.prepare('INSERT INTO packing_items (trip_id, name, category, checked, sort_order) VALUES (?, ?, ?, 0, ?)').run(trip.id, 'Toothbrush', 'Toiletries', 2);
 
-    const result = saveAsTemplate(trip.id, user.id, 'My Template');
+    const result = await saveAsTemplate(trip.id, user.id, 'My Template');
 
     expect(result).not.toBeNull();
     expect(result!.name).toBe('My Template');
@@ -83,11 +83,11 @@ describe('saveAsTemplate', () => {
     expect(template.created_by).toBe(user.id);
   });
 
-  it('PACK-SVC-002: returns null when trip has no packing items', () => {
+  it('PACK-SVC-002: returns null when trip has no packing items', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
-    const result = saveAsTemplate(trip.id, user.id, 'Empty');
+    const result = await saveAsTemplate(trip.id, user.id, 'Empty');
 
     expect(result).toBeNull();
   });
@@ -96,28 +96,28 @@ describe('saveAsTemplate', () => {
 // ── listTemplates ───────────────────────────────────────────────────────────────
 
 describe('listTemplates', () => {
-  it('PACK-SVC-LIST-001: returns templates with id, name and item_count', () => {
+  it('PACK-SVC-LIST-001: returns templates with id, name and item_count', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
     testDb.prepare('INSERT INTO packing_items (trip_id, name, category, checked, sort_order) VALUES (?, ?, ?, 0, ?)').run(trip.id, 'Shirt', 'Clothes', 0);
     testDb.prepare('INSERT INTO packing_items (trip_id, name, category, checked, sort_order) VALUES (?, ?, ?, 0, ?)').run(trip.id, 'Toothbrush', 'Toiletries', 1);
-    const saved = saveAsTemplate(trip.id, user.id, 'Weekend');
+    const saved = await saveAsTemplate(trip.id, user.id, 'Weekend');
 
-    const templates = listTemplates();
+    const templates = await listTemplates();
     expect(templates).toHaveLength(1);
     expect(templates[0]).toMatchObject({ id: saved!.id, name: 'Weekend', item_count: 2 });
   });
 
-  it('PACK-SVC-LIST-002: returns an empty array when no templates exist', () => {
-    expect(listTemplates()).toEqual([]);
+  it('PACK-SVC-LIST-002: returns an empty array when no templates exist', async () => {
+    expect(await listTemplates()).toEqual([]);
   });
 });
 
 // ── applyTemplate ─────────────────────────────────────────────────────────────
 
 describe('applyTemplate', () => {
-  it('PACK-SVC-003: adds template items to a trip packing list', () => {
+  it('PACK-SVC-003: adds template items to a trip packing list', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
@@ -131,7 +131,7 @@ describe('applyTemplate', () => {
     testDb.prepare('INSERT INTO packing_template_items (category_id, name, sort_order) VALUES (?, ?, ?)').run(catId, 'Tent', 0);
     testDb.prepare('INSERT INTO packing_template_items (category_id, name, sort_order) VALUES (?, ?, ?)').run(catId, 'Sleeping Bag', 1);
 
-    const result = applyTemplate(trip.id, templateId);
+    const result = await applyTemplate(trip.id, templateId);
 
     expect(result).not.toBeNull();
     expect(Array.isArray(result)).toBe(true);
@@ -143,14 +143,14 @@ describe('applyTemplate', () => {
     expect(items.map((i: any) => i.name)).toContain('Sleeping Bag');
   });
 
-  it('PACK-SVC-004: returns null when template has no items', () => {
+  it('PACK-SVC-004: returns null when template has no items', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
     const templateResult = testDb.prepare('INSERT INTO packing_templates (name, created_by) VALUES (?, ?)').run('Empty Template', user.id);
     const templateId = templateResult.lastInsertRowid as number;
 
-    const result = applyTemplate(trip.id, templateId);
+    const result = await applyTemplate(trip.id, templateId);
 
     expect(result).toBeNull();
   });
@@ -159,11 +159,11 @@ describe('applyTemplate', () => {
 // ── createBag / deleteBag ─────────────────────────────────────────────────────
 
 describe('createBag / deleteBag', () => {
-  it('PACK-SVC-005: createBag inserts a bag and returns it', () => {
+  it('PACK-SVC-005: createBag inserts a bag and returns it', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
-    const result = createBag(trip.id, { name: 'Carry-On', color: '#ff0000' }) as any;
+    const result = await createBag(trip.id, { name: 'Carry-On', color: '#ff0000' }) as any;
 
     expect(result).not.toBeNull();
     expect(result.name).toBe('Carry-On');
@@ -175,14 +175,14 @@ describe('createBag / deleteBag', () => {
     expect(bag.name).toBe('Carry-On');
   });
 
-  it('PACK-SVC-006: deleteBag removes the bag and returns true', () => {
+  it('PACK-SVC-006: deleteBag removes the bag and returns true', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
-    const bag = createBag(trip.id, { name: 'Checked Bag' }) as any;
+    const bag = await createBag(trip.id, { name: 'Checked Bag' }) as any;
     expect(bag).not.toBeNull();
 
-    const deleted = deleteBag(trip.id, bag.id);
+    const deleted = await deleteBag(trip.id, bag.id);
 
     expect(deleted).toBe(true);
 
@@ -190,8 +190,8 @@ describe('createBag / deleteBag', () => {
     expect(row).toBeUndefined();
   });
 
-  it('PACK-SVC-007: deleteBag returns false for non-existent bag', () => {
-    const result = deleteBag(1, 99999);
+  it('PACK-SVC-007: deleteBag returns false for non-existent bag', async () => {
+    const result = await deleteBag(1, 99999);
 
     expect(result).toBe(false);
   });
@@ -200,12 +200,12 @@ describe('createBag / deleteBag', () => {
 // ── setBagMembers ─────────────────────────────────────────────────────────────
 
 describe('setBagMembers', () => {
-  it('PACK-SVC-008: sets bag members (replaces existing)', () => {
+  it('PACK-SVC-008: sets bag members (replaces existing)', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
-    const bag = createBag(trip.id, { name: 'Main Bag' }) as any;
+    const bag = await createBag(trip.id, { name: 'Main Bag' }) as any;
 
-    const result = setBagMembers(trip.id, bag.id, [user.id]) as any[];
+    const result = await setBagMembers(trip.id, bag.id, [user.id]) as any[];
 
     expect(result).not.toBeNull();
     expect(Array.isArray(result)).toBe(true);
@@ -213,23 +213,23 @@ describe('setBagMembers', () => {
     expect(result[0].user_id).toBe(user.id);
   });
 
-  it('PACK-SVC-009: setBagMembers with empty array clears all members', () => {
+  it('PACK-SVC-009: setBagMembers with empty array clears all members', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
-    const bag = createBag(trip.id, { name: 'Main Bag' }) as any;
+    const bag = await createBag(trip.id, { name: 'Main Bag' }) as any;
 
     // First add a member
-    setBagMembers(trip.id, bag.id, [user.id]);
+    await setBagMembers(trip.id, bag.id, [user.id]);
 
     // Then clear
-    const result = setBagMembers(trip.id, bag.id, []) as any[];
+    const result = await setBagMembers(trip.id, bag.id, []) as any[];
 
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBe(0);
   });
 
-  it('PACK-SVC-010: setBagMembers returns null for non-existent bag', () => {
-    const result = setBagMembers(1, 99999, []);
+  it('PACK-SVC-010: setBagMembers returns null for non-existent bag', async () => {
+    const result = await setBagMembers(1, 99999, []);
 
     expect(result).toBeNull();
   });
@@ -238,11 +238,11 @@ describe('setBagMembers', () => {
 // ── bulkImport with bag field ─────────────────────────────────────────────────
 
 describe('bulkImport with bag field', () => {
-  it('PACK-SVC-011: bulk import with bag field creates the bag if it does not exist', () => {
+  it('PACK-SVC-011: bulk import with bag field creates the bag if it does not exist', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
-    const result = bulkImport(trip.id, [{ name: 'Shirt', bag: 'Carry-On' }]);
+    const result = await bulkImport(trip.id, [{ name: 'Shirt', bag: 'Carry-On' }]);
 
     expect(result).toHaveLength(1);
     expect(result[0]).toBeDefined();
@@ -255,11 +255,11 @@ describe('bulkImport with bag field', () => {
     expect(items[0].bag_id).toBe(bags[0].id);
   });
 
-  it('PACK-SVC-012: bulk import with same bag name reuses existing bag', () => {
+  it('PACK-SVC-012: bulk import with same bag name reuses existing bag', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
-    const result = bulkImport(trip.id, [
+    const result = await bulkImport(trip.id, [
       { name: 'Shirt', bag: 'Carry-On' },
       { name: 'Pants', bag: 'Carry-On' },
     ]);
@@ -279,11 +279,11 @@ describe('bulkImport with bag field', () => {
 // ── bulkImport with quantity field ────────────────────────────────────────────
 
 describe('bulkImport with quantity field', () => {
-  it('PACK-SVC-013: bulk import respects per-item quantity, defaults to 1, and clamps out-of-range', () => {
+  it('PACK-SVC-013: bulk import respects per-item quantity, defaults to 1, and clamps out-of-range', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
-    bulkImport(trip.id, [
+    await bulkImport(trip.id, [
       { name: 'Socks', quantity: 5 },
       { name: 'Toothbrush' },
       { name: 'Batteries', quantity: 9999 },

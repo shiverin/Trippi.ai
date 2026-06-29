@@ -1,5 +1,4 @@
-import { db } from '../../db/database';
-import { getBagTracking, getCollabFeatures } from '../../services/adminService';
+import { asyncDb } from '../../db/asyncDatabase';
 import { getPhotoProviderConfig } from '../../services/memories/helpersService';
 import type { Addon } from '../../types';
 import { Injectable } from '@nestjs/common';
@@ -12,37 +11,51 @@ import { Injectable } from '@nestjs/common';
  */
 @Injectable()
 export class AddonsService {
-  list() {
-    const addons = db
+  async list() {
+    const addons = await asyncDb
       .prepare('SELECT id, name, type, icon, enabled FROM addons WHERE enabled = 1 ORDER BY sort_order')
-      .all() as Pick<Addon, 'id' | 'name' | 'type' | 'icon' | 'enabled'>[];
-    const providers = db
+      .all<Pick<Addon, 'id' | 'name' | 'type' | 'icon' | 'enabled'>>();
+    const providers = await asyncDb
       .prepare(
         `SELECT id, name, icon, enabled, sort_order
          FROM photo_providers
          WHERE enabled = 1
          ORDER BY sort_order, id`,
       )
-      .all() as Array<{ id: string; name: string; icon: string; enabled: number; sort_order: number }>;
-    const fields = db
+      .all<{ id: string; name: string; icon: string; enabled: number; sort_order: number }>();
+    const fields = await asyncDb
       .prepare(
         `SELECT provider_id, field_key, label, input_type, placeholder, hint, required, secret, settings_key, payload_key, sort_order
          FROM photo_provider_fields
          ORDER BY sort_order, id`,
       )
-      .all() as Array<{
-      provider_id: string;
-      field_key: string;
-      label: string;
-      input_type: string;
-      placeholder?: string | null;
-      hint?: string | null;
-      required: number;
-      secret: number;
-      settings_key?: string | null;
-      payload_key?: string | null;
-      sort_order: number;
-    }>;
+      .all<{
+        provider_id: string;
+        field_key: string;
+        label: string;
+        input_type: string;
+        placeholder?: string | null;
+        hint?: string | null;
+        required: number;
+        secret: number;
+        settings_key?: string | null;
+        payload_key?: string | null;
+        sort_order: number;
+      }>();
+    const settingsRows = await asyncDb
+      .prepare(
+        `SELECT key, value
+         FROM app_settings
+         WHERE key IN (
+           'bag_tracking_enabled',
+           'collab_chat_enabled',
+           'collab_notes_enabled',
+           'collab_polls_enabled',
+           'collab_whatsnext_enabled'
+         )`,
+      )
+      .all<{ key: string; value: string }>();
+    const settings = new Map(settingsRows.map((row) => [row.key, row.value]));
 
     const fieldsByProvider = new Map<string, typeof fields>();
     for (const field of fields) {
@@ -52,8 +65,13 @@ export class AddonsService {
     }
 
     return {
-      collabFeatures: getCollabFeatures(),
-      bagTracking: getBagTracking().enabled,
+      collabFeatures: {
+        chat: settings.get('collab_chat_enabled') !== 'false',
+        notes: settings.get('collab_notes_enabled') !== 'false',
+        polls: settings.get('collab_polls_enabled') !== 'false',
+        whatsnext: settings.get('collab_whatsnext_enabled') !== 'false',
+      },
+      bagTracking: settings.get('bag_tracking_enabled') === 'true',
       addons: [
         ...addons.map((a) => ({ ...a, enabled: !!a.enabled })),
         ...providers.map((p) => ({

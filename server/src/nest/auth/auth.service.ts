@@ -35,10 +35,10 @@ export class AuthService {
     return auth.getAppConfigAsync(user);
   }
   demoLogin() {
-    return auth.demoLogin();
+    return auth.demoLoginAsync();
   }
   validateInviteToken(token: string) {
-    return auth.validateInviteToken(token);
+    return auth.validateInviteTokenAsync(token);
   }
   registerUser(body: unknown) {
     return auth.registerUserAsync(body as Parameters<typeof auth.registerUser>[0]);
@@ -47,13 +47,13 @@ export class AuthService {
     return auth.loginUserAsync(body as Parameters<typeof auth.loginUser>[0]);
   }
   requestPasswordReset(email: string, ip: string) {
-    return auth.requestPasswordReset(email, ip);
+    return auth.requestPasswordResetAsync(email, ip);
   }
   resetPassword(body: unknown) {
-    return auth.resetPassword(body as Parameters<typeof auth.resetPassword>[0]);
+    return auth.resetPasswordAsync(body as Parameters<typeof auth.resetPassword>[0]);
   }
   verifyMfaLogin(body: unknown) {
-    return auth.verifyMfaLogin(body as Parameters<typeof auth.verifyMfaLogin>[0]);
+    return auth.verifyMfaLoginAsync(body as Parameters<typeof auth.verifyMfaLogin>[0]);
   }
 
   // Account
@@ -61,22 +61,22 @@ export class AuthService {
     return auth.getCurrentUserAsync(userId);
   }
   changePassword(userId: number, email: string, body: unknown) {
-    return auth.changePassword(userId, email, body as Parameters<typeof auth.changePassword>[2]);
+    return auth.changePasswordAsync(userId, email, body as Parameters<typeof auth.changePassword>[2]);
   }
   deleteAccount(userId: number, email: string, role: string) {
-    return auth.deleteAccount(userId, email, role);
+    return auth.deleteAccountAsync(userId, email, role);
   }
   updateMapsKey(userId: number, key: unknown) {
-    return auth.updateMapsKey(userId, key as string);
+    return auth.updateMapsKeyAsync(userId, key as string);
   }
   updateApiKeys(userId: number, body: unknown) {
-    return auth.updateApiKeys(userId, body as Parameters<typeof auth.updateApiKeys>[1]);
+    return auth.updateApiKeysAsync(userId, body as Parameters<typeof auth.updateApiKeys>[1]);
   }
   updateSettings(userId: number, body: unknown) {
-    return auth.updateSettings(userId, body as Parameters<typeof auth.updateSettings>[1]);
+    return auth.updateSettingsAsync(userId, body as Parameters<typeof auth.updateSettings>[1]);
   }
   getSettings(userId: number) {
-    return auth.getSettings(userId);
+    return auth.getSettingsAsync(userId);
   }
   saveAvatar(userId: number, filename: string) {
     return auth.saveAvatar(userId, filename);
@@ -85,46 +85,69 @@ export class AuthService {
     return auth.deleteAvatar(userId);
   }
   listUsers(userId: number) {
-    return auth.listUsers(userId);
+    return auth.listUsersAsync(userId);
   }
   validateKeys(userId: number) {
     return auth.validateKeys(userId);
   }
   getAppSettings(userId: number) {
-    return auth.getAppSettings(userId);
+    return auth.getAppSettingsAsync(userId);
   }
   updateAppSettings(userId: number, body: unknown) {
-    return auth.updateAppSettings(userId, body as Parameters<typeof auth.updateAppSettings>[1]);
+    return auth.updateAppSettingsAsync(userId, body as Parameters<typeof auth.updateAppSettings>[1]);
   }
   getTravelStats(userId: number) {
-    return auth.getTravelStats(userId);
+    return auth.getTravelStatsAsync(userId);
   }
 
   // MFA
   setupMfa(userId: number, email: string) {
-    return auth.setupMfa(userId, email);
+    return auth.setupMfaAsync(userId, email);
   }
   enableMfa(userId: number, code: unknown) {
-    return auth.enableMfa(userId, code as string);
+    return auth.enableMfaAsync(userId, code as string);
   }
   disableMfa(userId: number, email: string, body: unknown) {
-    return auth.disableMfa(userId, email, body as Parameters<typeof auth.disableMfa>[2]);
+    return auth.disableMfaAsync(userId, email, body as Parameters<typeof auth.disableMfa>[2]);
   }
 
   // MCP tokens + short-lived tokens
   listMcpTokens(userId: number) {
-    return auth.listMcpTokens(userId);
+    return auth.listMcpTokensAsync(userId);
   }
   createMcpToken(userId: number, name: unknown) {
-    return auth.createMcpToken(userId, name as string);
+    return auth.createMcpTokenAsync(userId, name as string);
   }
   deleteMcpToken(userId: number, id: string) {
-    return auth.deleteMcpToken(userId, id);
+    return auth.deleteMcpTokenAsync(userId, id);
   }
   createWsToken(userId: number) {
-    return auth.createWsToken(userId);
+    return auth.createWsTokenAsync(userId);
   }
   createResourceToken(userId: number, purpose: unknown) {
     return auth.createResourceToken(userId, purpose as string);
+  }
+
+  // Passkeys
+  passkeyRegisterOptions(userId: number, password: string | undefined) {
+    return auth.passkeyRegisterOptionsAsync(userId, password);
+  }
+  passkeyRegisterVerify(userId: number, body: unknown) {
+    return auth.passkeyRegisterVerifyAsync(userId, body as Parameters<typeof auth.passkeyRegisterVerifyAsync>[1]);
+  }
+  passkeyLoginOptions() {
+    return auth.passkeyLoginOptionsAsync();
+  }
+  passkeyLoginVerify(body: unknown) {
+    return auth.passkeyLoginVerifyAsync(body as Parameters<typeof auth.passkeyLoginVerifyAsync>[0]);
+  }
+  listPasskeys(userId: number) {
+    return auth.listPasskeysAsync(userId);
+  }
+  renamePasskey(userId: number, id: string, name: unknown) {
+    return auth.renamePasskeyAsync(userId, id, name);
+  }
+  deletePasskey(userId: number, id: string, password: string | undefined) {
+    return auth.deletePasskeyAsync(userId, id, password);
   }
 }

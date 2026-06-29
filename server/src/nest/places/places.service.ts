@@ -1,6 +1,6 @@
 import { canAccessTripAsync } from '../../db/asyncDatabase';
 import { onPlaceCreated, onPlaceUpdated, onPlaceDeleted } from '../../services/journeyService';
-import { checkPermission } from '../../services/permissions';
+import { checkPermissionAsync } from '../../services/permissions';
 import * as svc from '../../services/placeService';
 import type { User } from '../../types';
 import { broadcast } from '../../websocket';
@@ -20,8 +20,8 @@ export class PlacesService {
     return canAccessTripAsync(Number(tripId), userId);
   }
 
-  canEdit(trip: Trip, user: User): boolean {
-    return checkPermission('place_edit', user.role, trip.user_id, user.id, trip.user_id !== user.id);
+  canEdit(trip: Trip, user: User): Promise<boolean> {
+    return checkPermissionAsync('place_edit', user.role, trip.user_id, user.id, trip.user_id !== user.id);
   }
 
   broadcast(tripId: string, event: string, payload: Record<string, unknown>, socketId: string | undefined): void {
@@ -29,27 +29,27 @@ export class PlacesService {
   }
 
   list(tripId: string, filters: { search?: string; category?: string; tag?: string }) {
-    return svc.listPlaces(tripId, filters);
+    return svc.listPlacesAsync(tripId, filters);
   }
 
   get(tripId: string, id: string) {
-    return svc.getPlace(tripId, id);
+    return svc.getPlaceAsync(tripId, id);
   }
 
   create(tripId: string, data: Parameters<typeof svc.createPlace>[1]) {
-    return svc.createPlace(tripId, data);
+    return svc.createPlaceAsync(tripId, data);
   }
 
   update(tripId: string, id: string, data: Parameters<typeof svc.updatePlace>[2]) {
-    return svc.updatePlace(tripId, id, data);
+    return svc.updatePlaceAsync(tripId, id, data);
   }
 
-  remove(tripId: string, id: string): boolean {
-    return svc.deletePlace(tripId, id);
+  remove(tripId: string, id: string): Promise<boolean> {
+    return svc.deletePlaceAsync(tripId, id);
   }
 
-  removeMany(tripId: string, ids: number[]): number[] {
-    return svc.deletePlacesMany(tripId, ids);
+  removeMany(tripId: string, ids: number[]): Promise<number[]> {
+    return svc.deletePlacesManyAsync(tripId, ids);
   }
 
   importGpx(

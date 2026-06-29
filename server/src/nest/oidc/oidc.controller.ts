@@ -21,11 +21,11 @@ export class OidcController {
 
   @Get('login')
   async login(@Req() req: Request, @Res() res: Response): Promise<void> {
-    if (!this.oidc.oidcLoginEnabled()) {
+    if (!(await this.oidc.oidcLoginEnabled())) {
       res.status(403).json({ error: 'SSO login is disabled.' });
       return;
     }
-    const config = this.oidc.getOidcConfig();
+    const config = await this.oidc.getOidcConfig();
     if (!config) {
       res.status(400).json({ error: 'OIDC not configured' });
       return;
@@ -83,7 +83,7 @@ export class OidcController {
     const boundState = (req.cookies as Record<string, string> | undefined)?.[OIDC_STATE_COOKIE];
     res.clearCookie(OIDC_STATE_COOKIE, cookieOptions(true, req));
 
-    if (!this.oidc.oidcLoginEnabled()) return f('/login?oidc_error=sso_disabled');
+    if (!(await this.oidc.oidcLoginEnabled())) return f('/login?oidc_error=sso_disabled');
     if (oidcError) {
       console.error('[OIDC] Provider error:', oidcError);
       return f('/login?oidc_error=' + encodeURIComponent(oidcError));
@@ -96,7 +96,7 @@ export class OidcController {
     const pending = this.oidc.consumeState(state);
     if (!pending) return f('/login?oidc_error=invalid_state');
 
-    const config = this.oidc.getOidcConfig();
+    const config = await this.oidc.getOidcConfig();
     if (!config) return f('/login?oidc_error=not_configured');
     if (
       config.issuer &&
@@ -144,11 +144,11 @@ export class OidcController {
         return f('/login?oidc_error=subject_mismatch');
       }
 
-      const result = this.oidc.findOrCreateUser(userInfo, config, pending.inviteToken);
+      const result = await this.oidc.findOrCreateUser(userInfo, config, pending.inviteToken);
       if ('error' in result) return f('/login?oidc_error=' + result.error);
 
-      this.oidc.touchLastLogin(result.user.id);
-      const jwtToken = this.oidc.generateToken(result.user);
+      await this.oidc.touchLastLogin(result.user.id);
+      const jwtToken = await this.oidc.generateToken(result.user);
       const authCode = this.oidc.createAuthCode(jwtToken);
       return f('/login?oidc_code=' + authCode);
     } catch (err: unknown) {

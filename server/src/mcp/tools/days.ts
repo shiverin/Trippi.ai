@@ -1,5 +1,4 @@
-import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
-import { db } from '../../db/database';
+import { asyncDb, canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
 import { isDemoUser } from '../../services/authService';
 import {
   createNote as createDayNote,
@@ -19,7 +18,7 @@ import {
   updateAccommodation,
   deleteAccommodation,
 } from '../../services/dayService';
-import { createPlace } from '../../services/placeService';
+import { createPlaceAsync } from '../../services/placeService';
 import { canWrite } from '../scopes';
 import {
   safeBroadcast,
@@ -55,10 +54,10 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     async ({ tripId, dayId, title }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      const current = getDay(dayId, tripId);
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      const current = await getDay(dayId, tripId);
       if (!current) return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
-      const updated = updateDay(dayId, current, title !== undefined ? { title } : {});
+      const updated = await updateDay(dayId, current, title !== undefined ? { title } : {});
       safeBroadcast(tripId, 'day:updated', { day: updated });
       return ok({ day: updated });
     },
@@ -78,8 +77,8 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     async ({ tripId, date, notes }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      const day = createDay(tripId, date, notes);
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      const day = await createDay(tripId, date, notes);
       safeBroadcast(tripId, 'day:created', { day });
       return ok({ day });
     },
@@ -98,10 +97,10 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     async ({ tripId, dayId }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      if (!getDay(dayId, tripId))
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      if (!(await getDay(dayId, tripId)))
         return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
-      deleteDay(dayId);
+      await deleteDay(dayId);
       safeBroadcast(tripId, 'day:deleted', { id: dayId });
       return ok({ success: true });
     },
@@ -127,11 +126,11 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     async ({ tripId, place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      const errors = validateAccommodationRefs(tripId, place_id, start_day_id, end_day_id);
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      const errors = await validateAccommodationRefs(tripId, place_id, start_day_id, end_day_id);
       if (errors.length > 0)
         return { content: [{ type: 'text' as const, text: errors.map((e) => e.message).join(', ') }], isError: true };
-      const accommodation = createAccommodation(tripId, {
+      const accommodation = await createAccommodation(tripId, {
         place_id,
         start_day_id,
         end_day_id,
@@ -214,16 +213,16 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      const dayErrors = validateAccommodationRefs(tripId, undefined, start_day_id, end_day_id);
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      const dayErrors = await validateAccommodationRefs(tripId, undefined, start_day_id, end_day_id);
       if (dayErrors.length > 0)
         return {
           content: [{ type: 'text' as const, text: dayErrors.map((e) => e.message).join(', ') }],
           isError: true,
         };
       try {
-        const run = db.transaction(() => {
-          const place = createPlace(String(tripId), {
+        const result = await asyncDb.transaction(async () => {
+          const place = await createPlaceAsync(String(tripId), {
             name,
             description,
             lat,
@@ -239,7 +238,8 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
             price,
             currency,
           });
-          const accommodation = createAccommodation(tripId, {
+          if (!place) throw new Error('Failed to create place');
+          const accommodation = await createAccommodation(tripId, {
             place_id: place.id,
             start_day_id,
             end_day_id,
@@ -250,8 +250,7 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
             notes: accommodation_notes,
           });
           return { place, accommodation };
-        });
-        const result = run();
+        })();
         safeBroadcast(tripId, 'place:created', { place: result.place });
         safeBroadcast(tripId, 'accommodation:created', { accommodation: result.accommodation });
         return ok(result);
@@ -296,10 +295,10 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      const existing = getAccommodation(accommodationId, tripId);
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      const existing = await getAccommodation(accommodationId, tripId);
       if (!existing) return { content: [{ type: 'text' as const, text: 'Accommodation not found.' }], isError: true };
-      const accommodation = updateAccommodation(accommodationId, existing, {
+      const accommodation = await updateAccommodation(accommodationId, existing, {
         place_id,
         start_day_id,
         end_day_id,
@@ -327,10 +326,10 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     async ({ tripId, accommodationId }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      if (!getAccommodation(accommodationId, tripId))
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      if (!(await getAccommodation(accommodationId, tripId)))
         return { content: [{ type: 'text' as const, text: 'Accommodation not found.' }], isError: true };
-      const { linkedReservationId } = deleteAccommodation(accommodationId);
+      const { linkedReservationId } = await deleteAccommodation(accommodationId);
       safeBroadcast(tripId, 'accommodation:deleted', { id: accommodationId, linkedReservationId });
       return ok({ success: true, linkedReservationId });
     },
@@ -354,10 +353,10 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     async ({ tripId, dayId, text, time, icon }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      if (!dayNoteExists(dayId, tripId))
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      if (!(await dayNoteExists(dayId, tripId)))
         return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
-      const note = createDayNote(dayId, tripId, text, time, icon);
+      const note = await createDayNote(dayId, tripId, text, time, icon);
       safeBroadcast(tripId, 'dayNote:created', { dayId, note });
       return ok({ note });
     },
@@ -385,10 +384,10 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     async ({ tripId, dayId, noteId, text, time, icon }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      const existing = getDayNote(noteId, dayId, tripId);
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      const existing = await getDayNote(noteId, dayId, tripId);
       if (!existing) return { content: [{ type: 'text' as const, text: 'Note not found.' }], isError: true };
-      const note = updateDayNote(noteId, existing, { text, time: time !== undefined ? time : undefined, icon });
+      const note = await updateDayNote(noteId, existing, { text, time: time !== undefined ? time : undefined, icon });
       safeBroadcast(tripId, 'dayNote:updated', { dayId, note });
       return ok({ note });
     },
@@ -408,10 +407,10 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
     async ({ tripId, dayId, noteId }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
-      const note = getDayNote(noteId, dayId, tripId);
+      if (!(await hasTripPermission('day_edit', tripId, userId))) return permissionDenied();
+      const note = await getDayNote(noteId, dayId, tripId);
       if (!note) return { content: [{ type: 'text' as const, text: 'Note not found.' }], isError: true };
-      deleteDayNote(noteId);
+      await deleteDayNote(noteId);
       safeBroadcast(tripId, 'dayNote:deleted', { noteId, dayId });
       return ok({ success: true });
     },

@@ -37,10 +37,10 @@ export class DayAssignmentsController {
   @Get()
   async list(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('dayId') dayId: string) {
     await requireTrip(this.assignments, tripId, user);
-    if (!this.assignments.dayExists(dayId, tripId)) {
+    if (!(await this.assignments.dayExists(dayId, tripId))) {
       throw new HttpException({ error: 'Day not found' }, 404);
     }
-    return { assignments: this.assignments.listDayAssignments(dayId) };
+    return { assignments: await this.assignments.listDayAssignments(dayId) };
   }
 
   @Post()
@@ -53,13 +53,13 @@ export class DayAssignmentsController {
   ) {
     const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
-    if (!this.assignments.dayExists(dayId, tripId)) {
+    if (!(await this.assignments.dayExists(dayId, tripId))) {
       throw new HttpException({ error: 'Day not found' }, 404);
     }
-    if (!this.assignments.placeExists(body.place_id, tripId)) {
+    if (!(await this.assignments.placeExists(body.place_id, tripId))) {
       throw new HttpException({ error: 'Place not found' }, 404);
     }
-    const assignment = this.assignments.createAssignment(dayId, body.place_id, body.notes);
+    const assignment = await this.assignments.createAssignment(dayId, body.place_id, body.notes);
     this.assignments.broadcast(tripId, 'assignment:created', { assignment }, socketId);
     this.assignments.notifyPlaceCreated(tripId, body.place_id);
     return { assignment };
@@ -75,10 +75,10 @@ export class DayAssignmentsController {
   ) {
     const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
-    if (!this.assignments.dayExists(dayId, tripId)) {
+    if (!(await this.assignments.dayExists(dayId, tripId))) {
       throw new HttpException({ error: 'Day not found' }, 404);
     }
-    this.assignments.reorderAssignments(dayId, orderedIds);
+    await this.assignments.reorderAssignments(dayId, orderedIds);
     this.assignments.broadcast(tripId, 'assignment:reordered', { dayId: Number(dayId), orderedIds }, socketId);
     return { success: true };
   }
@@ -93,10 +93,10 @@ export class DayAssignmentsController {
   ) {
     const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
-    if (!this.assignments.assignmentExistsInDay(id, dayId, tripId)) {
+    if (!(await this.assignments.assignmentExistsInDay(id, dayId, tripId))) {
       throw new HttpException({ error: 'Assignment not found' }, 404);
     }
-    this.assignments.deleteAssignment(id);
+    await this.assignments.deleteAssignment(id);
     this.assignments.broadcast(
       tripId,
       'assignment:deleted',
@@ -126,15 +126,15 @@ export class AssignmentOpsController {
   ) {
     const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
-    const existing = this.assignments.getAssignmentForTrip(id, tripId);
+    const existing = await this.assignments.getAssignmentForTrip(id, tripId);
     if (!existing) {
       throw new HttpException({ error: 'Assignment not found' }, 404);
     }
-    if (!this.assignments.dayExists(String(body.new_day_id), tripId)) {
+    if (!(await this.assignments.dayExists(String(body.new_day_id), tripId))) {
       throw new HttpException({ error: 'Target day not found' }, 404);
     }
     const oldDayId = (existing as { day_id: number }).day_id;
-    const { assignment } = this.assignments.moveAssignment(id, body.new_day_id, body.order_index, oldDayId);
+    const { assignment } = await this.assignments.moveAssignment(id, body.new_day_id, body.order_index, oldDayId);
     this.assignments.broadcast(
       tripId,
       'assignment:moved',
@@ -147,7 +147,7 @@ export class AssignmentOpsController {
   @Get(':id/participants')
   async participants(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
     await requireTrip(this.assignments, tripId, user);
-    return { participants: this.assignments.getParticipants(id) };
+    return { participants: await this.assignments.getParticipants(id) };
   }
 
   @Put(':id/time')
@@ -160,10 +160,10 @@ export class AssignmentOpsController {
   ) {
     const trip = await requireTrip(this.assignments, tripId, user);
     requireEdit(this.assignments, trip, user);
-    if (!this.assignments.getAssignmentForTrip(id, tripId)) {
+    if (!(await this.assignments.getAssignmentForTrip(id, tripId))) {
       throw new HttpException({ error: 'Assignment not found' }, 404);
     }
-    const assignment = this.assignments.updateTime(id, body.place_time, body.end_time);
+    const assignment = await this.assignments.updateTime(id, body.place_time, body.end_time);
     this.assignments.broadcast(tripId, 'assignment:updated', { assignment }, socketId);
     return { assignment };
   }
@@ -181,7 +181,7 @@ export class AssignmentOpsController {
     if (!Array.isArray(userIds)) {
       throw new HttpException({ error: 'user_ids must be an array' }, 400);
     }
-    const participants = this.assignments.setParticipants(id, userIds);
+    const participants = await this.assignments.setParticipants(id, userIds);
     this.assignments.broadcast(tripId, 'assignment:participants', { assignmentId: Number(id), participants }, socketId);
     return { participants };
   }

@@ -1,40 +1,33 @@
-import { db } from '../../db/database';
+import { asyncDb } from '../../db/asyncDatabase';
+import type { AsyncRunResult, AsyncStatement, AsyncTransaction } from '../../db/asyncTypes';
 import { Injectable } from '@nestjs/common';
 
-import type Database from 'better-sqlite3';
-
 /**
- * Injectable wrapper around trippi.ai's existing better-sqlite3 connection.
- *
- * `db` is a Proxy onto the singleton connection the legacy app already uses
- * (WAL enabled), so Nest modules share the exact same connection — no second
- * connection, no split state, single writer preserved.
+ * Injectable async DB facade for migrated Nest runtime code.
+ * Under SQLite it wraps the existing local DB; under `oracle-async` it goes
+ * directly through the Oracle pool with no sync worker bridge.
  */
 @Injectable()
 export class DatabaseService {
-  /** The shared better-sqlite3 connection (same singleton the legacy app uses). */
-  get connection(): Database.Database {
-    return db;
+  prepare(sql: string): AsyncStatement {
+    return asyncDb.prepare(sql);
   }
 
-  prepare(sql: string): Database.Statement {
-    return db.prepare(sql);
+  get<T = unknown>(sql: string, ...params: unknown[]): Promise<T | undefined> {
+    return asyncDb.prepare(sql).get<T>(...params);
   }
 
-  get<T = unknown>(sql: string, ...params: unknown[]): T | undefined {
-    return db.prepare(sql).get(...params) as T | undefined;
+  all<T = unknown>(sql: string, ...params: unknown[]): Promise<T[]> {
+    return asyncDb.prepare(sql).all<T>(...params);
   }
 
-  all<T = unknown>(sql: string, ...params: unknown[]): T[] {
-    return db.prepare(sql).all(...params) as T[];
+  run(sql: string, ...params: unknown[]): Promise<AsyncRunResult> {
+    return asyncDb.prepare(sql).run(...params);
   }
 
-  run(sql: string, ...params: unknown[]): Database.RunResult {
-    return db.prepare(sql).run(...params);
-  }
-
-  /** Run `fn` inside a synchronous better-sqlite3 transaction. */
-  transaction<T>(fn: (conn: Database.Database) => T): T {
-    return db.transaction(() => fn(db))();
+  transaction<Args extends unknown[], Result>(
+    fn: (...args: Args) => Result | Promise<Result>,
+  ): AsyncTransaction<Args, Result> {
+    return asyncDb.transaction(fn);
   }
 }

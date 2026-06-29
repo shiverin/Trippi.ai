@@ -87,7 +87,7 @@ export class CollabController {
   @Get('notes')
   async listNotes(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { notes: this.collab.listNotes(tripId) };
+    return { notes: await this.collab.listNotes(tripId) };
   }
 
   @Post('notes')
@@ -102,7 +102,7 @@ export class CollabController {
     if (!body.title) {
       throw new HttpException({ error: 'Title is required' }, 400);
     }
-    const note = this.collab.createNote(tripId, user.id, {
+    const note = await this.collab.createNote(tripId, user.id, {
       title: body.title,
       content: body.content,
       category: body.category,
@@ -132,7 +132,7 @@ export class CollabController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const note = this.collab.updateNote(tripId, id, {
+    const note = await this.collab.updateNote(tripId, id, {
       title: body.title,
       content: body.content,
       category: body.category,
@@ -156,7 +156,7 @@ export class CollabController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.collab.deleteNote(tripId, id)) {
+    if (!(await this.collab.deleteNote(tripId, id))) {
       throw new HttpException({ error: 'Note not found' }, 404);
     }
     this.collab.broadcast(tripId, 'collab:note:deleted', { noteId: Number(id) }, socketId);
@@ -179,11 +179,16 @@ export class CollabController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
-    const result = this.collab.addNoteFile(tripId, id, file);
+    const result = await this.collab.addNoteFile(tripId, id, file);
     if (!result) {
       throw new HttpException({ error: 'Note not found' }, 404);
     }
-    this.collab.broadcast(tripId, 'collab:note:updated', { note: this.collab.getFormattedNoteById(id) }, socketId);
+    this.collab.broadcast(
+      tripId,
+      'collab:note:updated',
+      { note: await this.collab.getFormattedNoteById(id) },
+      socketId,
+    );
     return result;
   }
 
@@ -197,10 +202,15 @@ export class CollabController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.collab.deleteNoteFile(id, fileId)) {
+    if (!(await this.collab.deleteNoteFile(id, fileId))) {
       throw new HttpException({ error: 'File not found' }, 404);
     }
-    this.collab.broadcast(tripId, 'collab:note:updated', { note: this.collab.getFormattedNoteById(id) }, socketId);
+    this.collab.broadcast(
+      tripId,
+      'collab:note:updated',
+      { note: await this.collab.getFormattedNoteById(id) },
+      socketId,
+    );
     return { success: true };
   }
 
@@ -208,7 +218,7 @@ export class CollabController {
   @Get('polls')
   async listPolls(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { polls: this.collab.listPolls(tripId) };
+    return { polls: await this.collab.listPolls(tripId) };
   }
 
   @Post('polls')
@@ -227,7 +237,7 @@ export class CollabController {
     if (!Array.isArray(body.options) || body.options.length < 2) {
       throw new HttpException({ error: 'At least 2 options are required' }, 400);
     }
-    const poll = this.collab.createPoll(tripId, user.id, {
+    const poll = await this.collab.createPoll(tripId, user.id, {
       question: body.question,
       options: body.options,
       multiple: body.multiple,
@@ -249,7 +259,7 @@ export class CollabController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const result = this.collab.votePoll(tripId, id, user.id, optionIndex);
+    const result = await this.collab.votePoll(tripId, id, user.id, optionIndex);
     if (result.error === 'not_found') throw new HttpException({ error: 'Poll not found' }, 404);
     if (result.error === 'closed') throw new HttpException({ error: 'Poll is closed' }, 400);
     if (result.error === 'invalid_index') throw new HttpException({ error: 'Invalid option index' }, 400);
@@ -266,7 +276,7 @@ export class CollabController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const poll = this.collab.closePoll(tripId, id);
+    const poll = await this.collab.closePoll(tripId, id);
     if (!poll) {
       throw new HttpException({ error: 'Poll not found' }, 404);
     }
@@ -283,7 +293,7 @@ export class CollabController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.collab.deletePoll(tripId, id)) {
+    if (!(await this.collab.deletePoll(tripId, id))) {
       throw new HttpException({ error: 'Poll not found' }, 404);
     }
     this.collab.broadcast(tripId, 'collab:poll:deleted', { pollId: Number(id) }, socketId);
@@ -294,7 +304,7 @@ export class CollabController {
   @Get('messages')
   async listMessages(@CurrentUser() user: User, @Param('tripId') tripId: string, @Query('before') before?: string) {
     await this.requireTrip(tripId, user);
-    return { messages: this.collab.listMessages(tripId, before) };
+    return { messages: await this.collab.listMessages(tripId, before) };
   }
 
   @Post('messages')
@@ -312,7 +322,7 @@ export class CollabController {
     if (!body.text || !body.text.trim()) {
       throw new HttpException({ error: 'Message text is required' }, 400);
     }
-    const result = this.collab.createMessage(tripId, user.id, body.text, body.reply_to);
+    const result = await this.collab.createMessage(tripId, user.id, body.text, body.reply_to);
     if (result.error === 'reply_not_found') {
       throw new HttpException({ error: 'Reply target message not found' }, 400);
     }
@@ -336,7 +346,7 @@ export class CollabController {
     if (!emoji) {
       throw new HttpException({ error: 'Emoji is required' }, 400);
     }
-    const result = this.collab.reactMessage(id, tripId, user.id, emoji);
+    const result = await this.collab.reactMessage(id, tripId, user.id, emoji);
     if (!result.found) {
       throw new HttpException({ error: 'Message not found' }, 404);
     }
@@ -358,7 +368,7 @@ export class CollabController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const result = this.collab.deleteMessage(tripId, id, user.id);
+    const result = await this.collab.deleteMessage(tripId, id, user.id);
     if (result.error === 'not_found') throw new HttpException({ error: 'Message not found' }, 404);
     if (result.error === 'not_owner') throw new HttpException({ error: 'You can only delete your own messages' }, 403);
     this.collab.broadcast(

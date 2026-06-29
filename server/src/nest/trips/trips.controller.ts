@@ -79,7 +79,7 @@ export class TripsController {
   @Post()
   @HttpCode(201)
   async create(@CurrentUser() user: User, @Body() body: Record<string, unknown>, @Req() req: Request) {
-    if (!this.trips.can('trip_create', user.role, null, user.id, false)) {
+    if (!(await this.trips.can('trip_create', user.role, null, user.id, false))) {
       throw new HttpException({ error: 'No permission to create trips' }, 403);
     }
     const { title, description, currency, reminder_days, day_count } = body as Record<string, never>;
@@ -136,21 +136,27 @@ export class TripsController {
     }
     const ownerId = access.user_id;
     const isMember = ownerId !== user.id;
-    if (body.is_archived !== undefined && !this.trips.can('trip_archive', user.role, ownerId, user.id, isMember)) {
+    if (
+      body.is_archived !== undefined &&
+      !(await this.trips.can('trip_archive', user.role, ownerId, user.id, isMember))
+    ) {
       throw new HttpException({ error: 'No permission to archive/unarchive this trip' }, 403);
     }
-    if (body.cover_image !== undefined && !this.trips.can('trip_cover_upload', user.role, ownerId, user.id, isMember)) {
+    if (
+      body.cover_image !== undefined &&
+      !(await this.trips.can('trip_cover_upload', user.role, ownerId, user.id, isMember))
+    ) {
       throw new HttpException({ error: 'No permission to change cover image' }, 403);
     }
     const editFields = ['title', 'description', 'start_date', 'end_date', 'currency', 'reminder_days', 'day_count'];
     if (
       editFields.some((f) => body[f] !== undefined) &&
-      !this.trips.can('trip_edit', user.role, ownerId, user.id, isMember)
+      !(await this.trips.can('trip_edit', user.role, ownerId, user.id, isMember))
     ) {
       throw new HttpException({ error: 'No permission to edit this trip' }, 403);
     }
     try {
-      const result = this.trips.update(id, user.id, body, user.role);
+      const result = await this.trips.update(id, user.id, body, user.role);
       if (Object.keys(result.changes).length > 0) {
         writeAudit({
           userId: user.id,
@@ -197,10 +203,10 @@ export class TripsController {
     if (!access?.user_id) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
-    if (!this.trips.can('trip_cover_upload', user.role, access.user_id, user.id, access.user_id !== user.id)) {
+    if (!(await this.trips.can('trip_cover_upload', user.role, access.user_id, user.id, access.user_id !== user.id))) {
       throw new HttpException({ error: 'No permission to change the cover image' }, 403);
     }
-    const trip = this.trips.getRaw(id) as { cover_image: string | null } | undefined;
+    const trip = (await this.trips.getRaw(id)) as { cover_image: string | null } | undefined;
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -209,7 +215,7 @@ export class TripsController {
     }
     this.trips.deleteOldCover(trip.cover_image);
     const coverUrl = `/uploads/covers/${file.filename}`;
-    this.trips.updateCoverImage(id, coverUrl);
+    await this.trips.updateCoverImage(id, coverUrl);
     return { cover_image: coverUrl };
   }
 
@@ -221,7 +227,7 @@ export class TripsController {
     @Body('title') title: string | undefined,
     @Req() req: Request,
   ) {
-    if (!this.trips.can('trip_create', user.role, null, user.id, false)) {
+    if (!(await this.trips.can('trip_create', user.role, null, user.id, false))) {
       throw new HttpException({ error: 'No permission to create trips' }, 403);
     }
     if (!(await this.trips.canAccessTrip(id, user.id))) {
@@ -242,20 +248,20 @@ export class TripsController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('id') id: string,
     @Req() req: Request,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const owner = this.trips.getOwner(id);
+    const owner = await this.trips.getOwner(id);
     if (!owner) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
-    if (!this.trips.can('trip_delete', user.role, owner.user_id, user.id, owner.user_id !== user.id)) {
+    if (!(await this.trips.can('trip_delete', user.role, owner.user_id, user.id, owner.user_id !== user.id))) {
       throw new HttpException({ error: 'No permission to delete this trip' }, 403);
     }
-    const info = this.trips.remove(id, user.id, user.role);
+    const info = await this.trips.remove(id, user.id, user.role);
     writeAudit({
       userId: user.id,
       action: 'trip.delete',
@@ -274,7 +280,7 @@ export class TripsController {
     if (!access) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
-    const { owner, members } = this.trips.listMembers(id, access.user_id);
+    const { owner, members } = await this.trips.listMembers(id, access.user_id);
     return { owner, members, current_user_id: user.id };
   }
 
@@ -285,7 +291,7 @@ export class TripsController {
     if (!access) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
-    if (!this.trips.can('member_manage', user.role, access.user_id, user.id, access.user_id !== user.id)) {
+    if (!(await this.trips.can('member_manage', user.role, access.user_id, user.id, access.user_id !== user.id))) {
       throw new HttpException({ error: 'No permission to manage members' }, 403);
     }
     try {
@@ -308,7 +314,7 @@ export class TripsController {
     const targetId = parseInt(userId);
     if (
       targetId !== user.id &&
-      !this.trips.can('member_manage', user.role, access.user_id, user.id, access.user_id !== user.id)
+      !(await this.trips.can('member_manage', user.role, access.user_id, user.id, access.user_id !== user.id))
     ) {
       throw new HttpException({ error: 'No permission to remove members' }, 403);
     }
@@ -322,7 +328,7 @@ export class TripsController {
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
-    return this.trips.bundle(id, trip);
+    return await this.trips.bundle(id, trip);
   }
 
   @Get(':id/export.ics')
@@ -331,7 +337,7 @@ export class TripsController {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     try {
-      const { ics, filename } = this.trips.exportICS(id);
+      const { ics, filename } = await this.trips.exportICS(id);
       res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(ics);

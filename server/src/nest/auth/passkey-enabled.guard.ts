@@ -1,4 +1,4 @@
-import { resolveAuthToggles } from '../../services/authService';
+import { resolveAuthTogglesAsync } from '../../services/authService';
 import { CanActivate, HttpException, Injectable } from '@nestjs/common';
 
 /**
@@ -13,8 +13,8 @@ import { CanActivate, HttpException, Injectable } from '@nestjs/common';
  */
 @Injectable()
 export class PasskeyEnabledGuard implements CanActivate {
-  canActivate(): boolean {
-    if (!resolveAuthToggles().passkey_login) {
+  async canActivate(): Promise<boolean> {
+    if (!(await resolveAuthTogglesAsync()).passkey_login) {
       throw new HttpException({ error: 'Passkey login is not enabled' }, 404);
     }
     return true;

@@ -1,9 +1,9 @@
 import { ADDON_IDS } from '../addons';
-import { isAddonEnabled } from '../services/adminService';
+import { isAddonEnabledAsync } from '../services/adminService';
 import { writeAudit, getClientIp } from '../services/auditLog';
-import { verifyMcpToken, verifyJwtToken } from '../services/authService';
+import { verifyMcpTokenAsync, verifyJwtToken } from '../services/authService';
 import { getMcpSafeUrl } from '../services/notifications';
-import { getUserByAccessToken } from '../services/oauthService';
+import { getUserByAccessTokenAsync } from '../services/oauthService';
 import { User } from '../types';
 import { registerResources } from './resources';
 import { McpSession, sessions, revokeUserSessions, revokeUserSessionsForClient } from './sessionManager';
@@ -207,7 +207,7 @@ async function verifyToken(authHeader: string | undefined): Promise<VerifyTokenR
 
   // OAuth 2.1 access token (trippioa_...)
   if (token.startsWith('trippioa_')) {
-    const result = getUserByAccessToken(token);
+    const result = await getUserByAccessTokenAsync(token);
     if (!result) return null;
     // RFC 8707: audience must always match this resource endpoint.
     // Pre-audit tokens with audience=null are revoked by the SEC-H6 migration.
@@ -218,7 +218,7 @@ async function verifyToken(authHeader: string | undefined): Promise<VerifyTokenR
 
   // Long-lived static MCP token (trippi_...) — full access + deprecation notice
   if (token.startsWith('trippi_')) {
-    const user = verifyMcpToken(token);
+    const user = await verifyMcpTokenAsync(token);
     if (!user) return null;
     return { user, scopes: null, clientId: null, isStaticToken: true };
   }
@@ -244,7 +244,7 @@ function logToolCallAudit(req: Request, userId: number, clientId: string | null)
 }
 
 export async function mcpHandler(req: Request, res: Response): Promise<void> {
-  if (!isAddonEnabled(ADDON_IDS.MCP)) {
+  if (!(await isAddonEnabledAsync(ADDON_IDS.MCP))) {
     res.status(403).json({ error: 'MCP is not enabled' });
     return;
   }
@@ -330,8 +330,8 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
     return STATIC_TOKEN_DEPRECATION_NOTICE;
   };
 
-  registerResources(server, user.id, scopes);
-  registerTools(server, user.id, scopes, isStaticToken, getDeprecationNotice);
+  await registerResources(server, user.id, scopes);
+  await registerTools(server, user.id, scopes, isStaticToken, getDeprecationNotice);
 
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),

@@ -29,12 +29,12 @@ export class FilesDownloadController {
       throw new HttpException({ error: auth.error }, auth.status);
     }
 
-    const trip = this.files.verifyTripAccess(tripId, auth.userId);
+    const trip = await this.files.verifyTripAccess(tripId, auth.userId);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
 
-    const file = this.files.getFileById(id, tripId);
+    const file = await this.files.getFileById(id, tripId);
     if (!file) {
       throw new HttpException({ error: 'File not found' }, 404);
     }

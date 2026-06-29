@@ -1,10 +1,10 @@
 import { isDemoUser } from '../../services/authService';
 import {
-  getNotifications,
-  getUnreadCount,
-  markRead as markNotificationRead,
-  markUnread as markNotificationUnread,
-  markAllRead,
+  getNotificationsAsync,
+  getUnreadCountAsync,
+  markReadAsync as markNotificationRead,
+  markUnreadAsync as markNotificationUnread,
+  markAllReadAsync,
 } from '../../services/inAppNotifications';
 import { canRead, canWrite } from '../scopes';
 import {
@@ -38,7 +38,7 @@ export function registerNotificationTools(server: McpServer, userId: number, sco
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ limit, offset, unread_only }) => {
-        const result = getNotifications(userId, {
+        const result = await getNotificationsAsync(userId, {
           limit: limit ?? 20,
           offset: offset ?? 0,
           unreadOnly: unread_only ?? false,
@@ -56,7 +56,7 @@ export function registerNotificationTools(server: McpServer, userId: number, sco
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async () => {
-        const count = getUnreadCount(userId);
+        const count = await getUnreadCountAsync(userId);
         return ok({ count });
       },
     );
@@ -73,7 +73,7 @@ export function registerNotificationTools(server: McpServer, userId: number, sco
       },
       async ({ notificationId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        const success = markNotificationRead(notificationId, userId);
+        const success = await markNotificationRead(notificationId, userId);
         if (!success) return { content: [{ type: 'text' as const, text: 'Notification not found.' }], isError: true };
         return ok({ success: true });
       },
@@ -91,7 +91,7 @@ export function registerNotificationTools(server: McpServer, userId: number, sco
       },
       async ({ notificationId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        const success = markNotificationUnread(notificationId, userId);
+        const success = await markNotificationUnread(notificationId, userId);
         if (!success) return { content: [{ type: 'text' as const, text: 'Notification not found.' }], isError: true };
         return ok({ success: true });
       },
@@ -107,7 +107,7 @@ export function registerNotificationTools(server: McpServer, userId: number, sco
       },
       async () => {
         if (isDemoUser(userId)) return demoDenied();
-        const count = markAllRead(userId);
+        const count = await markAllReadAsync(userId);
         return ok({ success: true, count });
       },
     );

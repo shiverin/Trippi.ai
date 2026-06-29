@@ -7,7 +7,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  */
 
 vi.mock('../../../src/db/database', () => ({ db: { prepare: vi.fn() } }));
-vi.mock('../../../src/services/adminService', () => ({ isAddonEnabled: vi.fn(() => true) }));
+vi.mock('../../../src/services/adminService', () => ({
+  isAddonEnabled: vi.fn(() => true),
+  isAddonEnabledAsync: vi.fn(async () => true),
+}));
 vi.mock('../../../src/services/auditLog', () => ({ logError: vi.fn(), logInfo: vi.fn() }));
 vi.mock('../../../src/websocket', () => ({ broadcast: vi.fn() }));
 vi.mock('../../../src/services/reservationService', () => ({
@@ -28,14 +31,16 @@ vi.mock('../../../src/services/airtrail/airtrailMapper', () => ({
 }));
 vi.mock('../../../src/services/airtrail/airtrailService', () => ({
   isAirtrailWriteEnabled: vi.fn(),
+  isAirtrailWriteEnabledAsync: vi.fn(),
   getAirtrailCredentials: vi.fn(),
+  getAirtrailCredentialsAsync: vi.fn(),
 }));
 
 import { pushReservationToAirtrail } from '../../../src/services/airtrail/airtrailSync';
 import { db } from '../../../src/db/database';
 import { getReservationWithJoins } from '../../../src/services/reservationService';
 import { getFlight, saveFlight } from '../../../src/services/airtrail/airtrailClient';
-import { isAirtrailWriteEnabled, getAirtrailCredentials } from '../../../src/services/airtrail/airtrailService';
+import { isAirtrailWriteEnabledAsync, getAirtrailCredentialsAsync } from '../../../src/services/airtrail/airtrailService';
 
 const linkedRow = { id: 5, trip_id: 9, external_id: '42', external_owner_user_id: 7, sync_enabled: 1 };
 const runSpy = vi.fn();
@@ -55,7 +60,7 @@ beforeEach(() => {
     },
     all: () => [],
   }));
-  (getAirtrailCredentials as any).mockReturnValue({ baseUrl: 'https://at.example', apiKey: 'k', allowInsecureTls: false });
+  (getAirtrailCredentialsAsync as any).mockResolvedValue({ baseUrl: 'https://at.example', apiKey: 'k', allowInsecureTls: false });
   // GET returns AirTrail-owned detail trippi.ai doesn't model — must survive the writeback.
   (getFlight as any).mockResolvedValue({ id: 42, from: { iata: 'JFK' }, to: { iata: 'LHR' }, seats: [], departureTerminal: '7' });
   (saveFlight as any).mockResolvedValue({ id: 42 });
@@ -74,7 +79,7 @@ beforeEach(() => {
 
 describe('pushReservationToAirtrail write gate (#1240)', () => {
   it('does nothing — and does not detach — when the owner has not opted in', async () => {
-    (isAirtrailWriteEnabled as any).mockReturnValue(false);
+    (isAirtrailWriteEnabledAsync as any).mockResolvedValue(false);
     await pushReservationToAirtrail(5, 9);
     expect(getFlight).not.toHaveBeenCalled();
     expect(saveFlight).not.toHaveBeenCalled();
@@ -82,7 +87,7 @@ describe('pushReservationToAirtrail write gate (#1240)', () => {
   });
 
   it('writes back, preserving AirTrail-owned fields, when the owner has opted in', async () => {
-    (isAirtrailWriteEnabled as any).mockReturnValue(true);
+    (isAirtrailWriteEnabledAsync as any).mockResolvedValue(true);
     await pushReservationToAirtrail(5, 9);
     expect(saveFlight).toHaveBeenCalledTimes(1);
     const payload = (saveFlight as any).mock.calls[0][1];

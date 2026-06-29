@@ -17,9 +17,9 @@ const notice: SystemNoticeDto = {
 };
 
 /** Run `fn`, expecting an HttpException; return its { status, body }. */
-function thrown(fn: () => unknown): { status: number; body: unknown } {
+async function thrown(fn: () => unknown | Promise<unknown>): Promise<{ status: number; body: unknown }> {
   try {
-    fn();
+    await fn();
   } catch (err) {
     expect(err).toBeInstanceOf(HttpException);
     const e = err as HttpException;
@@ -30,23 +30,23 @@ function thrown(fn: () => unknown): { status: number; body: unknown } {
 
 describe('SystemNoticesController (parity with the legacy /api/system-notices route)', () => {
   describe('GET /active', () => {
-    it('returns the evaluated notices for the current user', () => {
+    it('returns the evaluated notices for the current user', async () => {
       const getActiveFor = vi.fn().mockReturnValue([notice]);
-      expect(makeController({ getActiveFor }).active(user)).toEqual([notice]);
+      await expect(makeController({ getActiveFor }).active(user)).resolves.toEqual([notice]);
       expect(getActiveFor).toHaveBeenCalledWith(7);
     });
   });
 
   describe('POST /:id/dismiss', () => {
-    it('returns nothing (204) when the dismiss succeeds', () => {
+    it('returns nothing (204) when the dismiss succeeds', async () => {
       const dismiss = vi.fn().mockReturnValue(true);
-      expect(makeController({ dismiss }).dismiss(user, 'welcome')).toBeUndefined();
+      await expect(makeController({ dismiss }).dismiss(user, 'welcome')).resolves.toBeUndefined();
       expect(dismiss).toHaveBeenCalledWith(7, 'welcome');
     });
 
-    it('404 { error: NOTICE_NOT_FOUND } when the id is unknown', () => {
+    it('404 { error: NOTICE_NOT_FOUND } when the id is unknown', async () => {
       const dismiss = vi.fn().mockReturnValue(false);
-      expect(thrown(() => makeController({ dismiss }).dismiss(user, 'nope'))).toEqual({
+      expect(await thrown(() => makeController({ dismiss }).dismiss(user, 'nope'))).toEqual({
         status: 404,
         body: { error: 'NOTICE_NOT_FOUND' },
       });

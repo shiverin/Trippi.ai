@@ -95,39 +95,39 @@ describe('verifyTripAccess', () => {
 // ── getAssignmentsForDay ──────────────────────────────────────────────────────
 
 describe('getAssignmentsForDay', () => {
-  it('DAY-SVC-003 — returns empty array when day has no assignments', () => {
+  it('DAY-SVC-003 — returns empty array when day has no assignments', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
-    expect(getAssignmentsForDay(day.id)).toEqual([]);
+    expect(await getAssignmentsForDay(day.id)).toEqual([]);
   });
 
-  it('DAY-SVC-004 — returns assignments with nested place object', () => {
+  it('DAY-SVC-004 — returns assignments with nested place object', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'Eiffel Tower', lat: 48.8, lng: 2.3 }) as any;
     createDayAssignment(testDb, day.id, place.id, { order_index: 0 });
 
-    const assignments = getAssignmentsForDay(day.id) as any[];
+    const assignments = await getAssignmentsForDay(day.id) as any[];
     expect(assignments).toHaveLength(1);
     expect(assignments[0].place).toBeDefined();
     expect(assignments[0].place.name).toBe('Eiffel Tower');
     expect(assignments[0].place.lat).toBe(48.8);
   });
 
-  it('DAY-SVC-005 — assignment includes tags array (empty when place has none)', () => {
+  it('DAY-SVC-005 — assignment includes tags array (empty when place has none)', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'No Tags' }) as any;
     createDayAssignment(testDb, day.id, place.id);
 
-    const assignments = getAssignmentsForDay(day.id) as any[];
+    const assignments = await getAssignmentsForDay(day.id) as any[];
     expect(Array.isArray(assignments[0].place.tags)).toBe(true);
   });
 
-  it('DAY-SVC-006 — assignments are ordered by order_index ASC', () => {
+  it('DAY-SVC-006 — assignments are ordered by order_index ASC', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
@@ -136,7 +136,7 @@ describe('getAssignmentsForDay', () => {
     createDayAssignment(testDb, day.id, p1.id, { order_index: 2 });
     createDayAssignment(testDb, day.id, p2.id, { order_index: 1 });
 
-    const assignments = getAssignmentsForDay(day.id) as any[];
+    const assignments = await getAssignmentsForDay(day.id) as any[];
     expect(assignments[0].place.name).toBe('First');
     expect(assignments[1].place.name).toBe('Second');
   });
@@ -145,18 +145,18 @@ describe('getAssignmentsForDay', () => {
 // ── listDays ──────────────────────────────────────────────────────────────────
 
 describe('listDays', () => {
-  it('DAY-SVC-007 — returns { days: [] } for trip with no days', () => {
+  it('DAY-SVC-007 — returns { days: [] } for trip with no days', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
-    const result = listDays(trip.id) as any;
+    const result = await listDays(trip.id) as any;
     expect(result.days).toEqual([]);
   });
 
-  it('DAY-SVC-008 — returns days with assignments nested', () => {
+  it('DAY-SVC-008 — returns days with assignments nested', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     createDay(testDb, trip.id);
-    const result = listDays(trip.id) as any;
+    const result = await listDays(trip.id) as any;
     expect(result.days).toHaveLength(1);
     expect(Array.isArray(result.days[0].assignments)).toBe(true);
   });
@@ -165,19 +165,19 @@ describe('listDays', () => {
 // ── createDay ─────────────────────────────────────────────────────────────────
 
 describe('createDay (service)', () => {
-  it('DAY-SVC-009 — creates a day with auto-incremented day_number', () => {
+  it('DAY-SVC-009 — creates a day with auto-incremented day_number', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
-    const d1 = svcCreateDay(trip.id) as any;
-    const d2 = svcCreateDay(trip.id) as any;
+    const d1 = await svcCreateDay(trip.id) as any;
+    const d2 = await svcCreateDay(trip.id) as any;
     expect(d1.day_number).toBe(1);
     expect(d2.day_number).toBe(2);
   });
 
-  it('DAY-SVC-010 — returns day with empty assignments array', () => {
+  it('DAY-SVC-010 — returns day with empty assignments array', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
-    const day = svcCreateDay(trip.id) as any;
+    const day = await svcCreateDay(trip.id) as any;
     expect(Array.isArray(day.assignments)).toBe(true);
     expect(day.assignments).toHaveLength(0);
   });
@@ -186,77 +186,77 @@ describe('createDay (service)', () => {
 // ── getDay / updateDay / deleteDay ────────────────────────────────────────────
 
 describe('getDay', () => {
-  it('DAY-SVC-011 — returns day when id and tripId match', () => {
+  it('DAY-SVC-011 — returns day when id and tripId match', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
-    const found = getDay(day.id, trip.id) as any;
+    const found = await getDay(day.id, trip.id) as any;
     expect(found).toBeDefined();
     expect(found.id).toBe(day.id);
   });
 
-  it('DAY-SVC-012 — returns undefined for non-existent day', () => {
+  it('DAY-SVC-012 — returns undefined for non-existent day', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
-    expect(getDay(99999, trip.id)).toBeUndefined();
+    expect(await getDay(99999, trip.id)).toBeUndefined();
   });
 });
 
 describe('updateDay', () => {
-  it('DAY-SVC-013 — updates notes and returns updated day with assignments', () => {
+  it('DAY-SVC-013 — updates notes and returns updated day with assignments', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
-    const updated = updateDay(day.id, day, { notes: 'Updated notes' }) as any;
+    const updated = await updateDay(day.id, day, { notes: 'Updated notes' }) as any;
     expect(updated.notes).toBe('Updated notes');
     expect(Array.isArray(updated.assignments)).toBe(true);
   });
 
-  it('DAY-SVC-014 — updates title', () => {
+  it('DAY-SVC-014 — updates title', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
-    const updated = updateDay(day.id, day, { title: 'Day 1 - City Tour' }) as any;
+    const updated = await updateDay(day.id, day, { title: 'Day 1 - City Tour' }) as any;
     expect(updated.title).toBe('Day 1 - City Tour');
   });
 });
 
 describe('deleteDay', () => {
-  it('DAY-SVC-015 — deletes the day', () => {
+  it('DAY-SVC-015 — deletes the day', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
-    deleteDay(day.id);
-    expect(getDay(day.id, trip.id)).toBeUndefined();
+    await deleteDay(day.id);
+    expect(await getDay(day.id, trip.id)).toBeUndefined();
   });
 });
 
 // ── validateAccommodationRefs ─────────────────────────────────────────────────
 
 describe('validateAccommodationRefs', () => {
-  it('DAY-SVC-016 — returns no errors when all refs are valid', () => {
+  it('DAY-SVC-016 — returns no errors when all refs are valid', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'Hotel' }) as any;
-    const errors = validateAccommodationRefs(trip.id, place.id, day.id, day.id);
+    const errors = await validateAccommodationRefs(trip.id, place.id, day.id, day.id);
     expect(errors).toHaveLength(0);
   });
 
-  it('DAY-SVC-017 — returns error when place does not exist in trip', () => {
+  it('DAY-SVC-017 — returns error when place does not exist in trip', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
-    const errors = validateAccommodationRefs(trip.id, 99999, day.id, day.id);
+    const errors = await validateAccommodationRefs(trip.id, 99999, day.id, day.id);
     expect(errors.some((e: any) => e.field === 'place_id')).toBe(true);
   });
 
-  it('DAY-SVC-018 — returns error when start_day_id is invalid', () => {
+  it('DAY-SVC-018 — returns error when start_day_id is invalid', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'Hotel' }) as any;
-    const errors = validateAccommodationRefs(trip.id, place.id, 99999, day.id);
+    const errors = await validateAccommodationRefs(trip.id, place.id, 99999, day.id);
     expect(errors.some((e: any) => e.field === 'start_day_id')).toBe(true);
   });
 });
@@ -264,13 +264,13 @@ describe('validateAccommodationRefs', () => {
 // ── createAccommodation ───────────────────────────────────────────────────────
 
 describe('createAccommodation', () => {
-  it('DAY-SVC-019 — creates accommodation and returns it with place info', () => {
+  it('DAY-SVC-019 — creates accommodation and returns it with place info', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'Grand Hotel' }) as any;
 
-    const accom = createAccommodation(trip.id, {
+    const accom = await createAccommodation(trip.id, {
       place_id: place.id,
       start_day_id: day.id,
       end_day_id: day.id,
@@ -282,13 +282,13 @@ describe('createAccommodation', () => {
     expect(accom.place_name).toBe('Grand Hotel');
   });
 
-  it('DAY-SVC-020 — auto-creates a linked reservation', () => {
+  it('DAY-SVC-020 — auto-creates a linked reservation', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'City Hotel' }) as any;
 
-    const accom = createAccommodation(trip.id, {
+    const accom = await createAccommodation(trip.id, {
       place_id: place.id, start_day_id: day.id, end_day_id: day.id,
     }) as any;
 
@@ -302,38 +302,38 @@ describe('createAccommodation', () => {
 // ── getAccommodation ──────────────────────────────────────────────────────────
 
 describe('getAccommodation', () => {
-  it('DAY-SVC-021 — returns accommodation for valid id and trip', () => {
+  it('DAY-SVC-021 — returns accommodation for valid id and trip', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'Hotel' }) as any;
     const accom = createDayAccommodation(testDb, trip.id, place.id, day.id, day.id) as any;
-    const found = getAccommodation(accom.id, trip.id) as any;
+    const found = await getAccommodation(accom.id, trip.id) as any;
     expect(found).toBeDefined();
     expect(found.id).toBe(accom.id);
   });
 
-  it('DAY-SVC-022 — returns undefined for non-existent accommodation', () => {
+  it('DAY-SVC-022 — returns undefined for non-existent accommodation', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
-    expect(getAccommodation(99999, trip.id)).toBeUndefined();
+    expect(await getAccommodation(99999, trip.id)).toBeUndefined();
   });
 });
 
 // ── updateAccommodation ───────────────────────────────────────────────────────
 
 describe('updateAccommodation', () => {
-  it('DAY-SVC-023 — updates check-in and check-out times', () => {
+  it('DAY-SVC-023 — updates check-in and check-out times', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'Hotel' }) as any;
-    const accom = createAccommodation(trip.id, {
+    const accom = await createAccommodation(trip.id, {
       place_id: place.id, start_day_id: day.id, end_day_id: day.id,
     }) as any;
 
-    const existing = getAccommodation(accom.id, trip.id)!;
-    const updated = updateAccommodation(accom.id, existing as any, { check_in: '16:00', check_out: '12:00' }) as any;
+    const existing = await getAccommodation(accom.id, trip.id)!;
+    const updated = await updateAccommodation(accom.id, existing as any, { check_in: '16:00', check_out: '12:00' }) as any;
     expect(updated).toBeDefined();
 
     // Verify linked reservation metadata was synced
@@ -344,20 +344,20 @@ describe('updateAccommodation', () => {
     expect(meta.check_out_time).toBe('12:00');
   });
 
-  it('DAY-SVC-024 — preserves existing fields when not updated', () => {
+  it('DAY-SVC-024 — preserves existing fields when not updated', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'Hotel' }) as any;
-    const accom = createAccommodation(trip.id, {
+    const accom = await createAccommodation(trip.id, {
       place_id: place.id, start_day_id: day.id, end_day_id: day.id,
       confirmation: 'ABC123',
     }) as any;
 
-    const existing = getAccommodation(accom.id, trip.id)!;
-    updateAccommodation(accom.id, existing as any, { check_in: '14:00' });
+    const existing = await getAccommodation(accom.id, trip.id)!;
+    await updateAccommodation(accom.id, existing as any, { check_in: '14:00' });
 
-    const row = getAccommodation(accom.id, trip.id) as any;
+    const row = await getAccommodation(accom.id, trip.id) as any;
     expect(row.confirmation).toBe('ABC123');
   });
 });
@@ -365,29 +365,29 @@ describe('updateAccommodation', () => {
 // ── deleteAccommodation ───────────────────────────────────────────────────────
 
 describe('deleteAccommodation', () => {
-  it('DAY-SVC-025 — deletes accommodation and its linked reservation', () => {
+  it('DAY-SVC-025 — deletes accommodation and its linked reservation', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
     const place = createPlace(testDb, trip.id, { name: 'Hotel' }) as any;
-    const accom = createAccommodation(trip.id, {
+    const accom = await createAccommodation(trip.id, {
       place_id: place.id, start_day_id: day.id, end_day_id: day.id,
     }) as any;
 
     const reservation = testDb.prepare('SELECT id FROM reservations WHERE accommodation_id = ?').get(accom.id) as any;
 
-    const result = deleteAccommodation(accom.id);
+    const result = await deleteAccommodation(accom.id);
     expect(result.linkedReservationId).toBe(reservation.id);
 
     // Accommodation is gone
-    expect(getAccommodation(accom.id, trip.id)).toBeUndefined();
+    expect(await getAccommodation(accom.id, trip.id)).toBeUndefined();
 
     // Reservation is gone
     const deletedRes = testDb.prepare('SELECT id FROM reservations WHERE id = ?').get(reservation.id);
     expect(deletedRes).toBeUndefined();
   });
 
-  it('DAY-SVC-026 — returns null linkedReservationId when no reservation was linked', () => {
+  it('DAY-SVC-026 — returns null linkedReservationId when no reservation was linked', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const day = createDay(testDb, trip.id) as any;
@@ -397,7 +397,7 @@ describe('deleteAccommodation', () => {
     // Remove the auto-created reservation so there's no linked one
     testDb.prepare('DELETE FROM reservations WHERE accommodation_id = ?').run(accom.id);
 
-    const result = deleteAccommodation(accom.id);
+    const result = await deleteAccommodation(accom.id);
     expect(result.linkedReservationId).toBeNull();
   });
 });

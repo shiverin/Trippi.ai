@@ -1,3 +1,4 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { Trip, Place } from '../types';
 import { CONTINENT_MAP } from '@trippi/shared';
@@ -654,10 +655,29 @@ function getUserTrips(userId: number): Trip[] {
     .all(userId, userId, userId) as Trip[];
 }
 
+async function getUserTripsAsync(userId: number): Promise<Trip[]> {
+  return asyncDb
+    .prepare(
+      `
+    SELECT t.* FROM trips t
+    LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = ?
+    WHERE t.user_id = ? OR m.user_id = ?
+    ORDER BY t.start_date DESC
+  `,
+    )
+    .all<Trip>(userId, userId, userId);
+}
+
 function getPlacesForTrips(tripIds: number[]): Place[] {
   if (tripIds.length === 0) return [];
   const placeholders = tripIds.map(() => '?').join(',');
   return db.prepare(`SELECT * FROM places WHERE trip_id IN (${placeholders})`).all(...tripIds) as Place[];
+}
+
+async function getPlacesForTripsAsync(tripIds: number[]): Promise<Place[]> {
+  if (tripIds.length === 0) return [];
+  const placeholders = tripIds.map(() => '?').join(',');
+  return asyncDb.prepare(`SELECT * FROM places WHERE trip_id IN (${placeholders})`).all<Place>(...tripIds);
 }
 
 // ── Country resolution (batch DB cache + sync fallback + background geocoding) ──
@@ -720,16 +740,74 @@ function resolvePlaceCountries(places: Place[]): Map<number, string> {
   return out;
 }
 
+async function resolvePlaceCountriesAsync(places: Place[]): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  const geoPlaces = places.filter((p) => p.lat && p.lng);
+  const placeIds = geoPlaces.map((p) => p.id);
+
+  const cached =
+    placeIds.length > 0
+      ? await asyncDb
+          .prepare(
+            `SELECT place_id, country_code FROM place_regions WHERE place_id IN (${placeIds.map(() => '?').join(',')})`,
+          )
+          .all<{ place_id: number; country_code: string }>(...placeIds)
+      : [];
+  const cachedMap = new Map(cached.map((r) => [r.place_id, r.country_code]));
+
+  const uncachedForGeocode: Place[] = [];
+  for (const p of places) {
+    const fromDb = cachedMap.get(p.id);
+    if (fromDb) {
+      out.set(p.id, fromDb);
+      continue;
+    }
+    const sync = resolveCountryCodeSync(p);
+    if (sync) {
+      out.set(p.id, sync);
+      continue;
+    }
+    if (p.lat && p.lng && !geocodingInFlight.has(p.id)) {
+      uncachedForGeocode.push(p);
+    }
+  }
+
+  if (uncachedForGeocode.length > 0) {
+    const insertStmt = asyncDb.prepare(
+      'INSERT OR REPLACE INTO place_regions (place_id, country_code, region_code, region_name) VALUES (?, ?, ?, ?)',
+    );
+    for (const p of uncachedForGeocode) geocodingInFlight.add(p.id);
+    void (async () => {
+      try {
+        for (const place of uncachedForGeocode) {
+          try {
+            const info = await reverseGeocodeRegion(place.lat!, place.lng!);
+            if (info) await insertStmt.run(place.id, info.country_code, info.region_code, info.region_name);
+          } catch {
+            /* continue */
+          } finally {
+            geocodingInFlight.delete(place.id);
+          }
+        }
+      } catch {
+        for (const p of uncachedForGeocode) geocodingInFlight.delete(p.id);
+      }
+    })();
+  }
+
+  return out;
+}
+
 // ── getStats ────────────────────────────────────────────────────────────────
 
 export async function getStats(userId: number) {
-  const trips = getUserTrips(userId);
+  const trips = await getUserTripsAsync(userId);
   const tripIds = trips.map((t) => t.id);
 
   if (tripIds.length === 0) {
-    const manualCountries = db.prepare('SELECT country_code FROM visited_countries WHERE user_id = ?').all(userId) as {
-      country_code: string;
-    }[];
+    const manualCountries = await asyncDb
+      .prepare('SELECT country_code FROM visited_countries WHERE user_id = ?')
+      .all<{ country_code: string }>(userId);
     const countries = manualCountries.map((mc) => ({
       code: mc.country_code,
       placeCount: 0,
@@ -744,14 +822,14 @@ export async function getStats(userId: number) {
     };
   }
 
-  const places = getPlacesForTrips(tripIds);
+  const places = await getPlacesForTripsAsync(tripIds);
 
   interface CountryEntry {
     code: string;
     places: { id: number; name: string; lat: number | null; lng: number | null }[];
     tripIds: Set<number>;
   }
-  const placeCountries = resolvePlaceCountries(places);
+  const placeCountries = await resolvePlaceCountriesAsync(places);
   const countrySet = new Map<string, CountryEntry>();
   for (const place of places) {
     const code = placeCountries.get(place.id);
@@ -817,9 +895,9 @@ export async function getStats(userId: number) {
   const totalCities = citySet.size;
 
   // Merge manually marked countries
-  const manualCountries = db.prepare('SELECT country_code FROM visited_countries WHERE user_id = ?').all(userId) as {
-    country_code: string;
-  }[];
+  const manualCountries = await asyncDb
+    .prepare('SELECT country_code FROM visited_countries WHERE user_id = ?')
+    .all<{ country_code: string }>(userId);
   for (const mc of manualCountries) {
     if (!countries.find((c) => c.code === mc.country_code)) {
       countries.push({ code: mc.country_code, placeCount: 0, tripCount: 0, firstVisit: null, lastVisit: null });
@@ -946,6 +1024,48 @@ export function getCountryPlaces(userId: number, code: string) {
   return { places: matchingPlaces, trips: matchingTrips, manually_marked: isManuallyMarked };
 }
 
+export async function getCountryPlacesAsync(userId: number, code: string) {
+  const trips = await getUserTripsAsync(userId);
+  const tripIds = trips.map((t) => t.id);
+  if (tripIds.length === 0) return { places: [], trips: [], manually_marked: false };
+
+  const places = await getPlacesForTripsAsync(tripIds);
+
+  const matchingPlaces: {
+    id: number;
+    name: string;
+    address: string | null;
+    lat: number | null;
+    lng: number | null;
+    trip_id: number;
+  }[] = [];
+  const matchingTripIds = new Set<number>();
+
+  for (const place of places) {
+    const pCode = resolveCountryCodeSync(place);
+    if (pCode === code) {
+      matchingPlaces.push({
+        id: place.id,
+        name: place.name,
+        address: place.address ?? null,
+        lat: place.lat ?? null,
+        lng: place.lng ?? null,
+        trip_id: place.trip_id,
+      });
+      matchingTripIds.add(place.trip_id);
+    }
+  }
+
+  const matchingTrips = trips
+    .filter((t) => matchingTripIds.has(t.id))
+    .map((t) => ({ id: t.id, title: t.title, start_date: t.start_date, end_date: t.end_date }));
+
+  const isManuallyMarked = !!(await asyncDb
+    .prepare('SELECT 1 FROM visited_countries WHERE user_id = ? AND country_code = ?')
+    .get(userId, code));
+  return { places: matchingPlaces, trips: matchingTrips, manually_marked: isManuallyMarked };
+}
+
 // ── Mark / unmark country ───────────────────────────────────────────────────
 
 export function listVisitedCountries(userId: number): { country_code: string; created_at: string }[] {
@@ -954,13 +1074,30 @@ export function listVisitedCountries(userId: number): { country_code: string; cr
     .all(userId) as { country_code: string; created_at: string }[];
 }
 
+export async function listVisitedCountriesAsync(
+  userId: number,
+): Promise<{ country_code: string; created_at: string }[]> {
+  return asyncDb
+    .prepare('SELECT country_code, created_at FROM visited_countries WHERE user_id = ? ORDER BY created_at DESC')
+    .all<{ country_code: string; created_at: string }>(userId);
+}
+
 export function markCountryVisited(userId: number, code: string): void {
   db.prepare('INSERT OR IGNORE INTO visited_countries (user_id, country_code) VALUES (?, ?)').run(userId, code);
+}
+
+export async function markCountryVisitedAsync(userId: number, code: string): Promise<void> {
+  await asyncDb.prepare('INSERT OR IGNORE INTO visited_countries (user_id, country_code) VALUES (?, ?)').run(userId, code);
 }
 
 export function unmarkCountryVisited(userId: number, code: string): void {
   db.prepare('DELETE FROM visited_countries WHERE user_id = ? AND country_code = ?').run(userId, code);
   db.prepare('DELETE FROM visited_regions WHERE user_id = ? AND country_code = ?').run(userId, code);
+}
+
+export async function unmarkCountryVisitedAsync(userId: number, code: string): Promise<void> {
+  await asyncDb.prepare('DELETE FROM visited_countries WHERE user_id = ? AND country_code = ?').run(userId, code);
+  await asyncDb.prepare('DELETE FROM visited_regions WHERE user_id = ? AND country_code = ?').run(userId, code);
 }
 
 // ── Mark / unmark region ────────────────────────────────────────────────────
@@ -975,12 +1112,38 @@ export function listManuallyVisitedRegions(
     .all(userId) as { region_code: string; region_name: string; country_code: string }[];
 }
 
+export async function listManuallyVisitedRegionsAsync(
+  userId: number,
+): Promise<{ region_code: string; region_name: string; country_code: string }[]> {
+  return asyncDb
+    .prepare(
+      'SELECT region_code, region_name, country_code FROM visited_regions WHERE user_id = ? ORDER BY created_at DESC',
+    )
+    .all<{ region_code: string; region_name: string; country_code: string }>(userId);
+}
+
 export function markRegionVisited(userId: number, regionCode: string, regionName: string, countryCode: string): void {
   db.prepare(
     'INSERT OR IGNORE INTO visited_regions (user_id, region_code, region_name, country_code) VALUES (?, ?, ?, ?)',
   ).run(userId, regionCode, regionName, countryCode);
   // Auto-mark parent country if not already visited
   db.prepare('INSERT OR IGNORE INTO visited_countries (user_id, country_code) VALUES (?, ?)').run(userId, countryCode);
+}
+
+export async function markRegionVisitedAsync(
+  userId: number,
+  regionCode: string,
+  regionName: string,
+  countryCode: string,
+): Promise<void> {
+  await asyncDb
+    .prepare(
+      'INSERT OR IGNORE INTO visited_regions (user_id, region_code, region_name, country_code) VALUES (?, ?, ?, ?)',
+    )
+    .run(userId, regionCode, regionName, countryCode);
+  await asyncDb
+    .prepare('INSERT OR IGNORE INTO visited_countries (user_id, country_code) VALUES (?, ?)')
+    .run(userId, countryCode);
 }
 
 export function unmarkRegionVisited(userId: number, regionCode: string): void {
@@ -997,6 +1160,23 @@ export function unmarkRegionVisited(userId: number, regionCode: string): void {
         userId,
         region.country_code,
       );
+    }
+  }
+}
+
+export async function unmarkRegionVisitedAsync(userId: number, regionCode: string): Promise<void> {
+  const region = await asyncDb
+    .prepare('SELECT country_code FROM visited_regions WHERE user_id = ? AND region_code = ?')
+    .get<{ country_code: string }>(userId, regionCode);
+  await asyncDb.prepare('DELETE FROM visited_regions WHERE user_id = ? AND region_code = ?').run(userId, regionCode);
+  if (region) {
+    const remaining = await asyncDb
+      .prepare('SELECT COUNT(*) as count FROM visited_regions WHERE user_id = ? AND country_code = ?')
+      .get<{ count: number }>(userId, region.country_code);
+    if ((remaining?.count ?? 0) === 0) {
+      await asyncDb
+        .prepare('DELETE FROM visited_countries WHERE user_id = ? AND country_code = ?')
+        .run(userId, region.country_code);
     }
   }
 }
@@ -1093,24 +1273,24 @@ async function reverseGeocodeRegion(lat: number, lng: number): Promise<RegionInf
 export async function getVisitedRegions(
   userId: number,
 ): Promise<{ regions: Record<string, { code: string; name: string; placeCount: number }[]> }> {
-  const trips = getUserTrips(userId);
+  const trips = await getUserTripsAsync(userId);
   const tripIds = trips.map((t) => t.id);
-  const places = getPlacesForTrips(tripIds);
+  const places = await getPlacesForTripsAsync(tripIds);
 
   // Check DB cache first
   const placeIds = places.filter((p) => p.lat && p.lng).map((p) => p.id);
   const cached =
     placeIds.length > 0
-      ? (db
+      ? await asyncDb
           .prepare(`SELECT * FROM place_regions WHERE place_id IN (${placeIds.map(() => '?').join(',')})`)
-          .all(...placeIds) as { place_id: number; country_code: string; region_code: string; region_name: string }[])
+          .all<{ place_id: number; country_code: string; region_code: string; region_name: string }>(...placeIds)
       : [];
   const cachedMap = new Map(cached.map((c) => [c.place_id, c]));
 
   // Kick off background geocoding for uncached places; return cached data immediately.
   const uncached = places.filter((p) => p.lat && p.lng && !cachedMap.has(p.id) && !geocodingInFlight.has(p.id));
   if (uncached.length > 0) {
-    const insertStmt = db.prepare(
+    const insertStmt = asyncDb.prepare(
       'INSERT OR REPLACE INTO place_regions (place_id, country_code, region_code, region_name) VALUES (?, ?, ?, ?)',
     );
     for (const p of uncached) geocodingInFlight.add(p.id);
@@ -1119,7 +1299,7 @@ export async function getVisitedRegions(
         for (const place of uncached) {
           try {
             const info = await reverseGeocodeRegion(place.lat!, place.lng!);
-            if (info) insertStmt.run(place.id, info.country_code, info.region_code, info.region_name);
+            if (info) await insertStmt.run(place.id, info.country_code, info.region_code, info.region_name);
           } catch {
             // individual failure — continue with remaining places
           } finally {
@@ -1154,7 +1334,7 @@ export async function getVisitedRegions(
   }
 
   // Merge manually marked regions
-  const manualRegions = listManuallyVisitedRegions(userId);
+  const manualRegions = await listManuallyVisitedRegionsAsync(userId);
   for (const r of manualRegions) {
     if (!result[r.country_code]) result[r.country_code] = [];
     if (!result[r.country_code].find((x) => x.code === r.region_code)) {
@@ -1169,6 +1349,10 @@ export async function getVisitedRegions(
 
 export function listBucketList(userId: number) {
   return db.prepare('SELECT * FROM bucket_list WHERE user_id = ? ORDER BY created_at DESC').all(userId);
+}
+
+export async function listBucketListAsync(userId: number) {
+  return asyncDb.prepare('SELECT * FROM bucket_list WHERE user_id = ? ORDER BY created_at DESC').all(userId);
 }
 
 export function createBucketItem(
@@ -1196,6 +1380,33 @@ export function createBucketItem(
       data.target_date ?? null,
     );
   return db.prepare('SELECT * FROM bucket_list WHERE id = ?').get(result.lastInsertRowid);
+}
+
+export async function createBucketItemAsync(
+  userId: number,
+  data: {
+    name: string;
+    lat?: number | null;
+    lng?: number | null;
+    country_code?: string | null;
+    notes?: string | null;
+    target_date?: string | null;
+  },
+) {
+  const result = await asyncDb
+    .prepare(
+      'INSERT INTO bucket_list (user_id, name, lat, lng, country_code, notes, target_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(
+      userId,
+      data.name.trim(),
+      data.lat ?? null,
+      data.lng ?? null,
+      data.country_code ?? null,
+      data.notes ?? null,
+      data.target_date ?? null,
+    );
+  return asyncDb.prepare('SELECT * FROM bucket_list WHERE id = ?').get(result.lastInsertRowid);
 }
 
 export function updateBucketItem(
@@ -1238,9 +1449,58 @@ export function updateBucketItem(
   return db.prepare('SELECT * FROM bucket_list WHERE id = ?').get(itemId);
 }
 
+export async function updateBucketItemAsync(
+  userId: number,
+  itemId: string | number,
+  data: {
+    name?: string;
+    notes?: string;
+    lat?: number | null;
+    lng?: number | null;
+    country_code?: string | null;
+    target_date?: string | null;
+  },
+) {
+  const item = await asyncDb.prepare('SELECT * FROM bucket_list WHERE id = ? AND user_id = ?').get(itemId, userId);
+  if (!item) return null;
+  await asyncDb
+    .prepare(
+      `UPDATE bucket_list SET
+    name = COALESCE(?, name),
+    notes = CASE WHEN ? THEN ? ELSE notes END,
+    lat = CASE WHEN ? THEN ? ELSE lat END,
+    lng = CASE WHEN ? THEN ? ELSE lng END,
+    country_code = CASE WHEN ? THEN ? ELSE country_code END,
+    target_date = CASE WHEN ? THEN ? ELSE target_date END
+    WHERE id = ?`,
+    )
+    .run(
+      data.name?.trim() || null,
+      data.notes !== undefined ? 1 : 0,
+      data.notes !== undefined ? data.notes || null : null,
+      data.lat !== undefined ? 1 : 0,
+      data.lat !== undefined ? data.lat || null : null,
+      data.lng !== undefined ? 1 : 0,
+      data.lng !== undefined ? data.lng || null : null,
+      data.country_code !== undefined ? 1 : 0,
+      data.country_code !== undefined ? data.country_code || null : null,
+      data.target_date !== undefined ? 1 : 0,
+      data.target_date !== undefined ? data.target_date || null : null,
+      itemId,
+    );
+  return asyncDb.prepare('SELECT * FROM bucket_list WHERE id = ?').get(itemId);
+}
+
 export function deleteBucketItem(userId: number, itemId: string | number): boolean {
   const item = db.prepare('SELECT * FROM bucket_list WHERE id = ? AND user_id = ?').get(itemId, userId);
   if (!item) return false;
   db.prepare('DELETE FROM bucket_list WHERE id = ?').run(itemId);
+  return true;
+}
+
+export async function deleteBucketItemAsync(userId: number, itemId: string | number): Promise<boolean> {
+  const item = await asyncDb.prepare('SELECT * FROM bucket_list WHERE id = ? AND user_id = ?').get(itemId, userId);
+  if (!item) return false;
+  await asyncDb.prepare('DELETE FROM bucket_list WHERE id = ?').run(itemId);
   return true;
 }

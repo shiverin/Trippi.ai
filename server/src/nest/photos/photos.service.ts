@@ -1,25 +1,25 @@
-import { canAccessTrippiPhoto } from '../../services/memories/helpersService';
-import { streamPhoto, getPhotoInfo } from '../../services/memories/photoResolverService';
+import { canAccessTrippiPhotoAsync } from '../../services/memories/helpersService';
+import { streamPhotoAsync, getPhotoInfoAsync } from '../../services/memories/photoResolverService';
 import { Injectable } from '@nestjs/common';
 
 import type { Response } from 'express';
 
 /**
- * Thin Nest wrapper around the existing photo resolver/helper services. Access
- * control, streaming and the provider-specific info lookups reuse the legacy
- * code unchanged.
+ * Thin Nest wrapper around the async photo resolver/helper request paths.
+ * Access control, streaming and provider-specific info lookups stay in the
+ * shared services.
  */
 @Injectable()
 export class PhotosService {
-  canAccess(userId: number, photoId: number): boolean {
-    return canAccessTrippiPhoto(userId, photoId);
+  canAccess(userId: number, photoId: number): Promise<boolean> {
+    return canAccessTrippiPhotoAsync(userId, photoId);
   }
 
   stream(res: Response, userId: number, photoId: number, kind: 'thumbnail' | 'original') {
-    return streamPhoto(res, userId, photoId, kind);
+    return streamPhotoAsync(res, userId, photoId, kind);
   }
 
   info(userId: number, photoId: number) {
-    return getPhotoInfo(userId, photoId);
+    return getPhotoInfoAsync(userId, photoId);
   }
 }

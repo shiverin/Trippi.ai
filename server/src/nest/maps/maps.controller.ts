@@ -93,7 +93,7 @@ export class MapsController {
     @Body('lang') lang?: string,
     @Body('locationBias') locationBias?: LocationBias,
   ): Promise<MapsAutocompleteResult | { suggestions: never[]; source: string }> {
-    if (this.maps.autocompleteDisabled()) {
+    if (await this.maps.autocompleteDisabled()) {
       return { suggestions: [], source: 'disabled' };
     }
     if (!input || typeof input !== 'string') {
@@ -131,7 +131,7 @@ export class MapsController {
     @Query('lang') lang?: string,
     @Query('refresh') refresh?: string,
   ): Promise<MapsPlaceDetailsResult> {
-    if (this.maps.detailsDisabled()) {
+    if (await this.maps.detailsDisabled()) {
       return { place: null, disabled: true };
     }
     try {
@@ -153,7 +153,7 @@ export class MapsController {
     @Query('name') name?: string,
   ): Promise<MapsPlacePhotoResult | { photoUrl: null }> {
     // Kill-switch only applies to Google Places fetches — Wikimedia (coords:) stays allowed.
-    if (!placeId.startsWith('coords:') && this.maps.photosDisabled()) {
+    if (!placeId.startsWith('coords:') && (await this.maps.photosDisabled())) {
       return { photoUrl: null };
     }
     try {

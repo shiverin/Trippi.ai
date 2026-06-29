@@ -1,5 +1,5 @@
 import { ADDON_IDS } from '../../addons';
-import { isAddonEnabled } from '../../services/adminService';
+import { isAddonEnabledAsync } from '../../services/adminService';
 import { CanActivate, HttpException, Injectable } from '@nestjs/common';
 
 /**
@@ -10,8 +10,8 @@ import { CanActivate, HttpException, Injectable } from '@nestjs/common';
  */
 @Injectable()
 export class AirtrailAddonGuard implements CanActivate {
-  canActivate(): boolean {
-    if (!isAddonEnabled(ADDON_IDS.AIRTRAIL)) {
+  async canActivate(): Promise<boolean> {
+    if (!(await isAddonEnabledAsync(ADDON_IDS.AIRTRAIL))) {
       throw new HttpException({ error: 'AirTrail addon is not enabled' }, 404);
     }
     return true;

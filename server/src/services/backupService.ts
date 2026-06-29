@@ -1,4 +1,5 @@
 import { db, closeDb, reinitialize } from '../db/database';
+import { resolveDbProvider } from '../db/providerMode';
 import * as scheduler from '../scheduler';
 import { invalidatePermissionsCache } from './permissions';
 
@@ -36,6 +37,14 @@ export const MAX_BACKUP_UPLOAD_SIZE = backupUploadLimitMb * 1024 * 1024; // comp
 // Upper bound on the TOTAL decompressed size of a restore archive (the upload
 // limit only caps the compressed bytes). Generous enough for any real backup.
 export const MAX_BACKUP_DECOMPRESSED_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
+
+export class BackupUnsupportedForProviderError extends Error {
+  readonly status = 501;
+
+  constructor() {
+    super('SQLite backup/restore is not available when TRIPPI_DB_PROVIDER=oracle-async.');
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -89,6 +98,16 @@ export function backupFilePath(filename: string): string {
 
 export function backupFileExists(filename: string): boolean {
   return fs.existsSync(path.join(backupsDir, filename));
+}
+
+export function isBackupUnsupportedForProviderError(err: unknown): err is BackupUnsupportedForProviderError {
+  return err instanceof BackupUnsupportedForProviderError;
+}
+
+function assertSqliteBackupSupported(): void {
+  if (resolveDbProvider() === 'oracle-async') {
+    throw new BackupUnsupportedForProviderError();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -148,6 +167,7 @@ export function listBackups(): BackupInfo[] {
 // ---------------------------------------------------------------------------
 
 export async function createBackup(): Promise<BackupInfo> {
+  assertSqliteBackupSupported();
   ensureBackupsDir();
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -223,6 +243,7 @@ export interface RestoreResult {
 }
 
 export async function restoreFromZip(zipPath: string): Promise<RestoreResult> {
+  assertSqliteBackupSupported();
   const extractDir = path.join(dataDir, `restore-${Date.now()}`);
   let reinitFailed: unknown = null;
   try {

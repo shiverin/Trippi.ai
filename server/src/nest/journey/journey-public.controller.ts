@@ -19,8 +19,8 @@ export class JourneyPublicController {
   constructor(private readonly journey: JourneyService) {}
 
   @Get(':token')
-  get(@Param('token') token: string) {
-    const data = this.journey.getPublicJourney(token);
+  async get(@Param('token') token: string) {
+    const data = await this.journey.getPublicJourney(token);
     if (!data) {
       throw new HttpException({ error: 'Not found' }, 404);
     }
@@ -34,7 +34,7 @@ export class JourneyPublicController {
     @Param('kind') kind: string,
     @Res() res: Response,
   ): Promise<void> {
-    const valid = this.journey.validateShareTokenForPhoto(token, Number(photoId));
+    const valid = await this.journey.validateShareTokenForPhoto(token, Number(photoId));
     if (!valid) {
       throw new HttpException({ error: 'Not found' }, 404);
     }
@@ -55,7 +55,7 @@ export class JourneyPublicController {
     @Param('kind') kind: string,
     @Res() res: Response,
   ): Promise<void> {
-    const valid = this.journey.validateShareTokenForAsset(token, assetId);
+    const valid = await this.journey.validateShareTokenForAsset(token, assetId);
     if (!valid) {
       throw new HttpException({ error: 'Not found' }, 404);
     }

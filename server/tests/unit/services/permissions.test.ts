@@ -1,3 +1,14 @@
+import {
+  checkPermission,
+  checkPermissionAsync,
+  getPermissionLevel,
+  getPermissionLevelAsync,
+  savePermissions,
+  savePermissionsAsync,
+  invalidatePermissionsCache,
+  PERMISSION_ACTIONS,
+} from '../../../src/services/permissions';
+
 import { describe, it, expect, vi } from 'vitest';
 
 // Mutable rows array so individual tests can inject DB rows
@@ -15,7 +26,16 @@ vi.mock('../../../src/db/database', () => ({
   },
 }));
 
-import { checkPermission, getPermissionLevel, savePermissions, invalidatePermissionsCache, PERMISSION_ACTIONS } from '../../../src/services/permissions';
+vi.mock('../../../src/db/asyncDatabase', () => ({
+  asyncDb: {
+    prepare: () => ({
+      all: async () => dbRows,
+      run: vi.fn(async () => ({ changes: 1, lastInsertRowid: 1 })),
+      get: vi.fn(),
+    }),
+    transaction: (fn: () => void | Promise<void>) => async () => fn(),
+  },
+}));
 
 describe('permissions', () => {
   describe('checkPermission — admin bypass', () => {
@@ -83,6 +103,26 @@ describe('permissions', () => {
 
     it('returns trip_owner for unknown action key', () => {
       expect(getPermissionLevel('nonexistent_action')).toBe('trip_owner');
+    });
+  });
+
+  describe('async variants', () => {
+    it('getPermissionLevelAsync returns DB-backed overrides', async () => {
+      dbRows.push({ key: 'perm_trip_delete', value: 'admin' });
+      invalidatePermissionsCache();
+      await expect(getPermissionLevelAsync('trip_delete')).resolves.toBe('admin');
+      dbRows.length = 0;
+      invalidatePermissionsCache();
+    });
+
+    it('checkPermissionAsync mirrors the sync role semantics', async () => {
+      await expect(checkPermissionAsync('trip_delete', 'user', 10, 10, false)).resolves.toBe(true);
+      await expect(checkPermissionAsync('trip_delete', 'user', 10, 20, true)).resolves.toBe(false);
+    });
+
+    it('savePermissionsAsync returns skipped invalid entries', async () => {
+      const result = await savePermissionsAsync({ nonexistent_action: 'trip_member' });
+      expect(result.skipped).toContain('nonexistent_action');
     });
   });
 

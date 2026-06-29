@@ -1,4 +1,5 @@
-import { db } from '../../db/database';
+import { asyncDb } from '../../db/asyncDatabase';
+import { resolveDbProvider } from '../../db/providerMode';
 import { safeFetch, SsrfBlockedError, checkSsrf } from '../../utils/ssrfGuard';
 import { decrypt_api_key, encrypt_api_key, maybe_encrypt_api_key } from '../apiKeyCrypto';
 import { send as sendNotification } from '../notificationService';
@@ -116,13 +117,13 @@ interface SynologyPhotoItem {
   };
 }
 
-function _readSynologyUser(userId: number, columns: string[]): ServiceResult<SynologyUserRecord> {
+async function _readSynologyUser(userId: number, columns: string[]): Promise<ServiceResult<SynologyUserRecord>> {
   try {
-    const row = db
+    const row = await asyncDb
       .prepare(
         `SELECT synology_url, synology_username, synology_password, synology_sid, synology_did, synology_skip_ssl FROM users WHERE id = ?`,
       )
-      .get(userId) as SynologyUserRecord | undefined;
+      .get<SynologyUserRecord>(userId);
 
     if (!row) {
       return fail('User not found', 404);
@@ -139,8 +140,8 @@ function _readSynologyUser(userId: number, columns: string[]): ServiceResult<Syn
   }
 }
 
-function _getSynologyCredentials(userId: number): ServiceResult<SynologyCredentials> {
-  const user = _readSynologyUser(userId, [
+async function _getSynologyCredentials(userId: number): Promise<ServiceResult<SynologyCredentials>> {
+  const user = await _readSynologyUser(userId, [
     'synology_url',
     'synology_username',
     'synology_password',
@@ -249,7 +250,7 @@ async function _loginToSynology(
 }
 
 async function _requestSynologyApi<T>(userId: number, params: ApiCallParams): Promise<ServiceResult<T>> {
-  const creds = _getSynologyCredentials(userId);
+  const creds = await _getSynologyCredentials(userId);
   if (!creds.success) {
     return creds as ServiceResult<T>;
   }
@@ -264,7 +265,7 @@ async function _requestSynologyApi<T>(userId: number, params: ApiCallParams): Pr
   const result = await _fetchSynologyJson<T>(creds.data.synology_url, body, skipSsl);
   // 106 = session timeout, 107 = duplicate login kicked us out, 119 = SID not found/invalid
   if ('error' in result && [106, 107, 119].includes(result.error.status)) {
-    _clearSynologySID(userId);
+    await _clearSynologySID(userId);
     const retrySession = await _getSynologySession(userId);
     if (!retrySession.success || !retrySession.data) {
       return retrySession as ServiceResult<T>;
@@ -306,12 +307,12 @@ function _normalizeSynologyPhotoInfo(item: SynologyPhotoItem): AssetInfo {
   };
 }
 
-function _clearSynologySID(userId: number): void {
-  db.prepare('UPDATE users SET synology_sid = NULL WHERE id = ?').run(userId);
+async function _clearSynologySID(userId: number): Promise<void> {
+  await asyncDb.prepare('UPDATE users SET synology_sid = NULL WHERE id = ?').run(userId);
 }
 
-function _clearSynologySession(userId: number): void {
-  db.prepare('UPDATE users SET synology_sid = NULL, synology_did = NULL WHERE id = ?').run(userId);
+async function _clearSynologySession(userId: number): Promise<void> {
+  await asyncDb.prepare('UPDATE users SET synology_sid = NULL, synology_did = NULL WHERE id = ?').run(userId);
 }
 
 function _splitPackedSynologyId(rawId: string): { id: string; cacheKey: string; assetId: string } | null {
@@ -323,15 +324,15 @@ function _splitPackedSynologyId(rawId: string): { id: string; cacheKey: string; 
 }
 
 async function _getSynologySession(userId: number): Promise<ServiceResult<string>> {
-  const cached = _readSynologyUser(userId, ['synology_sid', 'synology_did']);
+  const cached = await _readSynologyUser(userId, ['synology_sid', 'synology_did']);
   if (cached.success && cached.data?.synology_sid) {
     const decryptedSid = decrypt_api_key(cached.data.synology_sid);
     if (decryptedSid) return success(decryptedSid);
     // Decryption failed (e.g. key rotation) — clear the stale SID and re-login
-    _clearSynologySID(userId);
+    await _clearSynologySID(userId);
   }
 
-  const creds = _getSynologyCredentials(userId);
+  const creds = await _getSynologyCredentials(userId);
   if (!creds.success) {
     return creds as ServiceResult<string>;
   }
@@ -354,12 +355,12 @@ async function _getSynologySession(userId: number): Promise<ServiceResult<string
     return resp as ServiceResult<string>;
   }
 
-  db.prepare('UPDATE users SET synology_sid = ? WHERE id = ?').run(encrypt_api_key(resp.data.sid), userId);
+  await asyncDb.prepare('UPDATE users SET synology_sid = ? WHERE id = ?').run(encrypt_api_key(resp.data.sid), userId);
   return success(resp.data.sid);
 }
 
 export async function getSynologySettings(userId: number): Promise<ServiceResult<SynologySettings>> {
-  const creds = _getSynologyCredentials(userId);
+  const creds = await _getSynologyCredentials(userId);
   if (!creds.success) return creds as ServiceResult<SynologySettings>;
   const session = await _getSynologySession(userId);
   return success({
@@ -382,7 +383,7 @@ export async function updateSynologySettings(
     return fail(ssrf.error, 400);
   }
 
-  const result = _readSynologyUser(userId, ['synology_password']);
+  const result = await _readSynologyUser(userId, ['synology_password']);
   if (!result.success) return result as ServiceResult<string>;
   const existingEncryptedPassword = result.data?.synology_password || null;
 
@@ -393,23 +394,25 @@ export async function updateSynologySettings(
   // Only invalidate the session when the account itself changes (different URL or username).
   // If the user just tested the connection, testSynologyConnection already stored a fresh
   // sid + did — clearing them here would force an unnecessary re-login that may fail (MFA).
-  const existing = _readSynologyUser(userId, ['synology_url', 'synology_username']);
+  const existing = await _readSynologyUser(userId, ['synology_url', 'synology_username']);
   const urlChanged = existing.success && existing.data.synology_url !== synologyUrl;
   const userChanged = existing.success && existing.data.synology_username !== synologyUsername;
   const sessionCleared = urlChanged || userChanged;
   if (sessionCleared) {
-    _clearSynologySession(userId);
-    sendNotification({
-      event: 'synology_session_cleared',
-      actorId: null,
-      params: {},
-      scope: 'user',
-      targetId: userId,
-    });
+    await _clearSynologySession(userId);
+    if (resolveDbProvider() !== 'oracle-async') {
+      sendNotification({
+        event: 'synology_session_cleared',
+        actorId: null,
+        params: {},
+        scope: 'user',
+        targetId: userId,
+      });
+    }
   }
 
   try {
-    db.prepare(
+    await asyncDb.prepare(
       'UPDATE users SET synology_url = ?, synology_username = ?, synology_password = ?, synology_skip_ssl = ? WHERE id = ?',
     ).run(
       synologyUrl,
@@ -430,9 +433,9 @@ export async function getSynologyStatus(userId: number): Promise<ServiceResult<S
   if ('error' in sid) return success({ connected: false, error: sid.error.message });
   if (!sid.data) return success({ connected: false, error: 'Not connected to Synology' });
   try {
-    const user = db.prepare('SELECT synology_username FROM users WHERE id = ?').get(userId) as
-      | { synology_username?: string }
-      | undefined;
+    const user = await asyncDb
+      .prepare('SELECT synology_username FROM users WHERE id = ?')
+      .get<{ synology_username?: string }>(userId);
     return success({ connected: true, user: { name: user?.synology_username || 'unknown user' } });
   } catch (err: unknown) {
     return success({ connected: true, user: { name: 'unknown user' } });
@@ -462,9 +465,9 @@ export async function testSynologyConnection(
 
   // Persist the session so the OTP code is not required again on save.
   // The did (device token) allows future re-logins without OTP.
-  db.prepare('UPDATE users SET synology_sid = ? WHERE id = ?').run(encrypt_api_key(resp.data.sid), userId);
+  await asyncDb.prepare('UPDATE users SET synology_sid = ? WHERE id = ?').run(encrypt_api_key(resp.data.sid), userId);
   if (resp.data.did) {
-    db.prepare('UPDATE users SET synology_did = ? WHERE id = ?').run(encrypt_api_key(resp.data.did), userId);
+    await asyncDb.prepare('UPDATE users SET synology_did = ? WHERE id = ?').run(encrypt_api_key(resp.data.did), userId);
   }
 
   return success({ connected: true, user: { name: synologyUsername } });
@@ -713,7 +716,7 @@ export async function fetchSynologyThumbnailBytes(
   const parsedId = _splitPackedSynologyId(photoId);
   if (!parsedId) return { error: 'Invalid photo ID format', status: 400 };
 
-  const synology_credentials = _getSynologyCredentials(targetUserId);
+  const synology_credentials = await _getSynologyCredentials(targetUserId);
   if (!synology_credentials.success) return { error: 'Credentials error', status: 500 };
 
   const sid = await _getSynologySession(targetUserId);
@@ -762,7 +765,7 @@ export async function streamSynologyAsset(
     return;
   }
 
-  const synology_credentials = _getSynologyCredentials(targetUserId);
+  const synology_credentials = await _getSynologyCredentials(targetUserId);
   if (!synology_credentials.success) {
     handleServiceResult(response, synology_credentials);
     return;
@@ -800,3 +803,17 @@ export async function streamSynologyAsset(
   const url = _buildSynologyEndpoint(synology_credentials.data.synology_url, params.toString());
   await pipeAsset(url, response, undefined, undefined, 'public, max-age=86400');
 }
+
+export {
+  getSynologySettings as getSynologySettingsAsync,
+  updateSynologySettings as updateSynologySettingsAsync,
+  getSynologyStatus as getSynologyStatusAsync,
+  testSynologyConnection as testSynologyConnectionAsync,
+  listSynologyAlbums as listSynologyAlbumsAsync,
+  getSynologyAlbumPhotos as getSynologyAlbumPhotosAsync,
+  syncSynologyAlbumLink as syncSynologyAlbumLinkAsync,
+  searchSynologyPhotos as searchSynologyPhotosAsync,
+  getSynologyAssetInfo as getSynologyAssetInfoAsync,
+  fetchSynologyThumbnailBytes as fetchSynologyThumbnailBytesAsync,
+  streamSynologyAsset as streamSynologyAssetAsync,
+};

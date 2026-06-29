@@ -49,14 +49,14 @@ export class AdminController {
 
   // ── Users ──
   @Get('users')
-  listUsers() {
-    return { users: this.admin.listUsers() };
+  async listUsers() {
+    return { users: await this.admin.listUsers() };
   }
 
   @Post('users')
   @HttpCode(201)
-  createUser(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
-    const result = ok(this.admin.createUser(body));
+  async createUser(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
+    const result = ok(await this.admin.createUser(body));
     writeAudit({
       userId: user.id,
       action: 'admin.user_create',
@@ -68,8 +68,8 @@ export class AdminController {
   }
 
   @Put('users/:id')
-  updateUser(@CurrentUser() user: User, @Param('id') id: string, @Body() body: unknown, @Req() req: Request) {
-    const result = ok(this.admin.updateUser(id, body));
+  async updateUser(@CurrentUser() user: User, @Param('id') id: string, @Body() body: unknown, @Req() req: Request) {
+    const result = ok(await this.admin.updateUser(id, body));
     writeAudit({
       userId: user.id,
       action: 'admin.user_update',
@@ -82,8 +82,8 @@ export class AdminController {
   }
 
   @Delete('users/:id')
-  deleteUser(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
-    const result = ok(this.admin.deleteUser(id, user.id));
+  async deleteUser(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
+    const result = ok(await this.admin.deleteUser(id, user.id));
     writeAudit({
       userId: user.id,
       action: 'admin.user_delete',
@@ -96,8 +96,8 @@ export class AdminController {
   }
 
   @Delete('users/:id/passkeys')
-  resetUserPasskeys(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
-    const result = ok(this.admin.resetUserPasskeys(id));
+  async resetUserPasskeys(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
+    const result = ok(await this.admin.resetUserPasskeys(id));
     writeAudit({
       userId: user.id,
       action: 'admin.user_passkeys_reset',
@@ -110,21 +110,21 @@ export class AdminController {
 
   // ── Stats / permissions / audit ──
   @Get('stats')
-  stats() {
+  async stats() {
     return this.admin.getStats();
   }
 
   @Get('permissions')
-  permissions() {
+  async permissions() {
     return this.admin.getPermissions();
   }
 
   @Put('permissions')
-  savePermissions(@CurrentUser() user: User, @Body() body: { permissions?: unknown }, @Req() req: Request) {
+  async savePermissions(@CurrentUser() user: User, @Body() body: { permissions?: unknown }, @Req() req: Request) {
     if (!body.permissions || typeof body.permissions !== 'object') {
       throw new HttpException({ error: 'permissions object required' }, 400);
     }
-    const result = this.admin.savePermissions(
+    const result = await this.admin.savePermissions(
       body.permissions as unknown as Parameters<AdminService['savePermissions']>[0],
     );
     writeAudit({
@@ -142,23 +142,23 @@ export class AdminController {
   }
 
   @Get('audit-log')
-  auditLog(@Query() query: { limit?: string; offset?: string }) {
+  async auditLog(@Query() query: { limit?: string; offset?: string }) {
     return this.admin.getAuditLog(query);
   }
 
   // ── OIDC ──
   @Get('oidc')
-  getOidc() {
+  async getOidc() {
     return this.admin.getOidcSettings();
   }
 
   @Put('oidc')
-  updateOidc(
+  async updateOidc(
     @CurrentUser() user: User,
     @Body() body: { issuer?: string } & Record<string, unknown>,
     @Req() req: Request,
   ) {
-    const result = this.admin.updateOidcSettings(body);
+    const result = await this.admin.updateOidcSettings(body);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status || 400);
     }
@@ -195,26 +195,26 @@ export class AdminController {
 
   // ── Admin notification preferences ──
   @Get('notification-preferences')
-  getNotificationPrefs(@CurrentUser() user: User) {
+  async getNotificationPrefs(@CurrentUser() user: User) {
     return this.admin.getPreferencesMatrix(user.id, user.role);
   }
 
   @Put('notification-preferences')
-  setNotificationPrefs(@CurrentUser() user: User, @Body() body: unknown) {
-    this.admin.setAdminPreferences(user.id, body);
+  async setNotificationPrefs(@CurrentUser() user: User, @Body() body: unknown) {
+    await this.admin.setAdminPreferences(user.id, body);
     return this.admin.getPreferencesMatrix(user.id, user.role);
   }
 
   // ── Invites ──
   @Get('invites')
-  listInvites() {
-    return { invites: this.admin.listInvites() };
+  async listInvites() {
+    return { invites: await this.admin.listInvites() };
   }
 
   @Post('invites')
   @HttpCode(201)
-  createInvite(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
-    const result = this.admin.createInvite(user.id, body);
+  async createInvite(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
+    const result = await this.admin.createInvite(user.id, body);
     writeAudit({
       userId: user.id,
       action: 'admin.invite_create',
@@ -226,21 +226,21 @@ export class AdminController {
   }
 
   @Delete('invites/:id')
-  deleteInvite(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
-    ok(this.admin.deleteInvite(id));
+  async deleteInvite(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
+    ok(await this.admin.deleteInvite(id));
     writeAudit({ userId: user.id, action: 'admin.invite_delete', resource: String(id), ip: getClientIp(req) });
     return { success: true };
   }
 
   // ── Feature toggles ──
   @Get('bag-tracking')
-  getBagTracking() {
+  async getBagTracking() {
     return this.admin.getBagTracking();
   }
 
   @Put('bag-tracking')
-  updateBagTracking(@CurrentUser() user: User, @Body() body: { enabled?: unknown }, @Req() req: Request) {
-    const result = this.admin.updateBagTracking(body.enabled);
+  async updateBagTracking(@CurrentUser() user: User, @Body() body: { enabled?: unknown }, @Req() req: Request) {
+    const result = await this.admin.updateBagTracking(body.enabled);
     writeAudit({
       userId: user.id,
       action: 'admin.bag_tracking',
@@ -251,14 +251,14 @@ export class AdminController {
   }
 
   @Get('places-photos')
-  getPlacesPhotos() {
+  async getPlacesPhotos() {
     return this.admin.getPlacesPhotos();
   }
 
   @Put('places-photos')
-  updatePlacesPhotos(@CurrentUser() user: User, @Body() body: { enabled?: unknown }, @Req() req: Request) {
+  async updatePlacesPhotos(@CurrentUser() user: User, @Body() body: { enabled?: unknown }, @Req() req: Request) {
     if (typeof body.enabled !== 'boolean') throw new HttpException({ error: 'enabled must be a boolean' }, 400);
-    const result = this.admin.updatePlacesPhotos(body.enabled);
+    const result = await this.admin.updatePlacesPhotos(body.enabled);
     writeAudit({
       userId: user.id,
       action: 'admin.places_photos',
@@ -269,14 +269,14 @@ export class AdminController {
   }
 
   @Get('places-autocomplete')
-  getPlacesAutocomplete() {
+  async getPlacesAutocomplete() {
     return this.admin.getPlacesAutocomplete();
   }
 
   @Put('places-autocomplete')
-  updatePlacesAutocomplete(@CurrentUser() user: User, @Body() body: { enabled?: unknown }, @Req() req: Request) {
+  async updatePlacesAutocomplete(@CurrentUser() user: User, @Body() body: { enabled?: unknown }, @Req() req: Request) {
     if (typeof body.enabled !== 'boolean') throw new HttpException({ error: 'enabled must be a boolean' }, 400);
-    const result = this.admin.updatePlacesAutocomplete(body.enabled);
+    const result = await this.admin.updatePlacesAutocomplete(body.enabled);
     writeAudit({
       userId: user.id,
       action: 'admin.places_autocomplete',
@@ -287,14 +287,14 @@ export class AdminController {
   }
 
   @Get('places-details')
-  getPlacesDetails() {
+  async getPlacesDetails() {
     return this.admin.getPlacesDetails();
   }
 
   @Put('places-details')
-  updatePlacesDetails(@CurrentUser() user: User, @Body() body: { enabled?: unknown }, @Req() req: Request) {
+  async updatePlacesDetails(@CurrentUser() user: User, @Body() body: { enabled?: unknown }, @Req() req: Request) {
     if (typeof body.enabled !== 'boolean') throw new HttpException({ error: 'enabled must be a boolean' }, 400);
-    const result = this.admin.updatePlacesDetails(body.enabled);
+    const result = await this.admin.updatePlacesDetails(body.enabled);
     writeAudit({
       userId: user.id,
       action: 'admin.places_details',
@@ -305,13 +305,13 @@ export class AdminController {
   }
 
   @Get('collab-features')
-  getCollabFeatures() {
+  async getCollabFeatures() {
     return this.admin.getCollabFeatures();
   }
 
   @Put('collab-features')
-  updateCollabFeatures(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
-    const result = this.admin.updateCollabFeatures(body);
+  async updateCollabFeatures(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
+    const result = await this.admin.updateCollabFeatures(body);
     this.admin.invalidateMcpSessions();
     writeAudit({ userId: user.id, action: 'admin.collab_features', ip: getClientIp(req), details: result });
     return result;
@@ -319,29 +319,29 @@ export class AdminController {
 
   // ── Packing templates ──
   @Get('packing-templates')
-  listPackingTemplates() {
-    return { templates: this.admin.listPackingTemplates() };
+  async listPackingTemplates() {
+    return { templates: await this.admin.listPackingTemplates() };
   }
 
   @Get('packing-templates/:id')
-  getPackingTemplate(@Param('id') id: string) {
-    return ok(this.admin.getPackingTemplate(id));
+  async getPackingTemplate(@Param('id') id: string) {
+    return ok(await this.admin.getPackingTemplate(id));
   }
 
   @Post('packing-templates')
   @HttpCode(201)
-  createPackingTemplate(@CurrentUser() user: User, @Body() body: { name?: unknown }) {
-    return ok(this.admin.createPackingTemplate(body.name, user.id));
+  async createPackingTemplate(@CurrentUser() user: User, @Body() body: { name?: unknown }) {
+    return ok(await this.admin.createPackingTemplate(body.name, user.id));
   }
 
   @Put('packing-templates/:id')
-  updatePackingTemplate(@Param('id') id: string, @Body() body: unknown) {
-    return ok(this.admin.updatePackingTemplate(id, body));
+  async updatePackingTemplate(@Param('id') id: string, @Body() body: unknown) {
+    return ok(await this.admin.updatePackingTemplate(id, body));
   }
 
   @Delete('packing-templates/:id')
-  deletePackingTemplate(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
-    const result = ok(this.admin.deletePackingTemplate(id));
+  async deletePackingTemplate(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
+    const result = ok(await this.admin.deletePackingTemplate(id));
     writeAudit({
       userId: user.id,
       action: 'admin.packing_template_delete',
@@ -354,55 +354,55 @@ export class AdminController {
 
   @Post('packing-templates/:id/categories')
   @HttpCode(201)
-  createTemplateCategory(@Param('id') id: string, @Body() body: { name?: unknown }) {
-    return ok(this.admin.createTemplateCategory(id, body.name));
+  async createTemplateCategory(@Param('id') id: string, @Body() body: { name?: unknown }) {
+    return ok(await this.admin.createTemplateCategory(id, body.name));
   }
 
   @Put('packing-templates/:templateId/categories/:catId')
-  updateTemplateCategory(
+  async updateTemplateCategory(
     @Param('templateId') templateId: string,
     @Param('catId') catId: string,
     @Body() body: unknown,
   ) {
-    return ok(this.admin.updateTemplateCategory(templateId, catId, body));
+    return ok(await this.admin.updateTemplateCategory(templateId, catId, body));
   }
 
   @Delete('packing-templates/:templateId/categories/:catId')
-  deleteTemplateCategory(@Param('templateId') templateId: string, @Param('catId') catId: string) {
-    ok(this.admin.deleteTemplateCategory(templateId, catId));
+  async deleteTemplateCategory(@Param('templateId') templateId: string, @Param('catId') catId: string) {
+    ok(await this.admin.deleteTemplateCategory(templateId, catId));
     return { success: true };
   }
 
   @Post('packing-templates/:templateId/categories/:catId/items')
   @HttpCode(201)
-  createTemplateItem(
+  async createTemplateItem(
     @Param('templateId') templateId: string,
     @Param('catId') catId: string,
     @Body() body: { name?: unknown },
   ) {
-    return ok(this.admin.createTemplateItem(templateId, catId, body.name));
+    return ok(await this.admin.createTemplateItem(templateId, catId, body.name));
   }
 
   @Put('packing-templates/:templateId/items/:itemId')
-  updateTemplateItem(@Param('itemId') itemId: string, @Body() body: unknown) {
-    return ok(this.admin.updateTemplateItem(itemId, body));
+  async updateTemplateItem(@Param('itemId') itemId: string, @Body() body: unknown) {
+    return ok(await this.admin.updateTemplateItem(itemId, body));
   }
 
   @Delete('packing-templates/:templateId/items/:itemId')
-  deleteTemplateItem(@Param('itemId') itemId: string) {
-    ok(this.admin.deleteTemplateItem(itemId));
+  async deleteTemplateItem(@Param('itemId') itemId: string) {
+    ok(await this.admin.deleteTemplateItem(itemId));
     return { success: true };
   }
 
   // ── Addons ──
   @Get('addons')
-  listAddons() {
-    return { addons: this.admin.listAddons() };
+  async listAddons() {
+    return { addons: await this.admin.listAddons() };
   }
 
   @Put('addons/:id')
-  updateAddon(@CurrentUser() user: User, @Param('id') id: string, @Body() body: unknown, @Req() req: Request) {
-    const result = ok(this.admin.updateAddon(id, body));
+  async updateAddon(@CurrentUser() user: User, @Param('id') id: string, @Body() body: unknown, @Req() req: Request) {
+    const result = ok(await this.admin.updateAddon(id, body));
     writeAudit({
       userId: user.id,
       action: 'admin.addon_update',
@@ -416,24 +416,24 @@ export class AdminController {
 
   // ── MCP tokens / OAuth sessions ──
   @Get('mcp-tokens')
-  listMcpTokens() {
-    return { tokens: this.admin.listMcpTokens() };
+  async listMcpTokens() {
+    return { tokens: await this.admin.listMcpTokens() };
   }
 
   @Delete('mcp-tokens/:id')
-  deleteMcpToken(@Param('id') id: string) {
-    ok(this.admin.deleteMcpToken(id));
+  async deleteMcpToken(@Param('id') id: string) {
+    ok(await this.admin.deleteMcpToken(id));
     return { success: true };
   }
 
   @Get('oauth-sessions')
-  listOAuthSessions() {
-    return { sessions: this.admin.listOAuthSessions() };
+  async listOAuthSessions() {
+    return { sessions: await this.admin.listOAuthSessions() };
   }
 
   @Delete('oauth-sessions/:id')
-  revokeOAuthSession(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
-    ok(this.admin.revokeOAuthSession(id));
+  async revokeOAuthSession(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
+    ok(await this.admin.revokeOAuthSession(id));
     writeAudit({ userId: user.id, action: 'admin.oauth_session.revoke', resource: String(id), ip: getClientIp(req) });
     return { success: true };
   }
@@ -452,17 +452,17 @@ export class AdminController {
 
   // ── Default user settings ──
   @Get('default-user-settings')
-  getDefaultUserSettings() {
+  async getDefaultUserSettings() {
     return this.admin.getAdminUserDefaults();
   }
 
   @Put('default-user-settings')
-  setDefaultUserSettings(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
+  async setDefaultUserSettings(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       throw new HttpException({ error: 'Object body required' }, 400);
     }
     try {
-      this.admin.setAdminUserDefaults(body as unknown as Record<string, unknown>);
+      await this.admin.setAdminUserDefaults(body as unknown as Record<string, unknown>);
       writeAudit({
         userId: user.id,
         action: 'admin.default_user_settings_update',

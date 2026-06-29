@@ -1,21 +1,25 @@
 import { ADDON_IDS } from '../addons';
 import { canAccessTripAsync as canAccessTrip } from '../db/asyncDatabase';
-import { isAddonEnabled, getCollabFeatures } from '../services/adminService';
+import { getCollabFeaturesAsync, isAddonEnabledAsync } from '../services/adminService';
 import {
-  listBucketList,
-  listVisitedCountries,
+  listBucketListAsync as listBucketList,
+  listVisitedCountriesAsync as listVisitedCountries,
   getStats as getAtlasStats,
-  listManuallyVisitedRegions,
+  listManuallyVisitedRegionsAsync as listManuallyVisitedRegions,
 } from '../services/atlasService';
 import { listBudgetItems, getPerPersonSummary, calculateSettlement } from '../services/budgetService';
-import { listCategories } from '../services/categoryService';
-import { listNotes as listCollabNotes, listPolls, listMessages } from '../services/collabService';
+import { listCategoriesAsync } from '../services/categoryService';
+import {
+  listMessagesAsync as listMessages,
+  listNotesAsync as listCollabNotes,
+  listPollsAsync as listPolls,
+} from '../services/collabService';
 import { listNotes as listDayNotes } from '../services/dayNoteService';
 import { listDays, listAccommodations } from '../services/dayService';
-import { getNotifications } from '../services/inAppNotifications';
+import { getNotificationsAsync } from '../services/inAppNotifications';
 import { canAccessJourney, getJourneyFull, listEntries, listJourneys } from '../services/journeyService';
 import { listItems as listPackingItems, listBags } from '../services/packingService';
-import { listPlaces } from '../services/placeService';
+import { listPlacesAsync } from '../services/placeService';
 import { listReservations } from '../services/reservationService';
 import { listItems as listTodoItems } from '../services/todoService';
 import { listTrips, getTrip, getTripOwner, listMembers } from '../services/tripService';
@@ -70,7 +74,15 @@ function jsonContent(uri: string, data: unknown) {
   };
 }
 
-export function registerResources(server: McpServer, userId: number, scopes: string[] | null): void {
+export async function registerResources(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
+  const budgetEnabled = await isAddonEnabledAsync(ADDON_IDS.BUDGET);
+  const packingEnabled = await isAddonEnabledAsync(ADDON_IDS.PACKING);
+  const atlasEnabled = await isAddonEnabledAsync(ADDON_IDS.ATLAS);
+  const collabEnabled = await isAddonEnabledAsync(ADDON_IDS.COLLAB);
+  const vacayEnabled = await isAddonEnabledAsync(ADDON_IDS.VACAY);
+  const journeyEnabled = await isAddonEnabledAsync(ADDON_IDS.JOURNEY);
+  const collabFeatures = collabEnabled ? await getCollabFeaturesAsync() : null;
+
   // List all accessible trips
   if (canReadTrips(scopes))
     server.registerResource(
@@ -107,7 +119,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
 
-        const { days } = listDays(id);
+        const { days } = await listDays(id);
         return jsonContent(uri.href, days);
       },
     );
@@ -126,13 +138,13 @@ export function registerResources(server: McpServer, userId: number, scopes: str
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const assignment = uri.searchParams.get('assignment') as 'all' | 'unassigned' | 'assigned' | null;
-        const places = listPlaces(String(id), { assignment: assignment ?? undefined });
+        const places = await listPlacesAsync(String(id), { assignment: assignment ?? undefined });
         return jsonContent(uri.href, places);
       },
     );
 
   // Budget items
-  if (isAddonEnabled(ADDON_IDS.BUDGET) && canRead(scopes, 'budget'))
+  if (budgetEnabled && canRead(scopes, 'budget'))
     server.registerResource(
       'trip-budget',
       new ResourceTemplate('trippi://trips/{tripId}/budget', { list: undefined }),
@@ -140,13 +152,13 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const items = listBudgetItems(id);
+        const items = await listBudgetItems(id);
         return jsonContent(uri.href, items);
       },
     );
 
   // Packing checklist
-  if (isAddonEnabled(ADDON_IDS.PACKING) && canRead(scopes, 'packing'))
+  if (packingEnabled && canRead(scopes, 'packing'))
     server.registerResource(
       'trip-packing',
       new ResourceTemplate('trippi://trips/{tripId}/packing', { list: undefined }),
@@ -154,7 +166,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const items = listPackingItems(id);
+        const items = await listPackingItems(id);
         return jsonContent(uri.href, items);
       },
     );
@@ -168,7 +180,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const reservations = listReservations(id);
+        const reservations = await listReservations(id);
         return jsonContent(uri.href, reservations);
       },
     );
@@ -183,7 +195,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
         const tId = parseId(tripId);
         const dId = parseId(dayId);
         if (tId === null || dId === null || !(await canAccessTrip(tId, userId))) return accessDenied(uri.href);
-        const notes = listDayNotes(dId, tId);
+        const notes = await listDayNotes(dId, tId);
         return jsonContent(uri.href, notes);
       },
     );
@@ -200,7 +212,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const accommodations = listAccommodations(id);
+        const accommodations = await listAccommodations(id);
         return jsonContent(uri.href, accommodations);
       },
     );
@@ -222,7 +234,6 @@ export function registerResources(server: McpServer, userId: number, scopes: str
     );
 
   // Collab notes for a trip
-  const collabFeatures = isAddonEnabled(ADDON_IDS.COLLAB) ? getCollabFeatures() : null;
   if (collabFeatures?.notes && canRead(scopes, 'collab'))
     server.registerResource(
       'trip-collab-notes',
@@ -231,13 +242,13 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const notes = listCollabNotes(id);
+        const notes = await listCollabNotes(id);
         return jsonContent(uri.href, notes);
       },
     );
 
   // Trip to-do list
-  if (isAddonEnabled(ADDON_IDS.PACKING) && canRead(scopes, 'todos'))
+  if (packingEnabled && canRead(scopes, 'todos'))
     server.registerResource(
       'trip-todos',
       new ResourceTemplate('trippi://trips/{tripId}/todos', { list: undefined }),
@@ -245,7 +256,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const items = listTodoItems(id);
+        const items = await listTodoItems(id);
         return jsonContent(uri.href, items);
       },
     );
@@ -259,37 +270,37 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       mimeType: 'application/json',
     },
     async (uri) => {
-      const categories = listCategories();
+      const categories = await listCategoriesAsync();
       return jsonContent(uri.href, categories);
     },
   );
 
   // User's bucket list
-  if (isAddonEnabled(ADDON_IDS.ATLAS) && canRead(scopes, 'atlas'))
+  if (atlasEnabled && canRead(scopes, 'atlas'))
     server.registerResource(
       'bucket-list',
       'trippi://bucket-list',
       { description: 'Your personal travel bucket list', mimeType: 'application/json' },
       async (uri) => {
-        const items = listBucketList(userId);
+        const items = await listBucketList(userId);
         return jsonContent(uri.href, items);
       },
     );
 
   // User's visited countries
-  if (isAddonEnabled(ADDON_IDS.ATLAS) && canRead(scopes, 'atlas'))
+  if (atlasEnabled && canRead(scopes, 'atlas'))
     server.registerResource(
       'visited-countries',
       'trippi://visited-countries',
       { description: 'Countries you have marked as visited in Atlas', mimeType: 'application/json' },
       async (uri) => {
-        const countries = listVisitedCountries(userId);
+        const countries = await listVisitedCountries(userId);
         return jsonContent(uri.href, countries);
       },
     );
 
   // Budget per-person summary
-  if (isAddonEnabled(ADDON_IDS.BUDGET) && canRead(scopes, 'budget'))
+  if (budgetEnabled && canRead(scopes, 'budget'))
     server.registerResource(
       'trip-budget-per-person',
       new ResourceTemplate('trippi://trips/{tripId}/budget/per-person', { list: undefined }),
@@ -300,13 +311,13 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const summary = getPerPersonSummary(id);
+        const summary = await getPerPersonSummary(id);
         return jsonContent(uri.href, summary);
       },
     );
 
   // Budget settlement
-  if (isAddonEnabled(ADDON_IDS.BUDGET) && canRead(scopes, 'budget'))
+  if (budgetEnabled && canRead(scopes, 'budget'))
     server.registerResource(
       'trip-budget-settlement',
       new ResourceTemplate('trippi://trips/{tripId}/budget/settlement', { list: undefined }),
@@ -314,13 +325,13 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const settlement = calculateSettlement(id);
+        const settlement = await calculateSettlement(id);
         return jsonContent(uri.href, settlement);
       },
     );
 
   // Packing bags
-  if (isAddonEnabled(ADDON_IDS.PACKING) && canRead(scopes, 'packing'))
+  if (packingEnabled && canRead(scopes, 'packing'))
     server.registerResource(
       'trip-packing-bags',
       new ResourceTemplate('trippi://trips/{tripId}/packing/bags', { list: undefined }),
@@ -328,7 +339,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const bags = listBags(id);
+        const bags = await listBags(id);
         return jsonContent(uri.href, bags);
       },
     );
@@ -343,13 +354,13 @@ export function registerResources(server: McpServer, userId: number, scopes: str
         mimeType: 'application/json',
       },
       async (uri) => {
-        const result = getNotifications(userId, { limit: 50 });
+        const result = await getNotificationsAsync(userId, { limit: 50 });
         return jsonContent(uri.href, result);
       },
     );
 
   // Atlas stats and regions (addon-gated)
-  if (isAddonEnabled(ADDON_IDS.ATLAS) && canRead(scopes, 'atlas')) {
+  if (atlasEnabled && canRead(scopes, 'atlas')) {
     server.registerResource(
       'atlas-stats',
       'trippi://atlas/stats',
@@ -365,7 +376,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       'trippi://atlas/regions',
       { description: 'List of manually visited regions for the current user', mimeType: 'application/json' },
       async (uri) => {
-        const regions = listManuallyVisitedRegions(userId);
+        const regions = await listManuallyVisitedRegions(userId);
         return jsonContent(uri.href, regions);
       },
     );
@@ -380,7 +391,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const polls = listPolls(id);
+        const polls = await listPolls(id);
         return jsonContent(uri.href, polls);
       },
     );
@@ -395,14 +406,14 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const messages = listMessages(id);
+        const messages = await listMessages(id);
         return jsonContent(uri.href, messages);
       },
     );
   }
 
   // Vacay resources (addon-gated)
-  if (isAddonEnabled(ADDON_IDS.VACAY) && canRead(scopes, 'vacay')) {
+  if (vacayEnabled && canRead(scopes, 'vacay')) {
     server.registerResource(
       'vacay-plan',
       'trippi://vacay/plan',
@@ -411,7 +422,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
         mimeType: 'application/json',
       },
       async (uri) => {
-        const plan = getPlanData(userId);
+        const plan = await getPlanData(userId);
         return jsonContent(uri.href, plan);
       },
     );
@@ -421,8 +432,8 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       new ResourceTemplate('trippi://vacay/entries/{year}', { list: undefined }),
       { description: 'All vacation entries for the active plan and a specific year', mimeType: 'application/json' },
       async (uri, { year }) => {
-        const planId = getActivePlanId(userId);
-        const entries = getVacayEntries(planId, Array.isArray(year) ? year[0] : year);
+        const planId = await getActivePlanId(userId);
+        const entries = await getVacayEntries(planId, Array.isArray(year) ? year[0] : year);
         return jsonContent(uri.href, entries);
       },
     );
@@ -432,7 +443,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       new ResourceTemplate('trippi://vacay/holidays/{year}', { list: undefined }),
       { description: "Cached public holidays for the plan's configured region and year", mimeType: 'application/json' },
       async (uri, { year }) => {
-        const plan = getActivePlan(userId);
+        const plan = await getActivePlan(userId);
         if (!plan.holidays_enabled || !plan.holidays_region) return jsonContent(uri.href, []);
         const yearStr = Array.isArray(year) ? year[0] : year;
         const result = await getHolidays(yearStr, plan.holidays_region);
@@ -442,13 +453,13 @@ export function registerResources(server: McpServer, userId: number, scopes: str
   }
 
   // Journey resources (Journey addon)
-  if (isAddonEnabled(ADDON_IDS.JOURNEY) && canRead(scopes, 'journey')) {
+  if (journeyEnabled && canRead(scopes, 'journey')) {
     server.registerResource(
       'journeys',
       'trippi://journeys',
       { description: 'All journeys owned or contributed to by the current user', mimeType: 'application/json' },
       async (uri) => {
-        const journeys = listJourneys(userId);
+        const journeys = await listJourneys(userId);
         return jsonContent(uri.href, journeys);
       },
     );
@@ -460,7 +471,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { journeyId }) => {
         const id = parseId(journeyId);
         if (id === null) return accessDenied(uri.href);
-        const journey = getJourneyFull(id, userId);
+        const journey = await getJourneyFull(id, userId);
         if (!journey) return accessDenied(uri.href);
         return jsonContent(uri.href, journey);
       },
@@ -473,9 +484,9 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { journeyId }) => {
         const id = parseId(journeyId);
         if (id === null) return accessDenied(uri.href);
-        const j = canAccessJourney(id, userId);
+        const j = await canAccessJourney(id, userId);
         if (!j) return accessDenied(uri.href);
-        const entries = listEntries(id, userId);
+        const entries = await listEntries(id, userId);
         return jsonContent(uri.href, entries);
       },
     );
@@ -487,7 +498,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { journeyId }) => {
         const id = parseId(journeyId);
         if (id === null) return accessDenied(uri.href);
-        const j = getJourneyFull(id, userId);
+        const j = await getJourneyFull(id, userId);
         if (!j) return accessDenied(uri.href);
         return jsonContent(uri.href, (j as any).contributors ?? []);
       },

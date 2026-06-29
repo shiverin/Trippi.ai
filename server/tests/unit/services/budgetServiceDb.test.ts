@@ -55,27 +55,27 @@ function paidFlag(itemId: number, memberId: number): number | undefined {
 }
 
 describe('toggleMemberPaid trip-scoping', () => {
-  it('BUDGET-SVC-DB-001: toggles paid for an item that belongs to the given trip', () => {
+  it('BUDGET-SVC-DB-001: toggles paid for an item that belongs to the given trip', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Trip A' });
-    const item = createBudgetItem(trip.id, { name: 'Hotel', total_price: 100 });
-    updateMembers(item.id, trip.id, [user.id]);
+    const item = await createBudgetItem(trip.id, { name: 'Hotel', total_price: 100 });
+    await updateMembers(item.id, trip.id, [user.id]);
 
-    const member = toggleMemberPaid(item.id, trip.id, user.id, true);
+    const member = await toggleMemberPaid(item.id, trip.id, user.id, true);
 
     expect(member).not.toBeNull();
     expect(paidFlag(item.id, user.id)).toBe(1);
   });
 
-  it('BUDGET-SVC-DB-002: refuses to toggle an item from a different trip (cross-trip IDOR)', () => {
+  it('BUDGET-SVC-DB-002: refuses to toggle an item from a different trip (cross-trip IDOR)', async () => {
     const { user } = createUser(testDb);
     const tripA = createTrip(testDb, user.id, { title: 'Trip A' });
     const tripB = createTrip(testDb, user.id, { title: 'Trip B' });
-    const itemB = createBudgetItem(tripB.id, { name: 'Foreign expense', total_price: 50 });
-    updateMembers(itemB.id, tripB.id, [user.id]);
+    const itemB = await createBudgetItem(tripB.id, { name: 'Foreign expense', total_price: 50 });
+    await updateMembers(itemB.id, tripB.id, [user.id]);
 
     // Caller passes a trip they can access (A) but the item lives in trip B.
-    const member = toggleMemberPaid(itemB.id, tripA.id, user.id, true);
+    const member = await toggleMemberPaid(itemB.id, tripA.id, user.id, true);
 
     expect(member).toBeNull();
     expect(paidFlag(itemB.id, user.id)).toBe(0); // unchanged

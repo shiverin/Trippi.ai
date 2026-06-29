@@ -1,15 +1,15 @@
 import { ADDON_IDS } from '../../addons';
 import { canAccessTripAsync as canAccessTrip, isOwnerAsync as isOwner } from '../../db/asyncDatabase';
-import { isAddonEnabled, getCollabFeatures } from '../../services/adminService';
+import { getCollabFeaturesAsync, isAddonEnabledAsync } from '../../services/adminService';
 import { isDemoUser } from '../../services/authService';
-import { countMessages, listPolls } from '../../services/collabService';
+import { countMessagesAsync, listPollsAsync } from '../../services/collabService';
 import {
   applyItineraryPlan,
   ItineraryImportError,
   MAX_ITINERARY_IMPORT_ACTIVITIES,
   MAX_ITINERARY_IMPORT_DAYS,
 } from '../../services/itineraryImportService';
-import { createOrUpdateShareLink, getShareLink, deleteShareLink } from '../../services/shareService';
+import { createOrUpdateShareLinkAsync, deleteShareLinkAsync, getShareLinkAsync } from '../../services/shareService';
 import { listItems as listTodoItems } from '../../services/todoService';
 import { exportTripPdf } from '../../services/tripPdfExportService';
 import {
@@ -245,8 +245,8 @@ export function registerTripTools(
         if (isDemoUser(userId)) return demoDenied();
         if (target.kind === 'existing_trip') {
           if (!(await canAccessTrip(target.tripId, userId))) return noAccess();
-          if (!hasTripPermission('day_edit', target.tripId, userId)) return permissionDenied();
-          if (!hasTripPermission('place_edit', target.tripId, userId)) return permissionDenied();
+          if (!(await hasTripPermission('day_edit', target.tripId, userId))) return permissionDenied();
+          if (!(await hasTripPermission('place_edit', target.tripId, userId))) return permissionDenied();
         }
 
         try {
@@ -319,7 +319,7 @@ export function registerTripTools(
       async ({ tripId, title, description, start_date, end_date, currency, is_archived, cover_image }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('trip_edit', tripId, userId)) return permissionDenied();
+        if (!(await hasTripPermission('trip_edit', tripId, userId))) return permissionDenied();
         if (start_date) {
           const d = new Date(start_date + 'T00:00:00Z');
           if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== start_date)
@@ -407,10 +407,10 @@ export function registerTripTools(
     async ({ tripId }) => {
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
       // Addon availability gates
-      const packingEnabled = isAddonEnabled(ADDON_IDS.PACKING);
-      const budgetEnabled = isAddonEnabled(ADDON_IDS.BUDGET);
-      const collabEnabled = isAddonEnabled(ADDON_IDS.COLLAB);
-      const collabFeatures = collabEnabled ? getCollabFeatures() : null;
+      const packingEnabled = await isAddonEnabledAsync(ADDON_IDS.PACKING);
+      const budgetEnabled = await isAddonEnabledAsync(ADDON_IDS.BUDGET);
+      const collabEnabled = await isAddonEnabledAsync(ADDON_IDS.COLLAB);
+      const collabFeatures = collabEnabled ? await getCollabFeaturesAsync() : null;
       // Scope gates — sections not covered by the client's OAuth scopes are omitted.
       // Core trip data (metadata, days, members, accommodations) is always included
       // because this tool is always registered and needed for navigation.
@@ -419,19 +419,19 @@ export function registerTripTools(
       const canReadCollab = collabEnabled && canRead(scopes, 'collab');
       const canReadTodos = packingEnabled && canRead(scopes, 'todos');
       const canReadRes = canRead(scopes, 'reservations');
-      const summary = getTripSummary(tripId, {
+      const summary = await getTripSummary(tripId, {
         includeBudget: canReadBudget,
         includePacking: canReadPacking,
         includeReservations: canReadRes,
         includeCollabNotes: canReadCollab && Boolean(collabFeatures?.notes),
       });
       if (!summary) return noAccess();
-      const todos = canReadTodos ? listTodoItems(tripId) : [];
+      const todos = canReadTodos ? await listTodoItems(tripId) : [];
       let pollCount = 0;
       let messageCount = 0;
       if (canReadCollab) {
-        if (collabFeatures?.polls) pollCount = listPolls(tripId).length;
-        if (collabFeatures?.chat) messageCount = countMessages(tripId);
+        if (collabFeatures?.polls) pollCount = (await listPollsAsync(tripId)).length;
+        if (collabFeatures?.chat) messageCount = await countMessagesAsync(tripId);
       }
       const notice = getDeprecationNotice();
       const summaryData = {
@@ -571,7 +571,7 @@ export function registerTripTools(
       async ({ tripId }) => {
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
         try {
-          const { ics, filename } = exportICS(tripId);
+          const { ics, filename } = await exportICS(tripId);
           return ok({ ics, filename });
         } catch {
           return { content: [{ type: 'text' as const, text: 'Trip not found.' }], isError: true };
@@ -617,7 +617,7 @@ export function registerTripTools(
         // Read parity with the REST route GET /api/trips/:tripId/share-link, which
         // only requires trip membership (share_manage gates create/delete, not read).
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        const link = getShareLink(String(tripId));
+        const link = await getShareLinkAsync(String(tripId));
         return ok({ link });
       },
     );
@@ -641,8 +641,8 @@ export function registerTripTools(
       async ({ tripId, share_map, share_bookings, share_packing, share_budget, share_collab }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('share_manage', tripId, userId)) return permissionDenied();
-        const { token, created } = createOrUpdateShareLink(String(tripId), userId, {
+        if (!(await hasTripPermission('share_manage', tripId, userId))) return permissionDenied();
+        const { token, created } = await createOrUpdateShareLinkAsync(String(tripId), userId, {
           share_map: share_map ?? true,
           share_bookings: share_bookings ?? true,
           share_packing: share_packing ?? false,
@@ -667,8 +667,8 @@ export function registerTripTools(
       async ({ tripId }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('share_manage', tripId, userId)) return permissionDenied();
-        deleteShareLink(String(tripId));
+        if (!(await hasTripPermission('share_manage', tripId, userId))) return permissionDenied();
+        await deleteShareLinkAsync(String(tripId));
         return ok({ success: true });
       },
     );

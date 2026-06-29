@@ -2,11 +2,11 @@ import { asyncDb, canAccessTripAsync } from '../../db/asyncDatabase';
 import { logWarn } from '../../services/auditLog';
 import { listBudgetItems } from '../../services/budgetService';
 import { listDays, listAccommodations } from '../../services/dayService';
-import { listFiles } from '../../services/fileService';
+import { listFilesAsync } from '../../services/fileService';
 import { listItems as listPackingItems } from '../../services/packingService';
-import { checkPermission } from '../../services/permissions';
-import { listPlaces } from '../../services/placeService';
-import { listReservations } from '../../services/reservationService';
+import { checkPermissionAsync } from '../../services/permissions';
+import { listPlacesAsync } from '../../services/placeService';
+import { listReservations, resyncReservationDays } from '../../services/reservationService';
 import { listItems as listTodoItems } from '../../services/todoService';
 import * as tripSvc from '../../services/tripService';
 import type { User } from '../../types';
@@ -26,8 +26,8 @@ export class TripsService {
     return canAccessTripAsync(tripId, userId);
   }
 
-  can(action: string, role: string, ownerId: number | null, userId: number, isMember: boolean): boolean {
-    return checkPermission(action, role, ownerId, userId, isMember);
+  can(action: string, role: string, ownerId: number | null, userId: number, isMember: boolean): Promise<boolean> {
+    return checkPermissionAsync(action, role, ownerId, userId, isMember);
   }
 
   broadcast(tripId: string, event: string, payload: Record<string, unknown>, socketId: string | undefined): void {
@@ -145,28 +145,136 @@ export class TripsService {
       .get({ userId, tripId });
   }
 
-  getRaw(tripId: string) {
-    return tripSvc.getTripRaw(tripId);
+  async getRaw(tripId: string) {
+    return asyncDb.prepare('SELECT * FROM trips WHERE id = ?').get(tripId);
   }
 
-  getOwner(tripId: string) {
-    return tripSvc.getTripOwner(tripId);
+  async getOwner(tripId: string) {
+    return asyncDb.prepare('SELECT user_id FROM trips WHERE id = ?').get<{ user_id: number }>(tripId);
   }
 
-  update(tripId: string, userId: number, body: Parameters<typeof tripSvc.updateTrip>[2], role: string) {
-    return tripSvc.updateTrip(tripId, userId, body, role);
+  async update(tripId: string, userId: number, body: Parameters<typeof tripSvc.updateTrip>[2], role: string) {
+    const trip = await asyncDb.prepare('SELECT * FROM trips WHERE id = ?').get<{
+      id: number;
+      user_id: number;
+      title: string;
+      description: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      currency: string;
+      is_archived: number;
+      cover_image: string | null;
+      reminder_days?: number;
+    }>(tripId);
+    if (!trip) throw new tripSvc.NotFoundError('Trip not found');
+
+    const { title, description, start_date, end_date, currency, is_archived, cover_image, reminder_days } = body;
+    if (start_date && end_date && new Date(end_date) < new Date(start_date)) {
+      throw new tripSvc.ValidationError('End date must be after start date');
+    }
+
+    const newTitle = title || trip.title;
+    const newDesc = description !== undefined ? description : trip.description;
+    const newStart = start_date !== undefined ? start_date : trip.start_date;
+    const newEnd = end_date !== undefined ? end_date : trip.end_date;
+    const newCurrency = currency || trip.currency;
+    const newArchived = is_archived !== undefined ? (is_archived ? 1 : 0) : trip.is_archived;
+    const newCover = cover_image !== undefined ? cover_image : trip.cover_image;
+    const oldReminder = trip.reminder_days ?? 3;
+    const newReminder =
+      reminder_days !== undefined
+        ? Number(reminder_days) >= 0 && Number(reminder_days) <= 30
+          ? Number(reminder_days)
+          : oldReminder
+        : oldReminder;
+
+    await asyncDb
+      .prepare(
+        `
+    UPDATE trips SET title=?, description=?, start_date=?, end_date=?,
+      currency=?, is_archived=?, cover_image=?, reminder_days=?, updated_at=CURRENT_TIMESTAMP
+    WHERE id=?
+  `,
+      )
+      .run(
+        newTitle,
+        newDesc,
+        newStart || null,
+        newEnd || null,
+        newCurrency,
+        newArchived,
+        newCover,
+        newReminder,
+        tripId,
+      );
+
+    const dayCount = body.day_count
+      ? Math.min(Math.max(Number(body.day_count) || 7, 1), tripSvc.MAX_TRIP_DAYS)
+      : undefined;
+    if (newStart !== trip.start_date || newEnd !== trip.end_date || dayCount) {
+      await tripSvc.generateDaysAsync(tripId, newStart || null, newEnd || null, undefined, dayCount);
+      await resyncReservationDays(tripId);
+    }
+
+    const changes: Record<string, unknown> = {};
+    if (title && title !== trip.title) changes.title = title;
+    if (newStart !== trip.start_date) changes.start_date = newStart;
+    if (newEnd !== trip.end_date) changes.end_date = newEnd;
+    if (newReminder !== oldReminder) changes.reminder_days = newReminder === 0 ? 'none' : `${newReminder} days`;
+    if (is_archived !== undefined && newArchived !== trip.is_archived) changes.archived = !!newArchived;
+
+    const isAdminEdit = role === 'admin' && trip.user_id !== userId;
+    let ownerEmail: string | undefined;
+    if (Object.keys(changes).length > 0 && isAdminEdit) {
+      ownerEmail = (await asyncDb.prepare('SELECT email FROM users WHERE id = ?').get<{ email: string }>(trip.user_id))
+        ?.email;
+    }
+
+    const updatedTrip = await asyncDb.prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`).get({ userId, tripId });
+    return { updatedTrip, changes, isAdminEdit, ownerEmail, newTitle, newReminder, oldReminder };
   }
 
-  remove(tripId: string, userId: number, role: string) {
-    return tripSvc.deleteTrip(tripId, userId, role);
+  async remove(tripId: string, userId: number, role: string) {
+    const trip = await asyncDb.prepare('SELECT title, user_id FROM trips WHERE id = ?').get<{
+      title: string;
+      user_id: number;
+    }>(tripId);
+    if (!trip) throw new tripSvc.NotFoundError('Trip not found');
+
+    const isAdminDelete = role === 'admin' && trip.user_id !== userId;
+    const ownerEmail = isAdminDelete
+      ? (await asyncDb.prepare('SELECT email FROM users WHERE id = ?').get<{ email: string }>(trip.user_id))?.email
+      : undefined;
+
+    await asyncDb.transaction(async () => {
+      await asyncDb
+        .prepare(
+          `
+    DELETE FROM journey_entries
+    WHERE source_trip_id = ? AND type = 'skeleton'
+  `,
+        )
+        .run(tripId);
+      await asyncDb
+        .prepare(
+          `
+    UPDATE journey_entries SET source_trip_id = NULL, source_place_id = NULL
+    WHERE source_trip_id = ?
+  `,
+        )
+        .run(tripId);
+      await asyncDb.prepare('DELETE FROM trips WHERE id = ?').run(tripId);
+    })();
+
+    return { tripId: Number(tripId), title: trip.title, ownerId: trip.user_id, isAdminDelete, ownerEmail };
   }
 
   deleteOldCover(coverImage: string | null | undefined): void {
     tripSvc.deleteOldCover(coverImage as never);
   }
 
-  updateCoverImage(tripId: string, url: string): void {
-    tripSvc.updateCoverImage(tripId, url);
+  async updateCoverImage(tripId: string, url: string): Promise<void> {
+    await asyncDb.prepare('UPDATE trips SET cover_image=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(url, tripId);
   }
 
   copy(tripId: string, userId: number, title?: string) {
@@ -178,8 +286,41 @@ export class TripsService {
     return asyncDb.prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`).get({ userId, tripId: newTripId });
   }
 
-  listMembers(tripId: string, ownerId: number) {
-    return tripSvc.listMembers(tripId, ownerId);
+  async listMembers(tripId: string, ownerId: number) {
+    const members = await asyncDb
+      .prepare(
+        `
+    SELECT u.id, u.username, u.email, u.avatar,
+      CASE WHEN u.id = ? THEN 'owner' ELSE 'member' END as role,
+      m.added_at,
+      ib.username as invited_by_username
+    FROM trip_members m
+    JOIN users u ON u.id = m.user_id
+    LEFT JOIN users ib ON ib.id = m.invited_by
+    WHERE m.trip_id = ?
+    ORDER BY m.added_at ASC
+  `,
+      )
+      .all<{
+        id: number;
+        username: string;
+        email: string;
+        avatar: string | null;
+        role: string;
+        added_at: string;
+        invited_by_username: string | null;
+      }>(ownerId, tripId);
+
+    const owner = await asyncDb
+      .prepare('SELECT id, username, email, avatar FROM users WHERE id = ?')
+      .get<Pick<User, 'id' | 'username' | 'email' | 'avatar'>>(ownerId);
+
+    return {
+      owner: owner
+        ? { ...owner, role: 'owner', avatar_url: owner.avatar ? `/uploads/avatars/${owner.avatar}` : null }
+        : null,
+      members: members.map((m) => ({ ...m, avatar_url: m.avatar ? `/uploads/avatars/${m.avatar}` : null })),
+    };
   }
 
   addMember(tripId: string, identifier: string, ownerId: number, userId: number) {
@@ -195,19 +336,19 @@ export class TripsService {
   }
 
   /** Aggregates every trip sub-collection for offline caching (legacy /:id/bundle). */
-  bundle(tripId: string, trip: { user_id: number }) {
-    const { days } = listDays(tripId);
-    const { owner, members } = this.listMembers(tripId, trip.user_id);
+  async bundle(tripId: string, trip: { user_id: number }) {
+    const { days } = await listDays(tripId);
+    const { owner, members } = await this.listMembers(tripId, trip.user_id);
     return {
       trip,
       days,
-      places: listPlaces(String(tripId), {}),
-      packingItems: listPackingItems(tripId),
-      todoItems: listTodoItems(tripId),
-      budgetItems: listBudgetItems(tripId),
-      reservations: listReservations(tripId),
-      files: listFiles(tripId, false),
-      accommodations: listAccommodations(tripId),
+      places: await listPlacesAsync(String(tripId), {}),
+      packingItems: await listPackingItems(tripId),
+      todoItems: await listTodoItems(tripId),
+      budgetItems: await listBudgetItems(tripId),
+      reservations: await listReservations(tripId),
+      files: await listFilesAsync(tripId, false),
+      accommodations: await listAccommodations(tripId),
       members: [owner, ...(members || [])].filter(Boolean),
     };
   }

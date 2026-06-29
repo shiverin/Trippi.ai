@@ -1,11 +1,15 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { logDebug, logError } from './auditLog';
-import { resolveRecipients, createNotificationForRecipient, type NotificationInput } from './inAppNotifications';
 import {
-  getActiveChannels,
-  isEnabledForEvent,
-  getAdminGlobalPref,
-  isSmtpConfigured,
+  resolveRecipientsAsync,
+  createNotificationForRecipientAsync,
+  type NotificationInput,
+} from './inAppNotifications';
+import {
+  getActiveChannelsAsync,
+  isEnabledForEventAsync,
+  getAdminGlobalPrefAsync,
+  isSmtpConfiguredAsync,
   ADMIN_SCOPED_EVENTS,
   type NotifEventType,
   type NotifChannel,
@@ -15,12 +19,12 @@ import {
   sendEmail,
   sendWebhook,
   sendNtfy,
-  getUserEmail,
-  getUserLanguage,
-  getUserWebhookUrl,
-  getAdminWebhookUrl,
-  getUserNtfyConfig,
-  getAdminNtfyConfig,
+  getUserEmailAsync,
+  getUserLanguageAsync,
+  getUserWebhookUrlAsync,
+  getAdminWebhookUrlAsync,
+  getUserNtfyConfigAsync,
+  getAdminNtfyConfigAsync,
   resolveNtfyUrl,
   getAppUrl,
 } from './notifications';
@@ -160,7 +164,7 @@ export async function send(payload: NotificationPayload): Promise<void> {
   const { event, actorId, params, scope, targetId, inApp } = payload;
 
   // Resolve recipients based on scope
-  const recipients = resolveRecipients(scope, targetId, actorId);
+  const recipients = await resolveRecipientsAsync(scope, targetId, actorId);
   if (recipients.length === 0) return;
 
   const configEntry = EVENT_NOTIFICATION_CONFIG[event];
@@ -168,10 +172,10 @@ export async function send(payload: NotificationPayload): Promise<void> {
     logDebug(`notificationService.send: unknown event type "${event}", using fallback`);
     if (process.env.NODE_ENV?.toLowerCase() === 'development' && actorId != null) {
       const devSender =
-        (db.prepare('SELECT username, avatar FROM users WHERE id = ?').get(actorId) as
-          | { username: string; avatar: string | null }
-          | undefined) ?? null;
-      createNotificationForRecipient(
+        (await asyncDb
+          .prepare('SELECT username, avatar FROM users WHERE id = ?')
+          .get<{ username: string; avatar: string | null }>(actorId)) ?? null;
+      await createNotificationForRecipientAsync(
         {
           type: 'simple',
           scope: 'user',
@@ -187,7 +191,7 @@ export async function send(payload: NotificationPayload): Promise<void> {
     }
   }
   const config = configEntry ?? FALLBACK_EVENT_CONFIG;
-  const activeChannels = getActiveChannels();
+  const activeChannels = await getActiveChannelsAsync();
   const appUrl = getAppUrl();
 
   // Build navigate target (used by email/webhook CTA and in-app navigate)
@@ -196,9 +200,9 @@ export async function send(payload: NotificationPayload): Promise<void> {
 
   // Fetch sender info once for in-app WS payloads
   const sender = actorId
-    ? ((db.prepare('SELECT username, avatar FROM users WHERE id = ?').get(actorId) as
-        | { username: string; avatar: string | null }
-        | undefined) ?? null)
+    ? ((await asyncDb
+        .prepare('SELECT username, avatar FROM users WHERE id = ?')
+        .get<{ username: string; avatar: string | null }>(actorId)) ?? null)
     : null;
 
   logDebug(
@@ -211,7 +215,7 @@ export async function send(payload: NotificationPayload): Promise<void> {
       const promises: Promise<unknown>[] = [];
 
       // ── In-app ──────────────────────────────────────────────────────────
-      if (isEnabledForEvent(recipientId, event, 'inapp')) {
+      if (await isEnabledForEventAsync(recipientId, event, 'inapp')) {
         const inAppType = inApp?.type ?? config.inAppType;
         let notifInput: NotificationInput;
 
@@ -259,22 +263,20 @@ export async function send(payload: NotificationPayload): Promise<void> {
           };
         }
 
-        promises.push(
-          Promise.resolve().then(() => createNotificationForRecipient(notifInput, recipientId, sender ?? null)),
-        );
+        promises.push(createNotificationForRecipientAsync(notifInput, recipientId, sender ?? null));
       }
 
       // ── Email ────────────────────────────────────────────────────────────
       // Admin-scoped events: use global pref + SMTP check (bypass notification_channels toggle)
       // Regular events: use active channels + per-user pref
       const emailEnabled = ADMIN_SCOPED_EVENTS.has(event)
-        ? isSmtpConfigured() && getAdminGlobalPref(event, 'email')
-        : activeChannels.includes('email') && isEnabledForEvent(recipientId, event, 'email');
+        ? (await isSmtpConfiguredAsync()) && (await getAdminGlobalPrefAsync(event, 'email'))
+        : activeChannels.includes('email') && (await isEnabledForEventAsync(recipientId, event, 'email'));
 
       if (emailEnabled) {
-        const email = getUserEmail(recipientId);
+        const email = await getUserEmailAsync(recipientId);
         if (email) {
-          const lang = getUserLanguage(recipientId);
+          const lang = await getUserLanguageAsync(recipientId);
           const { title, body } = getEventText(lang, event, params);
           promises.push(sendEmail(email, title, body, recipientId, navigateTarget ?? undefined));
         }
@@ -284,11 +286,11 @@ export async function send(payload: NotificationPayload): Promise<void> {
       if (
         !ADMIN_SCOPED_EVENTS.has(event) &&
         activeChannels.includes('webhook') &&
-        isEnabledForEvent(recipientId, event, 'webhook')
+        (await isEnabledForEventAsync(recipientId, event, 'webhook'))
       ) {
-        const webhookUrl = getUserWebhookUrl(recipientId);
+        const webhookUrl = await getUserWebhookUrlAsync(recipientId);
         if (webhookUrl) {
-          const lang = getUserLanguage(recipientId);
+          const lang = await getUserLanguageAsync(recipientId);
           const { title, body } = getEventText(lang, event, params);
           promises.push(sendWebhook(webhookUrl, { event, title, body, tripName: params.trip, link: fullLink }));
         }
@@ -298,13 +300,13 @@ export async function send(payload: NotificationPayload): Promise<void> {
       if (
         !ADMIN_SCOPED_EVENTS.has(event) &&
         activeChannels.includes('ntfy') &&
-        isEnabledForEvent(recipientId, event, 'ntfy' as NotifChannel)
+        (await isEnabledForEventAsync(recipientId, event, 'ntfy' as NotifChannel))
       ) {
-        const userNtfyCfg = getUserNtfyConfig(recipientId);
-        const adminNtfyCfg = getAdminNtfyConfig();
+        const userNtfyCfg = await getUserNtfyConfigAsync(recipientId);
+        const adminNtfyCfg = await getAdminNtfyConfigAsync();
         const ntfyUrl = resolveNtfyUrl(adminNtfyCfg, userNtfyCfg);
         if (ntfyUrl) {
-          const lang = getUserLanguage(recipientId);
+          const lang = await getUserLanguageAsync(recipientId);
           const { title, body } = getEventText(lang, event, params);
           const token = userNtfyCfg?.token ?? adminNtfyCfg.token;
           promises.push(sendNtfy(ntfyUrl, token, { event, title, body, link: fullLink }));
@@ -323,8 +325,8 @@ export async function send(payload: NotificationPayload): Promise<void> {
   );
 
   // ── Admin webhook (scope: admin) — global, respects global pref ──────
-  if (scope === 'admin' && getAdminGlobalPref(event, 'webhook')) {
-    const adminWebhookUrl = getAdminWebhookUrl();
+  if (scope === 'admin' && (await getAdminGlobalPrefAsync(event, 'webhook'))) {
+    const adminWebhookUrl = await getAdminWebhookUrlAsync();
     if (adminWebhookUrl) {
       const { title, body } = getEventText('en', event, params);
       await sendWebhook(adminWebhookUrl, { event, title, body, link: fullLink }).catch((err: unknown) => {
@@ -336,8 +338,8 @@ export async function send(payload: NotificationPayload): Promise<void> {
   }
 
   // ── Admin ntfy (scope: admin) — global, respects global pref ─────────
-  if (scope === 'admin' && getAdminGlobalPref(event, 'ntfy')) {
-    const adminNtfyCfg = getAdminNtfyConfig();
+  if (scope === 'admin' && (await getAdminGlobalPrefAsync(event, 'ntfy'))) {
+    const adminNtfyCfg = await getAdminNtfyConfigAsync();
     const adminNtfyUrl = resolveNtfyUrl(adminNtfyCfg, null);
     if (adminNtfyUrl) {
       const { title, body } = getEventText('en', event, params);

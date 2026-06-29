@@ -1,3 +1,4 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { resolveDbProvider } from '../db/providerMode';
 
@@ -83,6 +84,26 @@ function loadPermissions(): Map<string, PermissionLevel> {
   return cache;
 }
 
+async function loadPermissionsAsync(): Promise<Map<string, PermissionLevel>> {
+  if (cache) return cache;
+  cache = new Map<string, PermissionLevel>();
+  try {
+    const rows = await asyncDb.prepare("SELECT key, value FROM app_settings WHERE key LIKE 'perm_%'").all<{
+      key: string;
+      value: string;
+    }>();
+    for (const row of rows) {
+      const actionKey = row.key.replace('perm_', '');
+      if (ACTIONS_MAP.has(actionKey)) {
+        cache.set(actionKey, row.value as PermissionLevel);
+      }
+    }
+  } catch {
+    /* table might not exist yet during init */
+  }
+  return cache;
+}
+
 export function invalidatePermissionsCache(): void {
   cache = null;
 }
@@ -95,8 +116,25 @@ export function getPermissionLevel(actionKey: string): PermissionLevel {
   return action?.defaultLevel ?? 'trip_owner';
 }
 
+export async function getPermissionLevelAsync(actionKey: string): Promise<PermissionLevel> {
+  const perms = await loadPermissionsAsync();
+  const stored = perms.get(actionKey);
+  if (stored) return stored;
+  const action = ACTIONS_MAP.get(actionKey);
+  return action?.defaultLevel ?? 'trip_owner';
+}
+
 export function getAllPermissions(): Record<string, PermissionLevel> {
   const perms = loadPermissions();
+  const result: Record<string, PermissionLevel> = {};
+  for (const action of PERMISSION_ACTIONS) {
+    result[action.key] = perms.get(action.key) ?? action.defaultLevel;
+  }
+  return result;
+}
+
+export async function getAllPermissionsAsync(): Promise<Record<string, PermissionLevel>> {
+  const perms = await loadPermissionsAsync();
   const result: Record<string, PermissionLevel> = {};
   for (const action of PERMISSION_ACTIONS) {
     result[action.key] = perms.get(action.key) ?? action.defaultLevel;
@@ -118,6 +156,23 @@ export function savePermissions(settings: Record<string, string>): { skipped: st
     }
   });
   txn();
+  invalidatePermissionsCache();
+  return { skipped };
+}
+
+export async function savePermissionsAsync(settings: Record<string, string>): Promise<{ skipped: string[] }> {
+  const skipped: string[] = [];
+  const upsert = asyncDb.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
+  await asyncDb.transaction(async () => {
+    for (const [actionKey, level] of Object.entries(settings)) {
+      const action = ACTIONS_MAP.get(actionKey);
+      if (!action || !action.allowedLevels.includes(level as PermissionLevel)) {
+        skipped.push(actionKey);
+        continue;
+      }
+      await upsert.run(`perm_${actionKey}`, level);
+    }
+  })();
   invalidatePermissionsCache();
   return { skipped };
 }
@@ -146,6 +201,31 @@ export function checkPermission(
   switch (required) {
     case 'admin':
       return false; // already checked above
+    case 'trip_owner':
+      return tripUserId !== null && tripUserId === userId;
+    case 'trip_member':
+      return (tripUserId !== null && tripUserId === userId) || isMember;
+    case 'everybody':
+      return true;
+    default:
+      return false;
+  }
+}
+
+export async function checkPermissionAsync(
+  actionKey: string,
+  userRole: string,
+  tripUserId: number | null,
+  userId: number,
+  isMember: boolean,
+): Promise<boolean> {
+  if (userRole === 'admin') return true;
+
+  const required = await getPermissionLevelAsync(actionKey);
+
+  switch (required) {
+    case 'admin':
+      return false;
     case 'trip_owner':
       return tripUserId !== null && tripUserId === userId;
     case 'trip_member':

@@ -63,8 +63,8 @@ export class PlacesController {
     return trip;
   }
 
-  private requireEdit(trip: Trip, user: User): void {
-    if (!this.places.canEdit(trip, user)) {
+  private async requireEditAsync(trip: Trip, user: User): Promise<void> {
+    if (!(await this.places.canEdit(trip, user))) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
@@ -78,7 +78,7 @@ export class PlacesController {
     @Query('tag') tag?: string,
   ) {
     await this.requireTrip(tripId, user);
-    return { places: this.places.list(tripId, { search, category, tag }) };
+    return { places: await this.places.list(tripId, { search, category, tag }) };
   }
 
   @Post()
@@ -90,11 +90,14 @@ export class PlacesController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     validateLengths(body);
-    this.requireEdit(trip, user);
+    await this.requireEditAsync(trip, user);
     if (!body.name) {
       throw new HttpException({ error: 'Place name is required' }, 400);
     }
-    const place = this.places.create(tripId, body as never);
+    const place = await this.places.create(tripId, body as never);
+    if (!place) {
+      throw new HttpException({ error: 'Failed to create place' }, 500);
+    }
     this.places.broadcast(tripId, 'place:created', { place }, socketId);
     this.places.onCreated(tripId, place.id);
     return { place };
@@ -110,7 +113,7 @@ export class PlacesController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
+    await this.requireEditAsync(trip, user);
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
@@ -145,7 +148,7 @@ export class PlacesController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
+    await this.requireEditAsync(trip, user);
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
@@ -205,7 +208,7 @@ export class PlacesController {
     socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
+    await this.requireEditAsync(trip, user);
     if (!url || typeof url !== 'string') {
       throw new HttpException({ error: 'URL is required' }, 400);
     }
@@ -244,7 +247,7 @@ export class PlacesController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
+    await this.requireEditAsync(trip, user);
     if (!Array.isArray(ids) || ids.some((v) => typeof v !== 'number')) {
       throw new HttpException({ error: 'ids must be an array of numbers' }, 400);
     }
@@ -252,7 +255,7 @@ export class PlacesController {
       return { deleted: [], count: 0 };
     }
     for (const id of ids) this.places.onDeleted(id);
-    const deleted = this.places.removeMany(tripId, ids);
+    const deleted = await this.places.removeMany(tripId, ids);
     for (const id of deleted) {
       this.places.broadcast(tripId, 'place:deleted', { placeId: id }, socketId);
     }
@@ -262,7 +265,7 @@ export class PlacesController {
   @Get(':id')
   async get(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
     await this.requireTrip(tripId, user);
-    const place = this.places.get(tripId, id);
+    const place = await this.places.get(tripId, id);
     if (!place) {
       throw new HttpException({ error: 'Place not found' }, 404);
     }
@@ -295,8 +298,8 @@ export class PlacesController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     validateLengths(body);
-    this.requireEdit(trip, user);
-    const place = this.places.update(tripId, id, body as never);
+    await this.requireEditAsync(trip, user);
+    const place = await this.places.update(tripId, id, body as never);
     if (!place) {
       throw new HttpException({ error: 'Place not found' }, 404);
     }
@@ -313,9 +316,9 @@ export class PlacesController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
+    await this.requireEditAsync(trip, user);
     this.places.onDeleted(Number(id)); // sync before actual delete
-    if (!this.places.remove(tripId, id)) {
+    if (!(await this.places.remove(tripId, id))) {
       throw new HttpException({ error: 'Place not found' }, 404);
     }
     this.places.broadcast(tripId, 'place:deleted', { placeId: Number(id) }, socketId);

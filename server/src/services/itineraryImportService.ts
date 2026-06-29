@@ -1,12 +1,12 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { Trip } from '../types';
 import { createAssignment } from './assignmentService';
 import { createAccommodation } from './dayService';
 import { getMapsKey, getPlaceDetails, getPlacePhoto, searchPlaces } from './mapsService';
 import { createPerfTrace, type PerfTrace } from './perfTrace';
-import { createPlace } from './placeService';
+import { createPlaceAsync } from './placeService';
 import { exportTripPdf } from './tripPdfExportService';
-import { createTrip, getTrip, updateCoverImage } from './tripService';
+import { TRIP_SELECT } from './tripService';
 
 import { randomUUID } from 'crypto';
 import { performance } from 'node:perf_hooks';
@@ -683,8 +683,8 @@ async function resolveImportLocations(
   return { resolvedDays, warnings };
 }
 
-function loadCategoryLookup(): Map<string, number> {
-  const rows = db.prepare('SELECT id, name FROM categories').all() as { id: number; name: string }[];
+async function loadCategoryLookup(): Promise<Map<string, number>> {
+  const rows = await asyncDb.prepare('SELECT id, name FROM categories').all<{ id: number; name: string }>();
   return new Map(rows.map((row) => [row.name.toLowerCase(), row.id]));
 }
 
@@ -706,30 +706,86 @@ function inferTripDates(input: ApplyItineraryPlanInput): { startDate?: string; e
   };
 }
 
-function getDayByNumber(tripId: number, dayNumber: number): DayRow | undefined {
-  return db.prepare('SELECT * FROM days WHERE trip_id = ? AND day_number = ?').get(tripId, dayNumber) as
-    | DayRow
-    | undefined;
+function addIsoDays(date: string, offset: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d) + offset * 24 * 60 * 60 * 1000);
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(
+    next.getUTCDate(),
+  ).padStart(2, '0')}`;
 }
 
-function getDayById(dayId: number): DayRow {
-  return db.prepare('SELECT * FROM days WHERE id = ?').get(dayId) as DayRow;
+async function getTripForImport(tripId: number, userId: number): Promise<Trip | undefined> {
+  return asyncDb
+    .prepare(
+      `
+    ${TRIP_SELECT}
+    LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = :userId
+    WHERE t.id = :tripId AND (t.user_id = :userId OR m.user_id IS NOT NULL)
+  `,
+    )
+    .get<Trip>({ userId, tripId });
 }
 
-function ensureDay(
+async function createTripForImport(
+  userId: number,
+  data: { title: string; start_date?: string; end_date?: string; currency?: string; day_count?: number },
+  maxDays: number,
+): Promise<{ trip: Trip | undefined; tripId: number }> {
+  const result = await asyncDb
+    .prepare(
+      `
+    INSERT INTO trips (user_id, title, description, start_date, end_date, currency, reminder_days)
+    VALUES (?, ?, NULL, ?, ?, ?, 3)
+  `,
+    )
+    .run(userId, data.title, data.start_date || null, data.end_date || null, data.currency || 'EUR');
+
+  const tripId = Number(result.lastInsertRowid);
+  const insertDay = asyncDb.prepare('INSERT INTO days (trip_id, day_number, date) VALUES (?, ?, ?)');
+  let dayCount = Math.min(Math.max(data.day_count ?? 7, 1), maxDays);
+  if (data.start_date && data.end_date) {
+    const start = Date.parse(`${data.start_date}T00:00:00Z`);
+    const end = Date.parse(`${data.end_date}T00:00:00Z`);
+    if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+      dayCount = Math.min(Math.floor((end - start) / (24 * 60 * 60 * 1000)) + 1, maxDays);
+    }
+  }
+  for (let i = 1; i <= dayCount; i++) {
+    await insertDay.run(tripId, i, data.start_date && data.end_date ? addIsoDays(data.start_date, i - 1) : null);
+  }
+
+  return { trip: await getTripForImport(tripId, userId), tripId };
+}
+
+async function updateCoverImageForImport(tripId: number, coverUrl: string): Promise<void> {
+  await asyncDb.prepare('UPDATE trips SET cover_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+    coverUrl,
+    tripId,
+  );
+}
+
+async function getDayByNumber(tripId: number, dayNumber: number): Promise<DayRow | undefined> {
+  return asyncDb.prepare('SELECT * FROM days WHERE trip_id = ? AND day_number = ?').get<DayRow>(tripId, dayNumber);
+}
+
+async function getDayById(dayId: number): Promise<DayRow> {
+  return (await asyncDb.prepare('SELECT * FROM days WHERE id = ?').get<DayRow>(dayId)) as DayRow;
+}
+
+async function ensureDay(
   tripId: number,
   day: ResolvedDay,
   batchId: string,
   markExistingDay: boolean,
   events: ImportEvents,
   counts: ImportCounts,
-): DayRow {
-  const existing = getDayByNumber(tripId, day.day_number);
+): Promise<DayRow> {
+  const existing = await getDayByNumber(tripId, day.day_number);
   if (!existing) {
-    const result = db
+    const result = await asyncDb
       .prepare('INSERT INTO days (trip_id, day_number, date, title, mcp_import_batch_id) VALUES (?, ?, ?, ?, ?)')
       .run(tripId, day.day_number, day.date ?? null, day.title ?? null, batchId);
-    const created = getDayById(Number(result.lastInsertRowid));
+    const created = await getDayById(Number(result.lastInsertRowid));
     counts.daysCreated++;
     events.days.push({ type: 'day:created', day: created });
     return created;
@@ -753,8 +809,8 @@ function ensureDay(
   }
 
   if (updates.length > 0) {
-    db.prepare(`UPDATE days SET ${updates.join(', ')} WHERE id = @id`).run(params);
-    const updated = getDayById(existing.id);
+    await asyncDb.prepare(`UPDATE days SET ${updates.join(', ')} WHERE id = @id`).run(params);
+    const updated = await getDayById(existing.id);
     counts.daysUpdated++;
     events.days.push({ type: 'day:updated', day: updated });
     return updated;
@@ -763,22 +819,29 @@ function ensureDay(
   return existing;
 }
 
-function deleteImportedContent(tripId: number): number {
+async function deleteImportedContent(tripId: number): Promise<number> {
   let removed = 0;
-  removed += db
+  removed += (
+    await asyncDb
     .prepare('DELETE FROM reservations WHERE trip_id = ? AND mcp_import_batch_id IS NOT NULL')
-    .run(tripId).changes;
-  removed += db
+    .run(tripId)
+  ).changes;
+  removed += (
+    await asyncDb
     .prepare('DELETE FROM day_accommodations WHERE trip_id = ? AND mcp_import_batch_id IS NOT NULL')
-    .run(tripId).changes;
-  removed += db
+    .run(tripId)
+  ).changes;
+  removed += (
+    await asyncDb
     .prepare(
       `DELETE FROM day_assignments
        WHERE mcp_import_batch_id IS NOT NULL
          AND day_id IN (SELECT id FROM days WHERE trip_id = ?)`,
     )
-    .run(tripId).changes;
-  removed += db
+    .run(tripId)
+  ).changes;
+  removed += (
+    await asyncDb
     .prepare(
       `DELETE FROM places
        WHERE trip_id = ?
@@ -787,8 +850,10 @@ function deleteImportedContent(tripId: number): number {
          AND NOT EXISTS (SELECT 1 FROM day_accommodations a WHERE a.place_id = places.id)
          AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.place_id = places.id)`,
     )
-    .run(tripId).changes;
-  removed += db
+    .run(tripId)
+  ).changes;
+  removed += (
+    await asyncDb
     .prepare(
       `DELETE FROM days
        WHERE trip_id = ?
@@ -798,11 +863,12 @@ function deleteImportedContent(tripId: number): number {
          AND NOT EXISTS (SELECT 1 FROM day_accommodations a WHERE a.start_day_id = days.id OR a.end_day_id = days.id)
          AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.day_id = days.id OR r.end_day_id = days.id)`,
     )
-    .run(tripId).changes;
+    .run(tripId)
+  ).changes;
   return removed;
 }
 
-function createImportedPlace(
+async function createImportedPlace(
   tripId: number,
   title: string,
   description: string | undefined,
@@ -816,7 +882,7 @@ function createImportedPlace(
     duration_minutes?: number;
   } = {},
 ) {
-  return createPlace(String(tripId), {
+  const place = await createPlaceAsync(String(tripId), {
     name: clean(location.name) ?? title,
     description,
     lat: location.lat,
@@ -834,6 +900,10 @@ function createImportedPlace(
     phone: location.phone ?? undefined,
     mcp_import_batch_id: batchId,
   });
+  if (!place) {
+    throw new ItineraryImportError([{ path: title, message: 'Failed to create imported place.' }]);
+  }
+  return place;
 }
 
 function buildCounts(): ImportCounts {
@@ -1025,7 +1095,7 @@ async function ensureTripCoverImage(
   preferredCoverQuery?: string,
   perf?: PerfTrace,
 ): Promise<string | null> {
-  const existing = getTrip(tripId, userId);
+  const existing = await getTripForImport(tripId, userId);
   if (existing?.cover_image) {
     perf?.event('cover_image.existing', { tripId });
     return existing.cover_image;
@@ -1070,7 +1140,7 @@ async function ensureTripCoverImage(
         COVER_IMAGE_TIMEOUT_MS,
       );
       if (photo.photoUrl) {
-        updateCoverImage(tripId, photo.photoUrl);
+        await updateCoverImageForImport(tripId, photo.photoUrl);
         perf?.event('cover_image.attempt', {
           name: clean(place.name)?.slice(0, 120),
           title: clean(candidate.title)?.slice(0, 120),
@@ -1135,15 +1205,15 @@ export async function applyItineraryPlan(
       0,
     );
 
-    const transactionResult = perf.measureSync('db.transaction', () =>
-      db.transaction(() => {
+    const transactionResult = await perf.measure('db.transaction', () =>
+      asyncDb.transaction(async () => {
         let tripId: number;
         const coverCandidates: CoverCandidate[] = [];
 
         if (input.target.kind === 'new_trip') {
           const { startDate, endDate } = inferTripDates(input);
           const maxDayNumber = Math.max(...resolvedDays.map((day) => day.day_number));
-          const created = createTrip(
+          const created = await createTripForImport(
             userId,
             {
               title: input.target.title.trim(),
@@ -1155,20 +1225,21 @@ export async function applyItineraryPlan(
             MAX_ITINERARY_IMPORT_DAYS,
           );
           tripId = created.tripId;
-          db.prepare('UPDATE days SET mcp_import_batch_id = ? WHERE trip_id = ?').run(batchId, tripId);
+          await asyncDb.prepare('UPDATE days SET mcp_import_batch_id = ? WHERE trip_id = ?').run(batchId, tripId);
         } else {
-          const existing = getTrip(input.target.tripId, userId);
+          const existing = await getTripForImport(input.target.tripId, userId);
           if (!existing) throw new ItineraryImportError([{ path: 'target.tripId', message: 'Trip not found.' }]);
           tripId = input.target.tripId;
-          if (input.target.mode === 'replace_imported') counts.importedObjectsRemoved = deleteImportedContent(tripId);
+          if (input.target.mode === 'replace_imported')
+            counts.importedObjectsRemoved = await deleteImportedContent(tripId);
         }
 
-        const categoryLookup = loadCategoryLookup();
+        const categoryLookup = await loadCategoryLookup();
         const dayByNumber = new Map<number, DayRow>();
         const markExistingDays = input.target.kind === 'new_trip';
 
         for (const day of resolvedDays) {
-          const row = ensureDay(tripId, day, batchId, markExistingDays, events, counts);
+          const row = await ensureDay(tripId, day, batchId, markExistingDays, events, counts);
           dayByNumber.set(day.day_number, row);
         }
 
@@ -1178,7 +1249,7 @@ export async function applyItineraryPlan(
             throw new ItineraryImportError([{ path: `day ${day.day_number}`, message: 'Day was not created.' }]);
 
           for (const activity of day.activities) {
-            const place = createImportedPlace(
+            const place = await createImportedPlace(
               tripId,
               activity.title,
               activity.description,
@@ -1192,7 +1263,7 @@ export async function applyItineraryPlan(
                 duration_minutes: activity.duration_minutes,
               },
             );
-            const assignment = createAssignment(dayRow.id, place.id, activity.notes ?? null, {
+            const assignment = await createAssignment(dayRow.id, place.id, activity.notes ?? null, {
               assignment_time: activity.start_time ?? null,
               assignment_end_time: activity.end_time ?? null,
               mcp_import_batch_id: batchId,
@@ -1213,7 +1284,7 @@ export async function applyItineraryPlan(
           }
 
           if (day.accommodation) {
-            const place = createImportedPlace(
+            const place = await createImportedPlace(
               tripId,
               day.accommodation.title,
               undefined,
@@ -1223,7 +1294,7 @@ export async function applyItineraryPlan(
               { notes: undefined },
             );
             const nextDay = dayByNumber.get(day.day_number + 1);
-            const accommodation = createAccommodation(tripId, {
+            const accommodation = await createAccommodation(tripId, {
               place_id: place.id,
               start_day_id: dayRow.id,
               end_day_id: nextDay?.id ?? dayRow.id,
@@ -1249,7 +1320,7 @@ export async function applyItineraryPlan(
           }
         }
 
-        const trip = getTrip(tripId, userId);
+        const trip = await getTripForImport(tripId, userId);
         if (!trip) throw new ItineraryImportError([{ path: 'target.tripId', message: 'Trip not found after import.' }]);
         return { tripId, trip, coverCandidates };
       })(),
@@ -1266,7 +1337,7 @@ export async function applyItineraryPlan(
       ),
     );
     const trip = coverImage
-      ? (getTrip(transactionResult.tripId, userId) ?? transactionResult.trip)
+      ? ((await getTripForImport(transactionResult.tripId, userId)) ?? transactionResult.trip)
       : transactionResult.trip;
 
     result = {

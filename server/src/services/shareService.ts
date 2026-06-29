@@ -1,6 +1,7 @@
-import { db, canAccessTrip } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
+import { db } from '../db/database';
 import { serveFilePath } from './placePhotoCache';
-import { loadTagsByPlaceIds } from './queryHelpers';
+import { loadTagsByPlaceIds, loadTagsByPlaceIdsAsync } from './queryHelpers';
 
 import crypto from 'crypto';
 
@@ -101,6 +102,58 @@ export function createOrUpdateShareLink(
   return { token, created: true };
 }
 
+export async function createOrUpdateShareLinkAsync(
+  tripId: string,
+  createdBy: number,
+  permissions: SharePermissions,
+): Promise<{ token: string; created: boolean }> {
+  const {
+    share_map = true,
+    share_bookings = true,
+    share_packing = false,
+    share_budget = false,
+    share_collab = false,
+  } = permissions;
+
+  const existing = await asyncDb
+    .prepare('SELECT token FROM share_tokens WHERE trip_id = ?')
+    .get<{ token: string }>(tripId);
+  if (existing) {
+    await asyncDb
+      .prepare(
+        'UPDATE share_tokens SET share_map = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ? WHERE trip_id = ?',
+      )
+      .run(
+        share_map ? 1 : 0,
+        share_bookings ? 1 : 0,
+        share_packing ? 1 : 0,
+        share_budget ? 1 : 0,
+        share_collab ? 1 : 0,
+        tripId,
+      );
+    return { token: existing.token, created: false };
+  }
+
+  const token = crypto.randomBytes(24).toString('base64url');
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+  await asyncDb
+    .prepare(
+      'INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_bookings, share_packing, share_budget, share_collab, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(
+      tripId,
+      token,
+      createdBy,
+      share_map ? 1 : 0,
+      share_bookings ? 1 : 0,
+      share_packing ? 1 : 0,
+      share_budget ? 1 : 0,
+      share_collab ? 1 : 0,
+      expiresAt,
+    );
+  return { token, created: true };
+}
+
 /**
  * Returns share token info for a trip, or null if no share link exists.
  */
@@ -118,11 +171,29 @@ export function getShareLink(tripId: string): ShareTokenInfo | null {
   };
 }
 
+export async function getShareLinkAsync(tripId: string): Promise<ShareTokenInfo | null> {
+  const row = await asyncDb.prepare('SELECT * FROM share_tokens WHERE trip_id = ?').get<any>(tripId);
+  if (!row) return null;
+  return {
+    token: row.token,
+    created_at: row.created_at,
+    share_map: !!row.share_map,
+    share_bookings: !!row.share_bookings,
+    share_packing: !!row.share_packing,
+    share_budget: !!row.share_budget,
+    share_collab: !!row.share_collab,
+  };
+}
+
 /**
  * Deletes the share token for a trip.
  */
 export function deleteShareLink(tripId: string): void {
   db.prepare('DELETE FROM share_tokens WHERE trip_id = ?').run(tripId);
+}
+
+export async function deleteShareLinkAsync(tripId: string): Promise<void> {
+  await asyncDb.prepare('DELETE FROM share_tokens WHERE trip_id = ?').run(tripId);
 }
 
 /**
@@ -302,6 +373,174 @@ export function getSharedTripData(token: string): Record<string, any> | null {
   };
 }
 
+export async function getSharedTripDataAsync(token: string): Promise<Record<string, any> | null> {
+  const shareRow = await asyncDb.prepare('SELECT * FROM share_tokens WHERE token = ?').get<any>(token);
+  if (!shareRow || isExpired(shareRow.expires_at)) return null;
+
+  const tripId = shareRow.trip_id;
+
+  const trip = await asyncDb
+    .prepare('SELECT id, title, description, start_date, end_date, cover_image, currency FROM trips WHERE id = ?')
+    .get(tripId);
+  if (!trip) return null;
+
+  const days = await asyncDb.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number ASC').all<any>(tripId);
+  const dayIds = days.map((d) => d.id);
+
+  let assignments: Record<number, any[]> = {};
+  let dayNotes: Record<number, any[]> = {};
+  if (dayIds.length > 0) {
+    const ph = dayIds.map(() => '?').join(',');
+    const allAssignments = await asyncDb
+      .prepare(
+        `
+      SELECT da.*, p.id as place_id, p.name as place_name, p.description as place_description,
+        p.lat, p.lng, p.address, p.category_id, p.price, p.currency as place_currency,
+        COALESCE(da.assignment_time, p.place_time) as place_time,
+        COALESCE(da.assignment_end_time, p.end_time) as end_time,
+        p.duration_minutes, p.notes as place_notes, p.image_url, p.transport_mode,
+        c.name as category_name, c.color as category_color, c.icon as category_icon
+      FROM day_assignments da
+      JOIN places p ON da.place_id = p.id
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE da.day_id IN (${ph})
+      ORDER BY da.order_index ASC, da.created_at ASC
+    `,
+      )
+      .all<any>(...dayIds);
+
+    const placeIds = [...new Set(allAssignments.map((a: any) => a.place_id))];
+    const tagsByPlace = await loadTagsByPlaceIdsAsync(placeIds, { compact: true });
+
+    const byDay: Record<number, any[]> = {};
+    for (const a of allAssignments) {
+      if (!byDay[a.day_id]) byDay[a.day_id] = [];
+      byDay[a.day_id].push({
+        id: a.id,
+        day_id: a.day_id,
+        order_index: a.order_index,
+        notes: a.notes,
+        place: {
+          id: a.place_id,
+          name: a.place_name,
+          description: a.place_description,
+          lat: a.lat,
+          lng: a.lng,
+          address: a.address,
+          category_id: a.category_id,
+          price: a.price,
+          place_time: a.place_time,
+          end_time: a.end_time,
+          image_url: rewritePlacePhotoUrl(a.image_url, token),
+          transport_mode: a.transport_mode,
+          category: a.category_id
+            ? { id: a.category_id, name: a.category_name, color: a.category_color, icon: a.category_icon }
+            : null,
+          tags: tagsByPlace[a.place_id] || [],
+        },
+      });
+    }
+    assignments = byDay;
+
+    const allNotes = await asyncDb
+      .prepare(`SELECT * FROM day_notes WHERE day_id IN (${ph}) ORDER BY sort_order ASC, created_at ASC`)
+      .all<any>(...dayIds);
+    const notesByDay: Record<number, any[]> = {};
+    for (const n of allNotes) {
+      if (!notesByDay[n.day_id]) notesByDay[n.day_id] = [];
+      notesByDay[n.day_id].push(n);
+    }
+    dayNotes = notesByDay;
+  }
+
+  const places = (
+    await asyncDb
+      .prepare(
+        `
+    SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon
+    FROM places p LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.trip_id = ? ORDER BY p.created_at DESC
+  `,
+      )
+      .all<any>(tripId)
+  ).map((p) => ({ ...p, image_url: rewritePlacePhotoUrl(p.image_url, token) }));
+
+  const reservations = await asyncDb
+    .prepare('SELECT * FROM reservations WHERE trip_id = ? ORDER BY reservation_time ASC')
+    .all<any>(tripId);
+
+  const dayPositions = await asyncDb
+    .prepare(
+      `
+    SELECT rdp.reservation_id, rdp.day_id, rdp.position
+    FROM reservation_day_positions rdp
+    JOIN reservations r ON rdp.reservation_id = r.id
+    WHERE r.trip_id = ?
+  `,
+    )
+    .all<{ reservation_id: number; day_id: number; position: number }>(tripId);
+
+  const posMap = new Map<number, Record<number, number>>();
+  for (const dp of dayPositions) {
+    if (!posMap.has(dp.reservation_id)) posMap.set(dp.reservation_id, {});
+    posMap.get(dp.reservation_id)![dp.day_id] = dp.position;
+  }
+  for (const r of reservations) {
+    r.day_positions = posMap.get(r.id) || null;
+  }
+
+  const accommodations = await asyncDb
+    .prepare(
+      `
+    SELECT a.*, p.name as place_name, p.address as place_address, p.lat as place_lat, p.lng as place_lng
+    FROM day_accommodations a JOIN places p ON a.place_id = p.id
+    WHERE a.trip_id = ?
+  `,
+    )
+    .all(tripId);
+
+  const packing = await asyncDb
+    .prepare('SELECT * FROM packing_items WHERE trip_id = ? ORDER BY sort_order ASC')
+    .all(tripId);
+
+  const budget = await asyncDb
+    .prepare('SELECT * FROM budget_items WHERE trip_id = ? ORDER BY category ASC')
+    .all(tripId);
+
+  const categories = await asyncDb.prepare('SELECT * FROM categories').all();
+
+  const permissions = {
+    share_map: !!shareRow.share_map,
+    share_bookings: !!shareRow.share_bookings,
+    share_packing: !!shareRow.share_packing,
+    share_budget: !!shareRow.share_budget,
+    share_collab: !!shareRow.share_collab,
+  };
+
+  const collabMessages = permissions.share_collab
+    ? await asyncDb
+        .prepare(
+          'SELECT m.*, u.username, u.avatar FROM collab_messages m JOIN users u ON m.user_id = u.id WHERE m.trip_id = ? AND m.deleted = 0 ORDER BY m.created_at',
+        )
+        .all(tripId)
+    : [];
+
+  return {
+    trip,
+    days,
+    assignments,
+    dayNotes,
+    places,
+    categories,
+    permissions,
+    reservations: permissions.share_bookings ? reservations : [],
+    accommodations: permissions.share_bookings ? accommodations : [],
+    packing: permissions.share_packing ? packing : [],
+    budget: permissions.share_budget ? budget : [],
+    collab: collabMessages,
+  };
+}
+
 /**
  * Resolves the on-disk path for a cached place photo requested through a public
  * share link. Validates that the token is valid + unexpired and that the place
@@ -318,6 +557,21 @@ export function getSharedPlacePhotoPath(token: string, placeId: string): string 
 
   const expectedUrl = `${PLACE_PHOTO_PROXY_PREFIX}${encodeURIComponent(placeId)}/bytes`;
   const place = db
+    .prepare('SELECT 1 FROM places WHERE trip_id = ? AND image_url = ?')
+    .get(shareRow.trip_id, expectedUrl);
+  if (!place) return null;
+
+  return serveFilePath(placeId);
+}
+
+export async function getSharedPlacePhotoPathAsync(token: string, placeId: string): Promise<string | null> {
+  const shareRow = await asyncDb
+    .prepare('SELECT trip_id, expires_at FROM share_tokens WHERE token = ?')
+    .get<{ trip_id: string; expires_at?: string | null }>(token);
+  if (!shareRow || isExpired(shareRow.expires_at)) return null;
+
+  const expectedUrl = `${PLACE_PHOTO_PROXY_PREFIX}${encodeURIComponent(placeId)}/bytes`;
+  const place = await asyncDb
     .prepare('SELECT 1 FROM places WHERE trip_id = ? AND image_url = ?')
     .get(shareRow.trip_id, expectedUrl);
   if (!place) return null;

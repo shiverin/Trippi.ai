@@ -1,4 +1,4 @@
-import { getActiveNoticesFor, dismissNotice } from '../../systemNotices/service';
+import { getActiveNoticesForAsync, dismissNoticeAsync } from '../../systemNotices/service';
 import { Injectable } from '@nestjs/common';
 import type { SystemNoticeDto } from '@trippi/shared';
 
@@ -9,11 +9,11 @@ import type { SystemNoticeDto } from '@trippi/shared';
  */
 @Injectable()
 export class SystemNoticesService {
-  getActiveFor(userId: number): SystemNoticeDto[] {
-    return getActiveNoticesFor(userId) as SystemNoticeDto[];
+  async getActiveFor(userId: number): Promise<SystemNoticeDto[]> {
+    return (await getActiveNoticesForAsync(userId)) as SystemNoticeDto[];
   }
 
-  dismiss(userId: number, noticeId: string): boolean {
-    return dismissNotice(userId, noticeId);
+  dismiss(userId: number, noticeId: string): Promise<boolean> {
+    return dismissNoticeAsync(userId, noticeId);
   }
 }

@@ -135,6 +135,8 @@ function shutdown(signal: string): void {
       const { stopOracleBackedSync } = require('./db/oracleMirrorRuntime') as typeof import('./db/oracleMirrorRuntime');
       await stopOracleBackedSync();
       const { closeDb } = require('./db/database');
+      const { closeAsyncDb } = require('./db/asyncDatabase') as typeof import('./db/asyncDatabase');
+      await closeAsyncDb();
       closeDb();
       sLogInfo('Shutdown complete');
       process.exit(0);

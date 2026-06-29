@@ -1,3 +1,4 @@
+import { asyncDb, getPlaceWithTagsAsync } from '../db/asyncDatabase';
 import { db, getPlaceWithTags } from '../db/database';
 import { Place } from '../types';
 import { checkSsrf, safeFetchFollow, SsrfBlockedError } from '../utils/ssrfGuard';
@@ -12,7 +13,7 @@ import {
 } from './kmlImport';
 import { enrichImportedPlaces, type EnrichablePlace } from './placeEnrichment';
 import * as placePhotoCache from './placePhotoCache';
-import { loadTagsByPlaceIds } from './queryHelpers';
+import { loadTagsByPlaceIds, loadTagsByPlaceIdsAsync } from './queryHelpers';
 
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import unzipper from 'unzipper';
@@ -132,6 +133,63 @@ export function listPlaces(
   }));
 }
 
+export async function listPlacesAsync(
+  tripId: string,
+  filters: { search?: string; category?: string; tag?: string; assignment?: 'all' | 'unassigned' | 'assigned' },
+) {
+  let query = `
+    SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon
+    FROM places p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE p.trip_id = ?
+  `;
+  const params: (string | number)[] = [tripId];
+
+  if (filters.search) {
+    query += ' AND (p.name LIKE ? OR p.address LIKE ? OR p.description LIKE ?)';
+    const searchParam = `%${filters.search}%`;
+    params.push(searchParam, searchParam, searchParam);
+  }
+
+  if (filters.category) {
+    query += ' AND p.category_id = ?';
+    params.push(filters.category);
+  }
+
+  if (filters.tag) {
+    query += ' AND p.id IN (SELECT place_id FROM place_tags WHERE tag_id = ?)';
+    params.push(filters.tag);
+  }
+
+  if (filters.assignment === 'unassigned') {
+    query += ` AND p.id NOT IN (SELECT da.place_id FROM day_assignments da JOIN days d ON da.day_id = d.id WHERE d.trip_id = ?)`;
+    params.push(tripId);
+  } else if (filters.assignment === 'assigned') {
+    query += ` AND p.id IN (SELECT da.place_id FROM day_assignments da JOIN days d ON da.day_id = d.id WHERE d.trip_id = ?)`;
+    params.push(tripId);
+  }
+
+  query += ' ORDER BY p.created_at DESC';
+
+  const places = await asyncDb.prepare(query).all<PlaceWithCategory>(...params);
+
+  const placeIds = places.map((p) => p.id);
+  const tagsByPlaceId = await loadTagsByPlaceIdsAsync(placeIds);
+
+  return places.map((p) => ({
+    ...p,
+    category: p.category_id
+      ? {
+          id: p.category_id,
+          name: p.category_name,
+          color: p.category_color,
+          icon: p.category_icon,
+        }
+      : null,
+    tags: tagsByPlaceId[p.id] || [],
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Create place
 // ---------------------------------------------------------------------------
@@ -232,6 +290,77 @@ export function createPlace(
   return getPlaceWithTags(Number(placeId));
 }
 
+export async function createPlaceAsync(tripId: string, body: Parameters<typeof createPlace>[1]) {
+  const {
+    name,
+    description,
+    lat,
+    lng,
+    address,
+    category_id,
+    price,
+    currency,
+    place_time,
+    end_time,
+    duration_minutes,
+    notes,
+    image_url,
+    google_place_id,
+    google_ftid,
+    osm_id,
+    website,
+    phone,
+    transport_mode,
+    tags = [],
+    mcp_import_batch_id,
+  } = body;
+
+  const result = await asyncDb
+    .prepare(
+      `
+    INSERT INTO places (trip_id, name, description, lat, lng, address, category_id, price, currency,
+      place_time, end_time,
+      duration_minutes, notes, image_url, google_place_id, google_ftid, osm_id, website, phone, transport_mode,
+      mcp_import_batch_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `,
+    )
+    .run(
+      tripId,
+      name,
+      description || null,
+      lat ?? null,
+      lng ?? null,
+      address || null,
+      category_id || null,
+      price ?? null,
+      currency || null,
+      place_time || null,
+      end_time || null,
+      duration_minutes ?? 60,
+      notes || null,
+      image_url || null,
+      google_place_id || null,
+      google_ftid || null,
+      osm_id || null,
+      website || null,
+      phone || null,
+      transport_mode || 'walking',
+      mcp_import_batch_id || null,
+    );
+
+  const placeId = result.lastInsertRowid;
+
+  if (tags && tags.length > 0) {
+    const insertTag = asyncDb.prepare('INSERT OR IGNORE INTO place_tags (place_id, tag_id) VALUES (?, ?)');
+    for (const tagId of tags) {
+      await insertTag.run(placeId, tagId);
+    }
+  }
+
+  return getPlaceWithTagsAsync(Number(placeId));
+}
+
 // ---------------------------------------------------------------------------
 // Get single place
 // ---------------------------------------------------------------------------
@@ -240,6 +369,12 @@ export function getPlace(tripId: string, placeId: string) {
   const placeCheck = db.prepare('SELECT id FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId);
   if (!placeCheck) return null;
   return getPlaceWithTags(placeId);
+}
+
+export async function getPlaceAsync(tripId: string, placeId: string) {
+  const placeCheck = await asyncDb.prepare('SELECT id FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId);
+  if (!placeCheck) return null;
+  return getPlaceWithTagsAsync(placeId);
 }
 
 // ---------------------------------------------------------------------------
@@ -361,6 +496,100 @@ export function updatePlace(
   return getPlaceWithTags(placeId);
 }
 
+export async function updatePlaceAsync(
+  tripId: string,
+  placeId: string,
+  body: Parameters<typeof updatePlace>[2],
+) {
+  const existingPlace = await asyncDb
+    .prepare('SELECT * FROM places WHERE id = ? AND trip_id = ?')
+    .get<Place>(placeId, tripId);
+  if (!existingPlace) return null;
+
+  const {
+    name,
+    description,
+    lat,
+    lng,
+    address,
+    category_id,
+    price,
+    currency,
+    place_time,
+    end_time,
+    duration_minutes,
+    notes,
+    image_url,
+    google_place_id,
+    google_ftid,
+    osm_id,
+    website,
+    phone,
+    transport_mode,
+    tags,
+  } = body;
+
+  await asyncDb.prepare(
+    `
+    UPDATE places SET
+      name = ?,
+      description = ?,
+      lat = ?,
+      lng = ?,
+      address = ?,
+      category_id = ?,
+      price = ?,
+      currency = ?,
+      place_time = ?,
+      end_time = ?,
+      duration_minutes = ?,
+      notes = ?,
+      image_url = ?,
+      google_place_id = ?,
+      google_ftid = ?,
+      osm_id = ?,
+      website = ?,
+      phone = ?,
+      transport_mode = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `,
+  ).run(
+    name || existingPlace.name,
+    description !== undefined ? description : existingPlace.description,
+    lat !== undefined ? lat : existingPlace.lat,
+    lng !== undefined ? lng : existingPlace.lng,
+    address !== undefined ? address : existingPlace.address,
+    category_id !== undefined ? category_id : existingPlace.category_id,
+    price !== undefined ? price : existingPlace.price,
+    currency || existingPlace.currency,
+    place_time !== undefined ? place_time : existingPlace.place_time,
+    end_time !== undefined ? end_time : existingPlace.end_time,
+    duration_minutes || existingPlace.duration_minutes,
+    notes !== undefined ? notes : existingPlace.notes,
+    image_url !== undefined ? image_url : existingPlace.image_url,
+    google_place_id !== undefined ? google_place_id : existingPlace.google_place_id,
+    google_ftid !== undefined ? google_ftid : existingPlace.google_ftid,
+    osm_id !== undefined ? osm_id : existingPlace.osm_id,
+    website !== undefined ? website : existingPlace.website,
+    phone !== undefined ? phone : existingPlace.phone,
+    transport_mode || existingPlace.transport_mode,
+    placeId,
+  );
+
+  if (tags !== undefined) {
+    await asyncDb.prepare('DELETE FROM place_tags WHERE place_id = ?').run(placeId);
+    if (tags.length > 0) {
+      const insertTag = asyncDb.prepare('INSERT OR IGNORE INTO place_tags (place_id, tag_id) VALUES (?, ?)');
+      for (const tagId of tags) {
+        await insertTag.run(placeId, tagId);
+      }
+    }
+  }
+
+  return getPlaceWithTagsAsync(placeId);
+}
+
 // ---------------------------------------------------------------------------
 // Delete place
 // ---------------------------------------------------------------------------
@@ -372,6 +601,15 @@ export function deletePlace(tripId: string, placeId: string): boolean {
   if (!place) return false;
   db.prepare('DELETE FROM places WHERE id = ?').run(placeId);
   reclaimPhotoCache(place.google_place_id, place.image_url);
+  return true;
+}
+
+export async function deletePlaceAsync(tripId: string, placeId: string): Promise<boolean> {
+  const place = await asyncDb
+    .prepare('SELECT google_place_id, image_url FROM places WHERE id = ? AND trip_id = ?')
+    .get<{ google_place_id: string | null; image_url: string | null }>(placeId, tripId);
+  if (!place) return false;
+  await asyncDb.prepare('DELETE FROM places WHERE id = ?').run(placeId);
   return true;
 }
 
@@ -395,6 +633,22 @@ export function deletePlacesMany(tripId: string, ids: number[]): number[] {
   run(ids);
   // Reclaim after the transaction commits so isReferenced() sees the final place set.
   for (const row of reclaimable) reclaimPhotoCache(row.google_place_id, row.image_url);
+  return deleted;
+}
+
+export async function deletePlacesManyAsync(tripId: string, ids: number[]): Promise<number[]> {
+  if (ids.length === 0) return [];
+  const selectStmt = asyncDb.prepare('SELECT id FROM places WHERE id = ? AND trip_id = ?');
+  const deleteStmt = asyncDb.prepare('DELETE FROM places WHERE id = ?');
+  const deleted: number[] = [];
+  await asyncDb.transaction(async (list: number[]) => {
+    for (const id of list) {
+      const row = await selectStmt.get<{ id: number }>(id, tripId);
+      if (!row) continue;
+      await deleteStmt.run(id);
+      deleted.push(id);
+    }
+  })(ids);
   return deleted;
 }
 

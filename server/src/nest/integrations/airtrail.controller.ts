@@ -1,5 +1,5 @@
 import {
-  getConnectionSettings,
+  getConnectionSettingsAsync,
   getConnectionStatus,
   getFlightsForPicker,
   saveSettings,
@@ -29,8 +29,8 @@ import type { Request } from 'express';
 @UseGuards(AirtrailAddonGuard, JwtAuthGuard)
 export class AirtrailController {
   @Get('settings')
-  getSettings(@CurrentUser() user: User) {
-    return getConnectionSettings(user.id);
+  async getSettings(@CurrentUser() user: User) {
+    return getConnectionSettingsAsync(user.id);
   }
 
   @Put('settings')

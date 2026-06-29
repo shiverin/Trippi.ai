@@ -42,7 +42,7 @@ export class ImmichMemoriesController {
       return;
     }
     if (typeof auto_upload === 'boolean') {
-      this.memories.immichSetAutoUpload(user.id, auto_upload);
+      await this.memories.immichSetAutoUpload(user.id, auto_upload);
     }
     if (result.warning) {
       res.json({ success: true, warning: result.warning });

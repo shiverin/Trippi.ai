@@ -1,18 +1,17 @@
-import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
-import { db } from '../../db/database';
+import { asyncDb, canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
 import { createAssignment, dayExists } from '../../services/assignmentService';
 import { isDemoUser } from '../../services/authService';
-import { listCategories } from '../../services/categoryService';
+import { listCategoriesAsync } from '../../services/categoryService';
 import { onPlaceDeleted } from '../../services/journeyService';
 import { searchPlaces } from '../../services/mapsService';
 import {
-  deletePlacesMany,
+  deletePlacesManyAsync,
   importGoogleList,
   importNaverList,
-  listPlaces,
-  createPlace,
-  updatePlace,
-  deletePlace,
+  listPlacesAsync,
+  createPlaceAsync,
+  updatePlaceAsync,
+  deletePlaceAsync,
 } from '../../services/placeService';
 import { canRead, canWrite } from '../scopes';
 import {
@@ -99,8 +98,8 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
-        const place = createPlace(String(tripId), {
+        if (!(await hasTripPermission('place_edit', tripId, userId))) return permissionDenied();
+        const place = await createPlaceAsync(String(tripId), {
           name,
           description,
           lat,
@@ -116,6 +115,9 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
           price,
           currency,
         });
+        if (!place) {
+          return { content: [{ type: 'text' as const, text: 'Failed to create place.' }], isError: true };
+        }
         safeBroadcast(tripId, 'place:created', { place });
         return ok({ place });
       },
@@ -184,12 +186,12 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
-        if (!dayExists(dayId, tripId))
+        if (!(await hasTripPermission('place_edit', tripId, userId))) return permissionDenied();
+        if (!(await dayExists(dayId, tripId)))
           return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
         try {
-          const run = db.transaction(() => {
-            const place = createPlace(String(tripId), {
+          const result = await asyncDb.transaction(async () => {
+            const place = await createPlaceAsync(String(tripId), {
               name,
               description,
               lat,
@@ -205,10 +207,10 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
               price,
               currency,
             });
-            const assignment = createAssignment(dayId, place.id, assignment_notes ?? null);
+            if (!place) throw new Error('Failed to create place');
+            const assignment = await createAssignment(dayId, place.id, assignment_notes ?? null);
             return { place, assignment };
-          });
-          const result = run();
+          })();
           safeBroadcast(tripId, 'place:created', { place: result.place });
           safeBroadcast(tripId, 'assignment:created', { assignment: result.assignment });
           return ok(result);
@@ -277,8 +279,8 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
-        const place = updatePlace(String(tripId), String(placeId), {
+        if (!(await hasTripPermission('place_edit', tripId, userId))) return permissionDenied();
+        const place = await updatePlaceAsync(String(tripId), String(placeId), {
           name,
           description,
           lat,
@@ -318,8 +320,8 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       async ({ tripId, placeId }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
-        const deleted = deletePlace(String(tripId), String(placeId));
+        if (!(await hasTripPermission('place_edit', tripId, userId))) return permissionDenied();
+        const deleted = await deletePlaceAsync(String(tripId), String(placeId));
         if (!deleted) return { content: [{ type: 'text' as const, text: 'Place not found.' }], isError: true };
         safeBroadcast(tripId, 'place:deleted', { placeId });
         return ok({ success: true });
@@ -349,7 +351,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       },
       async ({ tripId, search, category, tag, assignment }) => {
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        const places = listPlaces(String(tripId), { search, category, tag, assignment });
+        const places = await listPlacesAsync(String(tripId), { search, category, tag, assignment });
         return ok({ places });
       },
     );
@@ -366,7 +368,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async () => {
-        const categories = listCategories();
+        const categories = await listCategoriesAsync();
         return ok({ categories });
       },
     );
@@ -415,7 +417,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       async ({ tripId, url, source }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
+        if (!(await hasTripPermission('place_edit', tripId, userId))) return permissionDenied();
 
         const result =
           source === 'google-list'
@@ -453,13 +455,13 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       async ({ tripId, placeIds }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
+        if (!(await hasTripPermission('place_edit', tripId, userId))) return permissionDenied();
 
-        const deleted = deletePlacesMany(String(tripId), placeIds);
+        const deleted = await deletePlacesManyAsync(String(tripId), placeIds);
         for (const id of deleted) {
           safeBroadcast(tripId, 'place:deleted', { placeId: id });
           try {
-            onPlaceDeleted(id);
+            await onPlaceDeleted(id);
           } catch {}
         }
         return ok({ deleted, count: deleted.length });

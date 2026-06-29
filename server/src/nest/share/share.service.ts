@@ -21,18 +21,31 @@ export class ShareService {
   }
 
   createOrUpdate(tripId: string, userId: number, permissions: Parameters<typeof svc.createOrUpdateShareLink>[2]) {
-    return svc.createOrUpdateShareLink(tripId, userId, permissions);
+    const fn =
+      (svc as typeof svc & { createOrUpdateShareLinkAsync?: typeof svc.createOrUpdateShareLink })
+        .createOrUpdateShareLinkAsync ?? svc.createOrUpdateShareLink;
+    return fn(tripId, userId, permissions);
   }
   get(tripId: string) {
-    return svc.getShareLink(tripId);
+    const fn = (svc as typeof svc & { getShareLinkAsync?: typeof svc.getShareLink }).getShareLinkAsync ?? svc.getShareLink;
+    return fn(tripId);
   }
   remove(tripId: string) {
-    return svc.deleteShareLink(tripId);
+    const fn =
+      (svc as typeof svc & { deleteShareLinkAsync?: typeof svc.deleteShareLink }).deleteShareLinkAsync ??
+      svc.deleteShareLink;
+    return fn(tripId);
   }
   getSharedTripData(token: string) {
-    return svc.getSharedTripData(token);
+    const fn =
+      (svc as typeof svc & { getSharedTripDataAsync?: typeof svc.getSharedTripData }).getSharedTripDataAsync ??
+      svc.getSharedTripData;
+    return fn(token);
   }
   getSharedPlacePhotoPath(token: string, placeId: string) {
-    return svc.getSharedPlacePhotoPath(token, placeId);
+    const fn =
+      (svc as typeof svc & { getSharedPlacePhotoPathAsync?: typeof svc.getSharedPlacePhotoPath })
+        .getSharedPlacePhotoPathAsync ?? svc.getSharedPlacePhotoPath;
+    return fn(token, placeId);
   }
 }

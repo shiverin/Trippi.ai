@@ -1,5 +1,5 @@
 import { isDemoEmail } from '../../services/demo';
-import { MAX_FILE_SIZE, BLOCKED_EXTENSIONS, filesDir, getAllowedExtensions } from '../../services/fileService';
+import { MAX_FILE_SIZE, BLOCKED_EXTENSIONS, filesDir, getAllowedExtensionsAsync } from '../../services/fileService';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -46,13 +46,15 @@ const UPLOAD = {
       cb(err, false);
     };
     if (BLOCKED_EXTENSIONS.includes(ext) || file.mimetype.includes('svg')) return reject();
-    const allowed = getAllowedExtensions()
-      .split(',')
-      .map((e) => e.trim().toLowerCase());
-    const fileExt = ext.replace('.', '');
-    if (allowed.includes(fileExt) || (allowed.includes('*') && !BLOCKED_EXTENSIONS.includes(ext)))
-      return cb(null, true);
-    reject();
+    void getAllowedExtensionsAsync()
+      .then((allowedCsv) => {
+        const allowed = allowedCsv.split(',').map((e) => e.trim().toLowerCase());
+        const fileExt = ext.replace('.', '');
+        if (allowed.includes(fileExt) || (allowed.includes('*') && !BLOCKED_EXTENSIONS.includes(ext)))
+          return cb(null, true);
+        reject();
+      })
+      .catch(reject);
   },
 };
 
@@ -82,7 +84,7 @@ export class FilesController {
   @Get()
   async list(@CurrentUser() user: User, @Param('tripId') tripId: string, @Query('trash') trash?: string) {
     await this.requireTrip(tripId, user);
-    return { files: this.files.listFiles(tripId, trash === 'true') };
+    return { files: await this.files.listFiles(tripId, trash === 'true') };
   }
 
   @Post()
@@ -107,7 +109,7 @@ export class FilesController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
-    const created = this.files.createFile(tripId, file, user.id, {
+    const created = await this.files.createFile(tripId, file, user.id, {
       place_id: body.place_id,
       description: body.description,
       reservation_id: body.reservation_id,
@@ -128,11 +130,11 @@ export class FilesController {
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission to edit files' }, 403);
     }
-    const file = this.files.getFileById(id, tripId);
+    const file = await this.files.getFileById(id, tripId);
     if (!file) {
       throw new HttpException({ error: 'File not found' }, 404);
     }
-    const updated = this.files.updateFile(id, file, {
+    const updated = await this.files.updateFile(id, file, {
       description: body.description,
       place_id: body.place_id,
       reservation_id: body.reservation_id,
@@ -152,11 +154,11 @@ export class FilesController {
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
-    const file = this.files.getFileById(id, tripId);
+    const file = await this.files.getFileById(id, tripId);
     if (!file) {
       throw new HttpException({ error: 'File not found' }, 404);
     }
-    const updated = this.files.toggleStarred(id, file.starred);
+    const updated = await this.files.toggleStarred(id, file.starred);
     this.files.broadcast(tripId, 'file:updated', { file: updated }, socketId);
     return { file: updated };
   }
@@ -182,7 +184,7 @@ export class FilesController {
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
-    const file = this.files.getDeletedFile(id, tripId);
+    const file = await this.files.getDeletedFile(id, tripId);
     if (!file) {
       throw new HttpException({ error: 'File not found in trash' }, 404);
     }
@@ -202,11 +204,11 @@ export class FilesController {
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission to delete files' }, 403);
     }
-    const file = this.files.getFileById(id, tripId);
+    const file = await this.files.getFileById(id, tripId);
     if (!file) {
       throw new HttpException({ error: 'File not found' }, 404);
     }
-    this.files.softDeleteFile(id);
+    await this.files.softDeleteFile(id);
     this.files.broadcast(tripId, 'file:deleted', { fileId: Number(id) }, socketId);
     return { success: true };
   }
@@ -223,11 +225,11 @@ export class FilesController {
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
-    const file = this.files.getDeletedFile(id, tripId);
+    const file = await this.files.getDeletedFile(id, tripId);
     if (!file) {
       throw new HttpException({ error: 'File not found in trash' }, 404);
     }
-    const restored = this.files.restoreFile(id);
+    const restored = await this.files.restoreFile(id);
     this.files.broadcast(tripId, 'file:created', { file: restored }, socketId);
     return { file: restored };
   }
@@ -244,11 +246,11 @@ export class FilesController {
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
-    const file = this.files.getFileById(id, tripId);
+    const file = await this.files.getFileById(id, tripId);
     if (!file) {
       throw new HttpException({ error: 'File not found' }, 404);
     }
-    const links = this.files.createFileLink(id, {
+    const links = await this.files.createFileLink(id, {
       reservation_id: body.reservation_id,
       assignment_id: body.assignment_id,
       place_id: body.place_id,
@@ -267,13 +269,13 @@ export class FilesController {
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
-    this.files.deleteFileLink(linkId, id);
+    await this.files.deleteFileLink(linkId, id);
     return { success: true };
   }
 
   @Get(':id/links')
   async links(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
     await this.requireTrip(tripId, user);
-    return { links: this.files.getFileLinks(id) };
+    return { links: await this.files.getFileLinks(id) };
   }
 }

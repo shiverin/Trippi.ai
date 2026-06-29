@@ -27,9 +27,9 @@ async function thrown(fn: () => unknown): Promise<{ status: number; body: unknow
 }
 
 describe('AtlasController (parity with the legacy /api/addons/atlas route)', () => {
-  it('GET /stats delegates with the user id', () => {
+  it('GET /stats delegates with the user id', async () => {
     const stats = vi.fn().mockReturnValue({ countries: 3 });
-    expect(makeController({ stats }).stats(user)).toEqual({ countries: 3 });
+    expect(await makeController({ stats }).stats(user)).toEqual({ countries: 3 });
     expect(stats).toHaveBeenCalledWith(8);
   });
 
@@ -53,29 +53,29 @@ describe('AtlasController (parity with the legacy /api/addons/atlas route)', () 
     });
   });
 
-  it('GET /countries/geo delegates to the service', () => {
+  it('GET /countries/geo delegates to the service', async () => {
     const fc = { type: 'FeatureCollection', features: [{ id: 'NO' }] };
     const countryGeo = vi.fn().mockReturnValue(fc);
-    expect(makeController({ countryGeo }).countryGeo()).toBe(fc);
+    expect(await makeController({ countryGeo }).countryGeo()).toBe(fc);
     expect(countryGeo).toHaveBeenCalledWith();
   });
 
   describe('country', () => {
-    it('GET /country/:code upper-cases the code', () => {
+    it('GET /country/:code upper-cases the code', async () => {
       const countryPlaces = vi.fn().mockReturnValue([]);
-      makeController({ countryPlaces }).countryPlaces(user, 'de');
+      await makeController({ countryPlaces }).countryPlaces(user, 'de');
       expect(countryPlaces).toHaveBeenCalledWith(8, 'DE');
     });
 
-    it('POST mark returns success and upper-cases', () => {
+    it('POST mark returns success and upper-cases', async () => {
       const markCountry = vi.fn();
-      expect(makeController({ markCountry }).markCountry(user, 'de')).toEqual({ success: true });
+      expect(await makeController({ markCountry }).markCountry(user, 'de')).toEqual({ success: true });
       expect(markCountry).toHaveBeenCalledWith(8, 'DE');
     });
 
-    it('DELETE mark returns success', () => {
+    it('DELETE mark returns success', async () => {
       const unmarkCountry = vi.fn();
-      expect(makeController({ unmarkCountry }).unmarkCountry(user, 'FR')).toEqual({ success: true });
+      expect(await makeController({ unmarkCountry }).unmarkCountry(user, 'FR')).toEqual({ success: true });
     });
   });
 
@@ -86,17 +86,17 @@ describe('AtlasController (parity with the legacy /api/addons/atlas route)', () 
         expect(r).toEqual({ status: 400, body: { error: 'name and country_code are required' } }));
     });
 
-    it('marks a region, upper-casing both codes', () => {
+    it('marks a region, upper-casing both codes', async () => {
       const markRegion = vi.fn();
-      expect(makeController({ markRegion }).markRegion(user, 'by', 'Bavaria', 'de')).toEqual({ success: true });
+      expect(await makeController({ markRegion }).markRegion(user, 'by', 'Bavaria', 'de')).toEqual({ success: true });
       expect(markRegion).toHaveBeenCalledWith(8, 'BY', 'Bavaria', 'DE');
     });
   });
 
   describe('bucket list', () => {
-    it('GET wraps the items', () => {
+    it('GET wraps the items', async () => {
       const bucketList = vi.fn().mockReturnValue([{ id: 1 }]);
-      expect(makeController({ bucketList }).bucketList(user)).toEqual({ items: [{ id: 1 }] });
+      expect(await makeController({ bucketList }).bucketList(user)).toEqual({ items: [{ id: 1 }] });
     });
 
     it('400 on create with a blank name', () => {
@@ -105,9 +105,9 @@ describe('AtlasController (parity with the legacy /api/addons/atlas route)', () 
         expect(r).toEqual({ status: 400, body: { error: 'Name is required' } }));
     });
 
-    it('201-shape create returns { item }', () => {
+    it('201-shape create returns { item }', async () => {
       const createBucketItem = vi.fn().mockReturnValue({ id: 1, name: 'Tokyo' });
-      expect(makeController({ createBucketItem }).createBucketItem(user, { name: 'Tokyo', lat: 35, lng: 139 }))
+      expect(await makeController({ createBucketItem }).createBucketItem(user, { name: 'Tokyo', lat: 35, lng: 139 }))
         .toEqual({ item: { id: 1, name: 'Tokyo' } });
       expect(createBucketItem).toHaveBeenCalledWith(8, { name: 'Tokyo', lat: 35, lng: 139, country_code: undefined, notes: undefined, target_date: undefined });
     });
@@ -118,9 +118,9 @@ describe('AtlasController (parity with the legacy /api/addons/atlas route)', () 
         expect(r).toEqual({ status: 404, body: { error: 'Item not found' } }));
     });
 
-    it('updates an existing item', () => {
+    it('updates an existing item', async () => {
       const updateBucketItem = vi.fn().mockReturnValue({ id: 1, name: 'Kyoto' });
-      expect(makeController({ updateBucketItem }).updateBucketItem(user, '1', { name: 'Kyoto' }))
+      expect(await makeController({ updateBucketItem }).updateBucketItem(user, '1', { name: 'Kyoto' }))
         .toEqual({ item: { id: 1, name: 'Kyoto' } });
     });
 
@@ -130,9 +130,9 @@ describe('AtlasController (parity with the legacy /api/addons/atlas route)', () 
         expect(r).toEqual({ status: 404, body: { error: 'Item not found' } }));
     });
 
-    it('deletes an existing item', () => {
+    it('deletes an existing item', async () => {
       const deleteBucketItem = vi.fn().mockReturnValue(true);
-      expect(makeController({ deleteBucketItem }).deleteBucketItem(user, '1')).toEqual({ success: true });
+      expect(await makeController({ deleteBucketItem }).deleteBucketItem(user, '1')).toEqual({ success: true });
     });
   });
 });

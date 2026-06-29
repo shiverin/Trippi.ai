@@ -51,7 +51,7 @@ export class DayNotesController {
   @Get()
   async list(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('dayId') dayId: string) {
     await this.requireTrip(tripId, user);
-    return { notes: this.notes.list(dayId, tripId) };
+    return { notes: await this.notes.list(dayId, tripId) };
   }
 
   @Post()
@@ -65,13 +65,13 @@ export class DayNotesController {
     validateLengths(body);
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.notes.dayExists(dayId, tripId)) {
+    if (!(await this.notes.dayExists(dayId, tripId))) {
       throw new HttpException({ error: 'Day not found' }, 404);
     }
     if (!body.text?.trim()) {
       throw new HttpException({ error: 'Text required' }, 400);
     }
-    const note = this.notes.create(dayId, tripId, body.text, body.time, body.icon, body.sort_order);
+    const note = await this.notes.create(dayId, tripId, body.text, body.time, body.icon, body.sort_order);
     this.notes.broadcast(tripId, 'dayNote:created', { dayId: Number(dayId), note }, socketId);
     return { note };
   }
@@ -88,11 +88,11 @@ export class DayNotesController {
     validateLengths(body);
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const current = this.notes.getNote(id, dayId, tripId);
+    const current = await this.notes.getNote(id, dayId, tripId);
     if (!current) {
       throw new HttpException({ error: 'Note not found' }, 404);
     }
-    const note = this.notes.update(id, current as never, {
+    const note = await this.notes.update(id, current as never, {
       text: body.text,
       time: body.time,
       icon: body.icon,
@@ -112,10 +112,10 @@ export class DayNotesController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.notes.getNote(id, dayId, tripId)) {
+    if (!(await this.notes.getNote(id, dayId, tripId))) {
       throw new HttpException({ error: 'Note not found' }, 404);
     }
-    this.notes.remove(id);
+    await this.notes.remove(id);
     this.notes.broadcast(tripId, 'dayNote:deleted', { noteId: Number(id), dayId: Number(dayId) }, socketId);
     return { success: true };
   }

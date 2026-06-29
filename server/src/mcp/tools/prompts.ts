@@ -1,13 +1,13 @@
 import { ADDON_IDS } from '../../addons';
 import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
-import { isAddonEnabled } from '../../services/adminService';
+import { isAddonEnabledAsync } from '../../services/adminService';
 import { listItems as listPackingItems } from '../../services/packingService';
 import { getTripSummary } from '../../services/tripService';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export function registerMcpPrompts(server: McpServer, _userId: number, isStaticToken = false): void {
+export async function registerMcpPrompts(server: McpServer, _userId: number, isStaticToken = false): Promise<void> {
   if (isStaticToken) {
     server.registerPrompt(
       'token_auth_notice',
@@ -45,7 +45,7 @@ export function registerMcpPrompts(server: McpServer, _userId: number, isStaticT
       if (!(await canAccessTrip(tripId, userId))) {
         return { messages: [{ role: 'user', content: { type: 'text', text: 'Trip not found or access denied.' } }] };
       }
-      const summary = getTripSummary(tripId);
+      const summary = await getTripSummary(tripId);
       if (!summary) {
         return { messages: [{ role: 'user', content: { type: 'text', text: 'Trip not found.' } }] };
       }
@@ -67,7 +67,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
     },
   );
 
-  if (isAddonEnabled(ADDON_IDS.PACKING))
+  if (await isAddonEnabledAsync(ADDON_IDS.PACKING))
     server.registerPrompt(
       'packing-list',
       {
@@ -81,7 +81,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
         if (!(await canAccessTrip(tripId, userId))) {
           return { messages: [{ role: 'user', content: { type: 'text', text: 'Trip not found or access denied.' } }] };
         }
-        const items = listPackingItems(tripId);
+        const items = await listPackingItems(tripId);
         if (!items.length) {
           return {
             messages: [{ role: 'user', content: { type: 'text', text: 'No packing items found for this trip.' } }],
@@ -99,7 +99,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
               `## ${cat}\n${(items as any[]).map((i: any) => `- [${i.checked ? 'x' : ' '}] ${i.name}`).join('\n')}`,
           )
           .join('\n\n');
-        const { trip } = getTripSummary(tripId) || {};
+        const { trip } = (await getTripSummary(tripId)) || {};
         return {
           description: `Packing list for "${trip?.title || tripId}"`,
           messages: [
@@ -115,7 +115,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
       },
     );
 
-  if (isAddonEnabled(ADDON_IDS.BUDGET))
+  if (await isAddonEnabledAsync(ADDON_IDS.BUDGET))
     server.registerPrompt(
       'budget-overview',
       {
@@ -129,7 +129,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
         if (!(await canAccessTrip(tripId, userId))) {
           return { messages: [{ role: 'user', content: { type: 'text', text: 'Trip not found or access denied.' } }] };
         }
-        const summary = getTripSummary(tripId);
+        const summary = await getTripSummary(tripId);
         if (!summary) {
           return { messages: [{ role: 'user', content: { type: 'text', text: 'Trip not found.' } }] };
         }

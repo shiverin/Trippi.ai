@@ -1,9 +1,9 @@
-import { db } from '../../db/database';
+import { asyncDb } from '../../db/asyncDatabase';
 import { broadcast } from '../../websocket';
 import { createReservation } from '../reservationService';
 import { AirtrailRequestError, listFlights } from './airtrailClient';
 import { canonicalHash, mapFlightToReservation } from './airtrailMapper';
-import { getAirtrailCredentials } from './airtrailService';
+import { getAirtrailCredentialsAsync } from './airtrailService';
 import type { AirtrailImportResult } from '@trippi/shared';
 
 interface ExistingFlightRow {
@@ -47,7 +47,7 @@ export async function importAirtrailFlights(
   flightIds: string[],
   socketId: string | undefined,
 ): Promise<AirtrailImportResult> {
-  const creds = getAirtrailCredentials(userId);
+  const creds = await getAirtrailCredentialsAsync(userId);
   if (!creds) throw new AirtrailRequestError('AirTrail is not connected', 400);
 
   const wanted = new Set(flightIds.map(String));
@@ -57,24 +57,24 @@ export async function importAirtrailFlights(
 
   const linkedIds = new Set(
     (
-      db
+      await asyncDb
         .prepare("SELECT external_id FROM reservations WHERE trip_id = ? AND external_source = 'airtrail'")
-        .all(tripId) as {
+        .all<{
         external_id: string | null;
-      }[]
+      }>(tripId)
     )
       .map((r) => r.external_id)
       .filter((v): v is string => !!v),
   );
 
-  const existing = db
+  const existing = await asyncDb
     .prepare(
       `SELECT r.id, r.reservation_time, r.metadata,
               (SELECT code FROM reservation_endpoints WHERE reservation_id = r.id AND role = 'from' LIMIT 1) AS from_code,
               (SELECT code FROM reservation_endpoints WHERE reservation_id = r.id AND role = 'to' LIMIT 1) AS to_code
        FROM reservations r WHERE r.trip_id = ? AND r.type = 'flight'`,
     )
-    .all(tripId) as ExistingFlightRow[];
+    .all<ExistingFlightRow>(tripId);
 
   const existingSigs = new Set<string>();
   for (const row of existing) {
@@ -108,12 +108,14 @@ export async function importAirtrailFlights(
     }
 
     try {
-      const { reservation } = createReservation(tripId, mapped as any);
+      const { reservation } = await createReservation(tripId, mapped as any);
       const now = new Date().toISOString();
-      db.prepare(
-        `UPDATE reservations SET external_source = 'airtrail', external_id = ?, external_owner_user_id = ?,
+      await asyncDb
+        .prepare(
+          `UPDATE reservations SET external_source = 'airtrail', external_id = ?, external_owner_user_id = ?,
                 sync_enabled = 1, external_hash = ?, external_synced_at = ? WHERE id = ?`,
-      ).run(fid, userId, canonicalHash(flight), now, reservation.id);
+        )
+        .run(fid, userId, canonicalHash(flight), now, reservation.id);
 
       // Carry the linkage on the broadcast payload so members see the badge live.
       reservation.external_source = 'airtrail';

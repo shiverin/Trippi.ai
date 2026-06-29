@@ -1,4 +1,4 @@
-import { db } from '../../db/database';
+import { asyncDb } from '../../db/asyncDatabase';
 import * as svc from '../../services/budgetService';
 import { getRates } from '../../services/exchangeRateService';
 import { checkPermission } from '../../services/permissions';
@@ -54,12 +54,12 @@ export class BudgetService {
     const cur = (data.currency || '').toUpperCase();
     if (!cur) return; // currency not being set in this request
     if (existingItemId != null) {
-      const existing = db.prepare('SELECT currency FROM budget_items WHERE id = ?').get(existingItemId) as
-        | { currency?: string }
-        | undefined;
+      const existing = await asyncDb
+        .prepare('SELECT currency FROM budget_items WHERE id = ?')
+        .get<{ currency?: string }>(existingItemId);
       if (existing && (existing.currency || '').toUpperCase() === cur) return; // currency unchanged
     }
-    const trip = db.prepare('SELECT currency FROM trips WHERE id = ?').get(tripId) as { currency?: string } | undefined;
+    const trip = await asyncDb.prepare('SELECT currency FROM trips WHERE id = ?').get<{ currency?: string }>(tripId);
     const tripCur = (trip?.currency || 'EUR').toUpperCase();
     if (cur === tripCur) return; // same as the trip currency → no conversion to freeze
     const rates = await getRates(tripCur);
@@ -77,7 +77,7 @@ export class BudgetService {
     return svc.updateBudgetItem(id, tripId, data);
   }
 
-  remove(id: string, tripId: string): boolean {
+  remove(id: string, tripId: string) {
     return svc.deleteBudgetItem(id, tripId);
   }
 
@@ -105,16 +105,16 @@ export class BudgetService {
     return svc.updateSettlement(id, tripId, data);
   }
 
-  deleteSettlement(id: string, tripId: string): boolean {
+  deleteSettlement(id: string, tripId: string) {
     return svc.deleteSettlement(id, tripId);
   }
 
-  reorderItems(tripId: string, orderedIds: number[]): void {
-    svc.reorderBudgetItems(tripId, orderedIds);
+  reorderItems(tripId: string, orderedIds: number[]) {
+    return svc.reorderBudgetItems(tripId, orderedIds);
   }
 
-  reorderCategories(tripId: string, orderedCategories: string[]): void {
-    svc.reorderBudgetCategories(tripId, orderedCategories);
+  reorderCategories(tripId: string, orderedCategories: string[]) {
+    return svc.reorderBudgetCategories(tripId, orderedCategories);
   }
 
   /**
@@ -122,16 +122,21 @@ export class BudgetService {
    * total_price changes, write it into the reservation's metadata and broadcast
    * reservation:updated. Non-fatal — a failure here never breaks the budget update.
    */
-  syncReservationPrice(tripId: string, reservationId: number, totalPrice: number, socketId: string | undefined): void {
+  async syncReservationPrice(
+    tripId: string,
+    reservationId: number,
+    totalPrice: number,
+    socketId: string | undefined,
+  ): Promise<void> {
     try {
-      const reservation = db
+      const reservation = await asyncDb
         .prepare('SELECT id, metadata FROM reservations WHERE id = ? AND trip_id = ?')
-        .get(reservationId, tripId) as { id: number; metadata: string | null } | undefined;
+        .get<{ id: number; metadata: string | null }>(reservationId, tripId);
       if (!reservation) return;
       const meta = reservation.metadata ? JSON.parse(reservation.metadata) : {};
       meta.price = String(totalPrice);
-      db.prepare('UPDATE reservations SET metadata = ? WHERE id = ?').run(JSON.stringify(meta), reservation.id);
-      const updatedRes = db.prepare('SELECT * FROM reservations WHERE id = ?').get(reservation.id);
+      await asyncDb.prepare('UPDATE reservations SET metadata = ? WHERE id = ?').run(JSON.stringify(meta), reservation.id);
+      const updatedRes = await asyncDb.prepare('SELECT * FROM reservations WHERE id = ?').get(reservation.id);
       broadcast(tripId, 'reservation:updated', { reservation: updatedRes }, socketId);
     } catch (err) {
       console.error('[budget] Failed to sync price to reservation:', err);

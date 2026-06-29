@@ -44,7 +44,9 @@ const { isAddonEnabledMock } = vi.hoisted(() => {
 });
 vi.mock('../../../src/services/adminService', () => ({
   isAddonEnabled: isAddonEnabledMock,
+  isAddonEnabledAsync: isAddonEnabledMock,
   getCollabFeatures: vi.fn().mockReturnValue({ chat: true, notes: true, polls: true, whatsnext: true }),
+  getCollabFeaturesAsync: vi.fn().mockResolvedValue({ chat: true, notes: true, polls: true, whatsnext: true }),
 }));
 
 const { mockGetTripSummary } = vi.hoisted(() => ({
@@ -107,9 +109,9 @@ afterAll(() => {
 });
 
 /** Build a fresh McpServer with prompts registered for the given userId. */
-function buildServer(userId: number, opts: { isStaticToken?: boolean } = {}): McpServer {
+async function buildServer(userId: number, opts: { isStaticToken?: boolean } = {}): Promise<McpServer> {
   const server = new McpServer({ name: 'trippi-test', version: '1.0.0' });
-  registerMcpPrompts(server, userId, opts.isStaticToken ?? false);
+  await registerMcpPrompts(server, userId, opts.isStaticToken ?? false);
   return server;
 }
 
@@ -146,7 +148,7 @@ async function invokePromptText(server: McpServer, name: string, args: Record<st
 describe('Prompt: token_auth_notice', () => {
   it('is registered and returns deprecation notice when isStaticToken=true', async () => {
     const { user } = createUser(testDb);
-    const server = buildServer(user.id, { isStaticToken: true });
+    const server = await buildServer(user.id, { isStaticToken: true });
     const names = listRegisteredPrompts(server);
     expect(names).toContain('token_auth_notice');
     const text = await invokePrompt(server, 'token_auth_notice', {});
@@ -156,7 +158,7 @@ describe('Prompt: token_auth_notice', () => {
 
   it('is NOT registered when isStaticToken=false', async () => {
     const { user } = createUser(testDb);
-    const server = buildServer(user.id, { isStaticToken: false });
+    const server = await buildServer(user.id, { isStaticToken: false });
     const names = listRegisteredPrompts(server);
     expect(names).not.toContain('token_auth_notice');
   });
@@ -169,7 +171,7 @@ describe('Prompt: token_auth_notice', () => {
 describe('Prompt: trip-summary', () => {
   it('is always registered regardless of addons', async () => {
     const { user } = createUser(testDb);
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     expect(listRegisteredPrompts(server)).toContain('trip-summary');
   });
 
@@ -178,7 +180,7 @@ describe('Prompt: trip-summary', () => {
     const { user: other } = createUser(testDb);
     const trip = createTrip(testDb, other.id, { title: 'Private Trip' });
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePrompt(server, 'trip-summary', { tripId: trip.id });
     expect(text.toLowerCase()).toContain('access denied');
   });
@@ -189,7 +191,7 @@ describe('Prompt: trip-summary', () => {
     const trip = createTrip(testDb, user.id, { title: 'Paris Trip', start_date: '2026-07-01', end_date: '2026-07-03' });
     addTripMember(testDb, trip.id, member.id);
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     // The prompt callback accesses packing/budget from getTripSummary which returns
     // object shapes; this verifies the trip is accessible and a response is produced.
     try {
@@ -210,7 +212,7 @@ describe('Prompt: trip-summary', () => {
     // Override mock to return null (covers lines 46-48 in prompts.ts)
     mockGetTripSummary.mockReturnValueOnce(null);
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePromptText(server, 'trip-summary', { tripId: trip.id });
     expect(text).toContain('Trip not found.');
   });
@@ -230,7 +232,7 @@ describe('Prompt: trip-summary', () => {
       collabNotes: [],
     });
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePromptText(server, 'trip-summary', { tripId: trip.id });
     expect(text).toContain('Untitled');
     expect(text).toContain('?');   // start/end date fallback
@@ -246,14 +248,14 @@ describe('Prompt: packing-list', () => {
   it('prompt is NOT registered when packing addon is disabled', async () => {
     isAddonEnabledMock.mockReturnValue(false);
     const { user } = createUser(testDb);
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     expect(listRegisteredPrompts(server)).not.toContain('packing-list');
   });
 
   it('prompt is registered when packing addon is enabled', async () => {
     // isAddonEnabledMock returns true by default
     const { user } = createUser(testDb);
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     expect(listRegisteredPrompts(server)).toContain('packing-list');
   });
 
@@ -262,7 +264,7 @@ describe('Prompt: packing-list', () => {
     const { user: other } = createUser(testDb);
     const trip = createTrip(testDb, other.id);
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePrompt(server, 'packing-list', { tripId: trip.id });
     expect(text.toLowerCase()).toContain('access denied');
   });
@@ -271,7 +273,7 @@ describe('Prompt: packing-list', () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Empty Trip' });
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePrompt(server, 'packing-list', { tripId: trip.id });
     expect(text).toContain('No packing items found');
   });
@@ -282,7 +284,7 @@ describe('Prompt: packing-list', () => {
     createPackingItem(testDb, trip.id, { name: 'Sunscreen', category: 'Essentials' });
     createPackingItem(testDb, trip.id, { name: 'Passport', category: 'Documents' });
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePrompt(server, 'packing-list', { tripId: trip.id });
     expect(text).toContain('Packing List');
     expect(text).toContain('Sunscreen');
@@ -301,7 +303,7 @@ describe('Prompt: packing-list', () => {
     // Null out the getTripSummary call inside packing-list (line 94: || {})
     mockGetTripSummary.mockReturnValueOnce(null);
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePromptText(server, 'packing-list', { tripId: trip.id });
     expect(text).toContain('Toothbrush');
     // Falls back to 'Trip' literal since trip?.title is undefined (getTripSummary null → || {})
@@ -317,13 +319,13 @@ describe('Prompt: budget-overview', () => {
   it('prompt is NOT registered when budget addon is disabled', async () => {
     isAddonEnabledMock.mockReturnValue(false);
     const { user } = createUser(testDb);
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     expect(listRegisteredPrompts(server)).not.toContain('budget-overview');
   });
 
   it('prompt is registered when budget addon is enabled', async () => {
     const { user } = createUser(testDb);
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     expect(listRegisteredPrompts(server)).toContain('budget-overview');
   });
 
@@ -332,7 +334,7 @@ describe('Prompt: budget-overview', () => {
     const { user: other } = createUser(testDb);
     const trip = createTrip(testDb, other.id);
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePrompt(server, 'budget-overview', { tripId: trip.id });
     expect(text.toLowerCase()).toContain('access denied');
   });
@@ -341,7 +343,7 @@ describe('Prompt: budget-overview', () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Budget Trip' });
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     // The prompt destructures budget from getTripSummary, which now returns
     // { items, item_count, total, currency } instead of an array.
     // prompts.ts calls budget?.reduce() expecting an array — known source discrepancy.
@@ -363,7 +365,7 @@ describe('Prompt: budget-overview', () => {
     createBudgetItem(testDb, trip.id, { name: 'Flight', category: 'Transport', total_price: 300 });
     createBudgetItem(testDb, trip.id, { name: 'Hotel', category: 'Accommodation', total_price: 500 });
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     try {
       const text = await invokePrompt(server, 'budget-overview', { tripId: trip.id });
       expect(text).toContain('Italy Trip');
@@ -380,7 +382,7 @@ describe('Prompt: budget-overview', () => {
     // Override mock to return null (covers lines 116-118 in prompts.ts)
     mockGetTripSummary.mockReturnValueOnce(null);
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePromptText(server, 'budget-overview', { tripId: trip.id });
     expect(text).toContain('Trip not found.');
   });
@@ -394,7 +396,7 @@ describe('Prompt: budget-overview', () => {
     createBudgetItem(testDb, trip.id, { name: 'Bus', category: 'Transport', total_price: 50 });
     createBudgetItem(testDb, trip.id, { name: 'Hotel', category: 'Accommodation', total_price: 300 });
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePromptText(server, 'budget-overview', { tripId: trip.id });
     expect(text).toContain('Budget Trip');
     expect(text).toContain('Transport');
@@ -407,7 +409,7 @@ describe('Prompt: budget-overview', () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Empty Budget' });
 
-    const server = buildServer(user.id);
+    const server = await buildServer(user.id);
     const text = await invokePromptText(server, 'budget-overview', { tripId: trip.id });
     expect(text).toContain('No expenses recorded.');
   });

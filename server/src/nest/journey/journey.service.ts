@@ -1,6 +1,6 @@
 import { ADDON_IDS } from '../../addons';
-import { db } from '../../db/database';
-import { isAddonEnabled } from '../../services/adminService';
+import { asyncDb } from '../../db/asyncDatabase';
+import { isAddonEnabledAsync } from '../../services/adminService';
 import * as svc from '../../services/journeyService';
 import * as share from '../../services/journeyShareService';
 import { uploadToImmich, streamImmichAsset } from '../../services/memories/immichService';
@@ -17,8 +17,8 @@ import type { Response } from 'express';
  */
 @Injectable()
 export class JourneyService {
-  journeyAddonEnabled(): boolean {
-    return isAddonEnabled(ADDON_IDS.JOURNEY);
+  journeyAddonEnabled(): Promise<boolean> {
+    return isAddonEnabledAsync(ADDON_IDS.JOURNEY);
   }
 
   // Journeys
@@ -141,8 +141,8 @@ export class JourneyService {
   // Authorization: only someone with access to the journey may read its public
   // share token — same access model as create/delete here and the
   // get_journey_share_link MCP tool.
-  getJourneyShareLink(id: number, userId: number) {
-    if (!svc.canAccessJourney(id, userId)) return null;
+  async getJourneyShareLink(id: number, userId: number) {
+    if (!(await svc.canAccessJourney(id, userId))) return null;
     return share.getJourneyShareLink(id);
   }
   createOrUpdateJourneyShareLink(
@@ -157,10 +157,10 @@ export class JourneyService {
   }
 
   // Immich mirror (only when the user opted in via integration settings)
-  immichAutoUploadEnabled(userId: number): boolean {
-    const prefs = db.prepare('SELECT immich_auto_upload FROM users WHERE id = ?').get(userId) as
-      | { immich_auto_upload?: number }
-      | undefined;
+  async immichAutoUploadEnabled(userId: number): Promise<boolean> {
+    const prefs = await asyncDb
+      .prepare('SELECT immich_auto_upload FROM users WHERE id = ?')
+      .get<{ immich_auto_upload?: number }>(userId);
     return !!prefs?.immich_auto_upload;
   }
   uploadToImmich(userId: number, relativePath: string, originalName: string) {

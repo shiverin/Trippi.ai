@@ -37,7 +37,9 @@ vi.mock('../../../src/websocket', () => ({ broadcast: broadcastMock }));
 
 vi.mock('../../../src/services/adminService', () => ({
   isAddonEnabled: vi.fn().mockReturnValue(true),
+  isAddonEnabledAsync: vi.fn().mockResolvedValue(true),
   getCollabFeatures: vi.fn().mockReturnValue({ chat: true, notes: true, polls: true, whatsnext: true }),
+  getCollabFeaturesAsync: vi.fn().mockResolvedValue({ chat: true, notes: true, polls: true, whatsnext: true }),
 }));
 
 import { createTables } from '../../../src/db/schema';

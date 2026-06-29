@@ -21,45 +21,45 @@ export class CategoriesController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  list(): CategoryListResponse {
-    return { categories: this.categories.list() };
+  async list(): Promise<CategoryListResponse> {
+    return { categories: await this.categories.list() };
   }
 
   @Post()
   @UseGuards(JwtAuthGuard, AdminGuard)
-  create(
+  async create(
     @CurrentUser() user: User,
     @Body('name') name?: string,
     @Body('color') color?: string,
     @Body('icon') icon?: string,
-  ): { category: Category } {
+  ): Promise<{ category: Category }> {
     if (!name) {
       throw new HttpException({ error: 'Category name is required' }, 400);
     }
-    return { category: this.categories.create(user.id, name, color, icon) };
+    return { category: await this.categories.create(user.id, name, color, icon) };
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
-  update(
+  async update(
     @Param('id') id: string,
     @Body('name') name?: string,
     @Body('color') color?: string,
     @Body('icon') icon?: string,
-  ): { category: Category } {
-    if (!this.categories.getById(id)) {
+  ): Promise<{ category: Category }> {
+    if (!(await this.categories.getById(id))) {
       throw new HttpException({ error: 'Category not found' }, 404);
     }
-    return { category: this.categories.update(id, name, color, icon) };
+    return { category: await this.categories.update(id, name, color, icon) };
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
-  remove(@Param('id') id: string): { success: boolean } {
-    if (!this.categories.getById(id)) {
+  async remove(@Param('id') id: string): Promise<{ success: boolean }> {
+    if (!(await this.categories.getById(id))) {
       throw new HttpException({ error: 'Category not found' }, 404);
     }
-    this.categories.remove(id);
+    await this.categories.remove(id);
     return { success: true };
   }
 }

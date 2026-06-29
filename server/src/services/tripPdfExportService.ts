@@ -1,8 +1,8 @@
-import { listCategories } from './categoryService';
+import { listCategoriesAsync } from './categoryService';
 import { getMcpSafeUrl } from './notifications';
 import { createPerfTrace, type PerfTrace } from './perfTrace';
 import * as placePhotoCache from './placePhotoCache';
-import { listPlaces } from './placeService';
+import { listPlacesAsync } from './placeService';
 import { getTripSummary } from './tripService';
 import {
   buildTripPdfHtml,
@@ -158,11 +158,7 @@ interface PdfNetworkGuardStats extends Record<string, number> {
   aborted: number;
 }
 
-async function installPdfNetworkGuards(
-  page: Page,
-  origin: string,
-  stats: PdfNetworkGuardStats,
-): Promise<void> {
+async function installPdfNetworkGuards(page: Page, origin: string, stats: PdfNetworkGuardStats): Promise<void> {
   await page.route('**/*', async (route: Route) => {
     const requestUrl = route.request().url();
     if (requestUrl === 'about:blank' || requestUrl.startsWith('data:') || requestUrl.startsWith('blob:')) {
@@ -285,15 +281,24 @@ export async function exportTripPdf(tripId: number): Promise<{ filename: string;
   let bytes: number | undefined;
 
   try {
-    const summary = perf.measureSync('pdf.get_trip_summary', () => getTripSummary(tripId) as TripPdfSummary | null);
+    const summary = await perf.measure(
+      'pdf.get_trip_summary',
+      () => getTripSummary(tripId) as Promise<TripPdfSummary | null>,
+    );
     if (!summary?.trip) throw new Error('Trip not found.');
 
     const rawDays = Array.isArray(summary.days) ? summary.days : [];
-    const rawPlaces = perf.measureSync('pdf.list_places', () => listPlaces(String(tripId), {}) as TripPdfPlace[]);
+    const rawPlaces = await perf.measure(
+      'pdf.list_places',
+      () => listPlacesAsync(String(tripId), {}) as Promise<TripPdfPlace[]>,
+    );
     const { days, places } = await perf.measure('pdf.inline_cached_images', () =>
       inlineCachedImages(rawDays, rawPlaces),
     );
-    const categories = perf.measureSync('pdf.list_categories', () => listCategories() as TripPdfCategory[]);
+    const categories = await perf.measure(
+      'pdf.list_categories',
+      () => listCategoriesAsync() as Promise<TripPdfCategory[]>,
+    );
     const origin = getMcpSafeUrl().replace(/\/+$/, '');
     const photoMap = await perf.measure('pdf.build_photo_map', () => buildPhotoMap(days, places));
     const html = perf.measureSync('pdf.build_html', () =>

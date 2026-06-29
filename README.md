@@ -3,7 +3,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/brand/trippi-wordmark-light.png" />
   <source media="(prefers-color-scheme: light)" srcset="docs/brand/trippi-wordmark.png" />
-  <img src="docs/brand/trippi-wordmark.png" alt="trippi" height="64" />
+  <img src="docs/brand/trippi-wordmark.png" alt="trippi.ai" width="320" />
 </picture>
 
 <br />

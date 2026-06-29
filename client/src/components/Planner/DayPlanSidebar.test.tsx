@@ -541,7 +541,7 @@ describe('DayPlanSidebar', () => {
     const user = userEvent.setup();
     const onToggleBookingRoutesGlobal = vi.fn();
     render(<DayPlanSidebar {...makeDefaultProps({ onToggleBookingRoutesGlobal })} />);
-    await user.click(screen.getByRole('button', { name: 'Show all booking routes' }));
+    await user.click(screen.getByRole('button', { name: 'map.showAllConnections' }));
     expect(onToggleBookingRoutesGlobal).toHaveBeenCalledTimes(1);
   });
 
@@ -606,7 +606,7 @@ describe('DayPlanSidebar', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Hide booking routes' }));
     expect(onToggleConnection).toHaveBeenCalledWith(211);
-    expect(screen.getByRole('button', { name: 'Hide all booking routes' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'map.hideAllConnections' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('FE-PLANNER-DAYPLAN-031d: row route buttons are disabled when global booking routes are off', () => {
@@ -633,7 +633,7 @@ describe('DayPlanSidebar', () => {
         })}
       />
     );
-    expect(screen.getByRole('button', { name: 'Turn on all booking routes to use this route toggle' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'map.enableAllConnectionsFirst' })).toBeDisabled();
   });
 
   // ── Accommodation badges ────────────────────────────────────────────────

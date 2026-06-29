@@ -29,6 +29,10 @@ export class TodoService {
     return svc.listItems(tripId);
   }
 
+  listPending(userId: number) {
+    return svc.listPendingTodos(userId);
+  }
+
   createItem(tripId: string, data: Parameters<typeof svc.createItem>[1]) {
     return svc.createItem(tripId, data);
   }

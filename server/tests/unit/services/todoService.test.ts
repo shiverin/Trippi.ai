@@ -43,6 +43,7 @@ import { createUser, createTrip, addTripMember } from '../../helpers/factories';
 import {
   verifyTripAccess,
   listItems,
+  listPendingTodos,
   createItem,
   updateItem,
   deleteItem,
@@ -144,6 +145,47 @@ describe('listItems and createItem', () => {
     expect(items).toHaveLength(3);
     expect(items[0].sort_order).toBeLessThanOrEqual(items[1].sort_order);
     expect(items[1].sort_order).toBeLessThanOrEqual(items[2].sort_order);
+  });
+});
+
+// ── listPendingTodos ─────────────────────────────────────────────────────────
+
+describe('listPendingTodos', () => {
+  it('TODO-SVC-021: returns unchecked todos from owned and member active trips only', () => {
+    const { user: owner } = createUser(testDb);
+    const { user: member } = createUser(testDb);
+    const { user: stranger } = createUser(testDb);
+    const ownedTrip = createTrip(testDb, owner.id, { title: 'Owned Trip' });
+    const sharedTrip = createTrip(testDb, member.id, { title: 'Shared Trip' });
+    const archivedTrip = createTrip(testDb, owner.id, { title: 'Archived Trip' });
+    const strangerTrip = createTrip(testDb, stranger.id, { title: 'Stranger Trip' });
+    addTripMember(testDb, sharedTrip.id, owner.id);
+    testDb.prepare('UPDATE trips SET is_archived = 1 WHERE id = ?').run(archivedTrip.id);
+
+    createItem(ownedTrip.id, { name: 'Buy flight', due_date: '2099-02-01' });
+    createItem(sharedTrip.id, { name: 'Book hotel', due_date: '2099-02-02' });
+    createItem(archivedTrip.id, { name: 'Archived task', due_date: '2099-02-03' });
+    createItem(strangerTrip.id, { name: 'Private task', due_date: '2099-02-04' });
+    const checked = createItem(ownedTrip.id, { name: 'Done task', due_date: '2099-02-05' }) as any;
+    updateItem(ownedTrip.id, checked.id, { checked: 1 }, ['checked']);
+
+    const todos = listPendingTodos(owner.id) as any[];
+    expect(todos.map((todo) => todo.name)).toEqual(['Buy flight', 'Book hotel']);
+    expect(todos[0].trip_title).toBe('Owned Trip');
+    expect(todos[1].trip_title).toBe('Shared Trip');
+  });
+
+  it('TODO-SVC-022: orders overdue first, then due date, priority, and applies the limit', () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id);
+    createItem(trip.id, { name: 'No date', priority: 1 });
+    createItem(trip.id, { name: 'Future low', due_date: '2099-01-02', priority: 3 });
+    createItem(trip.id, { name: 'Future high', due_date: '2099-01-02', priority: 1 });
+    createItem(trip.id, { name: 'Soon', due_date: '2099-01-01', priority: 2 });
+    createItem(trip.id, { name: 'Old', due_date: '2000-01-01', priority: 3 });
+
+    const todos = listPendingTodos(user.id, 4) as any[];
+    expect(todos.map((todo) => todo.name)).toEqual(['Old', 'Soon', 'Future high', 'Future low']);
   });
 });
 

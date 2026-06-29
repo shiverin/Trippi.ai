@@ -1,14 +1,17 @@
 import {
   Archive,
+  AlertCircle,
   ArrowRight,
   ArrowRightLeft,
   Calendar,
+  Check,
   Clock,
   Copy,
   Edit2,
   Hotel,
   LayoutGrid,
   List,
+  ListTodo,
   MapPin,
   Plane,
   Plus,
@@ -34,6 +37,7 @@ import { formatTime, splitReservationDateTime } from '../utils/formatters';
 import { convertDistance, getDistanceUnitLabel } from '../utils/units';
 import {
   type DashboardTrip,
+  type DashboardTodo,
   type HeroBundle,
   type TravelStats,
   type UpcomingReservation,
@@ -121,6 +125,7 @@ export default function DashboardPage(): React.ReactElement {
     heroBundle,
     stats,
     upcoming,
+    pendingTodos,
     gridTrips,
     isLoading,
     loadError,
@@ -144,8 +149,15 @@ export default function DashboardPage(): React.ReactElement {
     handleArchive,
     handleUnarchive,
     confirmCopy,
+    completeDashboardTodo,
     overlaysDisabled,
   } = useDashboard();
+
+  const openDashboardTodo = (todo: DashboardTodo) => {
+    sessionStorage.setItem(`trip-tab-${todo.trip_id}`, 'listen');
+    sessionStorage.setItem(`trip-lists-subtab-${todo.trip_id}`, 'todo');
+    navigate(`/trips/${todo.trip_id}`);
+  };
 
   return (
     <>
@@ -264,9 +276,15 @@ export default function DashboardPage(): React.ReactElement {
             </div>
 
             <aside className="page-sidebar">
-              <CurrencyTool />
-              <TimezoneTool locale={locale} />
               <UpcomingTool items={upcoming} locale={locale} onOpen={(tripId) => navigate(`/trips/${tripId}`)} />
+              <TodoTool
+                items={pendingTodos}
+                locale={locale}
+                onOpen={openDashboardTodo}
+                onComplete={completeDashboardTodo}
+              />
+              <TimezoneTool locale={locale} />
+              <CurrencyTool />
             </aside>
           </main>
         </div>
@@ -1044,6 +1062,115 @@ function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
         ))}
         {zones.length === 0 && <div className="tz-empty">{t('dashboard.tz.empty')}</div>}
       </div>
+    </div>
+  );
+}
+
+type TodoDueStatus = 'overdue' | 'today' | 'upcoming' | 'none';
+
+function getTodoDueStatus(dueDate: string | null | undefined): TodoDueStatus {
+  if (!dueDate) return 'none';
+  const today = new Date().toISOString().slice(0, 10);
+  if (dueDate < today) return 'overdue';
+  if (dueDate === today) return 'today';
+  return 'upcoming';
+}
+
+function formatDueChip(dueDate: string | null | undefined, locale: string, t: ReturnType<typeof useTranslation>['t']) {
+  if (!dueDate) return t('dashboard.todos.noDate');
+  const status = getTodoDueStatus(dueDate);
+  if (status === 'overdue') return t('dashboard.todos.overdue');
+  if (status === 'today') return t('dashboard.todos.today');
+  const date = new Date(`${dueDate}T00:00:00Z`).toLocaleDateString(locale, {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+  return t('dashboard.todos.due', { date });
+}
+
+// ── Dashboard to-do tool ─────────────────────────────────────────────────────
+function TodoTool({
+  items,
+  locale,
+  onOpen,
+  onComplete,
+}: {
+  items: DashboardTodo[];
+  locale: string;
+  onOpen: (todo: DashboardTodo) => void;
+  onComplete: (todo: DashboardTodo) => void;
+}): React.ReactElement {
+  const { t } = useTranslation();
+  return (
+    <div className="tool todo-tool">
+      <div className="tool-head">
+        <div className="tool-title">
+          <ListTodo size={14} /> {t('dashboard.todos.title')}
+        </div>
+        {items.length > 0 && <div className="todo-count">{t('dashboard.todos.count', { count: items.length })}</div>}
+      </div>
+      {items.length === 0 ? (
+        <div className="todo-empty">{t('dashboard.todos.empty')}</div>
+      ) : (
+        <div className="todo-list">
+          {items.map((todo) => {
+            const dateStr = todo.due_date ? splitDate(todo.due_date, locale) : null;
+            const status = getTodoDueStatus(todo.due_date);
+            const priority = todo.priority && todo.priority > 0 ? todo.priority : null;
+            return (
+              <div
+                className={`todo-item ${status}`}
+                key={todo.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => onOpen(todo)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onOpen(todo);
+                  }
+                }}
+              >
+                <button
+                  type="button"
+                  className="todo-check"
+                  aria-label={t('dashboard.todos.completeAria', { task: todo.name })}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onComplete(todo);
+                  }}
+                >
+                  <Check size={13} />
+                </button>
+                <div className={`todo-date ${status}`}>
+                  {status === 'overdue' ? (
+                    <AlertCircle size={16} />
+                  ) : (
+                    <>
+                      <div className="d mono">{dateStr?.d ?? '--'}</div>
+                      <div className="m">{dateStr?.m ?? t('dashboard.todos.noDateShort')}</div>
+                    </>
+                  )}
+                </div>
+                <div className="todo-info">
+                  <div className="todo-name">{todo.name}</div>
+                  <div className="todo-trip">{todo.trip_title || t('dashboard.todos.untitledTrip')}</div>
+                  <div className="todo-meta">
+                    <span className={`todo-chip due ${status}`}>{formatDueChip(todo.due_date, locale, t)}</span>
+                    {todo.category && <span className="todo-chip">{todo.category}</span>}
+                    {priority && (
+                      <span className={`todo-chip priority p${priority}`}>
+                        {t('dashboard.todos.priority', { priority })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

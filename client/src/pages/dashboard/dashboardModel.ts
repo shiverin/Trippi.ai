@@ -26,6 +26,12 @@ export interface UpcomingReservation {
   reservation_time?: string | null; day_date?: string | null
   location?: string | null; place_name?: string | null; trip_title?: string | null
 }
+export interface DashboardTodo {
+  id: number; trip_id: number; name: string; category: string | null
+  checked: number; sort_order: number; due_date: string | null
+  description: string | null; assigned_user_id: number | null; priority: number
+  trip_title?: string | null; trip_start_date?: string | null; trip_end_date?: string | null
+}
 
 export const MS_PER_DAY = 86400000
 

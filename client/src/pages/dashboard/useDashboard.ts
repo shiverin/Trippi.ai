@@ -1,20 +1,21 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { tripsApi, authApi, reservationsApi } from '../../api/client'
-import { tripRepo } from '../../repo/tripRepo'
-import { useAuthStore } from '../../store/authStore'
-import { useTranslation } from '../../i18n'
-import { useToast } from '../../components/shared/Toast'
-import { getApiErrorMessage } from '../../types'
-import type { TripCreateRequest } from '@trippi/shared'
+import type { TripCreateRequest } from '@trippi/shared';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { authApi, reservationsApi, todoApi, tripsApi } from '../../api/client';
+import { useToast } from '../../components/shared/Toast';
+import { useTranslation } from '../../i18n';
+import { tripRepo } from '../../repo/tripRepo';
+import { useAuthStore } from '../../store/authStore';
+import { getApiErrorMessage } from '../../types';
 import {
   type DashboardTrip,
+  type DashboardTodo,
+  type HeroBundle,
   type TravelStats,
   type UpcomingReservation,
-  type HeroBundle,
   getTripStatus,
   sortTrips,
-} from './dashboardModel'
+} from './dashboardModel';
 
 /**
  * Dashboard data hook — owns every bit of the page's state, data loading and
@@ -24,174 +25,250 @@ import {
  * returns. Behaviour is identical to the previous in-component logic.
  */
 export function useDashboard() {
-  const [trips, setTrips] = useState<DashboardTrip[]>([])
-  const [archivedTrips, setArchivedTrips] = useState<DashboardTrip[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [showForm, setShowForm] = useState<boolean>(false)
-  const [editingTrip, setEditingTrip] = useState<DashboardTrip | null>(null)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('trippi_dashboard_view') as 'grid' | 'list') || 'grid')
-  const [deleteTrip, setDeleteTrip] = useState<DashboardTrip | null>(null)
-  const [copyTrip, setCopyTrip] = useState<DashboardTrip | null>(null)
-  const [tripFilter, setTripFilter] = useState<'planned' | 'archive' | 'completed'>('planned')
-  const [loadError, setLoadError] = useState<boolean>(false)
+  const [trips, setTrips] = useState<DashboardTrip[]>([]);
+  const [archivedTrips, setArchivedTrips] = useState<DashboardTrip[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [showForm, setShowForm] = useState<boolean>(false);
+  const [editingTrip, setEditingTrip] = useState<DashboardTrip | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(
+    () => (localStorage.getItem('trippi_dashboard_view') as 'grid' | 'list') || 'grid'
+  );
+  const [deleteTrip, setDeleteTrip] = useState<DashboardTrip | null>(null);
+  const [copyTrip, setCopyTrip] = useState<DashboardTrip | null>(null);
+  const [tripFilter, setTripFilter] = useState<'planned' | 'archive' | 'completed'>('planned');
+  const [loadError, setLoadError] = useState<boolean>(false);
 
-  const [stats, setStats] = useState<TravelStats | null>(null)
-  const [upcoming, setUpcoming] = useState<UpcomingReservation[]>([])
-  const [heroBundle, setHeroBundle] = useState<HeroBundle | null>(null)
+  const [stats, setStats] = useState<TravelStats | null>(null);
+  const [upcoming, setUpcoming] = useState<UpcomingReservation[]>([]);
+  const [pendingTodos, setPendingTodos] = useState<DashboardTodo[]>([]);
+  const [heroBundle, setHeroBundle] = useState<HeroBundle | null>(null);
 
-  const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const toast = useToast()
-  const { t, locale } = useTranslation()
-  const { demoMode, overlaysDisabled, authCheckFailed, loadUser } = useAuthStore()
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const toast = useToast();
+  const { t, locale } = useTranslation();
+  const { demoMode, overlaysDisabled, authCheckFailed, loadUser } = useAuthStore();
 
   const toggleViewMode = () => {
-    setViewMode(prev => {
-      const next = prev === 'grid' ? 'list' : 'grid'
-      localStorage.setItem('trippi_dashboard_view', next)
-      return next
-    })
-  }
+    setViewMode((prev) => {
+      const next = prev === 'grid' ? 'list' : 'grid';
+      localStorage.setItem('trippi_dashboard_view', next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (searchParams.get('create') === '1') {
-      setShowForm(true)
-      setSearchParams({}, { replace: true })
+      setShowForm(true);
+      setSearchParams({}, { replace: true });
     }
-  }, [searchParams])
+  }, [searchParams]);
 
-  useEffect(() => { loadTrips() }, [])
+  useEffect(() => {
+    loadTrips();
+  }, []);
 
-  // Travel stats + upcoming reservations power the atlas row and the sidebar.
+  // Travel stats + dashboard feeds power the atlas row and the sidebar.
   // Both are best-effort: a failure just leaves that section empty.
   useEffect(() => {
-    authApi.travelStats().then(setStats).catch(() => {})
-    reservationsApi.upcoming().then((r: { reservations: UpcomingReservation[] }) => setUpcoming(r.reservations || [])).catch(() => {})
-  }, [])
+    authApi
+      .travelStats()
+      .then(setStats)
+      .catch(() => {});
+    reservationsApi
+      .upcoming()
+      .then((r: { reservations: UpcomingReservation[] }) => setUpcoming(r.reservations || []))
+      .catch(() => {});
+    todoApi
+      .pending()
+      .then((r: { todos: DashboardTodo[] }) => setPendingTodos(r.todos || []))
+      .catch(() => {});
+  }, []);
 
   const loadTrips = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const { trips, archivedTrips } = await tripRepo.list()
-      setTrips(sortTrips(trips))
-      setArchivedTrips(sortTrips(archivedTrips))
-      setLoadError(false)
+      const { trips, archivedTrips } = await tripRepo.list();
+      setTrips(sortTrips(trips));
+      setArchivedTrips(sortTrips(archivedTrips));
+      setLoadError(false);
     } catch {
-      setLoadError(true)
-      toast.error(t('dashboard.toast.loadError'))
+      setLoadError(true);
+      toast.error(t('dashboard.toast.loadError'));
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Re-run both the trip fetch and the auth check so a recovered backend clears
   // the error banner (loadUser resets authCheckFailed on success). #1283
   const retryLoad = () => {
-    loadUser({ silent: true })
-    loadTrips()
-  }
+    loadUser({ silent: true });
+    loadTrips();
+  };
 
-  const today = new Date().toISOString().split('T')[0]
-  const spotlight = trips.find(t => t.start_date && t.end_date && t.start_date <= today && t.end_date >= today)
-    || trips.find(t => t.start_date && t.start_date >= today)
-    || trips[0]
-    || null
+  const today = new Date().toISOString().split('T')[0];
+  const spotlight =
+    trips.find((t) => t.start_date && t.end_date && t.start_date <= today && t.end_date >= today) ||
+    trips.find((t) => t.start_date && t.start_date >= today) ||
+    trips[0] ||
+    null;
 
   // Pull the spotlight trip's members + places so the boarding pass can show
   // real buddies and place thumbnails instead of placeholders.
   useEffect(() => {
-    if (!spotlight) { setHeroBundle(null); return }
-    let cancelled = false
-    tripsApi.bundle(spotlight.id)
-      .then((b: HeroBundle) => { if (!cancelled) setHeroBundle({ members: b.members || [], places: b.places || [] }) })
-      .catch(() => { if (!cancelled) setHeroBundle(null) })
-    return () => { cancelled = true }
-  }, [spotlight?.id])
+    if (!spotlight) {
+      setHeroBundle(null);
+      return;
+    }
+    let cancelled = false;
+    tripsApi
+      .bundle(spotlight.id)
+      .then((b: HeroBundle) => {
+        if (!cancelled) setHeroBundle({ members: b.members || [], places: b.places || [] });
+      })
+      .catch(() => {
+        if (!cancelled) setHeroBundle(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [spotlight?.id]);
 
   const handleCreate = async (tripData: TripCreateRequest) => {
     try {
-      const data = await tripsApi.create(tripData)
-      setTrips(prev => sortTrips([data.trip, ...prev]))
-      toast.success(t('dashboard.toast.created'))
-      return data
+      const data = await tripsApi.create(tripData);
+      setTrips((prev) => sortTrips([data.trip, ...prev]));
+      toast.success(t('dashboard.toast.created'));
+      return data;
     } catch (err: unknown) {
-      throw new Error(getApiErrorMessage(err, t('dashboard.toast.createError')))
+      throw new Error(getApiErrorMessage(err, t('dashboard.toast.createError')));
     }
-  }
+  };
 
   const handleUpdate = async (tripData: TripCreateRequest) => {
-    if (!editingTrip) return
+    if (!editingTrip) return;
     try {
-      const data = await tripsApi.update(editingTrip.id, tripData)
-      setTrips(prev => sortTrips(prev.map(t => t.id === editingTrip.id ? data.trip : t)))
-      toast.success(t('dashboard.toast.updated'))
+      const data = await tripsApi.update(editingTrip.id, tripData);
+      setTrips((prev) => sortTrips(prev.map((t) => (t.id === editingTrip.id ? data.trip : t))));
+      toast.success(t('dashboard.toast.updated'));
     } catch (err: unknown) {
-      throw new Error(getApiErrorMessage(err, t('dashboard.toast.updateError')))
+      throw new Error(getApiErrorMessage(err, t('dashboard.toast.updateError')));
     }
-  }
+  };
 
   const confirmDelete = async () => {
-    if (!deleteTrip) return
+    if (!deleteTrip) return;
     try {
-      await tripsApi.delete(deleteTrip.id)
-      setTrips(prev => prev.filter(t => t.id !== deleteTrip.id))
-      setArchivedTrips(prev => prev.filter(t => t.id !== deleteTrip.id))
-      toast.success(t('dashboard.toast.deleted'))
+      await tripRepo.delete(deleteTrip.id);
+      setTrips((prev) => prev.filter((t) => t.id !== deleteTrip.id));
+      setArchivedTrips((prev) => prev.filter((t) => t.id !== deleteTrip.id));
+      toast.success(t('dashboard.toast.deleted'));
     } catch {
-      toast.error(t('dashboard.toast.deleteError'))
+      toast.error(t('dashboard.toast.deleteError'));
     }
-    setDeleteTrip(null)
-  }
+    setDeleteTrip(null);
+  };
 
   const handleArchive = async (id: number) => {
     try {
-      const data = await tripsApi.archive(id)
-      setTrips(prev => prev.filter(t => t.id !== id))
-      setArchivedTrips(prev => sortTrips([data.trip, ...prev]))
-      toast.success(t('dashboard.toast.archived'))
+      const data = await tripsApi.archive(id);
+      setTrips((prev) => prev.filter((t) => t.id !== id));
+      setArchivedTrips((prev) => sortTrips([data.trip, ...prev]));
+      toast.success(t('dashboard.toast.archived'));
     } catch {
-      toast.error(t('dashboard.toast.archiveError'))
+      toast.error(t('dashboard.toast.archiveError'));
     }
-  }
+  };
 
   const handleUnarchive = async (id: number) => {
     try {
-      const data = await tripsApi.unarchive(id)
-      setArchivedTrips(prev => prev.filter(t => t.id !== id))
-      setTrips(prev => sortTrips([data.trip, ...prev]))
-      toast.success(t('dashboard.toast.restored'))
+      const data = await tripsApi.unarchive(id);
+      setArchivedTrips((prev) => prev.filter((t) => t.id !== id));
+      setTrips((prev) => sortTrips([data.trip, ...prev]));
+      toast.success(t('dashboard.toast.restored'));
     } catch {
-      toast.error(t('dashboard.toast.restoreError'))
+      toast.error(t('dashboard.toast.restoreError'));
     }
-  }
+  };
 
   const confirmCopy = async () => {
-    if (!copyTrip) return
+    if (!copyTrip) return;
     try {
-      const data = await tripsApi.copy(copyTrip.id, { title: `${copyTrip.title} (${t('dashboard.copySuffix')})` })
-      setTrips(prev => sortTrips([data.trip, ...prev]))
-      toast.success(t('dashboard.toast.copied'))
+      const data = await tripsApi.copy(copyTrip.id, { title: `${copyTrip.title} (${t('dashboard.copySuffix')})` });
+      setTrips((prev) => sortTrips([data.trip, ...prev]));
+      toast.success(t('dashboard.toast.copied'));
     } catch {
-      toast.error(t('dashboard.toast.copyError'))
+      toast.error(t('dashboard.toast.copyError'));
     }
-    setCopyTrip(null)
-  }
+    setCopyTrip(null);
+  };
 
-  const gridTrips = tripFilter === 'archive' ? archivedTrips
-    : tripFilter === 'completed' ? trips.filter(t => getTripStatus(t) === 'past')
-    : trips.filter(t => getTripStatus(t) !== 'past')
+  const completeDashboardTodo = async (todo: DashboardTodo): Promise<void> => {
+    const removedIndex = pendingTodos.findIndex((item) => item.id === todo.id);
+    const removed = removedIndex >= 0 ? pendingTodos[removedIndex] : null;
+    setPendingTodos((prev) => prev.filter((item) => item.id !== todo.id));
+
+    try {
+      await todoApi.update(todo.trip_id, todo.id, { checked: true });
+    } catch {
+      if (removed) {
+        setPendingTodos((prev) => {
+          if (prev.some((item) => item.id === removed.id)) return prev;
+          const next = [...prev];
+          next.splice(Math.min(Math.max(removedIndex, 0), next.length), 0, removed);
+          return next;
+        });
+      }
+      toast.error(t('dashboard.todos.completeError'));
+    }
+  };
+
+  const gridTrips =
+    tripFilter === 'archive'
+      ? archivedTrips
+      : tripFilter === 'completed'
+        ? trips.filter((t) => getTripStatus(t) === 'past')
+        : trips.filter((t) => getTripStatus(t) !== 'past');
 
   return {
     // cross-cutting
-    demoMode, overlaysDisabled, locale, t, navigate,
+    demoMode,
+    overlaysDisabled,
+    locale,
+    t,
+    navigate,
     // data + derived
-    spotlight, heroBundle, stats, upcoming, gridTrips, isLoading,
-    loadError: loadError || authCheckFailed, retryLoad,
+    spotlight,
+    heroBundle,
+    stats,
+    upcoming,
+    pendingTodos,
+    gridTrips,
+    isLoading,
+    loadError: loadError || authCheckFailed,
+    retryLoad,
     // ui state
-    tripFilter, setTripFilter, viewMode, toggleViewMode,
-    showForm, setShowForm, editingTrip, setEditingTrip,
-    deleteTrip, setDeleteTrip, copyTrip, setCopyTrip, setTrips,
+    tripFilter,
+    setTripFilter,
+    viewMode,
+    toggleViewMode,
+    showForm,
+    setShowForm,
+    editingTrip,
+    setEditingTrip,
+    deleteTrip,
+    setDeleteTrip,
+    copyTrip,
+    setCopyTrip,
+    setTrips,
     // actions
-    handleCreate, handleUpdate, confirmDelete, handleArchive, handleUnarchive, confirmCopy,
-  }
+    handleCreate,
+    handleUpdate,
+    confirmDelete,
+    handleArchive,
+    handleUnarchive,
+    confirmCopy,
+    completeDashboardTodo,
+  };
 }

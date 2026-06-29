@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildSettings, buildTrip, buildUser } from '../../tests/helpers/factories';
+import { buildSettings, buildTodoItem, buildTrip, buildUser } from '../../tests/helpers/factories';
 import { server } from '../../tests/helpers/msw/server';
 import { render, screen, waitFor } from '../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../tests/helpers/store';
@@ -983,6 +983,65 @@ describe('DashboardPage', () => {
       expect(s.dashboard_fx_from).toBe('CAD');
       expect(s.dashboard_fx_to).toBe('CHF');
       expect(s.dashboard_timezones).toEqual(['America/New_York']);
+    });
+  });
+
+  describe('FE-PAGE-DASH-035: dashboard sidebar todo widget', () => {
+    it('orders widgets, opens task trips on the todo tab, and completes pending tasks', async () => {
+      const user = userEvent.setup();
+      let completedBody: Record<string, unknown> | null = null;
+
+      server.use(
+        http.get('/api/todos/pending', () =>
+          HttpResponse.json({
+            todos: [
+              {
+                ...buildTodoItem({
+                  id: 500,
+                  trip_id: 42,
+                  name: 'Buy flight ticket',
+                  category: 'Flights',
+                  due_date: '2099-01-03',
+                  priority: 1,
+                }),
+                trip_title: 'Tokyo Sprint',
+              },
+              {
+                ...buildTodoItem({
+                  id: 501,
+                  trip_id: 43,
+                  name: 'Book train seats',
+                  category: 'Transport',
+                  due_date: '2099-01-04',
+                }),
+                trip_title: 'Kyoto Weekend',
+              },
+            ],
+          })
+        ),
+        http.put('/api/trips/42/todo/500', async ({ request }) => {
+          completedBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ item: buildTodoItem({ id: 500, trip_id: 42, checked: 1 }) });
+        })
+      );
+
+      render(<DashboardPage />);
+
+      const upcoming = await screen.findByText(/upcoming reservations/i);
+      const todo = await screen.findByText(/to-do list/i);
+      const timezones = screen.getByText(/timezones/i);
+      const currency = screen.getByText(/currency/i);
+      expect(upcoming.compareDocumentPosition(todo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(todo.compareDocumentPosition(timezones) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(timezones.compareDocumentPosition(currency) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+      await user.click(screen.getByText('Book train seats'));
+      expect(sessionStorage.getItem('trip-tab-43')).toBe('listen');
+      expect(sessionStorage.getItem('trip-lists-subtab-43')).toBe('todo');
+
+      await user.click(screen.getByRole('button', { name: /mark buy flight ticket complete/i }));
+      await waitFor(() => expect(completedBody).toEqual({ checked: true }));
+      expect(screen.queryByText('Buy flight ticket')).not.toBeInTheDocument();
     });
   });
 });

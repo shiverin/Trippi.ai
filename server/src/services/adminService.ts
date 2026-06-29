@@ -935,6 +935,7 @@ export function revokeOAuthSession(id: string) {
     | undefined;
   if (!row) return { error: 'Session not found', status: 404 };
   db.prepare('UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
+  db.prepare('DELETE FROM oauth_consents WHERE client_id = ? AND user_id = ?').run(row.client_id, row.user_id);
   revokeUserSessionsForClient(row.user_id, row.client_id);
   return {};
 }

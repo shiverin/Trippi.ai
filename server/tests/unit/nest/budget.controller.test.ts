@@ -284,7 +284,7 @@ describe('BudgetController (parity with the legacy /api/trips/:tripId/budget rou
     const svc = makeService({ reorderItems, reorderCategories, broadcast } as Partial<BudgetService>);
     expect(new BudgetController(svc).reorderItems(user, '5', [3, 1], 'sock')).toEqual({ success: true });
     expect(reorderItems).toHaveBeenCalledWith('5', [3, 1]);
-    expect(new BudgetController(svc).reorderCategories(user, '5', ['food', 'fun'], 'sock')).toEqual({ success: true });
+    expect(new BudgetController(svc).reorderCategories(user, '5', { orderedCategories: ['food', 'fun'] }, 'sock')).toEqual({ success: true });
     expect(reorderCategories).toHaveBeenCalledWith('5', ['food', 'fun']);
   });
 });

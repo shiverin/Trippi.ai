@@ -39,6 +39,8 @@ import {
   updateAddon,
   listMcpTokens,
   deleteMcpToken,
+  listOAuthSessions,
+  revokeOAuthSession,
 } from '../../../src/services/adminService';
 import { createUser, createAdmin, createInviteToken } from '../../helpers/factories';
 import { resetTestDb } from '../../helpers/test-db';
@@ -77,6 +79,7 @@ vi.mock('../../../src/services/apiKeyCrypto', () => ({
 }));
 vi.mock('../../../src/mcp', () => ({
   revokeUserSessions: vi.fn(),
+  revokeUserSessionsForClient: vi.fn(),
 }));
 vi.mock('../../../src/demo/demo-reset', () => ({
   saveBaseline: vi.fn(),
@@ -709,5 +712,41 @@ describe('MCP Tokens', () => {
     const result = deleteMcpToken('99999') as any;
     expect(result.status).toBe(404);
     expect(result.error).toBeDefined();
+  });
+});
+
+// ── OAuth Sessions ──────────────────────────────────────────────────────────
+
+describe('OAuth Sessions', () => {
+  it('ADMIN-SVC-070 — revokeOAuthSession clears cached consent for the session client', () => {
+    const { user } = createUser(testDb);
+
+    testDb
+      .prepare(
+        "INSERT INTO oauth_clients (id, user_id, name, client_id, client_secret_hash, redirect_uris, allowed_scopes) VALUES ('oauth-admin-test', ?, 'ChatGPT', 'oauth-admin-client', 'hash', '[\"https://chatgpt.example.com/callback\"]', '[\"trips:read\"]')",
+      )
+      .run(user.id);
+    testDb
+      .prepare(
+        "INSERT INTO oauth_tokens (client_id, user_id, access_token_hash, refresh_token_hash, scopes, access_token_expires_at, refresh_token_expires_at) VALUES ('oauth-admin-client', ?, 'access-admin', 'refresh-admin', '[\"trips:read\"]', datetime('now','+1 hour'), datetime('now','+30 days'))",
+      )
+      .run(user.id);
+    testDb
+      .prepare(
+        "INSERT INTO oauth_consents (client_id, user_id, scopes) VALUES ('oauth-admin-client', ?, '[\"trips:read\"]')",
+      )
+      .run(user.id);
+
+    const session = (listOAuthSessions() as any[])[0];
+    expect(session).toBeDefined();
+
+    const result = revokeOAuthSession(String(session.id)) as any;
+
+    expect(result.error).toBeUndefined();
+    expect(
+      testDb
+        .prepare('SELECT id FROM oauth_consents WHERE client_id = ? AND user_id = ?')
+        .get('oauth-admin-client', user.id),
+    ).toBeUndefined();
   });
 });

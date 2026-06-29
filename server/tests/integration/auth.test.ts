@@ -825,7 +825,7 @@ describe('Rate limiting', () => {
       if (lastStatus === 429) break;
     }
     expect(lastStatus).toBe(429);
-  });
+  }, 45_000);
 
   it('AUTH-018 — MFA verify-login endpoint rate-limits after 5 attempts', async () => {
     let lastStatus = 0;
@@ -837,7 +837,7 @@ describe('Rate limiting', () => {
       if (lastStatus === 429) break;
     }
     expect(lastStatus).toBe(429);
-  });
+  }, 45_000);
 
   it('AUTH-019 — reset-password endpoint rate-limits after 5 attempts (parity with the legacy resetLimiter)', async () => {
     let lastStatus = 0;

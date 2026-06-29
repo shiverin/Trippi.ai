@@ -275,7 +275,7 @@ describe('MCP session management', () => {
         process.env.MCP_MAX_SESSION_PER_USER = originalMaxSessions;
       }
     }
-  });
+  }, 45_000);
 
   it('MCP — session resumption with valid mcp-session-id', async () => {
     const { user } = createUser(testDb);

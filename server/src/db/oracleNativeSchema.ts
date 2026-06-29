@@ -746,6 +746,7 @@ async function createNativeForeignKeys(
           `Failed to create foreign key ${constraintName} on ${table.name}(${foreignKey.columns.join(
             ', ',
           )}) -> ${foreignKey.referencedTable}(${foreignKey.referencedColumns.join(', ')}): ${message}\n${sql}`,
+          { cause: err },
         );
       }
       createdForeignKeys.push(constraintName);

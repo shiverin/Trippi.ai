@@ -27,6 +27,7 @@ const reservations: TranslationStrings = {
   'reservations.type.hotel': 'Alojamiento',
   'reservations.type.restaurant': 'Restaurante',
   'reservations.type.train': 'Tren',
+  'reservations.type.subway': 'Metro',
   'reservations.type.car': 'Coche',
   'reservations.type.cruise': 'Crucero',
   'reservations.type.event': 'Evento',

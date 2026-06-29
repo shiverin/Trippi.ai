@@ -53,6 +53,7 @@ const reservations: TranslationStrings = {
   'reservations.type.hotel': 'Konaklama',
   'reservations.type.restaurant': 'Restoran',
   'reservations.type.train': 'Tren',
+  'reservations.type.subway': 'Metro',
   'reservations.type.car': 'Araba',
   'reservations.type.cruise': 'Dolaşmak',
   'reservations.type.event': 'Etkinlik',

@@ -53,6 +53,7 @@ const reservations: TranslationStrings = {
   'reservations.type.hotel': 'Boende',
   'reservations.type.restaurant': 'Restaurang',
   'reservations.type.train': 'Tåg',
+  'reservations.type.subway': 'Tunnelbana',
   'reservations.type.car': 'Bil',
   'reservations.type.cruise': 'Kryssning',
   'reservations.type.event': 'Evenemang',

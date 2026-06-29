@@ -344,8 +344,8 @@ export default function TripPlannerPage(): React.ReactElement | null {
     deletePlaceIds,
     setDeletePlaceIds,
     visibleConnections,
-    setVisibleConnections,
     toggleConnection,
+    transportRoutes,
     mapTransportDetail,
     setMapTransportDetail,
     isMobile,
@@ -570,6 +570,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
               hasInspector={!!selectedPlace}
               hasDayDetail={!!showDayDetail && !selectedPlace}
               reservations={reservations}
+              transportRoutes={transportRoutes}
               showReservationStats={true}
               visibleConnectionIds={visibleConnections}
               onReservationClick={(rid) => {

@@ -52,6 +52,7 @@ const reservations: TranslationStrings = {
   'reservations.type.hotel': '숙박',
   'reservations.type.restaurant': '레스토랑',
   'reservations.type.train': '기차',
+  'reservations.type.subway': '지하철',
   'reservations.type.car': '차량',
   'reservations.type.cruise': '크루즈',
   'reservations.type.event': '이벤트',

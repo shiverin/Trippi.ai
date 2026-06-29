@@ -1,6 +1,7 @@
 export const TRANSPORT_TYPES = new Set([
   'flight',
   'train',
+  'subway',
   'bus',
   'car',
   'taxi',

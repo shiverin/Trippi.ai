@@ -19,8 +19,8 @@
     "lint:pages": "node scripts/check-page-pattern.mjs",
     "e2e": "playwright test",
     "e2e:report": "playwright show-report",
-    "format": "prettier --write \"src/**/*.tsx\" \"src/**/*.css\"",
-    "format:check": "prettier --check \"src/**/*.tsx\" \"src/**/*.css\""
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.tsx\" \"src/**/*.css\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"src/**/*.tsx\" \"src/**/*.css\""
   },
   "dependencies": {
     "@fontsource/geist-sans": "^5.2.5",

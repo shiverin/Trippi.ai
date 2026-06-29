@@ -1,3 +1,4 @@
+import type { MapsTransportRouteResult } from '@trippi/shared';
 import { escapeHtml } from '@trippi/shared';
 import L from 'leaflet';
 import { Bike, Bus, Car, CarTaxiFront, Plane, Route, Sailboat, Ship, Train } from 'lucide-react';
@@ -11,10 +12,21 @@ const ENDPOINT_PANE = 'reservation-endpoints';
 const AIRPORT_BADGE_HALF_PX = 16;
 const BADGE_GAP_PX = 5;
 
-type TransportType = 'flight' | 'train' | 'cruise' | 'car' | 'bus' | 'taxi' | 'bicycle' | 'ferry' | 'transport_other';
+type TransportType =
+  | 'flight'
+  | 'train'
+  | 'subway'
+  | 'cruise'
+  | 'car'
+  | 'bus'
+  | 'taxi'
+  | 'bicycle'
+  | 'ferry'
+  | 'transport_other';
 const TRANSPORT_TYPES: TransportType[] = [
   'flight',
   'train',
+  'subway',
   'cruise',
   'car',
   'bus',
@@ -29,6 +41,7 @@ const TRANSPORT_COLOR = '#3b82f6';
 const TYPE_META: Record<TransportType, { color: string; icon: typeof Plane; geodesic: boolean }> = {
   flight: { color: TRANSPORT_COLOR, icon: Plane, geodesic: true },
   train: { color: TRANSPORT_COLOR, icon: Train, geodesic: false },
+  subway: { color: TRANSPORT_COLOR, icon: Train, geodesic: false },
   cruise: { color: TRANSPORT_COLOR, icon: Ship, geodesic: true },
   car: { color: TRANSPORT_COLOR, icon: Car, geodesic: false },
   bus: { color: TRANSPORT_COLOR, icon: Bus, geodesic: false },
@@ -202,6 +215,7 @@ interface TransportItem {
   type: TransportType;
   arcs: [number, number][][];
   primaryArc: [number, number][];
+  exact: boolean;
   fallback: [number, number];
   mainLabel: string | null;
   subLabel: string | null;
@@ -385,12 +399,19 @@ function StatsLabel({ item }: { item: TransportItem }) {
 
 interface Props {
   reservations: Reservation[];
+  transportRoutes?: Record<number, MapsTransportRouteResult | undefined>;
   showConnections: boolean;
   showStats: boolean;
   onEndpointClick?: (reservationId: number) => void;
 }
 
-export default function ReservationOverlay({ reservations, showConnections, showStats, onEndpointClick }: Props) {
+export default function ReservationOverlay({
+  reservations,
+  transportRoutes = {},
+  showConnections,
+  showStats,
+  onEndpointClick,
+}: Props) {
   useEndpointPane();
   const map = useMap();
   const [zoom, setZoom] = useState(() => map.getZoom());
@@ -414,21 +435,29 @@ export default function ReservationOverlay({ reservations, showConnections, show
       const to = waypoints[waypoints.length - 1];
       const type = r.type as TransportType;
       const isGeo = TYPE_META[type].geodesic;
-      // One arc per leg (between consecutive waypoints), concatenated.
-      const arcs: [number, number][][] = [];
+      const providerRoute = transportRoutes[r.id];
+      const providerArcs =
+        providerRoute?.segments
+          ?.map((seg) => seg.coordinates.filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng)))
+          .filter((coords): coords is [number, number][] => coords.length >= 2) ?? [];
+      // One arc per leg (between consecutive waypoints), concatenated. Provider
+      // geometry wins; endpoint-to-endpoint lines remain the fallback.
+      const arcs: [number, number][][] = providerArcs.length > 0 ? providerArcs : [];
       let distanceKm = 0;
       for (let i = 0; i < waypoints.length - 1; i++) {
         const a = waypoints[i];
         const b = waypoints[i + 1];
-        const segArcs = isGeo
-          ? splitAntimeridian(greatCircle([a.lat, a.lng], [b.lat, b.lng]))
-          : [
-              [
-                [a.lat, a.lng],
-                [b.lat, b.lng],
-              ] as [number, number][],
-            ];
-        arcs.push(...segArcs);
+        if (providerArcs.length === 0) {
+          const segArcs = isGeo
+            ? splitAntimeridian(greatCircle([a.lat, a.lng], [b.lat, b.lng]))
+            : [
+                [
+                  [a.lat, a.lng],
+                  [b.lat, b.lng],
+                ] as [number, number][],
+              ];
+          arcs.push(...segArcs);
+        }
         distanceKm += haversineKm([a.lat, a.lng], [b.lat, b.lng]);
       }
       const primaryIdx = arcs.reduce((best, seg, idx, all) => (seg.length > all[best].length ? idx : best), 0);
@@ -449,10 +478,22 @@ export default function ReservationOverlay({ reservations, showConnections, show
       const subParts = [duration, distance].filter(Boolean) as string[];
       const subLabel = subParts.length > 0 ? subParts.join(' · ') : null;
 
-      out.push({ res: r, from, to, waypoints, type, arcs, primaryArc, fallback, mainLabel, subLabel });
+      out.push({
+        res: r,
+        from,
+        to,
+        waypoints,
+        type,
+        arcs,
+        primaryArc,
+        exact: providerRoute ? providerRoute.exact : true,
+        fallback,
+        mainLabel,
+        subLabel,
+      });
     }
     return out;
-  }, [reservations]);
+  }, [reservations, transportRoutes]);
 
   const visibleItems = useMemo(() => {
     return items.filter((item) => {
@@ -485,9 +526,11 @@ export default function ReservationOverlay({ reservations, showConnections, show
             positions={seg}
             pathOptions={{
               color: TYPE_META[item.type].color,
-              weight: 2.5,
-              opacity: item.res.status === 'confirmed' ? 0.75 : 0.55,
-              dashArray: item.res.status === 'confirmed' ? undefined : '6, 6',
+              weight: item.exact ? 3.25 : 2.75,
+              opacity: item.res.status === 'confirmed' ? (item.exact ? 0.82 : 0.68) : 0.55,
+              dashArray: item.res.status === 'confirmed' && item.exact ? undefined : '6, 6',
+              lineCap: 'round',
+              lineJoin: 'round',
             }}
           />
         ))

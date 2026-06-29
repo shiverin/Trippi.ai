@@ -17,6 +17,7 @@ import { usePlaceSelection } from '../../hooks/usePlaceSelection';
 import { usePlannerHistory } from '../../hooks/usePlannerHistory';
 import { useResizablePanels } from '../../hooks/useResizablePanels';
 import { useRouteCalculation } from '../../hooks/useRouteCalculation';
+import { useTransportRoutes } from '../../hooks/useTransportRoutes';
 import { useTripWebSocket } from '../../hooks/useTripWebSocket';
 import { useTranslation } from '../../i18n';
 import { accommodationRepo } from '../../repo/accommodationRepo';
@@ -26,6 +27,7 @@ import { useCanDo } from '../../store/permissionsStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useTripStore } from '../../store/tripStore';
 import type { Accommodation, Day, Place, Reservation, TripMember } from '../../types';
+import { getTransportForDay } from '../../utils/dayMerge';
 import { getDayRelevantPlaceIds } from '../../utils/dayRelevantPlaceIds';
 import { resolvePoolAssignmentId } from './tripPlannerModel';
 
@@ -126,6 +128,7 @@ export function useTripPlanner() {
   const TRANSPORT_TYPES = new Set([
     'flight',
     'train',
+    'subway',
     'bus',
     'car',
     'taxi',
@@ -261,23 +264,52 @@ export function useTripPlanner() {
       .catch(() => {});
   }, []);
 
-  const connectionsStorageKey = tripId ? `trippi:visible-connections:${tripId}` : null;
-  const [visibleConnections, setVisibleConnections] = useState<number[]>(() => {
-    if (typeof window === 'undefined' || !connectionsStorageKey) return [];
+  const connectionsStorageKey = tripId ? `trippi:connection-overrides:${tripId}` : null;
+  const [connectionOverrides, setConnectionOverrides] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined' || !connectionsStorageKey) return {};
     try {
       const stored = window.localStorage.getItem(connectionsStorageKey);
-      return stored ? (JSON.parse(stored) as number[]) : [];
+      return stored ? (JSON.parse(stored) as Record<string, boolean>) : {};
     } catch {
-      return [];
+      return {};
     }
   });
   useEffect(() => {
     if (typeof window === 'undefined' || !connectionsStorageKey) return;
-    window.localStorage.setItem(connectionsStorageKey, JSON.stringify(visibleConnections));
-  }, [connectionsStorageKey, visibleConnections]);
-  const toggleConnection = useCallback((id: number) => {
-    setVisibleConnections((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }, []);
+    window.localStorage.setItem(connectionsStorageKey, JSON.stringify(connectionOverrides));
+  }, [connectionsStorageKey, connectionOverrides]);
+  const autoConnectionIds = useMemo(() => {
+    if (!selectedDayId) return [];
+    const dayAssignments = assignments[String(selectedDayId)] || [];
+    const dayAssignmentIds = dayAssignments.map((a) => a.id);
+    const seen = new Set<number>();
+    return getTransportForDay({ reservations, dayId: selectedDayId, dayAssignmentIds, days })
+      .filter((r) => !r.__leg || r.__leg.index === 0)
+      .filter((r) => (r.endpoints || []).length >= 2)
+      .map((r) => Number(r.id))
+      .filter((id) => {
+        if (!Number.isFinite(id) || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+  }, [selectedDayId, assignments, reservations, days]);
+  const visibleConnections = useMemo(() => {
+    const visible = new Set(autoConnectionIds);
+    for (const [rawId, show] of Object.entries(connectionOverrides)) {
+      const id = Number(rawId);
+      if (!Number.isFinite(id)) continue;
+      if (show) visible.add(id);
+      else visible.delete(id);
+    }
+    return [...visible];
+  }, [autoConnectionIds, connectionOverrides]);
+  const toggleConnection = useCallback(
+    (id: number) => {
+      setConnectionOverrides((prev) => ({ ...prev, [id]: !visibleConnections.includes(id) }));
+    },
+    [visibleConnections]
+  );
+  const transportRoutes = useTransportRoutes(tripId || null, reservations, visibleConnections);
   const [mapTransportDetail, setMapTransportDetail] = useState<Reservation | null>(null);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -993,8 +1025,8 @@ export function useTripPlanner() {
     deletePlaceIds,
     setDeletePlaceIds,
     visibleConnections,
-    setVisibleConnections,
     toggleConnection,
+    transportRoutes,
     mapTransportDetail,
     setMapTransportDetail,
     isMobile,

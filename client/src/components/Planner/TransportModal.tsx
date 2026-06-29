@@ -39,6 +39,7 @@ import LocationSelect, { type LocationPoint } from './LocationSelect';
 const TRANSPORT_TYPES = [
   'flight',
   'train',
+  'subway',
   'bus',
   'car',
   'taxi',
@@ -144,6 +145,7 @@ function emptyWaypoint(dayId: string | number = ''): WaypointForm {
 const TYPE_OPTIONS = [
   { value: 'flight', labelKey: 'reservations.type.flight', Icon: Plane },
   { value: 'train', labelKey: 'reservations.type.train', Icon: Train },
+  { value: 'subway', labelKey: 'reservations.type.subway', Icon: Train },
   { value: 'bus', labelKey: 'reservations.type.bus', Icon: Bus },
   { value: 'car', labelKey: 'reservations.type.car', Icon: Car },
   { value: 'taxi', labelKey: 'reservations.type.taxi', Icon: CarTaxiFront },

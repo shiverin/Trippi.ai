@@ -56,6 +56,7 @@ const LEGACY_CATEGORY_MAP: Record<string, CostCategory> = {
   plane: 'flights',
   flug: 'flights',
   train: 'transport',
+  subway: 'transport',
   bus: 'transport',
   car: 'transport',
   'car rental': 'transport',

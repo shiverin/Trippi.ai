@@ -25,11 +25,16 @@ describe('async DB access guardrails', () => {
       'websocket.ts',
       'mcp/index.ts',
       'mcp/resources.ts',
+      'nest/auth/auth-public.controller.ts',
+      'nest/auth/auth.controller.ts',
+      'nest/auth/auth.service.ts',
       'nest/auth/cookie-auth.guard.ts',
       'nest/auth/jwt-auth.guard.ts',
       'nest/auth/optional-jwt.guard.ts',
       'nest/files/files-download.controller.ts',
       'nest/platform/platform.routes.ts',
+      'nest/trips/trips.controller.ts',
+      'nest/trips/trips.service.ts',
     ];
 
     const offenders = convertedEntryPoints.filter((file) => {

@@ -20,3 +20,26 @@ Required pre-push checks:
 7. After pushing, run `gh run list --repo shiverin/Trippi.ai --branch main --limit 10` and watch triggered runs with `gh run watch <run-id> --repo shiverin/Trippi.ai --exit-status` until they pass.
 
 Do not report a push as done until local parity checks pass and the triggered GitHub Actions have been checked. If a workflow is intentionally skipped by path filters, say so explicitly.
+
+## Async database contract
+
+The backend is being migrated to async database access. New runtime/request code
+must use `server/src/db/asyncDatabase.ts` (`asyncDb.prepare(...).get/all/run`,
+`asyncDb.transaction(async () => ...)`) instead of importing
+`server/src/db/database.ts` or calling sync `db.prepare(...)`.
+
+Important provider rules:
+
+1. `TRIPPI_DB_PROVIDER=oracle` is the current production-safe compatibility
+   mode.
+2. `TRIPPI_DB_PROVIDER=oracle-async` is the opt-in async Oracle proof mode.
+   Under this mode, sync `db` access intentionally throws so blocking calls are
+   caught during smoke tests.
+3. `TRIPPI_DB_PROVIDER=oracle-native` is blocking and must stay gated behind
+   `ORACLE_NATIVE_ALLOW_BLOCKING=true`; do not enable it for request traffic.
+
+When adding features, make the async path first and add/extend guard tests in
+`server/tests/unit/db/async-access-guard.test.ts` for newly converted request
+entry points. Startup-only SQLite migration/seed code may keep using the sync
+database module, but request handlers, middleware, MCP handlers, schedulers, and
+websocket paths should not add new sync DB dependencies.

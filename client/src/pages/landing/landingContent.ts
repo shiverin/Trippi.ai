@@ -1,7 +1,7 @@
 import {
   BookOpen,
+  Bot,
   CalendarCheck,
-  Check,
   FileText,
   FolderOpen,
   Globe2,
@@ -253,7 +253,7 @@ export const heroMetrics = [
 ];
 
 export const featureProof = [
-  { label: 'Open-source friendly', Icon: Check },
-  { label: 'Self-hostable', Icon: Server },
-  { label: 'Privacy first', Icon: ShieldCheck },
+  { label: 'Feature-packed', Icon: Sparkles },
+  { label: 'All-in-one planner', Icon: ListChecks },
+  { label: 'LLM agent ready', Icon: Bot },
 ];

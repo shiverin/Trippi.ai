@@ -290,7 +290,7 @@ function FeatureSection({
         </div>
       </div>
       <div className="landing-proof-bar">
-        <strong>Self-hosted, open-source friendly, and built for real group trips.</strong>
+        <strong>Packed with features, built as one travel planner, and ready for LLM agents.</strong>
         <div>
           {featureProof.map(({ label, Icon }) => (
             <span key={label}>

@@ -537,6 +537,105 @@ describe('DayPlanSidebar', () => {
     });
   });
 
+  it('FE-PLANNER-DAYPLAN-031a: toolbar global booking routes button toggles all routes', async () => {
+    const user = userEvent.setup();
+    const onToggleBookingRoutesGlobal = vi.fn();
+    render(<DayPlanSidebar {...makeDefaultProps({ onToggleBookingRoutesGlobal })} />);
+    await user.click(screen.getByRole('button', { name: 'Show all booking routes' }));
+    expect(onToggleBookingRoutesGlobal).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['train', 'bus', 'taxi'] as const)(
+    'FE-PLANNER-DAYPLAN-031b: %s transport rows render route buttons when endpoints exist',
+    (type) => {
+      const day = buildDay({ id: 10, date: '2025-06-01', title: 'Travel Day' });
+      const endpoints = [
+        { role: 'from', sequence: 0, lat: 48.85, lng: 2.35, name: 'Start' },
+        { role: 'to', sequence: 1, lat: 48.86, lng: 2.36, name: 'End' },
+      ] as any;
+      const reservation = buildReservation({
+        id: 210,
+        type,
+        title: `${type} transfer`,
+        reservation_time: '2025-06-01T08:00:00',
+        day_id: 10,
+        endpoints,
+      });
+      render(
+        <DayPlanSidebar
+          {...makeDefaultProps({
+            days: [day],
+            reservations: [reservation],
+            bookingRoutesGlobalShown: true,
+            visibleConnectionIds: [210],
+            onToggleConnection: vi.fn(),
+          })}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'Hide booking routes' })).toBeInTheDocument();
+    }
+  );
+
+  it('FE-PLANNER-DAYPLAN-031c: clicking row route button hides only that transport while global stays active', async () => {
+    const user = userEvent.setup();
+    const onToggleConnection = vi.fn();
+    const day = buildDay({ id: 10, date: '2025-06-01', title: 'Travel Day' });
+    const endpoints = [
+      { role: 'from', sequence: 0, lat: 48.85, lng: 2.35, name: 'Start' },
+      { role: 'to', sequence: 1, lat: 48.86, lng: 2.36, name: 'End' },
+    ] as any;
+    const reservation = buildReservation({
+      id: 211,
+      type: 'train',
+      title: 'Rail transfer',
+      reservation_time: '2025-06-01T08:00:00',
+      day_id: 10,
+      endpoints,
+    });
+    render(
+      <DayPlanSidebar
+        {...makeDefaultProps({
+          days: [day],
+          reservations: [reservation],
+          bookingRoutesGlobalShown: true,
+          visibleConnectionIds: [211],
+          onToggleConnection,
+          onToggleBookingRoutesGlobal: vi.fn(),
+        })}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Hide booking routes' }));
+    expect(onToggleConnection).toHaveBeenCalledWith(211);
+    expect(screen.getByRole('button', { name: 'Hide all booking routes' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('FE-PLANNER-DAYPLAN-031d: row route buttons are disabled when global booking routes are off', () => {
+    const day = buildDay({ id: 10, date: '2025-06-01', title: 'Travel Day' });
+    const endpoints = [
+      { role: 'from', sequence: 0, lat: 48.85, lng: 2.35, name: 'Start' },
+      { role: 'to', sequence: 1, lat: 48.86, lng: 2.36, name: 'End' },
+    ] as any;
+    const reservation = buildReservation({
+      id: 212,
+      type: 'taxi',
+      title: 'Taxi transfer',
+      reservation_time: '2025-06-01T08:00:00',
+      day_id: 10,
+      endpoints,
+    });
+    render(
+      <DayPlanSidebar
+        {...makeDefaultProps({
+          days: [day],
+          reservations: [reservation],
+          bookingRoutesGlobalShown: false,
+          onToggleConnection: vi.fn(),
+        })}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Turn on all booking routes to use this route toggle' })).toBeDisabled();
+  });
+
   // ── Accommodation badges ────────────────────────────────────────────────
 
   it('FE-PLANNER-DAYPLAN-032: accommodation badge renders hotel name in day header', () => {

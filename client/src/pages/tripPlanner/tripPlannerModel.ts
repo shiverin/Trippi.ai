@@ -4,9 +4,26 @@
  * the FE "page = wiring container + data hook" convention (see PATTERN.md).
  */
 
-import type { Assignment, Place } from '../../types'
+import type { Assignment, Place, Reservation } from '../../types'
 
 type MappablePlace = Pick<Place, 'id' | 'lat' | 'lng'>
+
+export const BOOKING_ROUTE_TRANSPORT_TYPES = new Set([
+  'flight',
+  'train',
+  'subway',
+  'bus',
+  'car',
+  'taxi',
+  'bicycle',
+  'cruise',
+  'ferry',
+  'transport_other',
+])
+
+type RouteableReservation = Pick<Reservation, 'id' | 'type' | 'endpoints'> & {
+  __leg?: { index?: number }
+}
 
 export function hasValidPlaceCoordinates(place: Pick<Place, 'lat' | 'lng'> | null | undefined): boolean {
   return (
@@ -67,4 +84,30 @@ export function resolvePoolAssignmentId(
     .flat()
     .filter((a) => a.place?.id === placeId)
   return matches.length === 1 ? matches[0].id : null
+}
+
+export function bookingRouteReservationIds(reservations: RouteableReservation[]): number[] {
+  const seen = new Set<number>()
+  const ids: number[] = []
+
+  for (const reservation of reservations) {
+    if (reservation.__leg && reservation.__leg.index !== 0) continue
+    if (!BOOKING_ROUTE_TRANSPORT_TYPES.has(reservation.type)) continue
+    if ((reservation.endpoints || []).length < 2) continue
+    const id = Number(reservation.id)
+    if (!Number.isFinite(id) || seen.has(id)) continue
+    seen.add(id)
+    ids.push(id)
+  }
+
+  return ids
+}
+
+export function visibleBookingRouteIds(
+  reservations: RouteableReservation[],
+  globalShown: boolean,
+  hiddenById: Record<string, boolean>,
+): number[] {
+  if (!globalShown) return []
+  return bookingRouteReservationIds(reservations).filter((id) => !hiddenById[String(id)])
 }

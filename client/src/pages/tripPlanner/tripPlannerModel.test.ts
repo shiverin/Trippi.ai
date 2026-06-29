@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { buildDisplayedPinOrderMap, hasValidPlaceCoordinates, resolvePoolAssignmentId } from './tripPlannerModel'
-import { buildAssignment, buildPlace } from '../../../tests/helpers/factories'
+import {
+  bookingRouteReservationIds,
+  buildDisplayedPinOrderMap,
+  hasValidPlaceCoordinates,
+  resolvePoolAssignmentId,
+  visibleBookingRouteIds,
+} from './tripPlannerModel'
+import { buildAssignment, buildPlace, buildReservation } from '../../../tests/helpers/factories'
 
 describe('resolvePoolAssignmentId', () => {
   it('returns the lone assignment id when the place is assigned to exactly one day', () => {
@@ -95,5 +101,40 @@ describe('buildDisplayedPinOrderMap', () => {
       10: [1],
       30: [2],
     })
+describe('booking route visibility', () => {
+  const endpoints = [
+    { role: 'from', sequence: 0, lat: 1, lng: 1, name: 'A' },
+    { role: 'to', sequence: 1, lat: 2, lng: 2, name: 'B' },
+  ] as any
+
+  it('returns no visible route ids when the global toggle is off', () => {
+    const reservations = [buildReservation({ id: 1, type: 'flight', endpoints })]
+    expect(visibleBookingRouteIds(reservations, false, {})).toEqual([])
+  })
+
+  it('returns every eligible transport id when the global toggle is on', () => {
+    const reservations = [
+      buildReservation({ id: 1, type: 'flight', endpoints, day_id: 10 }),
+      buildReservation({ id: 2, type: 'taxi', endpoints, day_id: 20 }),
+      buildReservation({ id: 3, type: 'ferry', endpoints, day_id: 30 }),
+    ]
+    expect(visibleBookingRouteIds(reservations, true, {})).toEqual([1, 2, 3])
+  })
+
+  it('removes hidden per-transport exceptions while global stays on', () => {
+    const reservations = [
+      buildReservation({ id: 1, type: 'flight', endpoints }),
+      buildReservation({ id: 2, type: 'bus', endpoints }),
+    ]
+    expect(visibleBookingRouteIds(reservations, true, { 2: true })).toEqual([1])
+  })
+
+  it('ignores non-transport and endpoint-less reservations', () => {
+    const reservations = [
+      buildReservation({ id: 1, type: 'hotel', endpoints }),
+      buildReservation({ id: 2, type: 'train', endpoints: [endpoints[0]] }),
+      buildReservation({ id: 3, type: 'car', endpoints }),
+    ]
+    expect(bookingRouteReservationIds(reservations)).toEqual([3])
   })
 })

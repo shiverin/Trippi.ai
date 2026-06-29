@@ -1,4 +1,4 @@
-import { ArrowUpDown, ChevronsDownUp, ChevronsUpDown, FileDown, Undo2 } from 'lucide-react';
+import { ArrowUpDown, ChevronsDownUp, ChevronsUpDown, FileDown, Route, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { apiUrl } from '../../api/baseUrl';
 import type { AssignmentsMap, Category, Day, DayNote, Place, Reservation, Trip } from '../../types';
@@ -30,6 +30,8 @@ interface DayPlanSidebarToolbarProps {
   undoHover: boolean;
   setUndoHover: (v: boolean) => void;
   lastActionLabel: string | null;
+  bookingRoutesGlobalShown: boolean;
+  onToggleBookingRoutesGlobal?: () => void;
   canEditDays?: boolean;
   onReorderDays?: (orderedIds: number[]) => void;
   onAddDay?: (position?: number) => void;
@@ -58,14 +60,17 @@ export function DayPlanSidebarToolbar({
   undoHover,
   setUndoHover,
   lastActionLabel,
+  bookingRoutesGlobalShown,
+  onToggleBookingRoutesGlobal,
   canEditDays,
   onReorderDays,
   onAddDay,
 }: DayPlanSidebarToolbarProps) {
   const [reorderOpen, setReorderOpen] = useState(false);
+  const routeLabel = t(bookingRoutesGlobalShown ? 'map.hideAllConnections' : 'map.showAllConnections');
   return (
-    <div className="border-b border-edge-faint" style={{ padding: '12px 16px', flexShrink: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+    <div className="border-b border-edge-faint" style={{ padding: '10px 12px', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <button
             onClick={async () => {
@@ -96,7 +101,7 @@ export function DayPlanSidebarToolbar({
               display: 'flex',
               alignItems: 'center',
               gap: 5,
-              padding: '5px 10px',
+              padding: '5px 9px',
               borderRadius: 8,
               border: 'none',
               fontSize: 11,
@@ -156,7 +161,7 @@ export function DayPlanSidebarToolbar({
               display: 'flex',
               alignItems: 'center',
               gap: 5,
-              padding: '5px 10px',
+              padding: '5px 9px',
               borderRadius: 8,
               border: '1px solid var(--border-primary)',
               background: 'none',
@@ -357,6 +362,48 @@ export function DayPlanSidebarToolbar({
             />
           </div>
         )}
+        <Tooltip label={routeLabel} placement="bottom">
+          <button
+            type="button"
+            onClick={onToggleBookingRoutesGlobal}
+            disabled={!onToggleBookingRoutesGlobal}
+            aria-label={routeLabel}
+            aria-pressed={bookingRoutesGlobalShown}
+            className={
+              bookingRoutesGlobalShown ? 'bg-accent text-accent-text' : 'bg-transparent text-content-secondary'
+            }
+            style={{
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              border: bookingRoutesGlobalShown ? 'none' : '1px solid var(--border-primary)',
+              background: bookingRoutesGlobalShown ? undefined : 'none',
+              color: bookingRoutesGlobalShown ? undefined : 'var(--text-muted)',
+              cursor: onToggleBookingRoutesGlobal ? 'pointer' : 'default',
+              fontFamily: 'inherit',
+              padding: 0,
+              transition: 'color 0.15s, border-color 0.15s, background 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              if (!bookingRoutesGlobalShown && onToggleBookingRoutesGlobal) {
+                e.currentTarget.style.background = 'var(--bg-hover)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!bookingRoutesGlobalShown) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-muted)';
+              }
+            }}
+          >
+            <Route size={14} strokeWidth={2} />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

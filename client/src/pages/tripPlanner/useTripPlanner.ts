@@ -27,22 +27,46 @@ import { useCanDo } from '../../store/permissionsStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useTripStore } from '../../store/tripStore';
 import type { Accommodation, Day, Place, Reservation, TripMember } from '../../types';
-import { getTransportForDay } from '../../utils/dayMerge';
 import { getDayRelevantPlaceIds } from '../../utils/dayRelevantPlaceIds';
-import { buildDisplayedPinOrderMap, hasValidPlaceCoordinates, resolvePoolAssignmentId } from './tripPlannerModel';
+import {
+  BOOKING_ROUTE_TRANSPORT_TYPES,
+  buildDisplayedPinOrderMap,
+  hasValidPlaceCoordinates,
+  resolvePoolAssignmentId,
+  visibleBookingRouteIds,
+} from './tripPlannerModel';
 
-const TRANSPORT_TYPES = new Set([
-  'flight',
-  'train',
-  'subway',
-  'bus',
-  'car',
-  'taxi',
-  'bicycle',
-  'cruise',
-  'ferry',
-  'transport_other',
-]);
+const TRANSPORT_TYPES = BOOKING_ROUTE_TRANSPORT_TYPES;
+
+interface BookingRoutePrefs {
+  storageKey: string | null;
+  globalShown: boolean;
+  hiddenById: Record<string, boolean>;
+}
+
+function normaliseBooleanRecord(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(([, hidden]) => hidden === true)
+  ) as Record<string, boolean>;
+}
+
+function readBookingRoutePrefs(storageKey: string | null): BookingRoutePrefs {
+  const fallback = { storageKey, globalShown: false, hiddenById: {} };
+  if (typeof window === 'undefined' || !storageKey) return fallback;
+  try {
+    const stored = window.localStorage.getItem(storageKey);
+    if (!stored) return fallback;
+    const parsed = JSON.parse(stored) as { globalShown?: unknown; hiddenById?: unknown };
+    return {
+      storageKey,
+      globalShown: parsed?.globalShown === true,
+      hiddenById: normaliseBooleanRecord(parsed?.hiddenById),
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 /**
  * Trip planner page logic — the big one. Owns the trip store wiring, addon
@@ -265,72 +289,52 @@ export function useTripPlanner() {
       .catch(() => {});
   }, []);
 
-  const connectionsStorageKey = tripId ? `trippi:connection-overrides:${tripId}` : null;
-  const [connectionOverrides, setConnectionOverrides] = useState<Record<string, boolean>>(() => {
-    if (typeof window === 'undefined' || !connectionsStorageKey) return {};
-    try {
-      const stored = window.localStorage.getItem(connectionsStorageKey);
-      return stored ? (JSON.parse(stored) as Record<string, boolean>) : {};
-    } catch {
-      return {};
-    }
-  });
+  const bookingRoutesStorageKey = tripId ? `trippi:booking-routes:${tripId}` : null;
+  const [bookingRoutePrefs, setBookingRoutePrefs] = useState<BookingRoutePrefs>(() =>
+    readBookingRoutePrefs(bookingRoutesStorageKey)
+  );
+
   useEffect(() => {
-    if (typeof window === 'undefined' || !connectionsStorageKey) return;
-    window.localStorage.setItem(connectionsStorageKey, JSON.stringify(connectionOverrides));
-  }, [connectionsStorageKey, connectionOverrides]);
-  const autoConnectionIds = useMemo(() => {
-    const activeDayIds = new Set<number>();
-    if (selectedDayId) activeDayIds.add(selectedDayId);
-    if (expandedDayIds) {
-      for (const dayId of expandedDayIds) activeDayIds.add(dayId);
-    }
-    if (activeDayIds.size === 0) {
-      for (const day of days) activeDayIds.add(day.id);
-    }
+    setBookingRoutePrefs(readBookingRoutePrefs(bookingRoutesStorageKey));
+  }, [bookingRoutesStorageKey]);
 
-    const seen = new Set<number>();
-    const ids: number[] = [];
-    const addReservation = (r: Reservation) => {
-      if ((r as any).__leg && (r as any).__leg.index !== 0) return;
-      if ((r.endpoints || []).length < 2) return;
-      const id = Number(r.id);
-      if (!Number.isFinite(id) || seen.has(id)) return;
-      seen.add(id);
-      ids.push(id);
-    };
+  useEffect(() => {
+    if (typeof window === 'undefined' || !bookingRoutesStorageKey) return;
+    if (bookingRoutePrefs.storageKey !== bookingRoutesStorageKey) return;
+    window.localStorage.setItem(
+      bookingRoutesStorageKey,
+      JSON.stringify({
+        globalShown: bookingRoutePrefs.globalShown,
+        hiddenById: bookingRoutePrefs.hiddenById,
+      })
+    );
+  }, [bookingRoutesStorageKey, bookingRoutePrefs]);
 
-    if (activeDayIds.size > 0) {
-      for (const dayId of activeDayIds) {
-        const dayAssignments = assignments[String(dayId)] || [];
-        const dayAssignmentIds = dayAssignments.map((a) => a.id);
-        for (const r of getTransportForDay({ reservations, dayId, dayAssignmentIds, days })) {
-          addReservation(r);
-        }
-      }
-    } else {
-      for (const r of reservations) {
-        if (!TRANSPORT_TYPES.has(r.type)) continue;
-        addReservation(r);
-      }
-    }
-    return ids;
-  }, [selectedDayId, expandedDayIds, assignments, reservations, days]);
-  const visibleConnections = useMemo(() => {
-    const visible = new Set(autoConnectionIds);
-    for (const [rawId, show] of Object.entries(connectionOverrides)) {
-      const id = Number(rawId);
-      if (!Number.isFinite(id)) continue;
-      if (show) visible.add(id);
-      else visible.delete(id);
-    }
-    return [...visible];
-  }, [autoConnectionIds, connectionOverrides]);
+  const bookingRoutesGlobalShown = bookingRoutePrefs.globalShown;
+  const hiddenBookingRouteIds = bookingRoutePrefs.hiddenById;
+  const visibleConnections = useMemo(
+    () => visibleBookingRouteIds(reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds),
+    [reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds]
+  );
+  const toggleBookingRoutesGlobal = useCallback(() => {
+    setBookingRoutePrefs((prev) => ({
+      ...prev,
+      storageKey: bookingRoutesStorageKey,
+      globalShown: !prev.globalShown,
+    }));
+  }, [bookingRoutesStorageKey]);
   const toggleConnection = useCallback(
     (id: number) => {
-      setConnectionOverrides((prev) => ({ ...prev, [id]: !visibleConnections.includes(id) }));
+      if (!bookingRoutesGlobalShown) return;
+      setBookingRoutePrefs((prev) => {
+        const key = String(id);
+        const hiddenById = { ...prev.hiddenById };
+        if (hiddenById[key]) delete hiddenById[key];
+        else hiddenById[key] = true;
+        return { ...prev, storageKey: bookingRoutesStorageKey, hiddenById };
+      });
     },
-    [visibleConnections]
+    [bookingRoutesGlobalShown, bookingRoutesStorageKey]
   );
   const transportRoutes = useTransportRoutes(tripId || null, reservations, visibleConnections);
   const [mapTransportDetail, setMapTransportDetail] = useState<Reservation | null>(null);
@@ -1037,7 +1041,9 @@ export function useTripPlanner() {
     setDeletePlaceId,
     deletePlaceIds,
     setDeletePlaceIds,
+    bookingRoutesGlobalShown,
     visibleConnections,
+    toggleBookingRoutesGlobal,
     toggleConnection,
     transportRoutes,
     mapTransportDetail,

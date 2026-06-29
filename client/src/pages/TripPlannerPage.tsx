@@ -343,7 +343,9 @@ export default function TripPlannerPage(): React.ReactElement | null {
     setDeletePlaceId,
     deletePlaceIds,
     setDeletePlaceIds,
+    bookingRoutesGlobalShown,
     visibleConnections,
+    toggleBookingRoutesGlobal,
     toggleConnection,
     transportRoutes,
     mapTransportDetail,
@@ -691,7 +693,9 @@ export default function TripPlannerPage(): React.ReactElement | null {
                     }
                   }}
                   reservations={reservations}
+                  bookingRoutesGlobalShown={bookingRoutesGlobalShown}
                   visibleConnectionIds={visibleConnections}
+                  onToggleBookingRoutesGlobal={toggleBookingRoutesGlobal}
                   onToggleConnection={toggleConnection}
                   externalTransportDetail={mapTransportDetail}
                   onExternalTransportDetailHandled={() => setMapTransportDetail(null)}
@@ -1165,7 +1169,9 @@ export default function TripPlannerPage(): React.ReactElement | null {
                             }
                           }}
                           reservations={reservations}
+                          bookingRoutesGlobalShown={bookingRoutesGlobalShown}
                           visibleConnectionIds={visibleConnections}
+                          onToggleBookingRoutesGlobal={toggleBookingRoutesGlobal}
                           onToggleConnection={toggleConnection}
                           onAddReservation={(dayId) => {
                             setEditingReservation(null);

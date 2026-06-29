@@ -54,6 +54,7 @@ const reservations: TranslationStrings = {
   'reservations.type.hotel': 'Κατάλυμα',
   'reservations.type.restaurant': 'Εστιατόριο',
   'reservations.type.train': 'Τρένο',
+  'reservations.type.subway': 'Μετρό',
   'reservations.type.car': 'Αυτοκίνητο',
   'reservations.type.cruise': 'Κρουαζιέρα',
   'reservations.type.event': 'Εκδήλωση',

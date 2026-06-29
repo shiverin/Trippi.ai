@@ -50,6 +50,7 @@ const reservations: TranslationStrings = {
   'reservations.type.hotel': 'Zakwaterowanie',
   'reservations.type.restaurant': 'Restauracja',
   'reservations.type.train': 'Pociąg',
+  'reservations.type.subway': 'Metro',
   'reservations.type.car': 'Samochód',
   'reservations.needsReview': 'Sprawdź',
   'reservations.needsReviewHint': 'Nie udało się automatycznie dopasować lotniska — potwierdź lokalizację.',

@@ -135,6 +135,11 @@ interface DayPlanSidebarProps {
   showRouteToolsWhenExpanded?: boolean;
 }
 
+type RouteConnectorItem = {
+  seg: RouteSegment;
+  label?: string;
+};
+
 /**
  * Day-plan state + behaviour: expand/collapse, inline title edit, route legs +
  * optimisation, day notes, and the drag-and-drop reorder/move machinery across
@@ -227,7 +232,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
   const [editTitle, setEditTitle] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [routeInfo, setRouteInfo] = useState(null);
-  const [routeLegs, setRouteLegs] = useState<Record<number, RouteSegment>>({});
+  const [routeLegs, setRouteLegs] = useState<Record<number, RouteConnectorItem[]>>({});
   const [hotelLegs, setHotelLegs] = useState<{
     top?: { seg: RouteSegment; name: string };
     bottom?: { seg: RouteSegment; name: string };
@@ -498,25 +503,26 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
       return;
     }
     const merged = mergedItemsMap[selectedDayId] || [];
-    const runs: { id: number; lat: number; lng: number }[][] = [];
-    let cur: { id: number; lat: number; lng: number }[] = [];
+    type RouteWaypoint = { id: number; lat: number; lng: number; kind: 'place' | 'transport' };
+    const runs: RouteWaypoint[][] = [];
+    let cur: RouteWaypoint[] = [];
     for (const it of merged) {
       if (it.type === 'place' && it.data.place?.lat && it.data.place?.lng) {
-        cur.push({ id: it.data.id, lat: it.data.place.lat, lng: it.data.place.lng });
+        cur.push({ id: it.data.id, lat: it.data.place.lat, lng: it.data.place.lng, kind: 'place' });
       } else if (it.type === 'transport') {
         const r = it.data;
         const { from, to } = getTransportRouteEndpoints(r, selectedDayId);
         if (from || to) {
           // Located transport: route to its departure point, break the run (the
           // flight/train itself isn't driven), and let its arrival start the next.
-          if (from) cur.push({ id: r.id, lat: from.lat, lng: from.lng });
+          if (from) cur.push({ id: r.id, lat: from.lat, lng: from.lng, kind: 'transport' });
           if (cur.length >= 2) runs.push(cur);
           cur = [];
-          if (to) cur.push({ id: r.id, lat: to.lat, lng: to.lng });
+          if (to) cur.push({ id: r.id, lat: to.lat, lng: to.lng, kind: 'transport' });
         } else if (cur.length > 0) {
           // No location: ignore for routing, but attribute the through-leg to the
           // booking so its distance/duration shows under it (purely cosmetic).
-          cur[cur.length - 1] = { ...cur[cur.length - 1], id: r.id };
+          cur[cur.length - 1] = { ...cur[cur.length - 1], id: r.id, kind: 'transport' };
         }
       }
     }
@@ -558,7 +564,10 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     const controller = new AbortController();
     legsAbortRef.current = controller;
     (async () => {
-      const map: Record<number, RouteSegment> = {};
+      const map: Record<number, RouteConnectorItem[]> = {};
+      const addLeg = (id: number, item: RouteConnectorItem) => {
+        map[id] = [...(map[id] || []), item];
+      };
       for (const run of runs) {
         try {
           const r = await calculateRouteWithLegs(
@@ -566,7 +575,16 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
             { signal: controller.signal, profile: routeProfile }
           );
           r.legs.forEach((leg, i) => {
-            map[run[i].id] = leg;
+            const from = run[i];
+            const to = run[i + 1];
+            if (!from || !to) return;
+            if (to.kind === 'transport') {
+              addLeg(to.id, { seg: leg, label: 'To departure' });
+            } else if (from.kind === 'transport') {
+              addLeg(from.id, { seg: leg, label: 'From arrival' });
+            } else {
+              addLeg(from.id, { seg: leg });
+            }
           });
         } catch (err) {
           if (err instanceof Error && err.name === 'AbortError') return;
@@ -2652,9 +2670,14 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                 </button>
                               )}
                             </div>
-                            {routeLegs[assignment.id] && (
-                              <RouteConnector seg={routeLegs[assignment.id]} profile={routeProfile} />
-                            )}
+                            {routeLegs[assignment.id]?.map((item, legIdx) => (
+                              <RouteConnector
+                                key={`assignment-leg-${assignment.id}-${legIdx}`}
+                                seg={item.seg}
+                                profile={routeProfile}
+                                label={item.label}
+                              />
+                            ))}
                           </React.Fragment>
                         );
                       }
@@ -2987,7 +3010,14 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                   );
                                 })()}
                             </div>
-                            {routeLegs[res.id] && <RouteConnector seg={routeLegs[res.id]} profile={routeProfile} />}
+                            {routeLegs[res.id]?.map((item, legIdx) => (
+                              <RouteConnector
+                                key={`transport-leg-${res.id}-${legIdx}`}
+                                seg={item.seg}
+                                profile={routeProfile}
+                                label={item.label}
+                              />
+                            ))}
                           </React.Fragment>
                         );
                       }

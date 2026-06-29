@@ -54,6 +54,7 @@ const reservations: TranslationStrings = {
   'reservations.type.hotel': 'Szálloda',
   'reservations.type.restaurant': 'Étterem',
   'reservations.type.train': 'Vonat',
+  'reservations.type.subway': 'Metró',
   'reservations.type.car': 'Autó',
   'reservations.type.cruise': 'Hajóút',
   'reservations.type.event': 'Esemény',

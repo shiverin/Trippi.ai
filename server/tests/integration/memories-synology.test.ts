@@ -692,7 +692,7 @@ describe('Synology auth checks', () => {
   });
 
   it('SYNO-040 — GET /assets/info without auth returns 401', async () => {
-    expect((await request(app).get(`${SYNO}/assets/1/photo-x/1/info`)).status).toBe(401);
+    expect((await request(app).get(`${SYNO}/assets/1/101_cachekey/1/info`)).status).toBe(401);
   });
 
   it('SYNO-040 — GET /assets/thumbnail without auth returns 401', async () => {

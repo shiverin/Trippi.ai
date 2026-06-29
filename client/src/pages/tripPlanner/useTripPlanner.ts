@@ -17,6 +17,7 @@ import { usePlaceSelection } from '../../hooks/usePlaceSelection';
 import { usePlannerHistory } from '../../hooks/usePlannerHistory';
 import { useResizablePanels } from '../../hooks/useResizablePanels';
 import { useRouteCalculation } from '../../hooks/useRouteCalculation';
+import { useTransportRoutes } from '../../hooks/useTransportRoutes';
 import { useTripWebSocket } from '../../hooks/useTripWebSocket';
 import { useTranslation } from '../../i18n';
 import { accommodationRepo } from '../../repo/accommodationRepo';
@@ -26,8 +27,22 @@ import { useCanDo } from '../../store/permissionsStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useTripStore } from '../../store/tripStore';
 import type { Accommodation, Day, Place, Reservation, TripMember } from '../../types';
+import { getTransportForDay } from '../../utils/dayMerge';
 import { getDayRelevantPlaceIds } from '../../utils/dayRelevantPlaceIds';
 import { resolvePoolAssignmentId } from './tripPlannerModel';
+
+const TRANSPORT_TYPES = new Set([
+  'flight',
+  'train',
+  'subway',
+  'bus',
+  'car',
+  'taxi',
+  'bicycle',
+  'cruise',
+  'ferry',
+  'transport_other',
+]);
 
 /**
  * Trip planner page logic — the big one. Owns the trip store wiring, addon
@@ -122,18 +137,6 @@ export function useTripPlanner() {
       })
       .catch(() => {});
   }, []);
-
-  const TRANSPORT_TYPES = new Set([
-    'flight',
-    'train',
-    'bus',
-    'car',
-    'taxi',
-    'bicycle',
-    'cruise',
-    'ferry',
-    'transport_other',
-  ]);
 
   const TRIP_TABS = [
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
@@ -244,6 +247,7 @@ export function useTripPlanner() {
   const mobilePlacesScrollTopRef = useRef<number>(0);
   const [deletePlaceId, setDeletePlaceId] = useState<number | null>(null);
   const [deletePlaceIds, setDeletePlaceIds] = useState<number[] | null>(null);
+  const [expandedDayIds, setExpandedDayIds] = useState<Set<number> | null>(null);
 
   useEffect(() => {
     if (!trip) return;
@@ -261,23 +265,74 @@ export function useTripPlanner() {
       .catch(() => {});
   }, []);
 
-  const connectionsStorageKey = tripId ? `trippi:visible-connections:${tripId}` : null;
-  const [visibleConnections, setVisibleConnections] = useState<number[]>(() => {
-    if (typeof window === 'undefined' || !connectionsStorageKey) return [];
+  const connectionsStorageKey = tripId ? `trippi:connection-overrides:${tripId}` : null;
+  const [connectionOverrides, setConnectionOverrides] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined' || !connectionsStorageKey) return {};
     try {
       const stored = window.localStorage.getItem(connectionsStorageKey);
-      return stored ? (JSON.parse(stored) as number[]) : [];
+      return stored ? (JSON.parse(stored) as Record<string, boolean>) : {};
     } catch {
-      return [];
+      return {};
     }
   });
   useEffect(() => {
     if (typeof window === 'undefined' || !connectionsStorageKey) return;
-    window.localStorage.setItem(connectionsStorageKey, JSON.stringify(visibleConnections));
-  }, [connectionsStorageKey, visibleConnections]);
-  const toggleConnection = useCallback((id: number) => {
-    setVisibleConnections((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }, []);
+    window.localStorage.setItem(connectionsStorageKey, JSON.stringify(connectionOverrides));
+  }, [connectionsStorageKey, connectionOverrides]);
+  const autoConnectionIds = useMemo(() => {
+    const activeDayIds = new Set<number>();
+    if (selectedDayId) activeDayIds.add(selectedDayId);
+    if (expandedDayIds) {
+      for (const dayId of expandedDayIds) activeDayIds.add(dayId);
+    }
+    if (activeDayIds.size === 0) {
+      for (const day of days) activeDayIds.add(day.id);
+    }
+
+    const seen = new Set<number>();
+    const ids: number[] = [];
+    const addReservation = (r: Reservation) => {
+      if ((r as any).__leg && (r as any).__leg.index !== 0) return;
+      if ((r.endpoints || []).length < 2) return;
+      const id = Number(r.id);
+      if (!Number.isFinite(id) || seen.has(id)) return;
+      seen.add(id);
+      ids.push(id);
+    };
+
+    if (activeDayIds.size > 0) {
+      for (const dayId of activeDayIds) {
+        const dayAssignments = assignments[String(dayId)] || [];
+        const dayAssignmentIds = dayAssignments.map((a) => a.id);
+        for (const r of getTransportForDay({ reservations, dayId, dayAssignmentIds, days })) {
+          addReservation(r);
+        }
+      }
+    } else {
+      for (const r of reservations) {
+        if (!TRANSPORT_TYPES.has(r.type)) continue;
+        addReservation(r);
+      }
+    }
+    return ids;
+  }, [selectedDayId, expandedDayIds, assignments, reservations, days]);
+  const visibleConnections = useMemo(() => {
+    const visible = new Set(autoConnectionIds);
+    for (const [rawId, show] of Object.entries(connectionOverrides)) {
+      const id = Number(rawId);
+      if (!Number.isFinite(id)) continue;
+      if (show) visible.add(id);
+      else visible.delete(id);
+    }
+    return [...visible];
+  }, [autoConnectionIds, connectionOverrides]);
+  const toggleConnection = useCallback(
+    (id: number) => {
+      setConnectionOverrides((prev) => ({ ...prev, [id]: !visibleConnections.includes(id) }));
+    },
+    [visibleConnections]
+  );
+  const transportRoutes = useTransportRoutes(tripId || null, reservations, visibleConnections);
   const [mapTransportDetail, setMapTransportDetail] = useState<Reservation | null>(null);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -335,8 +390,6 @@ export function useTripPlanner() {
 
   const [mapCategoryFilter, setMapCategoryFilter] = useState<Set<string>>(new Set());
   const [mapPlacesFilter, setMapPlacesFilter] = useState<string>('all');
-
-  const [expandedDayIds, setExpandedDayIds] = useState<Set<number> | null>(null);
 
   const dayRelevantPlaceIds = useMemo(
     () =>
@@ -993,8 +1046,8 @@ export function useTripPlanner() {
     deletePlaceIds,
     setDeletePlaceIds,
     visibleConnections,
-    setVisibleConnections,
     toggleConnection,
+    transportRoutes,
     mapTransportDetail,
     setMapTransportDetail,
     isMobile,

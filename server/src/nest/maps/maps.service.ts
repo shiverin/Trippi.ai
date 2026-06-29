@@ -4,6 +4,7 @@ import {
   getPlaceDetails,
   getPlaceDetailsExpanded,
   getPlacePhoto,
+  getTransportRoute,
   reverseGeocode,
   resolveGoogleMapsUrl,
   searchOverpassPois,
@@ -18,6 +19,7 @@ import type {
   MapsPlacePhotoResult,
   MapsReverseResult,
   MapsResolveUrlResult,
+  MapsTransportRouteResult,
 } from '@trippi/shared';
 
 type LocationBias = { low: { lat: number; lng: number }; high: { lat: number; lng: number } };
@@ -98,6 +100,14 @@ export class MapsService {
 
   resolveUrl(url: string): Promise<MapsResolveUrlResult> {
     return resolveGoogleMapsUrl(url) as Promise<MapsResolveUrlResult>;
+  }
+
+  transportRoute(
+    userId: number,
+    tripId: string | number,
+    reservationId: string | number,
+  ): Promise<MapsTransportRouteResult> {
+    return getTransportRoute(userId, tripId, reservationId);
   }
 
   // OSM-only POI search by category within a viewport bbox (never calls Google).

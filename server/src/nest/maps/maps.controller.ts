@@ -3,6 +3,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MapsService } from './maps.service';
 import { Body, Controller, Get, HttpCode, HttpException, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { mapsTransportRouteRequestSchema } from '@trippi/shared';
 import type {
   MapsAutocompleteResult,
   MapsPlaceDetailsResult,
@@ -10,6 +11,7 @@ import type {
   MapsResolveUrlResult,
   MapsReverseResult,
   MapsSearchResult,
+  MapsTransportRouteResult,
 } from '@trippi/shared';
 
 import type { Response } from 'express';
@@ -214,6 +216,22 @@ export class MapsController {
       const message = err instanceof Error ? err.message : 'Failed to resolve URL';
       console.error('[Maps] URL resolve error:', message);
       throw toHttpException(err, 'Failed to resolve URL', 400);
+    }
+  }
+
+  @Post('transport-route')
+  @HttpCode(200)
+  async transportRoute(@CurrentUser() user: User, @Body() body: unknown): Promise<MapsTransportRouteResult> {
+    const parsed = mapsTransportRouteRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new HttpException({ error: 'tripId and reservationId are required' }, 400);
+    }
+    try {
+      return await this.maps.transportRoute(user.id, parsed.data.tripId, parsed.data.reservationId);
+    } catch (err: unknown) {
+      const status = (err as { status?: number }).status || 500;
+      if (status >= 500) console.error('Transport route error:', err);
+      throw toHttpException(err, 'Transport route error', status);
     }
   }
 }

@@ -14,11 +14,19 @@ const mapMock = vi.hoisted(() => ({
   on: vi.fn(),
   off: vi.fn(),
   panBy: vi.fn(),
+  latLngToContainerPoint: vi.fn(([lat, lng]: [number, number]) => ({
+    x: lng * 100,
+    y: lat * 100,
+    distanceTo(other: { x: number; y: number }) {
+      return Math.hypot(this.x - other.x, this.y - other.y);
+    },
+  })),
 }));
 
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: any) => <div data-testid="map-container">{children}</div>,
   TileLayer: () => <div data-testid="tile-layer" />,
+  Tooltip: ({ children }: any) => <div data-testid="tooltip-layer">{children}</div>,
   Marker: ({ children, eventHandlers, position }: any) => (
     <div data-testid="marker" data-lat={position[0]} data-lng={position[1]} onClick={() => eventHandlers?.click?.()}>
       <button
@@ -180,6 +188,69 @@ describe('MapView', () => {
     const places = [buildMapPlace({ lat: 48.0, lng: 2.0, route_geometry: '[[48.0,2.0]]' })];
     render(<MapView places={places} />);
     expect(screen.queryByTestId('polyline')).toBeNull();
+  });
+
+  it('FE-COMP-MAPVIEW-013B: transport overlay prefers provider route geometry', () => {
+    const reservation = {
+      id: 55,
+      type: 'train',
+      status: 'confirmed',
+      title: 'Train to Nanjing',
+      endpoints: [
+        {
+          role: 'from',
+          sequence: 0,
+          name: 'Town A',
+          code: 'A',
+          lat: 1,
+          lng: 1,
+          timezone: null,
+          local_date: null,
+          local_time: null,
+        },
+        {
+          role: 'to',
+          sequence: 1,
+          name: 'Town B',
+          code: 'B',
+          lat: 3,
+          lng: 12,
+          timezone: null,
+          local_date: null,
+          local_time: null,
+        },
+      ],
+    } as any;
+    render(
+      <MapView
+        reservations={[reservation]}
+        visibleConnectionIds={[55]}
+        transportRoutes={{
+          55: {
+            reservationId: 55,
+            source: 'google-routes',
+            provider: 'google-routes',
+            exact: true,
+            segments: [
+              {
+                mode: 'train',
+                provider: 'google-routes',
+                source: 'google-routes-transit',
+                exact: true,
+                coordinates: [
+                  [1, 1],
+                  [2, 7],
+                  [3, 12],
+                ],
+              },
+            ],
+            warnings: [],
+          },
+        }}
+      />
+    );
+    const routeLine = screen.getAllByTestId('polyline').find((el) => el.getAttribute('data-points')?.includes('[2,7]'));
+    expect(routeLine).toBeTruthy();
   });
 
   it('FE-COMP-MAPVIEW-014: marker icon uses base64 image_url for photo places', () => {

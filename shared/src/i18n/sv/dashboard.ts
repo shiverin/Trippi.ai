@@ -154,6 +154,18 @@ const dashboard: TranslationStrings = {
   'dashboard.tz.empty': 'Inga andra tidszoner än så länge — lägg till en med +',
   'dashboard.upcoming.title': 'Kommande bokningar',
   'dashboard.upcoming.empty': 'Inget är bokat än.',
+  'dashboard.todos.title': 'To-do list', // en-fallback
+  'dashboard.todos.empty': 'All caught up.', // en-fallback
+  'dashboard.todos.count': '{count} open', // en-fallback
+  'dashboard.todos.noDate': 'No date', // en-fallback
+  'dashboard.todos.noDateShort': 'No', // en-fallback
+  'dashboard.todos.overdue': 'Overdue', // en-fallback
+  'dashboard.todos.today': 'Today', // en-fallback
+  'dashboard.todos.due': 'Due {date}', // en-fallback
+  'dashboard.todos.priority': 'P{priority}', // en-fallback
+  'dashboard.todos.untitledTrip': 'Untitled trip', // en-fallback
+  'dashboard.todos.completeAria': 'Mark {task} complete', // en-fallback
+  'dashboard.todos.completeError': 'Could not complete task', // en-fallback
   'dashboard.aria.toggleView': 'Växla vy',
   'dashboard.aria.filter': 'Filtrera',
   'dashboard.aria.duplicate': 'Duplicera',

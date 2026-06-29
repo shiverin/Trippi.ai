@@ -5,6 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useGeolocation } from '../../hooks/useGeolocation';
+import type { TransportRouteMap } from '../../hooks/useTransportRoutes';
 import { fetchPhoto, getAllThumbs, getCached, isLoading, onThumbReady } from '../../services/photoService';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -59,6 +60,7 @@ interface Props {
   hasInspector?: boolean;
   hasDayDetail?: boolean;
   reservations?: Reservation[];
+  transportRoutes?: TransportRouteMap;
   visibleConnectionIds?: number[];
   showReservationStats?: boolean;
   onReservationClick?: (reservationId: number) => void;
@@ -179,6 +181,7 @@ export function MapViewGL({
   hasInspector = false,
   hasDayDetail = false,
   reservations = [],
+  transportRoutes = {},
   visibleConnectionIds = [],
   showReservationStats = false,
   onReservationClick,
@@ -671,13 +674,17 @@ export function MapViewGL({
         gl.Marker as any
       );
     }
-    reservationOverlayRef.current.update(visibleReservations, {
-      showConnections: true,
-      showStats: showReservationStats,
-      showEndpointLabels,
-      onEndpointClick: (id) => onReservationClickRef.current?.(id),
-    });
-  }, [visibleReservations, showReservationStats, showEndpointLabels, mapReady, glProvider]);
+    reservationOverlayRef.current.update(
+      visibleReservations,
+      {
+        showConnections: true,
+        showStats: showReservationStats,
+        showEndpointLabels,
+        onEndpointClick: (id) => onReservationClickRef.current?.(id),
+      },
+      transportRoutes
+    );
+  }, [visibleReservations, transportRoutes, showReservationStats, showEndpointLabels, mapReady, glProvider]);
 
   // Fit bounds on fitKey change — matches the Leaflet BoundsController
   const paddingOpts = useMemo(() => {

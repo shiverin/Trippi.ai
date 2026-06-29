@@ -12,9 +12,13 @@ export default defineConfig({
       'src/**/*.test.{ts,tsx}',
     ],
     setupFiles: ['tests/setup.ts'],
-    testTimeout: 15000,
-    hookTimeout: 15000,
+    // The full client suite is DOM-heavy and can saturate local/CI CPUs when
+    // Vitest fans out too many fork workers, causing unrelated user-event tests
+    // to hit 15s timeouts. Match the server timeout and cap workers for stability.
+    testTimeout: 30000,
+    hookTimeout: 30000,
     pool: 'forks',
+    maxWorkers: 4,
     silent: false,
     reporters: ['verbose'],
     coverage: {

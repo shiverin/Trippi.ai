@@ -12,6 +12,8 @@ import {
   getMapsKey,
   googleFtidFromMapsUrl,
   buildUserAgent,
+  decodeGooglePolyline,
+  getTransportRoute,
   resolveOverpassEndpoints,
   resolveOverpassTimeoutMs,
   searchOverpassPois,
@@ -21,7 +23,9 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 
 const {
   mockDbGet,
+  mockDbAll,
   mockDbRun,
+  mockTripAccess,
   mockCheckSsrf,
   mockCacheGet,
   mockCacheGetErrored,
@@ -30,7 +34,9 @@ const {
   mockCacheSetInFlight,
 } = vi.hoisted(() => ({
   mockDbGet: vi.fn(() => undefined as any),
+  mockDbAll: vi.fn(() => [] as any[]),
   mockDbRun: vi.fn(),
+  mockTripAccess: vi.fn(async () => ({ id: 1 })),
   mockCheckSsrf: vi.fn(async () => ({ allowed: true })),
   mockCacheGet: vi.fn(() => null as any),
   mockCacheGetErrored: vi.fn(() => false),
@@ -45,8 +51,12 @@ const {
 
 vi.mock('../../../src/db/database', () => ({
   db: {
-    prepare: () => ({ get: mockDbGet, all: vi.fn(() => []), run: mockDbRun }),
+    prepare: () => ({ get: mockDbGet, all: mockDbAll, run: mockDbRun }),
   },
+}));
+
+vi.mock('../../../src/services/tripAccess', () => ({
+  verifyTripAccess: mockTripAccess,
 }));
 
 vi.mock('../../../src/utils/ssrfGuard', () => {
@@ -93,7 +103,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
   mockDbGet.mockReset();
   mockDbGet.mockReturnValue(undefined);
+  mockDbAll.mockReset();
+  mockDbAll.mockReturnValue([]);
   mockDbRun.mockReset();
+  mockTripAccess.mockReset();
+  mockTripAccess.mockResolvedValue({ id: 1 });
   mockCheckSsrf.mockReset();
   mockCheckSsrf.mockResolvedValue({ allowed: true });
   mockCacheGet.mockReset();
@@ -1807,5 +1821,119 @@ describe('searchOverpassPois all-endpoints-down', () => {
     expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('[Overpass] all'));
     expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('ECONNREFUSED'));
     errSpy.mockRestore();
+  });
+});
+
+// ── transport route geometry -------------------------------------------------
+
+describe('transport route geometry', () => {
+  const trainReservation = { id: 7, trip_id: 1, type: 'train', title: 'Train A to B' };
+  const busReservation = { id: 8, trip_id: 1, type: 'bus', title: 'Bus A to B' };
+  const endpoints = [
+    {
+      role: 'from',
+      sequence: 0,
+      name: 'Town A',
+      code: null,
+      lat: 38.5,
+      lng: -120.2,
+      local_date: null,
+      local_time: null,
+    },
+    {
+      role: 'to',
+      sequence: 1,
+      name: 'Town B',
+      code: null,
+      lat: 40.7,
+      lng: -120.95,
+      local_date: null,
+      local_time: null,
+    },
+  ];
+
+  it('MAPS-107: decodes Google encoded polylines to lat/lng pairs', () => {
+    expect(decodeGooglePolyline('_p~iF~ps|U_ulLnnqC_mqNvxq`@')).toEqual([
+      [38.5, -120.2],
+      [40.7, -120.95],
+      [43.252, -126.453],
+    ]);
+  });
+
+  it('MAPS-108: uses Google Routes transit geometry when a maps key is available', async () => {
+    mockDbGet.mockReturnValueOnce(trainReservation).mockReturnValueOnce({ maps_api_key: 'test-google-key' });
+    mockDbAll.mockReturnValueOnce(endpoints);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          routes: [
+            {
+              distanceMeters: 1234,
+              duration: '567s',
+              polyline: { encodedPolyline: '_p~iF~ps|U_ulLnnqC_mqNvxq`@' },
+            },
+          ],
+        }),
+      })),
+    );
+
+    const result = await getTransportRoute(1, 1, 7);
+
+    expect(result.provider).toBe('google-routes');
+    expect(result.exact).toBe(true);
+    expect(result.segments[0]).toMatchObject({
+      provider: 'google-routes',
+      source: 'google-routes-transit',
+      exact: true,
+      distanceMeters: 1234,
+      durationSeconds: 567,
+    });
+    expect((globalThis.fetch as any).mock.calls[0][0]).toContain('routes.googleapis.com');
+    expect(JSON.parse((globalThis.fetch as any).mock.calls[0][1].body).travelMode).toBe('TRANSIT');
+  });
+
+  it('MAPS-109: falls back to OSRM road geometry for buses without a maps key', async () => {
+    mockDbGet.mockReturnValueOnce(busReservation).mockReturnValueOnce(undefined).mockReturnValueOnce(undefined);
+    mockDbAll.mockReturnValueOnce(endpoints);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          code: 'Ok',
+          routes: [
+            {
+              distance: 4321,
+              duration: 987,
+              geometry: {
+                coordinates: [
+                  [-120.2, 38.5],
+                  [-120.5, 39.5],
+                  [-120.95, 40.7],
+                ],
+              },
+            },
+          ],
+        }),
+      })),
+    );
+
+    const result = await getTransportRoute(1, 1, 8);
+
+    expect(result.provider).toBe('osrm');
+    expect(result.exact).toBe(false);
+    expect(result.segments[0]).toMatchObject({
+      provider: 'osrm',
+      source: 'osrm-driving',
+      exact: false,
+      coordinates: [
+        [38.5, -120.2],
+        [39.5, -120.5],
+        [40.7, -120.95],
+      ],
+    });
+    expect(result.warnings?.[0]).toContain('Google Maps key unavailable');
   });
 });

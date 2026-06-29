@@ -304,6 +304,7 @@ import LocationButton from './LocationButton';
 // shared useGeolocation hook so the Leaflet and Mapbox variants behave
 // identically. Heading is shown as a rotated conic SVG when available.
 import type { GeoPosition, TrackingMode } from '../../hooks/useGeolocation';
+import type { TransportRouteMap } from '../../hooks/useTransportRoutes';
 
 function LeafletLocationLayer({ position, mode }: { position: GeoPosition | null; mode: TrackingMode }) {
   const map = useMap();
@@ -434,6 +435,7 @@ export const MapView = memo(function MapView({
   hasInspector = false,
   hasDayDetail = false,
   reservations = [] as Reservation[],
+  transportRoutes = {} as TransportRouteMap,
   showReservationStats = false,
   visibleConnectionIds = [] as number[],
   onReservationClick,
@@ -704,6 +706,7 @@ export const MapView = memo(function MapView({
 
           <ReservationOverlay
             reservations={visibleReservations}
+            transportRoutes={transportRoutes}
             showConnections
             showStats={showReservationStats}
             onEndpointClick={onReservationClick}

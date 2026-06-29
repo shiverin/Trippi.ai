@@ -78,6 +78,9 @@ export default function LoginPage(): React.ReactElement {
     !mfaStep &&
     !passwordChangeStep
   );
+  const showRegisterToggle =
+    showRegisterOption && !!appConfig?.has_users && !appConfig?.demo_mode && !passwordChangeStep;
+  const reserveRegisterToggle = !passwordChangeStep && (appConfig === null || showRegisterToggle);
 
   const inputBase: React.CSSProperties = {
     width: '100%',
@@ -291,7 +294,17 @@ export default function LoginPage(): React.ReactElement {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: 'var(--font-system)', position: 'relative' }}>
+    <div
+      className="login-page-shell"
+      style={{
+        minHeight: '100vh',
+        height: '100dvh',
+        display: 'flex',
+        fontFamily: 'var(--font-system)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
       {/* Language dropdown */}
       <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
         <button
@@ -614,6 +627,7 @@ export default function LoginPage(): React.ReactElement {
 
       {/* Right — form */}
       <div
+        className="login-form-panel"
         style={{
           flex: 1,
           display: 'flex',
@@ -621,9 +635,25 @@ export default function LoginPage(): React.ReactElement {
           justifyContent: 'center',
           padding: '32px 24px',
           background: '#f9fafb',
+          minWidth: 0,
+          minHeight: 0,
+          overflow: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
-        <div style={{ width: '100%', maxWidth: 400 }}>
+        <div
+          className="login-form-shell"
+          style={{
+            width: '100%',
+            maxWidth: 400,
+            maxHeight: '100%',
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
+            scrollbarGutter: 'stable',
+            boxSizing: 'border-box',
+            padding: '4px 0',
+          }}
+        >
           {/* Mobile logo */}
           <div
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 36 }}
@@ -646,6 +676,7 @@ export default function LoginPage(): React.ReactElement {
           </div>
 
           <div
+            className="login-card"
             style={{
               background: 'white',
               borderRadius: 20,
@@ -1163,29 +1194,45 @@ export default function LoginPage(): React.ReactElement {
                 </form>
 
                 {/* Toggle login/register */}
-                {showRegisterOption && appConfig?.has_users && !appConfig?.demo_mode && !passwordChangeStep && (
-                  <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: '#9ca3af' }}>
-                    {mode === 'login' ? t('login.noAccount') + ' ' : t('login.hasAccount') + ' '}
-                    <button
-                      onClick={() => {
-                        setMode((m) => (m === 'login' ? 'register' : 'login'));
-                        setError('');
-                        setMfaStep(false);
-                        setMfaToken('');
-                        setMfaCode('');
-                      }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#111827',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        fontSize: 13,
-                      }}
-                    >
-                      {mode === 'login' ? t('login.register') : t('login.signIn')}
-                    </button>
+                {reserveRegisterToggle && (
+                  <p
+                    aria-hidden={!showRegisterToggle}
+                    style={{
+                      textAlign: 'center',
+                      marginTop: 16,
+                      marginBottom: 0,
+                      minHeight: 18,
+                      fontSize: 13,
+                      color: '#9ca3af',
+                      visibility: showRegisterToggle ? 'visible' : 'hidden',
+                      pointerEvents: showRegisterToggle ? 'auto' : 'none',
+                    }}
+                  >
+                    {showRegisterToggle && (
+                      <>
+                        {mode === 'login' ? t('login.noAccount') + ' ' : t('login.hasAccount') + ' '}
+                        <button
+                          onClick={() => {
+                            setMode((m) => (m === 'login' ? 'register' : 'login'));
+                            setError('');
+                            setMfaStep(false);
+                            setMfaToken('');
+                            setMfaCode('');
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#111827',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            fontSize: 13,
+                          }}
+                        >
+                          {mode === 'login' ? t('login.register') : t('login.signIn')}
+                        </button>
+                      </>
+                    )}
                   </p>
                 )}
               </>
@@ -1386,6 +1433,39 @@ export default function LoginPage(): React.ReactElement {
         .login-plane5 { animation: plane5Move 22s ease-in-out infinite; animation-delay: 9s; }
         .login-plane6 { animation: plane6Move 32s ease-in-out infinite; animation-delay: 16s; }
 
+        @media (max-width: 1023px) {
+          .login-form-panel {
+            padding: 20px 18px !important;
+          }
+          .login-form-shell {
+            max-height: 100%;
+          }
+          .mobile-logo {
+            margin-bottom: 22px !important;
+          }
+          .login-card {
+            padding: 28px 24px !important;
+            border-radius: 18px !important;
+          }
+        }
+
+        @media (max-width: 380px), (max-height: 720px) {
+          .login-form-panel {
+            padding: 16px !important;
+          }
+          .mobile-logo {
+            margin-bottom: 18px !important;
+          }
+          .mobile-logo .brand-wordmark {
+            height: 40px !important;
+          }
+          .mobile-logo p {
+            font-size: 14px !important;
+          }
+          .login-card {
+            padding: 24px 20px !important;
+          }
+        }
       `}</style>
     </div>
   );

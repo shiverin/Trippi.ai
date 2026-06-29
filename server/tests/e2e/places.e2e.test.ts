@@ -25,6 +25,13 @@ const { canAccessTrip } = vi.hoisted(() => ({ canAccessTrip: vi.fn() }));
 vi.mock('../../src/db/database', () => ({
   db, canAccessTrip, isOwner: vi.fn(() => true), getPlaceWithTags: vi.fn(), closeDb: () => {}, reinitialize: () => {},
 }));
+vi.mock('../../src/db/asyncDatabase', async () => {
+  const actual = await vi.importActual<typeof import('../../src/db/asyncDatabase')>('../../src/db/asyncDatabase');
+  return {
+    ...actual,
+    canAccessTripAsync: async (tripId: string | number, userId: number) => canAccessTrip(tripId, userId),
+  };
+});
 vi.mock('../../src/websocket', () => ({ broadcast: vi.fn() }));
 vi.mock('../../src/services/journeyService', () => ({ onPlaceCreated: vi.fn(), onPlaceUpdated: vi.fn(), onPlaceDeleted: vi.fn() }));
 

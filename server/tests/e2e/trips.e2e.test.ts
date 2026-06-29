@@ -18,7 +18,22 @@ const { db } = vi.hoisted(() => {
   tmp.exec('PRAGMA journal_mode = WAL');
   tmp.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE, role TEXT NOT NULL DEFAULT 'user', password_version INTEGER NOT NULL DEFAULT 0);`);
-  tmp.exec('CREATE TABLE trips (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT);');
+  tmp.exec(`CREATE TABLE trips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    title TEXT,
+    description TEXT,
+    start_date TEXT,
+    end_date TEXT,
+    currency TEXT,
+    cover_image TEXT,
+    is_archived INTEGER DEFAULT 0,
+    reminder_days INTEGER DEFAULT 3,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );`);
+  tmp.exec('CREATE TABLE trip_members (trip_id INTEGER, user_id INTEGER);');
+  tmp.exec('CREATE TABLE days (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER, day_number INTEGER, date TEXT);');
   return { db: tmp };
 });
 
@@ -39,7 +54,10 @@ const { tripSvc } = vi.hoisted(() => ({
     listTrips: vi.fn(), createTrip: vi.fn(), getTrip: vi.fn(), updateTrip: vi.fn(), deleteTrip: vi.fn(),
     getTripRaw: vi.fn(), getTripOwner: vi.fn(), deleteOldCover: vi.fn(), updateCoverImage: vi.fn(),
     listMembers: vi.fn(), addMember: vi.fn(), removeMember: vi.fn(), exportICS: vi.fn(), copyTripById: vi.fn(),
-    verifyTripAccess: vi.fn(), NotFoundError: class NotFoundError extends Error {}, ValidationError: class ValidationError extends Error {}, TRIP_SELECT: 'SELECT',
+    verifyTripAccess: vi.fn(), NotFoundError: class NotFoundError extends Error {}, ValidationError: class ValidationError extends Error {},
+    TRIP_SELECT: 'SELECT t.* FROM trips t',
+    MAX_TRIP_DAYS: 365,
+    MS_PER_DAY: 86400000,
   },
 }));
 vi.mock('../../src/services/tripService', () => tripSvc);
@@ -69,6 +87,7 @@ describe('Trips e2e (real auth guard + temp SQLite)', () => {
 
   beforeAll(async () => {
     seedUser(db as never, { id: 1 });
+    db.prepare('INSERT INTO trips (id, user_id, title, is_archived) VALUES (1, 1, ?, 0)').run('T');
     app = await build();
     server = app.getHttpServer();
     tripSvc.listTrips.mockReturnValue([{ id: 1, title: 'T' }]);
@@ -93,13 +112,14 @@ describe('Trips e2e (real auth guard + temp SQLite)', () => {
   it('200 list', async () => {
     const res = await request(server).get('/api/trips').set('Cookie', sessionCookie(1));
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ trips: [{ id: 1, title: 'T' }] });
+    expect(res.body.trips).toHaveLength(1);
+    expect(res.body.trips[0]).toMatchObject({ id: 1, title: 'T', user_id: 1 });
   });
 
   it('201 create, 403 without permission', async () => {
     const ok = await request(server).post('/api/trips').set('Cookie', sessionCookie(1)).send({ title: 'T' });
     expect(ok.status).toBe(201);
-    expect(ok.body).toEqual({ trip: { id: 9 } });
+    expect(ok.body.trip).toMatchObject({ user_id: 1, title: 'T', currency: 'EUR' });
     checkPermission.mockReturnValue(false);
     const forbidden = await request(server).post('/api/trips').set('Cookie', sessionCookie(1)).send({ title: 'T' });
     expect(forbidden.status).toBe(403);
@@ -112,8 +132,8 @@ describe('Trips e2e (real auth guard + temp SQLite)', () => {
   });
 
   it('200 bundle for an accessible trip', async () => {
-    const res = await request(server).get('/api/trips/9/bundle').set('Cookie', sessionCookie(1));
+    const res = await request(server).get('/api/trips/1/bundle').set('Cookie', sessionCookie(1));
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ trip: { id: 9 }, days: [], members: [{ id: 1 }] });
+    expect(res.body).toMatchObject({ trip: { id: 1 }, days: [], members: [{ id: 1 }] });
   });
 });

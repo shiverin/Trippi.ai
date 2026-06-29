@@ -155,6 +155,18 @@ const dashboard: TranslationStrings = {
   'dashboard.tz.empty': '他のタイムゾーンはまだありません — + で追加',
   'dashboard.upcoming.title': '今後の予約',
   'dashboard.upcoming.empty': 'まだ予約はありません。',
+  'dashboard.todos.title': 'To-do list', // en-fallback
+  'dashboard.todos.empty': 'All caught up.', // en-fallback
+  'dashboard.todos.count': '{count} open', // en-fallback
+  'dashboard.todos.noDate': 'No date', // en-fallback
+  'dashboard.todos.noDateShort': 'No', // en-fallback
+  'dashboard.todos.overdue': 'Overdue', // en-fallback
+  'dashboard.todos.today': 'Today', // en-fallback
+  'dashboard.todos.due': 'Due {date}', // en-fallback
+  'dashboard.todos.priority': 'P{priority}', // en-fallback
+  'dashboard.todos.untitledTrip': 'Untitled trip', // en-fallback
+  'dashboard.todos.completeAria': 'Mark {task} complete', // en-fallback
+  'dashboard.todos.completeError': 'Could not complete task', // en-fallback
   'dashboard.aria.toggleView': '表示を切り替え',
   'dashboard.aria.filter': 'フィルター',
   'dashboard.aria.duplicate': '複製',

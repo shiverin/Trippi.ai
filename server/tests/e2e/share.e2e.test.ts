@@ -26,6 +26,13 @@ const { db, canAccessTrip } = vi.hoisted(() => {
 });
 
 vi.mock('../../src/db/database', () => ({ db, canAccessTrip, closeDb: () => {}, reinitialize: () => {} }));
+vi.mock('../../src/db/asyncDatabase', async () => {
+  const actual = await vi.importActual<typeof import('../../src/db/asyncDatabase')>('../../src/db/asyncDatabase');
+  return {
+    ...actual,
+    canAccessTripAsync: async (tripId: string | number, userId: number) => canAccessTrip(tripId, userId),
+  };
+});
 
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn() }));
 vi.mock('../../src/services/permissions', () => ({ checkPermission }));

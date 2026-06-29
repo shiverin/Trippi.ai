@@ -41,6 +41,12 @@ export const mapsResolveUrlRequestSchema = z.object({
 });
 export type MapsResolveUrlRequest = z.infer<typeof mapsResolveUrlRequestSchema>;
 
+export const mapsTransportRouteRequestSchema = z.object({
+  tripId: z.union([z.number(), z.string()]),
+  reservationId: z.union([z.number(), z.string()]),
+});
+export type MapsTransportRouteRequest = z.infer<typeof mapsTransportRouteRequestSchema>;
+
 /** Provider-shaped place blob (Google/OSM fields differ); kept open by design. */
 const placeRecord = z.record(z.string(), z.unknown());
 
@@ -87,3 +93,26 @@ export const mapsResolveUrlResultSchema = z.object({
   google_ftid: z.string().nullable().optional(),
 });
 export type MapsResolveUrlResult = z.infer<typeof mapsResolveUrlResultSchema>;
+
+export const mapsTransportRoutePointSchema = z.tuple([z.number(), z.number()]);
+
+export const mapsTransportRouteSegmentSchema = z.object({
+  mode: z.string(),
+  provider: z.enum(['google-routes', 'osrm', 'geodesic', 'fallback']),
+  source: z.string(),
+  exact: z.boolean(),
+  coordinates: z.array(mapsTransportRoutePointSchema),
+  distanceMeters: z.number().nullable().optional(),
+  durationSeconds: z.number().nullable().optional(),
+});
+export type MapsTransportRouteSegment = z.infer<typeof mapsTransportRouteSegmentSchema>;
+
+export const mapsTransportRouteResultSchema = z.object({
+  reservationId: z.number(),
+  source: z.string(),
+  provider: z.enum(['google-routes', 'osrm', 'geodesic', 'fallback', 'mixed']),
+  exact: z.boolean(),
+  segments: z.array(mapsTransportRouteSegmentSchema),
+  warnings: z.array(z.string()).optional(),
+});
+export type MapsTransportRouteResult = z.infer<typeof mapsTransportRouteResultSchema>;

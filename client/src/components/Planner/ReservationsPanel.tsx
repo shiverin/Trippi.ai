@@ -52,6 +52,7 @@ const TYPE_OPTIONS = [
   { value: 'hotel', labelKey: 'reservations.type.hotel', Icon: Hotel, color: '#8b5cf6' },
   { value: 'restaurant', labelKey: 'reservations.type.restaurant', Icon: Utensils, color: '#ef4444' },
   { value: 'train', labelKey: 'reservations.type.train', Icon: Train, color: '#06b6d4' },
+  { value: 'subway', labelKey: 'reservations.type.subway', Icon: Train, color: '#2563eb' },
   { value: 'bus', labelKey: 'reservations.type.bus', Icon: Bus, color: '#059669' },
   { value: 'car', labelKey: 'reservations.type.car', Icon: Car, color: '#6b7280' },
   { value: 'taxi', labelKey: 'reservations.type.taxi', Icon: CarTaxiFront, color: '#ca8a04' },
@@ -164,6 +165,7 @@ function ReservationCard({
   const TRANSPORT_TYPES_SET = new Set([
     'flight',
     'train',
+    'subway',
     'bus',
     'car',
     'taxi',

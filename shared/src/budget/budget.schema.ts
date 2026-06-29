@@ -58,6 +58,7 @@ const RESERVATION_TYPE_TO_COST_CATEGORY: Record<string, CostCategory> = {
   flight: 'flights',
   plane: 'flights',
   train: 'transport',
+  subway: 'transport',
   bus: 'transport',
   car: 'transport',
   'car-rental': 'transport',

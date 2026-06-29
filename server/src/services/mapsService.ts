@@ -4,6 +4,8 @@ import { decrypt_api_key } from './apiKeyCrypto';
 import { getAppUrl } from './notifications';
 // ── Photo cache (disk-backed) ────────────────────────────────────────────────
 import * as placePhotoCache from './placePhotoCache';
+import { verifyTripAccess } from './tripAccess';
+import type { MapsTransportRouteResult, MapsTransportRouteSegment } from '@trippi/shared';
 
 // ── Google API call counter ───────────────────────────────────────────────────
 
@@ -195,6 +197,311 @@ export function getMapsKey(userId: number): string | null {
     )
     .get() as { maps_api_key: string } | undefined;
   return decrypt_api_key(admin?.maps_api_key) || null;
+}
+
+type TransportRouteProvider = MapsTransportRouteSegment['provider'];
+
+interface TransportEndpointRow {
+  role: 'from' | 'to' | 'stop';
+  sequence: number;
+  name: string;
+  code: string | null;
+  lat: number;
+  lng: number;
+  local_time: string | null;
+  local_date: string | null;
+}
+
+interface TransportReservationRow {
+  id: number;
+  trip_id: number;
+  type: string;
+  title: string;
+}
+
+const OSRM_ROUTE_BASE: Record<'driving' | 'cycling', string> = {
+  driving: 'https://routing.openstreetmap.de/routed-car/route/v1/driving',
+  cycling: 'https://routing.openstreetmap.de/routed-bike/route/v1/bike',
+};
+
+const GOOGLE_TRANSIT_MODES: Record<string, string[]> = {
+  bus: ['BUS'],
+  subway: ['SUBWAY'],
+  train: ['TRAIN', 'LIGHT_RAIL', 'RAIL'],
+};
+
+function routeError(message: string, status: number): Error & { status: number } {
+  const err = new Error(message) as Error & { status: number };
+  err.status = status;
+  return err;
+}
+
+function finitePoint(p: { lat: number; lng: number }): boolean {
+  return Number.isFinite(p.lat) && Number.isFinite(p.lng);
+}
+
+function fallbackSegment(
+  mode: string,
+  from: TransportEndpointRow,
+  to: TransportEndpointRow,
+  provider: TransportRouteProvider = 'fallback',
+  source = 'fallback',
+): MapsTransportRouteSegment {
+  return {
+    mode,
+    provider,
+    source,
+    exact: false,
+    coordinates: [
+      [from.lat, from.lng],
+      [to.lat, to.lng],
+    ],
+  };
+}
+
+function parseGoogleDurationSeconds(duration: unknown): number | null {
+  if (typeof duration !== 'string') return null;
+  const match = duration.match(/^(\d+(?:\.\d+)?)s$/);
+  if (!match) return null;
+  const seconds = Number(match[1]);
+  return Number.isFinite(seconds) ? seconds : null;
+}
+
+export function decodeGooglePolyline(encoded: string): [number, number][] {
+  const points: [number, number][] = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < encoded.length) {
+    let result = 0;
+    let shift = 0;
+    let byte: number;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20 && index < encoded.length);
+    lat += result & 1 ? ~(result >> 1) : result >> 1;
+
+    result = 0;
+    shift = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20 && index < encoded.length);
+    lng += result & 1 ? ~(result >> 1) : result >> 1;
+
+    points.push([lat / 1e5, lng / 1e5]);
+  }
+
+  return points.filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
+}
+
+async function fetchGoogleTransitSegment(
+  apiKey: string,
+  mode: string,
+  from: TransportEndpointRow,
+  to: TransportEndpointRow,
+): Promise<MapsTransportRouteSegment> {
+  const allowedTravelModes = GOOGLE_TRANSIT_MODES[mode] ?? [];
+  const response = await googleFetch(
+    'https://routes.googleapis.com/directions/v2:computeRoutes',
+    'routes.computeRoutes',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
+      },
+      body: JSON.stringify({
+        origin: { location: { latLng: { latitude: from.lat, longitude: from.lng } } },
+        destination: { location: { latLng: { latitude: to.lat, longitude: to.lng } } },
+        travelMode: 'TRANSIT',
+        computeAlternativeRoutes: false,
+        ...(allowedTravelModes.length > 0 ? { transitPreferences: { allowedTravelModes } } : {}),
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Google Routes failed (${response.status}): ${text.slice(0, 180)}`);
+  }
+  const data = (await response.json()) as {
+    routes?: Array<{
+      distanceMeters?: number;
+      duration?: string;
+      polyline?: { encodedPolyline?: string };
+    }>;
+  };
+  const route = data.routes?.[0];
+  const encoded = route?.polyline?.encodedPolyline;
+  if (!encoded) throw new Error('Google Routes returned no polyline');
+  const coordinates = decodeGooglePolyline(encoded);
+  if (coordinates.length < 2) throw new Error('Google Routes returned an empty polyline');
+  return {
+    mode,
+    provider: 'google-routes',
+    source: 'google-routes-transit',
+    exact: true,
+    coordinates,
+    distanceMeters: typeof route.distanceMeters === 'number' ? route.distanceMeters : null,
+    durationSeconds: parseGoogleDurationSeconds(route.duration),
+  };
+}
+
+async function fetchOsrmSegment(
+  mode: string,
+  profile: 'driving' | 'cycling',
+  from: TransportEndpointRow,
+  to: TransportEndpointRow,
+  exact: boolean,
+): Promise<MapsTransportRouteSegment> {
+  const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+  const url = `${OSRM_ROUTE_BASE[profile]}/${coords}?overview=full&geometries=geojson&steps=false`;
+  const response = await fetch(url, { headers: { 'User-Agent': UA } });
+  if (!response.ok) throw new Error(`OSRM failed (${response.status})`);
+  const data = (await response.json()) as {
+    code?: string;
+    routes?: Array<{
+      distance?: number;
+      duration?: number;
+      geometry?: { coordinates?: [number, number][] };
+    }>;
+  };
+  const route = data.routes?.[0];
+  const coordinates = route?.geometry?.coordinates?.map(([lng, lat]) => [lat, lng] as [number, number]) ?? [];
+  if (data.code !== 'Ok' || coordinates.length < 2) throw new Error('OSRM returned no route');
+  return {
+    mode,
+    provider: 'osrm',
+    source: `osrm-${profile}`,
+    exact,
+    coordinates,
+    distanceMeters: typeof route.distance === 'number' ? route.distance : null,
+    durationSeconds: typeof route.duration === 'number' ? route.duration : null,
+  };
+}
+
+async function routeGroundSegment(
+  userId: number,
+  mode: string,
+  from: TransportEndpointRow,
+  to: TransportEndpointRow,
+  warnings: string[],
+): Promise<MapsTransportRouteSegment> {
+  if (!finitePoint(from) || !finitePoint(to)) return fallbackSegment(mode, from, to);
+
+  const googleModes = GOOGLE_TRANSIT_MODES[mode];
+  if (googleModes) {
+    const apiKey = getMapsKey(userId);
+    if (apiKey) {
+      try {
+        return await fetchGoogleTransitSegment(apiKey, mode, from, to);
+      } catch (err) {
+        warnings.push(err instanceof Error ? err.message : 'Google Routes transit failed');
+      }
+    } else {
+      warnings.push('Google Maps key unavailable; using fallback transport geometry.');
+    }
+
+    if (mode === 'bus') {
+      try {
+        return await fetchOsrmSegment(mode, 'driving', from, to, false);
+      } catch (err) {
+        warnings.push(err instanceof Error ? err.message : 'OSRM bus fallback failed');
+      }
+    }
+    return fallbackSegment(mode, from, to);
+  }
+
+  if (mode === 'bicycle') {
+    try {
+      return await fetchOsrmSegment(mode, 'cycling', from, to, true);
+    } catch (err) {
+      warnings.push(err instanceof Error ? err.message : 'OSRM cycling route failed');
+      return fallbackSegment(mode, from, to);
+    }
+  }
+
+  if (mode === 'car' || mode === 'taxi') {
+    try {
+      return await fetchOsrmSegment(mode, 'driving', from, to, true);
+    } catch (err) {
+      warnings.push(err instanceof Error ? err.message : 'OSRM road route failed');
+      return fallbackSegment(mode, from, to);
+    }
+  }
+
+  if (mode === 'transport_other') {
+    try {
+      return await fetchOsrmSegment(mode, 'driving', from, to, false);
+    } catch (err) {
+      warnings.push(err instanceof Error ? err.message : 'OSRM generic transport route failed');
+      return fallbackSegment(mode, from, to);
+    }
+  }
+
+  if (mode === 'flight' || mode === 'ferry' || mode === 'cruise') {
+    return fallbackSegment(mode, from, to, 'geodesic', 'geodesic');
+  }
+  return fallbackSegment(mode, from, to);
+}
+
+export async function getTransportRoute(
+  userId: number,
+  tripId: string | number,
+  reservationId: string | number,
+): Promise<MapsTransportRouteResult> {
+  const trip = await verifyTripAccess(tripId, userId);
+  if (!trip) throw routeError('Trip not found or access denied', 403);
+
+  const reservation = db
+    .prepare('SELECT id, trip_id, type, title FROM reservations WHERE id = ? AND trip_id = ? LIMIT 1')
+    .get(reservationId, tripId) as TransportReservationRow | undefined;
+  if (!reservation) throw routeError('Transport reservation not found', 404);
+
+  const endpoints = db
+    .prepare(
+      `SELECT role, sequence, name, code, lat, lng, local_time, local_date
+       FROM reservation_endpoints
+       WHERE reservation_id = ?
+       ORDER BY sequence ASC`,
+    )
+    .all(reservation.id) as TransportEndpointRow[];
+
+  if (endpoints.length < 2) {
+    return {
+      reservationId: reservation.id,
+      source: 'fallback',
+      provider: 'fallback',
+      exact: false,
+      segments: [],
+      warnings: ['Transport has fewer than two route endpoints.'],
+    };
+  }
+
+  const mode = reservation.type || 'transport_other';
+  const warnings: string[] = [];
+  const segments: MapsTransportRouteSegment[] = [];
+  for (let i = 0; i < endpoints.length - 1; i++) {
+    segments.push(await routeGroundSegment(userId, mode, endpoints[i], endpoints[i + 1], warnings));
+  }
+
+  const providers = new Set(segments.map((s) => s.provider));
+  const provider = (providers.size === 1 ? [...providers][0] : 'mixed') as MapsTransportRouteResult['provider'];
+  const exact = segments.length > 0 && segments.every((s) => s.exact);
+  return {
+    reservationId: reservation.id,
+    source: provider,
+    provider,
+    exact,
+    segments,
+    warnings: [...new Set(warnings)].slice(0, 4),
+  };
 }
 
 // ── Nominatim search ─────────────────────────────────────────────────────────

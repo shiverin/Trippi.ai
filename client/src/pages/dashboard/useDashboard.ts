@@ -160,7 +160,7 @@ export function useDashboard() {
   const confirmDelete = async () => {
     if (!deleteTrip) return;
     try {
-      await tripRepo.delete(deleteTrip.id);
+      await tripsApi.delete(deleteTrip.id);
       setTrips((prev) => prev.filter((t) => t.id !== deleteTrip.id));
       setArchivedTrips((prev) => prev.filter((t) => t.id !== deleteTrip.id));
       toast.success(t('dashboard.toast.deleted'));

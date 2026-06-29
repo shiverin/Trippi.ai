@@ -11,11 +11,11 @@ import path from 'node:path';
 const GOOGLE_PHOTO_DIR = process.env.TRIPPI_PLACE_PHOTO_DIR || path.join(__dirname, '../../uploads/photos/google');
 const ERROR_TTL = 5 * 60 * 1000;
 
-// Marker photos are displayed tiny — cap stored images so an oversized source
-// (e.g. a Wikimedia Commons full-res original) can't bloat the cache. Matches
-// THUMB_MAX/THUMB_QUALITY in memories/thumbnailService.ts.
-const MAX_DIM = 800;
-const JPEG_QUALITY = 80;
+// Place photos are reused in map markers, cards, and PDF covers. Cap stored
+// images so large originals cannot bloat the cache while preserving enough
+// resolution for brochure-style exports.
+const MAX_DIM = 1400;
+const JPEG_QUALITY = 82;
 
 // In-flight dedup — prevents stampedes when multiple requests hit the same uncached placeId simultaneously
 const inFlight = new Map<string, Promise<{ filePath: string; attribution: string | null } | null>>();

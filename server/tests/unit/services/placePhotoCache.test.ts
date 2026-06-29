@@ -62,13 +62,13 @@ afterAll(() => {
 });
 
 describe('placePhotoCache.put() downscale guard', () => {
-  it('PPC-001: downscales an oversized image to <= 800px', async () => {
+  it('PPC-001: downscales an oversized image to <= 1400px', async () => {
     const big = await makeJpeg(1600, 1200);
     await cache.put('big-place', big, 'Alice');
 
     const written = fs.readFileSync(filePathFor('big-place'));
     const decoded = await Jimp.read(written);
-    expect(Math.max(decoded.bitmap.width, decoded.bitmap.height)).toBeLessThanOrEqual(800);
+    expect(Math.max(decoded.bitmap.width, decoded.bitmap.height)).toBeLessThanOrEqual(1400);
     expect(written.length).toBeLessThan(big.length);
   });
 

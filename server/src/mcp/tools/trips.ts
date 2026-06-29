@@ -210,7 +210,7 @@ export function registerTripTools(
       'apply_itinerary_plan',
       {
         description:
-          'Create or update a complete multi-day itinerary in one structured JSON call. Use this as the primary one-shot tool for "plan a trip", "full itinerary", "generate travel plan", and PDF itinerary requests. Activities are imported as real places with day assignments, never as day notes. Do not provide or invent lat/lng; send location query/address/provider IDs and let the server geocode, validate, apply atomically, and optionally export the official Trippi PDF.',
+          'Create or update a complete multi-day itinerary in one structured JSON call. Use this as the primary one-shot tool for "plan a trip", "full itinerary", "generate travel plan", and PDF itinerary requests. Activities are imported as real places with day assignments, never as day notes. Do not provide or invent lat/lng; send location query/address/provider IDs and let the server geocode, validate, attach a destination cover image from resolved itinerary places, apply atomically, and optionally export the official Trippi PDF. For PDF requests, optionally set cover_place_query to the strongest scenic or landmark place from the itinerary; do not send an image URL.',
         inputSchema: {
           target: ItineraryTargetSchema.describe(
             'new_trip creates a trip; existing_trip appends or replaces only previous MCP-imported itinerary objects.',
@@ -222,6 +222,14 @@ export function registerTripTools(
             .max(200)
             .optional()
             .describe('Destination region/country appended to geocoding queries, e.g. "Yunnan, China".'),
+          cover_place_query: z
+            .string()
+            .min(1)
+            .max(300)
+            .optional()
+            .describe(
+              'Preferred itinerary place for the PDF cover photo, e.g. "Jade Dragon Snow Mountain". Send a place query from the itinerary, not an image URL; Trippi resolves the place photo server-side.',
+            ),
           exportPdf: z.boolean().optional().describe('When true, also generate the official Trippi PDF export.'),
           days: z
             .array(ItineraryDaySchema)
@@ -233,7 +241,7 @@ export function registerTripTools(
         },
         annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,
       },
-      async ({ target, lang, destination_context, exportPdf, days }) => {
+      async ({ target, lang, destination_context, cover_place_query, exportPdf, days }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (target.kind === 'existing_trip') {
           if (!(await canAccessTrip(target.tripId, userId))) return noAccess();
@@ -242,7 +250,14 @@ export function registerTripTools(
         }
 
         try {
-          const result = await applyItineraryPlan(userId, { target, lang, destination_context, exportPdf, days });
+          const result = await applyItineraryPlan(userId, {
+            target,
+            lang,
+            destination_context,
+            cover_place_query,
+            exportPdf,
+            days,
+          });
           const response = {
             success: result.success,
             tripId: result.tripId,

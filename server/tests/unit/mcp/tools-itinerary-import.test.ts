@@ -65,13 +65,17 @@ vi.mock('../../../src/config', () => ({
 const { broadcastMock } = vi.hoisted(() => ({ broadcastMock: vi.fn() }));
 vi.mock('../../../src/websocket', () => ({ broadcast: broadcastMock }));
 
-const { searchPlacesMock, getPlaceDetailsMock } = vi.hoisted(() => ({
+const { searchPlacesMock, getPlaceDetailsMock, getMapsKeyMock, getPlacePhotoMock } = vi.hoisted(() => ({
   searchPlacesMock: vi.fn(),
   getPlaceDetailsMock: vi.fn(),
+  getMapsKeyMock: vi.fn(),
+  getPlacePhotoMock: vi.fn(),
 }));
 vi.mock('../../../src/services/mapsService', () => ({
   searchPlaces: searchPlacesMock,
   getPlaceDetails: getPlaceDetailsMock,
+  getMapsKey: getMapsKeyMock,
+  getPlacePhoto: getPlacePhotoMock,
 }));
 
 const { exportTripPdfMock } = vi.hoisted(() => ({ exportTripPdfMock: vi.fn() }));
@@ -89,9 +93,12 @@ beforeEach(() => {
   broadcastMock.mockClear();
   searchPlacesMock.mockReset();
   getPlaceDetailsMock.mockReset();
+  getMapsKeyMock.mockReset();
+  getPlacePhotoMock.mockReset();
   exportTripPdfMock.mockReset();
   searchCounter = 0;
   delete process.env.DEMO_MODE;
+  getMapsKeyMock.mockReturnValue('test-google-key');
 
   searchPlacesMock.mockImplementation(async (_userId: number, query: string) => {
     searchCounter += 1;
@@ -110,6 +117,7 @@ beforeEach(() => {
       ],
     };
   });
+  getPlacePhotoMock.mockResolvedValue({ photoUrl: '/api/maps/place-photo/google-1/bytes', attribution: 'Google' });
   exportTripPdfMock.mockResolvedValue({ filename: 'yunnan.pdf', url: 'https://trippi.test/yunnan.pdf', bytes: 1234 });
 });
 
@@ -363,6 +371,7 @@ describe('Tool: apply_itinerary_plan', () => {
       expect(applyTool).toBeTruthy();
       expect(JSON.stringify(applyTool?.inputSchema)).toContain('"exportPdf"');
       expect(JSON.stringify(applyTool?.inputSchema)).toContain('"destination_context"');
+      expect(JSON.stringify(applyTool?.inputSchema)).toContain('"cover_place_query"');
       expect(JSON.stringify(applyTool?.inputSchema)).not.toContain('"lat":');
       expect(JSON.stringify(applyTool?.inputSchema)).not.toContain('"lng":');
     });
@@ -386,6 +395,7 @@ describe('Tool: apply_itinerary_plan', () => {
       const data = parseToolResult(result) as any;
       expect(data.success).toBe(true);
       expect(data.tripId).toBeGreaterThan(0);
+      expect(data.trip.cover_image).toBe('/api/maps/place-photo/google-1/bytes');
       expect(data.counts).toMatchObject({
         placesCreated: 23,
         assignmentsCreated: 20,
@@ -415,9 +425,62 @@ describe('Tool: apply_itinerary_plan', () => {
         .prepare('SELECT mcp_import_batch_id FROM places WHERE name LIKE ? LIMIT 1')
         .get('Green Lake Park%') as { mcp_import_batch_id: string | null };
       expect(importedPlace.mcp_import_batch_id).toBe(data.batchId);
+      expect(getPlacePhotoMock).toHaveBeenCalled();
       expect(searchPlacesMock).toHaveBeenCalledWith(user.id, 'Green Lake Park, Kunming, Yunnan, China', 'en');
       expect(exportTripPdfMock).toHaveBeenCalledWith(data.tripId);
       expect(broadcastMock).toHaveBeenCalledWith(data.tripId, 'itinerary:imported', expect.any(Object));
+    });
+  });
+
+  it('uses the preferred scenic itinerary place for the trip cover photo', async () => {
+    const { user } = createUser(testDb);
+    getPlacePhotoMock.mockImplementation(async (_userId: number, photoId: string) => ({
+      photoUrl: `/api/maps/place-photo/${photoId}/bytes`,
+      attribution: 'Google',
+    }));
+
+    await withHarness(user.id, async (h) => {
+      const result = await h.client.callTool({
+        name: 'apply_itinerary_plan',
+        arguments: {
+          target: { kind: 'new_trip', title: 'Lijiang Visual Cover Test', currency: 'CNY' },
+          destination_context: 'Yunnan, China',
+          cover_place_query: 'Jade Dragon Snow Mountain',
+          days: [
+            {
+              day_number: 1,
+              city: 'Lijiang',
+              activities: [
+                {
+                  title: 'Old Town dinner',
+                  category: 'restaurant',
+                  location: { query: 'Lijiang Old Town restaurant' },
+                },
+                {
+                  title: 'Jade Dragon Snow Mountain',
+                  category: 'nature',
+                  location: { query: 'Jade Dragon Snow Mountain' },
+                },
+                {
+                  title: 'Lijiang Sanyi Airport transfer',
+                  category: 'transport',
+                  location: { query: 'Lijiang Sanyi Airport' },
+                },
+              ],
+              accommodation: {
+                title: 'Lijiang Old Town boutique hotel',
+                location: { query: 'Lijiang Old Town boutique hotel' },
+              },
+            },
+          ],
+        },
+      });
+
+      const data = parseToolResult(result) as any;
+      expect(data.success).toBe(true);
+      expect(getPlacePhotoMock).toHaveBeenCalled();
+      expect(getPlacePhotoMock.mock.calls[0][1]).toBe('google-2');
+      expect(data.trip.cover_image).toBe('/api/maps/place-photo/google-2/bytes');
     });
   });
 

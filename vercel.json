@@ -5,43 +5,43 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://34.55.197.101.nip.io/api/:path*"
+      "destination": "http://34.55.197.101.nip.io/api/:path*"
     },
     {
       "source": "/mcp",
-      "destination": "https://34.55.197.101.nip.io/mcp"
+      "destination": "http://34.55.197.101.nip.io/mcp"
     },
     {
       "source": "/oauth/authorize",
-      "destination": "https://34.55.197.101.nip.io/oauth/authorize"
+      "destination": "http://34.55.197.101.nip.io/oauth/authorize"
     },
     {
       "source": "/oauth/register",
-      "destination": "https://34.55.197.101.nip.io/oauth/register"
+      "destination": "http://34.55.197.101.nip.io/oauth/register"
     },
     {
       "source": "/oauth/token",
-      "destination": "https://34.55.197.101.nip.io/oauth/token"
+      "destination": "http://34.55.197.101.nip.io/oauth/token"
     },
     {
       "source": "/oauth/revoke",
-      "destination": "https://34.55.197.101.nip.io/oauth/revoke"
+      "destination": "http://34.55.197.101.nip.io/oauth/revoke"
     },
     {
       "source": "/oauth/userinfo",
-      "destination": "https://34.55.197.101.nip.io/oauth/userinfo"
+      "destination": "http://34.55.197.101.nip.io/oauth/userinfo"
     },
     {
       "source": "/.well-known/:path*",
-      "destination": "https://34.55.197.101.nip.io/.well-known/:path*"
+      "destination": "http://34.55.197.101.nip.io/.well-known/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://34.55.197.101.nip.io/uploads/:path*"
+      "destination": "http://34.55.197.101.nip.io/uploads/:path*"
     },
     {
       "source": "/ws",
-      "destination": "https://34.55.197.101.nip.io/ws"
+      "destination": "http://34.55.197.101.nip.io/ws"
     },
     {
       "source": "/:path*",

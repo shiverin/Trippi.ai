@@ -627,15 +627,15 @@ describe('changePassword — session invalidation', () => {
     expect(mcpCount(user.id)).toBe(0); // static MCP tokens revoked
   });
 
-  it('AUTH-DB-036c: a token minted before the change no longer validates afterwards', () => {
+  it('AUTH-DB-036c: a token minted before the change no longer validates afterwards', async () => {
     const { user, password } = createUser(testDb);
     const stolen = generateToken({ id: user.id }); // pv=0 at mint time
 
-    expect(verifyJwtAndLoadUser(stolen)).not.toBeNull();
+    await expect(verifyJwtAndLoadUser(stolen)).resolves.not.toBeNull();
 
     changePassword(user.id, user.email, { current_password: password, new_password: 'New1234!' });
 
-    expect(verifyJwtAndLoadUser(stolen)).toBeNull(); // invalidated by the pv bump
+    await expect(verifyJwtAndLoadUser(stolen)).resolves.toBeNull(); // invalidated by the pv bump
   });
 });
 

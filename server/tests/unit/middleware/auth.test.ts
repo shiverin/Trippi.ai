@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import jwt from 'jsonwebtoken';
 
-vi.mock('../../../src/db/database', () => ({
-  db: { prepare: vi.fn(() => ({ get: vi.fn(), all: vi.fn() })) },
+vi.mock('../../../src/db/asyncDatabase', () => ({
+  asyncDb: { prepare: vi.fn(() => ({ get: vi.fn(), all: vi.fn(), run: vi.fn() })) },
 }));
 vi.mock('../../../src/config', () => ({ JWT_SECRET: 'test-secret' }));
 
 import { extractToken, authenticate, adminOnly } from '../../../src/middleware/auth';
-import { db } from '../../../src/db/database';
+import { asyncDb } from '../../../src/db/asyncDatabase';
 import type { Request, Response, NextFunction } from 'express';
 
 function makeReq(overrides: {
@@ -68,26 +68,26 @@ describe('extractToken', () => {
 // ── authenticate ─────────────────────────────────────────────────────────────
 
 describe('authenticate', () => {
-  it('returns 401 when no token is present', () => {
+  it('returns 401 when no token is present', async () => {
     const next = vi.fn() as unknown as NextFunction;
     const { res, status, json } = makeRes();
     authenticate(makeReq(), res, next);
+    await vi.waitFor(() => expect(status).toHaveBeenCalledWith(401));
     expect(next).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith(expect.objectContaining({ code: 'AUTH_REQUIRED' }));
   });
 
-  it('returns 401 when JWT is invalid', () => {
+  it('returns 401 when JWT is invalid', async () => {
     const next = vi.fn() as unknown as NextFunction;
     const { res, status } = makeRes();
     authenticate(makeReq({ cookies: { trippi_session: 'invalid.jwt.token' } }), res, next);
+    await vi.waitFor(() => expect(status).toHaveBeenCalledWith(401));
     expect(next).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(401);
   });
 
-  it('AUTH-MW-003: calls next() and sets req.user for a valid JWT', () => {
+  it('AUTH-MW-003: calls next() and sets req.user for a valid JWT', async () => {
     const mockUser = { id: 1, username: 'alice', email: 'alice@example.com', role: 'user' };
-    vi.mocked(db.prepare).mockReturnValue({ get: vi.fn(() => mockUser), all: vi.fn() } as any);
+    vi.mocked(asyncDb.prepare).mockReturnValue({ get: vi.fn(async () => mockUser), all: vi.fn(), run: vi.fn() } as any);
 
     const token = jwt.sign({ id: 1 }, 'test-secret', { algorithm: 'HS256' });
     const req = makeReq({ cookies: { trippi_session: token } });
@@ -96,12 +96,13 @@ describe('authenticate', () => {
 
     authenticate(req, res, next);
 
+    await vi.waitFor(() => expect(next).toHaveBeenCalledOnce());
     expect(next).toHaveBeenCalledOnce();
     expect((req as any).user).toEqual(mockUser);
   });
 
-  it('AUTH-MW-004: returns 401 for a valid JWT when user does not exist in DB', () => {
-    vi.mocked(db.prepare).mockReturnValue({ get: vi.fn(() => undefined), all: vi.fn() } as any);
+  it('AUTH-MW-004: returns 401 for a valid JWT when user does not exist in DB', async () => {
+    vi.mocked(asyncDb.prepare).mockReturnValue({ get: vi.fn(async () => undefined), all: vi.fn(), run: vi.fn() } as any);
 
     const token = jwt.sign({ id: 99999 }, 'test-secret', { algorithm: 'HS256' });
     const next = vi.fn() as unknown as NextFunction;
@@ -109,38 +110,38 @@ describe('authenticate', () => {
 
     authenticate(makeReq({ cookies: { trippi_session: token } }), res, next);
 
+    await vi.waitFor(() => expect(status).toHaveBeenCalledWith(401));
     expect(next).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(401);
   });
 
-  it('AUTH-MW-005: returns 401 for an expired JWT', () => {
+  it('AUTH-MW-005: returns 401 for an expired JWT', async () => {
     const expiredToken = jwt.sign(
       { id: 1, exp: Math.floor(Date.now() / 1000) - 3600 },
       'test-secret',
-      { algorithm: 'HS256' }
+      { algorithm: 'HS256' },
     );
     const next = vi.fn() as unknown as NextFunction;
     const { res, status } = makeRes();
     authenticate(makeReq({ cookies: { trippi_session: expiredToken } }), res, next);
+    await vi.waitFor(() => expect(status).toHaveBeenCalledWith(401));
     expect(next).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(401);
   });
 
-  it('AUTH-MW-006: returns 401 for a JWT signed with the wrong secret', () => {
+  it('AUTH-MW-006: returns 401 for a JWT signed with the wrong secret', async () => {
     const tamperedToken = jwt.sign({ id: 1 }, 'wrong-secret', { algorithm: 'HS256' });
     const next = vi.fn() as unknown as NextFunction;
     const { res, status } = makeRes();
     authenticate(makeReq({ cookies: { trippi_session: tamperedToken } }), res, next);
+    await vi.waitFor(() => expect(status).toHaveBeenCalledWith(401));
     expect(next).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(401);
   });
 
-  it('AUTH-MW-007: rejects a purpose-scoped mfa_login token even when the user is valid', () => {
+  it('AUTH-MW-007: rejects a purpose-scoped mfa_login token even when the user is valid', async () => {
     // The token issued after the password check but before TOTP is signed with
     // the same secret. It must never authenticate a normal request, otherwise
     // password alone grants full access and MFA is bypassed.
     const mockUser = { id: 1, username: 'alice', email: 'alice@example.com', role: 'user', password_version: 0 };
-    vi.mocked(db.prepare).mockReturnValue({ get: vi.fn(() => mockUser), all: vi.fn() } as any);
+    vi.mocked(asyncDb.prepare).mockReturnValue({ get: vi.fn(async () => mockUser), all: vi.fn(), run: vi.fn() } as any);
 
     const mfaToken = jwt.sign({ id: 1, purpose: 'mfa_login', pv: 0 }, 'test-secret', { algorithm: 'HS256' });
     const next = vi.fn() as unknown as NextFunction;
@@ -148,8 +149,8 @@ describe('authenticate', () => {
 
     authenticate(makeReq({ headers: { authorization: `Bearer ${mfaToken}` } }), res, next);
 
+    await vi.waitFor(() => expect(status).toHaveBeenCalledWith(401));
     expect(next).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(401);
   });
 });
 

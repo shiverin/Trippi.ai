@@ -3,9 +3,13 @@ import { TripsService } from '../../../src/nest/trips/trips.service';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { asyncDbMock, asyncStmt, canAccessTripAsync } = vi.hoisted(() => {
-  const stmt = { get: vi.fn(() => ({ id: 42 })), all: vi.fn(() => []), run: vi.fn() };
+  const stmt = {
+    get: vi.fn(() => ({ id: 42 })),
+    all: vi.fn(() => []),
+    run: vi.fn(() => ({ changes: 1, lastInsertRowid: 42 })),
+  };
   return {
-    asyncDbMock: { prepare: vi.fn(() => stmt) },
+    asyncDbMock: { prepare: vi.fn(() => stmt), transaction: vi.fn((fn) => fn) },
     asyncStmt: stmt,
     canAccessTripAsync: vi.fn(() => ({ user_id: 1 })),
   };
@@ -32,10 +36,12 @@ const { tripSvc } = vi.hoisted(() => ({
     addMember: vi.fn(),
     removeMember: vi.fn(),
     exportICS: vi.fn(),
-    copyTripById: vi.fn(),
-    TRIP_SELECT: 'SELECT * FROM trips t',
-  },
-}));
+	    copyTripById: vi.fn(),
+	    TRIP_SELECT: 'SELECT * FROM trips t',
+	    MAX_TRIP_DAYS: 365,
+	    MS_PER_DAY: 86400000,
+	  },
+	}));
 vi.mock('../../../src/services/tripService', () => tripSvc);
 vi.mock('../../../src/services/dayService', () => ({ listDays: () => ({ days: [1] }), listAccommodations: () => [] }));
 vi.mock('../../../src/services/placeService', () => ({ listPlaces: () => [] }));
@@ -58,8 +64,10 @@ describe('TripsService (wrapper delegation + bundle/copy/notify helpers)', () =>
       expect.stringContaining('WHERE (t.user_id = :userId OR m.user_id IS NOT NULL) AND t.is_archived = :archived'),
     );
     expect(asyncStmt.all).toHaveBeenCalledWith({ userId: 1, archived: 0 });
-    s.create(1, { title: 'T' } as never);
-    expect(tripSvc.createTrip).toHaveBeenCalledWith(1, { title: 'T' });
+    await s.create(1, { title: 'T' } as never);
+    expect(asyncDbMock.transaction).toHaveBeenCalled();
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO trips'));
+    expect(asyncStmt.run).toHaveBeenCalledWith(1, 'T', null, null, null, 'EUR', 3);
     await s.get('9', 1);
     expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('WHERE t.id = :tripId'));
     s.getRaw('9');

@@ -67,27 +67,27 @@ afterAll(() => {
 // ── verifyTripAccess ──────────────────────────────────────────────────────────
 
 describe('verifyTripAccess', () => {
-  it('TODO-SVC-001: returns trip for owner', () => {
+  it('TODO-SVC-001: returns trip for owner', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
-    const result = verifyTripAccess(trip.id, user.id);
+    const result = await verifyTripAccess(trip.id, user.id);
     expect(result).toBeDefined();
     expect((result as any).id).toBe(trip.id);
   });
 
-  it('TODO-SVC-002: returns null for non-member', () => {
+  it('TODO-SVC-002: returns null for non-member', async () => {
     const { user: owner } = createUser(testDb);
     const { user: stranger } = createUser(testDb);
     const trip = createTrip(testDb, owner.id);
-    expect(verifyTripAccess(trip.id, stranger.id)).toBeFalsy();
+    await expect(verifyTripAccess(trip.id, stranger.id)).resolves.toBeFalsy();
   });
 
-  it('TODO-SVC-003: returns trip for member', () => {
+  it('TODO-SVC-003: returns trip for member', async () => {
     const { user: owner } = createUser(testDb);
     const { user: member } = createUser(testDb);
     const trip = createTrip(testDb, owner.id);
     addTripMember(testDb, trip.id, member.id);
-    const result = verifyTripAccess(trip.id, member.id);
+    const result = await verifyTripAccess(trip.id, member.id);
     expect(result).toBeDefined();
   });
 });

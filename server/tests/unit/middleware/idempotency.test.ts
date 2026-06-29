@@ -5,16 +5,17 @@ const { rows, dbMock } = vi.hoisted(() => {
   const rows: Record<string, { status_code: number; response_body: string }> = {};
 
   const dbMock = {
-    db: {
+    asyncDb: {
       prepare: vi.fn((sql: string) => ({
-        get: vi.fn((...args: unknown[]) => {
+        get: vi.fn(async (...args: unknown[]) => {
           const [key, userId, method, path] = args;
           return rows[`${key}:${userId}:${method}:${path}`] ?? undefined;
         }),
-        run: vi.fn((...args: unknown[]) => {
+        run: vi.fn(async (...args: unknown[]) => {
           const [key, userId, method, path, status_code, response_body] = args as [string, number, string, string, number, string];
           const k = `${key}:${userId}:${method}:${path}`;
           if (!rows[k]) rows[k] = { status_code, response_body };
+          return { changes: 1, lastInsertRowid: 0 };
         }),
       })),
     },
@@ -23,7 +24,7 @@ const { rows, dbMock } = vi.hoisted(() => {
   return { rows, dbMock };
 });
 
-vi.mock('../../../src/db/database', () => dbMock);
+vi.mock('../../../src/db/asyncDatabase', () => dbMock);
 
 import { applyIdempotency } from '../../../src/middleware/idempotency';
 import type { Request, Response, NextFunction } from 'express';
@@ -43,7 +44,7 @@ function makeRes(statusCode = 200): Response {
 }
 
 beforeEach(() => {
-  Object.keys(rows).forEach(k => delete rows[k]);
+  Object.keys(rows).forEach((k) => delete rows[k]);
   vi.clearAllMocks();
 });
 
@@ -64,26 +65,28 @@ describe('applyIdempotency', () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it('replays cached response when key+user+method+path already stored', () => {
+  it('replays cached response when key+user+method+path already stored', async () => {
     rows['cached-key:42:POST:/api/test'] = { status_code: 201, response_body: JSON.stringify({ id: 99 }) };
     const req = makeReq('POST', { 'x-idempotency-key': 'cached-key' });
     const res = makeRes();
     const next = vi.fn();
     applyIdempotency(req, res, next, 42);
+    await vi.waitFor(() => expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({ id: 99 }));
     expect(next).not.toHaveBeenCalled();
     expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({ id: 99 });
   });
 
-  it('different user same key does NOT replay', () => {
+  it('different user same key does NOT replay', async () => {
     rows['cached-key:1:POST:/api/test'] = { status_code: 200, response_body: JSON.stringify({ ok: true }) };
     const req = makeReq('POST', { 'x-idempotency-key': 'cached-key' });
     const res = makeRes();
     const next = vi.fn();
     applyIdempotency(req, res, next, 99); // different user
+    await vi.waitFor(() => expect(next).toHaveBeenCalledOnce());
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it('same key+user on different path does NOT replay (scoped cache)', () => {
+  it('same key+user on different path does NOT replay (scoped cache)', async () => {
     // Key 'dual-key' is cached under /api/a but reused against /api/b.
     // Without the (key, user_id, method, path) scoping, /api/b would
     // have replayed /api/a's body — a silent cross-endpoint leak.
@@ -94,6 +97,7 @@ describe('applyIdempotency', () => {
       (res.json as ReturnType<typeof vi.fn>)({ from: 'b' });
     });
     applyIdempotency(req, res, next, 7);
+    await vi.waitFor(() => expect(rows['dual-key:7:POST:/api/b']).toBeDefined());
     expect(next).toHaveBeenCalledOnce();
     expect(rows['dual-key:7:POST:/api/b']).toBeDefined();
     expect(JSON.parse(rows['dual-key:7:POST:/api/b'].response_body)).toEqual({ from: 'b' });
@@ -101,16 +105,17 @@ describe('applyIdempotency', () => {
     expect(JSON.parse(rows['dual-key:7:POST:/api/a'].response_body)).toEqual({ from: 'a' });
   });
 
-  it('same key+user+path but different method does NOT replay', () => {
+  it('same key+user+path but different method does NOT replay', async () => {
     rows['m-key:3:POST:/api/x'] = { status_code: 201, response_body: JSON.stringify({ m: 'post' }) };
     const req = makeReq('PATCH', { 'x-idempotency-key': 'm-key' }, '/api/x');
     const res = makeRes();
     const next = vi.fn();
     applyIdempotency(req, res, next, 3);
+    await vi.waitFor(() => expect(next).toHaveBeenCalledOnce());
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it('stores 2xx response on first execution via wrapped res.json', () => {
+  it('stores 2xx response on first execution via wrapped res.json', async () => {
     const req = makeReq('POST', { 'x-idempotency-key': 'new-key' });
     const res = makeRes(201);
     const next = vi.fn(() => {
@@ -118,19 +123,21 @@ describe('applyIdempotency', () => {
       (res.json as ReturnType<typeof vi.fn>)({ id: 5 });
     });
     applyIdempotency(req, res, next, 7);
+    await vi.waitFor(() => expect(rows['new-key:7:POST:/api/test']).toBeDefined());
     expect(next).toHaveBeenCalledOnce();
     expect(rows['new-key:7:POST:/api/test']).toBeDefined();
     expect(rows['new-key:7:POST:/api/test'].status_code).toBe(201);
     expect(JSON.parse(rows['new-key:7:POST:/api/test'].response_body)).toEqual({ id: 5 });
   });
 
-  it('does NOT store 4xx responses', () => {
+  it('does NOT store 4xx responses', async () => {
     const req = makeReq('POST', { 'x-idempotency-key': 'fail-key' });
     const res = makeRes(422);
     const next = vi.fn(() => {
       (res.json as ReturnType<typeof vi.fn>)({ error: 'Invalid' });
     });
     applyIdempotency(req, res, next, 3);
+    await vi.waitFor(() => expect(next).toHaveBeenCalledOnce());
     expect(rows['fail-key:3:POST:/api/test']).toBeUndefined();
   });
 
@@ -146,7 +153,7 @@ describe('applyIdempotency', () => {
     );
   });
 
-  it('does NOT cache response body exceeding 256 KiB', () => {
+  it('does NOT cache response body exceeding 256 KiB', async () => {
     const req = makeReq('POST', { 'x-idempotency-key': 'big-key' });
     const res = makeRes(200);
     const originalJsonSpy = res.json as ReturnType<typeof vi.fn>;
@@ -156,6 +163,7 @@ describe('applyIdempotency', () => {
       res.json(largePayload);
     });
     applyIdempotency(req, res, next, 5);
+    await vi.waitFor(() => expect(next).toHaveBeenCalledOnce());
     expect(next).toHaveBeenCalledOnce();
     // Underlying spy was called (response reached the client)
     expect(originalJsonSpy).toHaveBeenCalledWith(largePayload);
@@ -163,12 +171,13 @@ describe('applyIdempotency', () => {
     expect(rows['big-key:5:POST:/api/test']).toBeUndefined();
   });
 
-  it('handles PUT, PATCH, and DELETE the same as POST', () => {
+  it('handles PUT, PATCH, and DELETE the same as POST', async () => {
     for (const method of ['PUT', 'PATCH', 'DELETE'] as const) {
       const req = makeReq(method, { 'x-idempotency-key': `key-${method}` });
       const res = makeRes(200);
       const next = vi.fn();
       applyIdempotency(req, res, next, 1);
+      await vi.waitFor(() => expect(next).toHaveBeenCalled());
       expect(next).toHaveBeenCalled();
       vi.clearAllMocks();
     }

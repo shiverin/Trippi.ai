@@ -1,4 +1,5 @@
 import { db } from '../db/database';
+import { resolveDbProvider } from '../db/providerMode';
 
 /**
  * Permission levels (hierarchical, higher includes lower):
@@ -62,6 +63,9 @@ let cache: Map<string, PermissionLevel> | null = null;
 function loadPermissions(): Map<string, PermissionLevel> {
   if (cache) return cache;
   cache = new Map<string, PermissionLevel>();
+  if (resolveDbProvider() === 'oracle-async') {
+    return cache;
+  }
   try {
     const rows = db.prepare("SELECT key, value FROM app_settings WHERE key LIKE 'perm_%'").all() as {
       key: string;

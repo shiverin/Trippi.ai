@@ -75,8 +75,8 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@CurrentUser() user: User) {
-    const loaded = this.auth.getCurrentUser(user.id);
+  async me(@CurrentUser() user: User) {
+    const loaded = await this.auth.getCurrentUser(user.id);
     if (!loaded) {
       throw new HttpException({ error: 'User not found' }, 404);
     }

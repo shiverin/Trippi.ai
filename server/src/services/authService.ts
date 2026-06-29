@@ -1,4 +1,5 @@
 import { JWT_SECRET, SESSION_DURATION_SECONDS, SESSION_DURATION_REMEMBER_SECONDS } from '../config';
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { revokeUserSessions } from '../mcp';
 import { verifyJwtAndLoadUser } from '../middleware/auth';
@@ -13,7 +14,7 @@ import { encryptMfaSecret, decryptMfaSecret } from './mfaCrypto';
 import { validatePassword } from './passwordPolicy';
 import { getAllPermissions } from './permissions';
 import { deleteUserCompletely } from './userCleanupService';
-import { isPasskeyConfigured } from './webauthnConfig';
+import { isPasskeyConfigured, isPasskeyConfiguredAsync } from './webauthnConfig';
 
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -348,6 +349,58 @@ export function isOidcOnlyMode(): boolean {
   return !resolveAuthToggles().password_login;
 }
 
+export async function resolveAuthTogglesAsync(): Promise<{
+  password_login: boolean;
+  password_registration: boolean;
+  oidc_login: boolean;
+  oidc_registration: boolean;
+  passkey_login: boolean;
+}> {
+  const get = async (key: string) =>
+    ((await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value ?? null);
+
+  const passkey_login = (await get('passkey_login')) === 'true';
+  const newKeyValues = await Promise.all(
+    ['password_login', 'password_registration', 'oidc_login', 'oidc_registration'].map((key) => get(key)),
+  );
+  const hasNewKeys = newKeyValues.some((value) => value !== null);
+
+  if (hasNewKeys) {
+    const result = {
+      password_login: (await get('password_login')) !== 'false',
+      password_registration: (await get('password_registration')) !== 'false',
+      oidc_login: (await get('oidc_login')) !== 'false',
+      oidc_registration: (await get('oidc_registration')) !== 'false',
+      passkey_login,
+    };
+    if (process.env.OIDC_ONLY?.toLowerCase() === 'true') {
+      result.password_login = false;
+      result.password_registration = false;
+    }
+    return result;
+  }
+
+  const oidcOnlyEnabled = process.env.OIDC_ONLY?.toLowerCase() === 'true' || (await get('oidc_only')) === 'true';
+  const oidcConfigured = !!(
+    (process.env.OIDC_ISSUER || (await get('oidc_issuer'))) &&
+    (process.env.OIDC_CLIENT_ID || (await get('oidc_client_id')))
+  );
+  const oidcOnly = oidcOnlyEnabled && oidcConfigured;
+  const allowReg = ((await get('allow_registration')) ?? 'true') === 'true';
+
+  return {
+    password_login: !oidcOnly,
+    password_registration: !oidcOnly && allowReg,
+    oidc_login: true,
+    oidc_registration: allowReg,
+    passkey_login,
+  };
+}
+
+export async function isOidcOnlyModeAsync(): Promise<boolean> {
+  return !(await resolveAuthTogglesAsync()).password_login;
+}
+
 export function generateToken(user: { id: number | bigint; password_version?: number }, rememberMe = false) {
   const pv =
     typeof user.password_version === 'number'
@@ -359,6 +412,20 @@ export function generateToken(user: { id: number | bigint; password_version?: nu
         )?.password_version ?? 0);
   // "Remember me" extends the JWT lifetime to match the persistent cookie maxAge;
   // the cookie service decides session-vs-persistent off the same flag.
+  const expiresIn = rememberMe ? SESSION_DURATION_REMEMBER_SECONDS : SESSION_DURATION_SECONDS;
+  return jwt.sign({ id: user.id, pv }, JWT_SECRET, { expiresIn, algorithm: 'HS256' });
+}
+
+export async function generateTokenAsync(
+  user: { id: number | bigint; password_version?: number },
+  rememberMe = false,
+): Promise<string> {
+  const pv =
+    typeof user.password_version === 'number'
+      ? user.password_version
+      : ((await asyncDb.prepare('SELECT password_version FROM users WHERE id = ?').get<{ password_version?: number }>(
+          user.id,
+        ))?.password_version ?? 0);
   const expiresIn = rememberMe ? SESSION_DURATION_REMEMBER_SECONDS : SESSION_DURATION_SECONDS;
   return jwt.sign({ id: user.id, pv }, JWT_SECRET, { expiresIn, algorithm: 'HS256' });
 }
@@ -579,6 +646,86 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
   };
 }
 
+export async function getAppConfigAsync(authenticatedUser: { id: number } | null) {
+  const get = async (key: string) =>
+    (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value;
+
+  const userCount = Number(
+    (await asyncDb.prepare('SELECT COUNT(*) as count FROM users').get<{ count: number }>())?.count ?? 0,
+  );
+  const isDemo = process.env.DEMO_MODE?.toLowerCase() === 'true';
+  const toggles = await resolveAuthTogglesAsync();
+  const version: string = process.env.APP_VERSION ?? require('../../package.json').version;
+  const hasGoogleKey = !!(await asyncDb
+    .prepare(
+      "SELECT maps_api_key FROM users WHERE role = 'admin' AND maps_api_key IS NOT NULL AND maps_api_key != '' LIMIT 1",
+    )
+    .get());
+  const oidcDisplayName = process.env.OIDC_DISPLAY_NAME || (await get('oidc_display_name')) || null;
+  const oidcConfigured = !!(
+    (process.env.OIDC_ISSUER || (await get('oidc_issuer'))) &&
+    (process.env.OIDC_CLIENT_ID || (await get('oidc_client_id')))
+  );
+  const requireMfa = (await get('require_mfa')) === 'true';
+  const notifChannel = (await get('notification_channel')) || 'none';
+  const tripReminderSetting = await get('notify_trip_reminder');
+  const hasSmtpHost = !!(process.env.SMTP_HOST || (await get('smtp_host')));
+  const notifChannelsRaw = (await get('notification_channels')) || notifChannel;
+  const activeChannels =
+    notifChannelsRaw === 'none'
+      ? []
+      : notifChannelsRaw
+          .split(',')
+          .map((c: string) => c.trim())
+          .filter(Boolean);
+  const hasWebhookEnabled = activeChannels.includes('webhook');
+  const placesPhotosEnabled = (await get('places_photos_enabled')) !== 'false';
+  const placesAutocompleteEnabled = (await get('places_autocomplete_enabled')) !== 'false';
+  const placesDetailsEnabled = (await get('places_details_enabled')) !== 'false';
+  const mustChangeAdmin = await asyncDb
+    .prepare("SELECT id FROM users WHERE role = 'admin' AND must_change_password = 1 LIMIT 1")
+    .get();
+  const setupComplete = userCount > 0 && !mustChangeAdmin;
+
+  return {
+    allow_registration: isDemo ? false : toggles.password_registration || toggles.oidc_registration,
+    oidc_only_mode: !toggles.password_login && !toggles.password_registration,
+    password_login: toggles.password_login,
+    password_registration: isDemo ? false : toggles.password_registration,
+    oidc_login: toggles.oidc_login,
+    oidc_registration: isDemo ? false : toggles.oidc_registration,
+    passkey_login: toggles.passkey_login,
+    passkey_configured: await isPasskeyConfiguredAsync(),
+    env_override_oidc_only: process.env.OIDC_ONLY === 'true',
+    has_users: userCount > 0,
+    setup_complete: setupComplete,
+    version,
+    is_prerelease: version.includes('-pre.'),
+    has_maps_key: hasGoogleKey,
+    oidc_configured: oidcConfigured,
+    oidc_display_name: oidcConfigured ? oidcDisplayName || 'SSO' : undefined,
+    require_mfa: requireMfa,
+    allowed_file_types:
+      (await get('allowed_file_types')) || 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv',
+    demo_mode: isDemo,
+    demo_email: isDemo ? DEMO_EMAIL_PRIMARY : undefined,
+    demo_password: isDemo ? 'demo12345' : undefined,
+    disable_overlays:
+      process.env.TRIPPI_DISABLE_OVERLAYS?.toLowerCase() === 'true' ||
+      process.env.DISABLE_UI_OVERLAYS?.toLowerCase() === 'true',
+    timezone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    notification_channel: notifChannel,
+    notification_channels: activeChannels,
+    available_channels: { email: hasSmtpHost, webhook: hasWebhookEnabled, inapp: true },
+    trip_reminders_enabled: tripReminderSetting !== 'false',
+    places_photos_enabled: placesPhotosEnabled,
+    places_autocomplete_enabled: placesAutocompleteEnabled,
+    places_details_enabled: placesDetailsEnabled,
+    permissions: authenticatedUser ? getAllPermissions() : undefined,
+    dev_mode: process.env.NODE_ENV === 'development',
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Auth: register, login, demo
 // ---------------------------------------------------------------------------
@@ -696,6 +843,113 @@ export function registerUser(body: { username?: string; email?: string; password
   }
 }
 
+export async function registerUserAsync(body: {
+  username?: string;
+  email?: string;
+  password?: string;
+  invite_token?: string;
+}): Promise<{
+  error?: string;
+  status?: number;
+  token?: string;
+  user?: Record<string, unknown>;
+  auditUserId?: number;
+  auditDetails?: Record<string, unknown>;
+}> {
+  const username = typeof body.username === 'string' ? body.username.trim() : '';
+  const email = typeof body.email === 'string' ? body.email.trim() : '';
+  const { password, invite_token } = body;
+
+  const userCount = (
+    (await asyncDb.prepare('SELECT COUNT(*) as count FROM users').get<{ count: number }>()) ?? { count: 0 }
+  ).count;
+
+  let validInvite: { id: number; token: string; max_uses: number; used_count: number; expires_at?: string } | null = null;
+  if (invite_token) {
+    validInvite = await asyncDb
+      .prepare('SELECT * FROM invite_tokens WHERE token = ?')
+      .get<{ id: number; token: string; max_uses: number; used_count: number; expires_at?: string }>(invite_token);
+    if (!validInvite) return { error: 'Invalid invite link', status: 400 };
+    if (validInvite.max_uses > 0 && validInvite.used_count >= validInvite.max_uses) {
+      return { error: 'Invite link has been fully used', status: 410 };
+    }
+    if (validInvite.expires_at && new Date(validInvite.expires_at) < new Date()) {
+      return { error: 'Invite link has expired', status: 410 };
+    }
+  }
+
+  if (userCount > 0 && !validInvite) {
+    const toggles = await resolveAuthTogglesAsync();
+    if (!toggles.password_registration) {
+      return { error: 'Password registration is disabled. Contact your administrator.', status: 403 };
+    }
+  }
+
+  if (!username || !email || !password) {
+    return { error: 'Username, email and password are required', status: 400 };
+  }
+
+  const pwCheck = validatePassword(password);
+  if (!pwCheck.ok) return { error: pwCheck.reason, status: 400 };
+
+  if (!EMAIL_REGEX.test(email)) {
+    return { error: 'Invalid email format', status: 400 };
+  }
+
+  const existingUser = await asyncDb
+    .prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)')
+    .get(email, username);
+  if (existingUser) {
+    return { error: 'Registration failed. Please try different credentials.', status: 409 };
+  }
+
+  const password_hash = bcrypt.hashSync(password, BCRYPT_COST);
+  const isFirstUser = userCount === 0;
+  const role = isFirstUser ? 'admin' : 'user';
+
+  try {
+    return await asyncDb.transaction(async () => {
+      const result = await asyncDb
+        .prepare(
+          'INSERT INTO users (username, email, password_hash, role, first_seen_version, login_count) VALUES (?, ?, ?, ?, ?, 0)',
+        )
+        .run(username, email, password_hash, role, process.env.APP_VERSION || '0.0.0');
+
+      const userId = Number(result.lastInsertRowid);
+      const user = {
+        id: userId,
+        username,
+        email,
+        role,
+        avatar: null,
+        mfa_enabled: false,
+        password_version: 0,
+      };
+      const token = await generateTokenAsync(user);
+
+      if (validInvite) {
+        const updated = await asyncDb
+          .prepare(
+            'UPDATE invite_tokens SET used_count = used_count + 1 WHERE id = ? AND (max_uses = 0 OR used_count < max_uses)',
+          )
+          .run(validInvite.id);
+        if (updated.changes === 0) {
+          console.warn(`[Auth] Invite token ${validInvite.token.slice(0, 8)}... exceeded max_uses due to race condition`);
+        }
+      }
+
+      return {
+        token,
+        user: { ...user, avatar_url: null },
+        auditUserId: userId,
+        auditDetails: { username, email, role },
+      };
+    })();
+  } catch {
+    return { error: 'Error creating user', status: 500 };
+  }
+}
+
 export function loginUser(body: { email?: string; password?: string; remember_me?: boolean }): {
   error?: string;
   status?: number;
@@ -778,6 +1032,86 @@ export function loginUser(body: { email?: string; password?: string; remember_me
   };
 }
 
+export async function loginUserAsync(body: { email?: string; password?: string; remember_me?: boolean }): Promise<{
+  error?: string;
+  status?: number;
+  token?: string;
+  user?: Record<string, unknown>;
+  mfa_required?: boolean;
+  mfa_token?: string;
+  remember?: boolean;
+  auditUserId?: number | null;
+  auditAction?: string;
+  auditDetails?: Record<string, unknown>;
+}> {
+  if (await isOidcOnlyModeAsync()) {
+    return { error: 'Password authentication is disabled. Please sign in with SSO.', status: 403 };
+  }
+
+  const { email, password, remember_me } = body;
+  const remember = remember_me === true;
+  if (!email || !password) {
+    return { error: 'Email and password are required', status: 400 };
+  }
+
+  const user = await asyncDb.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get<User>(email);
+
+  const hashToCheck = user?.password_hash ?? DUMMY_PASSWORD_HASH;
+  const validPassword = bcrypt.compareSync(password, hashToCheck);
+
+  if (!user) {
+    return {
+      error: 'Invalid email or password',
+      status: 401,
+      auditUserId: null,
+      auditAction: 'user.login_failed',
+      auditDetails: { email, reason: 'unknown_email' },
+    };
+  }
+  if (!user.password_hash) {
+    return {
+      error: 'Invalid email or password',
+      status: 401,
+      auditUserId: Number(user.id),
+      auditAction: 'user.login_failed',
+      auditDetails: { email, reason: 'oidc_only' },
+    };
+  }
+  if (!validPassword) {
+    return {
+      error: 'Invalid email or password',
+      status: 401,
+      auditUserId: Number(user.id),
+      auditAction: 'user.login_failed',
+      auditDetails: { email, reason: 'wrong_password' },
+    };
+  }
+
+  if (user.mfa_enabled === 1 || user.mfa_enabled === true) {
+    const pv = (user as User & { password_version?: number }).password_version ?? 0;
+    const mfa_token = jwt.sign({ id: Number(user.id), purpose: 'mfa_login', pv }, JWT_SECRET, {
+      expiresIn: '5m',
+      algorithm: 'HS256',
+    });
+    return { mfa_required: true, mfa_token };
+  }
+
+  await asyncDb.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?').run(
+    user.id,
+  );
+  const token = await generateTokenAsync(user, remember);
+  const userSafe = stripUserForClient(user) as Record<string, unknown>;
+
+  return {
+    token,
+    user: { ...userSafe, avatar_url: avatarUrl(user) },
+    remember,
+    auditUserId: Number(user.id),
+    auditAction: 'user.login',
+    auditDetails: { email },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Session
 // ---------------------------------------------------------------------------
@@ -790,6 +1124,26 @@ export function getCurrentUser(
       'SELECT id, username, email, role, avatar, oidc_issuer, created_at, mfa_enabled, must_change_password FROM users WHERE id = ?',
     )
     .get(userId) as User | undefined;
+  if (!user) return null;
+  const base = stripUserForClient(user as User) as Record<string, unknown>;
+  return {
+    ...base,
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    avatar_url: avatarUrl(user),
+  };
+}
+
+export async function getCurrentUserAsync(
+  userId: number,
+): Promise<(Record<string, unknown> & Pick<User, 'id' | 'username' | 'email' | 'role'> & { avatar_url: string }) | null> {
+  const user = await asyncDb
+    .prepare(
+      'SELECT id, username, email, role, avatar, oidc_issuer, created_at, mfa_enabled, must_change_password FROM users WHERE id = ?',
+    )
+    .get<User>(userId);
   if (!user) return null;
   const base = stripUserForClient(user as User) as Record<string, unknown>;
   return {

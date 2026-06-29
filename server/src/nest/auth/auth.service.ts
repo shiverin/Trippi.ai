@@ -32,7 +32,7 @@ export class AuthService {
 
   // Public config + auth flows
   getAppConfig(user: User | undefined) {
-    return auth.getAppConfig(user);
+    return auth.getAppConfigAsync(user);
   }
   demoLogin() {
     return auth.demoLogin();
@@ -41,10 +41,10 @@ export class AuthService {
     return auth.validateInviteToken(token);
   }
   registerUser(body: unknown) {
-    return auth.registerUser(body as Parameters<typeof auth.registerUser>[0]);
+    return auth.registerUserAsync(body as Parameters<typeof auth.registerUser>[0]);
   }
   loginUser(body: unknown) {
-    return auth.loginUser(body as Parameters<typeof auth.loginUser>[0]);
+    return auth.loginUserAsync(body as Parameters<typeof auth.loginUser>[0]);
   }
   requestPasswordReset(email: string, ip: string) {
     return auth.requestPasswordReset(email, ip);
@@ -58,7 +58,7 @@ export class AuthService {
 
   // Account
   getCurrentUser(userId: number) {
-    return auth.getCurrentUser(userId);
+    return auth.getCurrentUserAsync(userId);
   }
   changePassword(userId: number, email: string, body: unknown) {
     return auth.changePassword(userId, email, body as Parameters<typeof auth.changePassword>[2]);

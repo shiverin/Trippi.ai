@@ -108,23 +108,23 @@ describe('mapDbError', () => {
 // ── getAlbumIdFromLink ────────────────────────────────────────────────────────
 
 describe('getAlbumIdFromLink', () => {
-  it('MEM-HELPERS-005: returns 404 when trip access is denied', () => {
-    const result = getAlbumIdFromLink('9999', 'link-1', 1);
+  it('MEM-HELPERS-005: returns 404 when trip access is denied', async () => {
+    const result = await getAlbumIdFromLink('9999', 'link-1', 1);
     expect(result.success).toBe(false);
     expect(result.error.status).toBe(404);
   });
 
-  it('MEM-HELPERS-006: returns 404 when album link is not found', () => {
+  it('MEM-HELPERS-006: returns 404 when album link is not found', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
-    const result = getAlbumIdFromLink(String(trip.id), 'nonexistent-link', user.id);
+    const result = await getAlbumIdFromLink(String(trip.id), 'nonexistent-link', user.id);
     expect(result.success).toBe(false);
     expect(result.error.status).toBe(404);
     expect(result.error.message).toBe('Album link not found');
   });
 
-  it('MEM-HELPERS-007: returns album_id when link exists', () => {
+  it('MEM-HELPERS-007: returns album_id when link exists', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
 
@@ -134,7 +134,7 @@ describe('getAlbumIdFromLink', () => {
     ).run(trip.id, user.id, 'immich', 'album-123', 'My Album');
     const linkId = ins.lastInsertRowid;
 
-    const result = getAlbumIdFromLink(String(trip.id), String(linkId), user.id);
+    const result = await getAlbumIdFromLink(String(trip.id), String(linkId), user.id);
     expect(result.success).toBe(true);
     expect((result as any).data).toBe('album-123');
   });

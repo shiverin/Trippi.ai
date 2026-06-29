@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// The wrapper delegates to legacy helpers; mock them so no real DB is loaded.
-const { canAccessTrip } = vi.hoisted(() => ({ canAccessTrip: vi.fn() }));
-vi.mock('../../../src/db/database', () => ({ canAccessTrip, closeDb: () => {}, reinitialize: () => {} }));
+// The wrapper delegates to shared helpers; mock them so no real DB is loaded.
+const { canAccessTripAsync } = vi.hoisted(() => ({ canAccessTripAsync: vi.fn() }));
+vi.mock('../../../src/db/asyncDatabase', () => ({ canAccessTripAsync }));
 
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn() }));
 vi.mock('../../../src/services/permissions', () => ({ checkPermission }));
@@ -28,10 +28,10 @@ function svc() {
 beforeEach(() => vi.clearAllMocks());
 
 describe('ShareService', () => {
-  it('verifyTripAccess delegates to canAccessTrip', () => {
-    canAccessTrip.mockReturnValue({ id: 5, user_id: 2 });
-    expect(svc().verifyTripAccess('5', 2)).toEqual({ id: 5, user_id: 2 });
-    expect(canAccessTrip).toHaveBeenCalledWith('5', 2);
+  it('verifyTripAccess delegates to canAccessTripAsync', async () => {
+    canAccessTripAsync.mockResolvedValue({ id: 5, user_id: 2 });
+    await expect(svc().verifyTripAccess('5', 2)).resolves.toEqual({ id: 5, user_id: 2 });
+    expect(canAccessTripAsync).toHaveBeenCalledWith('5', 2);
   });
 
   it('canManage forwards the ownership flag when the user owns the trip', () => {

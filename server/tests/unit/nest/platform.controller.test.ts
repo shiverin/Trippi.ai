@@ -17,7 +17,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../src/middleware/auth', () => ({ verifyJwtAndLoadUser: h.verifyJwtAndLoadUser }));
-vi.mock('../../../src/db/database', () => ({ db: { prepare: h.dbPrepare } }));
+vi.mock('../../../src/db/asyncDatabase', () => ({ asyncDb: { prepare: h.dbPrepare } }));
 vi.mock('../../../src/mcp', () => ({ mcpHandler: h.mcpHandler }));
 vi.mock('../../../src/mcp/oauthProvider', () => ({ trippiOAuthProvider: {}, trippiClientsStore: {} }));
 vi.mock('../../../src/services/adminService', () => ({ isAddonEnabled: h.isAddonEnabled }));
@@ -102,7 +102,7 @@ beforeEach(() => {
 });
 
 describe('applyPlatformUploads', () => {
-  it('registers the static avatar/cover/journey mounts + the files block', () => {
+  it('registers the static avatar/cover/journey mounts + the files block', async () => {
     const { app, calls } = fakeApp();
     applyPlatformUploads(app);
     const paths = calls.filter((c) => c.method === 'use').map((c) => c.path);
@@ -111,7 +111,7 @@ describe('applyPlatformUploads', () => {
     );
   });
 
-  it('the /uploads/files block always answers 401', () => {
+  it('the /uploads/files block always answers 401', async () => {
     const { app, calls } = fakeApp();
     applyPlatformUploads(app);
     const filesBlock = calls.find((c) => c.path === '/uploads/files')!.handlers[0];
@@ -128,39 +128,39 @@ describe('applyPlatformUploads', () => {
       return calls.find((c) => c.method === 'get' && c.path === '/uploads/photos/:filename')!.handlers[0];
     }
 
-    it('403 when the resolved path escapes the photos dir', () => {
+    it('403 when the resolved path escapes the photos dir', async () => {
       // basename() strips the traversal, but feed a name that resolves outside by
       // stubbing path indirectly is hard — instead exercise the existsSync 404 etc.
       // The startsWith guard is defensive; cover it via a filename of '..'.
       const handler = photoHandler();
       const res = makeRes();
       // path.basename('..') === '..' -> join(photos,'..') resolves to uploads -> not under photos
-      handler({ params: { filename: '..' }, headers: {}, query: {} }, res);
+      await handler({ params: { filename: '..' }, headers: {}, query: {} }, res);
       expect(res.statusCode).toBe(403);
       expect(res.body).toBe('Forbidden');
     });
 
-    it('404 when the file does not exist', () => {
+    it('404 when the file does not exist', async () => {
       h.existsSync.mockReturnValue(false);
       const res = makeRes();
-      photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: {} }, res);
+      await photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: {} }, res);
       expect(res.statusCode).toBe(404);
       expect(res.body).toBe('Not found');
     });
 
-    it('401 when no token is supplied', () => {
+    it('401 when no token is supplied', async () => {
       h.existsSync.mockReturnValue(true);
       const res = makeRes();
-      photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: {} }, res);
+      await photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: {} }, res);
       expect(res.statusCode).toBe(401);
       expect(res.body).toBe('Authentication required');
     });
 
-    it('serves the file for a valid JWT session (Bearer header)', () => {
+    it('serves the file for a valid JWT session (Bearer header)', async () => {
       h.existsSync.mockReturnValue(true);
-      h.verifyJwtAndLoadUser.mockReturnValue({ id: 1 });
+      h.verifyJwtAndLoadUser.mockResolvedValue({ id: 1 });
       const res = makeRes();
-      photoHandler()(
+      await photoHandler()(
         { params: { filename: 'a.jpg' }, headers: { authorization: 'Bearer jwt123' }, query: {} },
         res,
       );
@@ -168,54 +168,54 @@ describe('applyPlatformUploads', () => {
       expect(String(res.body)).toContain('FILE:');
     });
 
-    it('reads the token from the query string when there is no Bearer header', () => {
+    it('reads the token from the query string when there is no Bearer header', async () => {
       h.existsSync.mockReturnValue(true);
-      h.verifyJwtAndLoadUser.mockReturnValue({ id: 1 });
+      h.verifyJwtAndLoadUser.mockResolvedValue({ id: 1 });
       const res = makeRes();
-      photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: { token: 'qtok' } }, res);
+      await photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: { token: 'qtok' } }, res);
       expect(h.verifyJwtAndLoadUser).toHaveBeenCalledWith('qtok');
       expect(String(res.body)).toContain('FILE:');
     });
 
-    it('401 when the token is not a session and the photo row is missing', () => {
+    it('401 when the token is not a session and the photo row is missing', async () => {
       h.existsSync.mockReturnValue(true);
-      h.verifyJwtAndLoadUser.mockReturnValue(null);
-      h.dbPrepare.mockReturnValue({ get: vi.fn().mockReturnValue(undefined) });
+      h.verifyJwtAndLoadUser.mockResolvedValue(null);
+      h.dbPrepare.mockReturnValue({ get: vi.fn().mockResolvedValue(undefined) });
       const res = makeRes();
-      photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: { token: 'share1' } }, res);
+      await photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: { token: 'share1' } }, res);
       expect(res.statusCode).toBe(401);
     });
 
-    it('401 when a share token does not cover the photo trip', () => {
+    it('401 when a share token does not cover the photo trip', async () => {
       h.existsSync.mockReturnValue(true);
-      h.verifyJwtAndLoadUser.mockReturnValue(null);
-      const photoStmt = { get: vi.fn().mockReturnValue({ trip_id: 7 }) };
-      const shareStmt = { get: vi.fn().mockReturnValue({ trip_id: 8 }) };
+      h.verifyJwtAndLoadUser.mockResolvedValue(null);
+      const photoStmt = { get: vi.fn().mockResolvedValue({ trip_id: 7 }) };
+      const shareStmt = { get: vi.fn().mockResolvedValue({ trip_id: 8 }) };
       h.dbPrepare.mockImplementationOnce(() => photoStmt).mockImplementationOnce(() => shareStmt);
       const res = makeRes();
-      photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: { token: 'share1' } }, res);
+      await photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: { token: 'share1' } }, res);
       expect(res.statusCode).toBe(401);
     });
 
-    it('401 when there is no matching share token at all', () => {
+    it('401 when there is no matching share token at all', async () => {
       h.existsSync.mockReturnValue(true);
-      h.verifyJwtAndLoadUser.mockReturnValue(null);
-      const photoStmt = { get: vi.fn().mockReturnValue({ trip_id: 7 }) };
-      const shareStmt = { get: vi.fn().mockReturnValue(undefined) };
+      h.verifyJwtAndLoadUser.mockResolvedValue(null);
+      const photoStmt = { get: vi.fn().mockResolvedValue({ trip_id: 7 }) };
+      const shareStmt = { get: vi.fn().mockResolvedValue(undefined) };
       h.dbPrepare.mockImplementationOnce(() => photoStmt).mockImplementationOnce(() => shareStmt);
       const res = makeRes();
-      photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: { token: 'share1' } }, res);
+      await photoHandler()({ params: { filename: 'a.jpg' }, headers: {}, query: { token: 'share1' } }, res);
       expect(res.statusCode).toBe(401);
     });
 
-    it('serves the file when the share token covers the photo trip', () => {
+    it('serves the file when the share token covers the photo trip', async () => {
       h.existsSync.mockReturnValue(true);
-      h.verifyJwtAndLoadUser.mockReturnValue(null);
-      const photoStmt = { get: vi.fn().mockReturnValue({ trip_id: 7 }) };
-      const shareStmt = { get: vi.fn().mockReturnValue({ trip_id: 7 }) };
+      h.verifyJwtAndLoadUser.mockResolvedValue(null);
+      const photoStmt = { get: vi.fn().mockResolvedValue({ trip_id: 7 }) };
+      const shareStmt = { get: vi.fn().mockResolvedValue({ trip_id: 7 }) };
       h.dbPrepare.mockImplementationOnce(() => photoStmt).mockImplementationOnce(() => shareStmt);
       const res = makeRes();
-      photoHandler()(
+      await photoHandler()(
         { params: { filename: 'a.jpg' }, headers: { authorization: 'Bearer share1' }, query: {} },
         res,
       );
@@ -231,7 +231,7 @@ describe('applyPlatformTransport', () => {
     return calls;
   }
 
-  it('GET /api/health sets no-store and returns ok', () => {
+  it('GET /api/health sets no-store and returns ok', async () => {
     const calls = build();
     const health = calls.find((c) => c.method === 'get' && c.path === '/api/health')!.handlers[0];
     const res = makeRes();
@@ -246,7 +246,7 @@ describe('applyPlatformTransport', () => {
       return calls.find((c) => c.method === 'use' && c.path === undefined)!.handlers[0];
     }
 
-    it('404s a /.well-known path when MCP is disabled', () => {
+    it('404s a /.well-known path when MCP is disabled', async () => {
       h.isAddonEnabled.mockReturnValue(false);
       const mw = wellKnownMw(build());
       const res = makeRes();
@@ -256,7 +256,7 @@ describe('applyPlatformTransport', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('delegates to the SDK meta router for a non-well-known path', () => {
+    it('delegates to the SDK meta router for a non-well-known path', async () => {
       h.isAddonEnabled.mockReturnValue(true);
       const mw = wellKnownMw(build());
       const res = makeRes();
@@ -265,7 +265,7 @@ describe('applyPlatformTransport', () => {
       expect(h.metaRouter).toHaveBeenCalled();
     });
 
-    it('delegates to the SDK meta router for a well-known path when MCP is enabled', () => {
+    it('delegates to the SDK meta router for a well-known path when MCP is enabled', async () => {
       h.isAddonEnabled.mockReturnValue(true);
       const mw = wellKnownMw(build());
       const res = makeRes();
@@ -275,7 +275,7 @@ describe('applyPlatformTransport', () => {
     });
   });
 
-  it('GET /.well-known/openid-configuration returns AS metadata + userinfo_endpoint', () => {
+  it('GET /.well-known/openid-configuration returns AS metadata + userinfo_endpoint', async () => {
     const calls = build();
     const handler = calls.find((c) => c.path === '/.well-known/openid-configuration')!.handlers[0];
     const res = makeRes();
@@ -285,7 +285,7 @@ describe('applyPlatformTransport', () => {
     expect(body.userinfo_endpoint).toBe('https://trippi.example.test/oauth/userinfo');
   });
 
-  it('trims trailing slashes off the configured base URL', () => {
+  it('trims trailing slashes off the configured base URL', async () => {
     h.getMcpSafeUrl.mockReturnValue('https://trippi.example.test///');
     const calls = build();
     const handler = calls.find((c) => c.path === '/.well-known/openid-configuration')!.handlers[0];
@@ -299,14 +299,14 @@ describe('applyPlatformTransport', () => {
       return build().find((c) => c.method === 'get' && c.path === '/.well-known/oauth-protected-resource')!.handlers[0];
     }
 
-    it('404 when MCP is disabled', () => {
+    it('404 when MCP is disabled', async () => {
       h.isAddonEnabled.mockReturnValue(false);
       const res = makeRes();
       handler()({}, res);
       expect(res.statusCode).toBe(404);
     });
 
-    it('returns the PRM document when MCP is enabled', () => {
+    it('returns the PRM document when MCP is enabled', async () => {
       h.isAddonEnabled.mockReturnValue(true);
       const res = makeRes();
       handler()({}, res);
@@ -322,7 +322,7 @@ describe('applyPlatformTransport', () => {
       return build().find((c) => c.method === 'use' && c.path === '/oauth/authorize')!.handlers[0];
     }
 
-    it('404 when MCP is disabled', () => {
+    it('404 when MCP is disabled', async () => {
       h.isAddonEnabled.mockReturnValue(false);
       const res = makeRes();
       const next = vi.fn();
@@ -331,7 +331,7 @@ describe('applyPlatformTransport', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('calls next() when MCP is enabled', () => {
+    it('calls next() when MCP is enabled', async () => {
       h.isAddonEnabled.mockReturnValue(true);
       const res = makeRes();
       const next = vi.fn();
@@ -340,7 +340,7 @@ describe('applyPlatformTransport', () => {
     });
   });
 
-  it('wires the SDK authorize + register handlers behind the gate', () => {
+  it('wires the SDK authorize + register handlers behind the gate', async () => {
     const calls = build();
     const authorize = calls.find((c) => c.path === '/oauth/authorize')!;
     const register = calls.find((c) => c.path === '/oauth/register')!;
@@ -348,7 +348,7 @@ describe('applyPlatformTransport', () => {
     expect(register.handlers).toContain(h.registerHandler);
   });
 
-  it('mounts the MCP handler on POST/GET/DELETE /mcp', () => {
+  it('mounts the MCP handler on POST/GET/DELETE /mcp', async () => {
     const calls = build();
     expect(calls.find((c) => c.method === 'post' && c.path === '/mcp')!.handlers[0]).toBe(h.mcpHandler);
     expect(calls.find((c) => c.method === 'get' && c.path === '/mcp')!.handlers[0]).toBe(h.mcpHandler);
@@ -364,7 +364,7 @@ describe('applyPlatformTransport', () => {
       return pathless[1].handlers[0];
     }
 
-    it('404 JSON for an unhandled /.well-known path', () => {
+    it('404 JSON for an unhandled /.well-known path', async () => {
       const res = makeRes();
       const next = vi.fn();
       mw()({ path: '/.well-known/unknown' }, res, next);
@@ -373,7 +373,7 @@ describe('applyPlatformTransport', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('calls next() for any non-well-known path', () => {
+    it('calls next() for any non-well-known path', async () => {
       const res = makeRes();
       const next = vi.fn();
       mw()({ path: '/dashboard' }, res, next);
@@ -381,7 +381,7 @@ describe('applyPlatformTransport', () => {
     });
   });
 
-  it('the /oauth/consent middleware relaxes COOP then continues', () => {
+  it('the /oauth/consent middleware relaxes COOP then continues', async () => {
     const calls = build();
     const mw = calls.find((c) => c.method === 'use' && c.path === '/oauth/consent')!.handlers[0];
     const res = makeRes();
@@ -414,14 +414,14 @@ describe('applyPlatformStatic', () => {
   const original = process.env.NODE_ENV;
   afterEach(() => { process.env.NODE_ENV = original; });
 
-  it('is a no-op outside production', () => {
+  it('is a no-op outside production', async () => {
     process.env.NODE_ENV = 'development';
     const { app, calls } = fakeApp();
     applyPlatformStatic(app);
     expect(calls).toHaveLength(0);
   });
 
-  it('serves the built client statics in production', () => {
+  it('serves the built client statics in production', async () => {
     process.env.NODE_ENV = 'production';
     const { app, calls } = fakeApp();
     applyPlatformStatic(app);
@@ -448,14 +448,14 @@ describe('applyPlatformSpa', () => {
   const original = process.env.NODE_ENV;
   afterEach(() => { process.env.NODE_ENV = original; });
 
-  it('only serves statics (no catch-all) outside production', () => {
+  it('only serves statics (no catch-all) outside production', async () => {
     process.env.NODE_ENV = 'development';
     const { app, calls } = fakeApp();
     applyPlatformSpa(app);
     expect(calls.some((c) => c.method === 'get' && c.path === '/.*/' )).toBe(false);
   });
 
-  it('registers the index.html catch-all in production', () => {
+  it('registers the index.html catch-all in production', async () => {
     process.env.NODE_ENV = 'production';
     const { app, calls } = fakeApp();
     applyPlatformSpa(app);
@@ -477,7 +477,7 @@ describe('SpaFallbackFilter', () => {
     return { switchToHttp: () => ({ getRequest: () => req, getResponse: () => res }) } as never;
   }
 
-  it('serves index.html for an unmatched GET in production', () => {
+  it('serves index.html for an unmatched GET in production', async () => {
     process.env.NODE_ENV = 'production';
     const res = makeRes();
     new SpaFallbackFilter().catch(new NotFoundException('nope'), host({ method: 'GET' }, res));
@@ -485,7 +485,7 @@ describe('SpaFallbackFilter', () => {
     expect(String(res.body)).toContain('index.html');
   });
 
-  it('keeps the JSON 404 envelope for a non-GET miss in production', () => {
+  it('keeps the JSON 404 envelope for a non-GET miss in production', async () => {
     process.env.NODE_ENV = 'production';
     const res = makeRes();
     new SpaFallbackFilter().catch(new NotFoundException('gone'), host({ method: 'POST' }, res));
@@ -493,7 +493,7 @@ describe('SpaFallbackFilter', () => {
     expect(res.body).toEqual({ error: 'gone' });
   });
 
-  it('keeps the JSON 404 envelope outside production even for GET', () => {
+  it('keeps the JSON 404 envelope outside production even for GET', async () => {
     process.env.NODE_ENV = 'development';
     const res = makeRes();
     new SpaFallbackFilter().catch(new NotFoundException('missing'), host({ method: 'GET' }, res));
@@ -501,7 +501,7 @@ describe('SpaFallbackFilter', () => {
     expect(res.body).toEqual({ error: 'missing' });
   });
 
-  it('falls back to Not Found when the exception has no message', () => {
+  it('falls back to Not Found when the exception has no message', async () => {
     process.env.NODE_ENV = 'development';
     const res = makeRes();
     const exc = new NotFoundException();

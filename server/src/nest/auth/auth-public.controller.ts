@@ -36,7 +36,7 @@ export class AuthPublicController {
 
   @Get('app-config')
   @UseGuards(OptionalJwtGuard)
-  appConfig(@Req() req: Request) {
+  async appConfig(@Req() req: Request) {
     return this.auth.getAppConfig((req.user as User | undefined) ?? undefined);
   }
 
@@ -68,9 +68,9 @@ export class AuthPublicController {
 
   @Post('register')
   @HttpCode(201)
-  register(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async register(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.limit('login', req, 10);
-    const result = this.auth.registerUser(body);
+    const result = await this.auth.registerUser(body);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -89,7 +89,7 @@ export class AuthPublicController {
   async login(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.limit('login', req, 10);
     const started = Date.now();
-    const result = this.auth.loginUser(body);
+    const result = await this.auth.loginUser(body);
     if (result.auditAction) {
       writeAudit({
         userId: result.auditUserId ?? null,

@@ -67,8 +67,70 @@ export class TripsService {
     }
   }
 
-  create(userId: number, data: Parameters<typeof tripSvc.createTrip>[1]) {
-    return tripSvc.createTrip(userId, data);
+  async create(userId: number, data: Parameters<typeof tripSvc.createTrip>[1], maxDays?: number) {
+    const rd =
+      data.reminder_days !== undefined
+        ? Number(data.reminder_days) >= 0 && Number(data.reminder_days) <= 30
+          ? Number(data.reminder_days)
+          : 3
+        : 3;
+
+    return asyncDb.transaction(async () => {
+      const result = await asyncDb
+        .prepare(
+          `
+    INSERT INTO trips (user_id, title, description, start_date, end_date, currency, reminder_days)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `,
+        )
+        .run(
+          userId,
+          data.title,
+          data.description || null,
+          data.start_date || null,
+          data.end_date || null,
+          data.currency || 'EUR',
+          rd,
+        );
+
+      const tripId = Number(result.lastInsertRowid);
+      await this.seedNewTripDays(tripId, data.start_date || null, data.end_date || null, maxDays, data.day_count);
+
+      const trip = await asyncDb.prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`).get({ userId, tripId });
+      return { trip, tripId, reminderDays: rd };
+    })();
+  }
+
+  private async seedNewTripDays(
+    tripId: number,
+    startDate: string | null,
+    endDate: string | null,
+    maxDays?: number,
+    dayCount?: number,
+  ): Promise<void> {
+    const insert = asyncDb.prepare('INSERT INTO days (trip_id, day_number, date) VALUES (?, ?, ?)');
+
+    if (!startDate || !endDate) {
+      const targetCount = Math.min(Math.max(dayCount ?? 7, 1), tripSvc.MAX_TRIP_DAYS);
+      for (let i = 1; i <= targetCount; i++) {
+        await insert.run(tripId, i, null);
+      }
+      return;
+    }
+
+    const [sy, sm, sd] = startDate.split('-').map(Number);
+    const [ey, em, ed] = endDate.split('-').map(Number);
+    const startMs = Date.UTC(sy, sm - 1, sd);
+    const endMs = Date.UTC(ey, em - 1, ed);
+    const numDays = Math.min(Math.floor((endMs - startMs) / tripSvc.MS_PER_DAY) + 1, maxDays ?? tripSvc.MAX_TRIP_DAYS);
+
+    for (let i = 0; i < numDays; i++) {
+      const d = new Date(startMs + i * tripSvc.MS_PER_DAY);
+      const yyyy = d.getUTCFullYear();
+      const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(d.getUTCDate()).padStart(2, '0');
+      await insert.run(tripId, i + 1, `${yyyy}-${mm}-${dd}`);
+    }
   }
 
   async get(tripId: string, userId: number) {

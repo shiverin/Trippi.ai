@@ -72,9 +72,9 @@ describe('TripsController (parity with the legacy /api/trips route)', () => {
       });
     });
 
-    it('infers end_date from start_date (+6 days) and creates', () => {
+    it('infers end_date from start_date (+6 days) and creates', async () => {
       const create = vi.fn().mockReturnValue({ trip: { id: 9 }, tripId: 9, reminderDays: 0 });
-      new TripsController(svc({ create } as Partial<TripsService>)).create(
+      await new TripsController(svc({ create } as Partial<TripsService>)).create(
         user,
         { title: 'T', start_date: '2026-07-01' },
         req,
@@ -100,9 +100,9 @@ describe('TripsController (parity with the legacy /api/trips route)', () => {
       });
     });
 
-    it('infers start_date from end_date (-6 days) and parses day_count', () => {
+    it('infers start_date from end_date (-6 days) and parses day_count', async () => {
       const create = vi.fn().mockReturnValue({ trip: { id: 9 }, tripId: 9, reminderDays: 0 });
-      new TripsController(svc({ create } as Partial<TripsService>)).create(
+      await new TripsController(svc({ create } as Partial<TripsService>)).create(
         user,
         { title: 'T', end_date: '2026-07-07', day_count: '40' },
         req,
@@ -113,15 +113,15 @@ describe('TripsController (parity with the legacy /api/trips route)', () => {
       );
     });
 
-    it('clamps a non-numeric day_count to the default of 7', () => {
+    it('clamps a non-numeric day_count to the default of 7', async () => {
       const create = vi.fn().mockReturnValue({ trip: { id: 9 }, tripId: 9, reminderDays: 0 });
-      new TripsController(svc({ create } as Partial<TripsService>)).create(user, { title: 'T', day_count: 'abc' }, req);
+      await new TripsController(svc({ create } as Partial<TripsService>)).create(user, { title: 'T', day_count: 'abc' }, req);
       expect(create).toHaveBeenCalledWith(1, expect.objectContaining({ day_count: 7 }));
     });
 
     it('logs the reminder when reminderDays is set', async () => {
       const create = vi.fn().mockReturnValue({ trip: { id: 9 }, tripId: 9, reminderDays: 3 });
-      expect(new TripsController(svc({ create } as Partial<TripsService>)).create(user, { title: 'T' }, req)).toEqual({
+      expect(await new TripsController(svc({ create } as Partial<TripsService>)).create(user, { title: 'T' }, req)).toEqual({
         trip: { id: 9 },
       });
     });

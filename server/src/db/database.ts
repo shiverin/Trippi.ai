@@ -14,6 +14,7 @@ import path from 'path';
 const isTest = process.env.NODE_ENV === 'test';
 const dbProvider = resolveDbProvider();
 const isOracleNative = dbProvider === 'oracle-native-blocking';
+const isOracleAsync = dbProvider === 'oracle-async';
 
 if (requestedOracleNative() && !isOracleNative) {
   console.warn(
@@ -57,6 +58,11 @@ function initDb(): void {
     _db = null;
   }
 
+  if (isOracleAsync) {
+    console.log('[DB] Async Oracle provider selected; sync SQLite database is disabled');
+    return;
+  }
+
   if (isOracleNative) {
     _db = new OracleNativeAdapter({
       env: process.env,
@@ -82,7 +88,14 @@ initDb();
 
 const db = new Proxy({} as Database.Database, {
   get(_, prop: string | symbol) {
-    if (!_db) throw new Error('Database connection is not available (restore in progress?)');
+    if (!_db) {
+      if (isOracleAsync) {
+        throw new Error(
+          'Sync database access is disabled when TRIPPI_DB_PROVIDER=oracle-async. Use asyncDb instead.',
+        );
+      }
+      throw new Error('Database connection is not available (restore in progress?)');
+    }
     const val = (_db as unknown as Record<string | symbol, unknown>)[prop];
     return typeof val === 'function' ? val.bind(_db) : val;
   },
@@ -93,8 +106,8 @@ const db = new Proxy({} as Database.Database, {
 });
 
 if (process.env.DEMO_MODE?.toLowerCase() === 'true') {
-  if (isOracleNative) {
-    console.warn('[Demo] DEMO_MODE seed is skipped for native Oracle provider');
+  if (isOracleNative || isOracleAsync) {
+    console.warn('[Demo] DEMO_MODE seed is skipped for Oracle provider');
   } else {
     try {
       const { seedDemoData } = require('../demo/demo-seed');
@@ -201,11 +214,13 @@ function isOwner(tripId: number | string, userId: number): boolean {
   return !!db.prepare('SELECT id FROM trips WHERE id = ? AND user_id = ?').get(tripId, userId);
 }
 
-try {
-  const { backfillFlightEndpoints } = require('../services/airportService');
-  backfillFlightEndpoints();
-} catch (err) {
-  console.error('[DB] Flight endpoint backfill failed:', err);
+if (!isOracleAsync) {
+  try {
+    const { backfillFlightEndpoints } = require('../services/airportService');
+    backfillFlightEndpoints();
+  } catch (err) {
+    console.error('[DB] Flight endpoint backfill failed:', err);
+  }
 }
 
 export { db, closeDb, reinitialize, getPlaceWithTags, canAccessTrip, isOwner };

@@ -18,8 +18,10 @@ function makeService(overrides: Partial<AccommodationsService> = {}): Accommodat
   } as unknown as AccommodationsService;
 }
 
-function thrown(fn: () => unknown): { status: number; body: unknown } {
-  try { fn(); } catch (err) {
+async function thrown(fn: () => unknown | Promise<unknown>): Promise<{ status: number; body: unknown }> {
+  try {
+    await fn();
+  } catch (err) {
     expect(err).toBeInstanceOf(HttpException);
     const e = err as HttpException;
     return { status: e.getStatus(), body: e.getResponse() };
@@ -28,71 +30,71 @@ function thrown(fn: () => unknown): { status: number; body: unknown } {
 }
 
 describe('AccommodationsController (parity with the legacy accommodations sub-router)', () => {
-  it('404 when trip not accessible', () => {
+  it('404 when trip not accessible', async () => {
     const svc = makeService({ verifyTripAccess: vi.fn().mockReturnValue(undefined) });
-    expect(thrown(() => new AccommodationsController(svc).list(user, '5'))).toEqual({ status: 404, body: { error: 'Trip not found' } });
+    expect(await thrown(() => new AccommodationsController(svc).list(user, '5'))).toEqual({ status: 404, body: { error: 'Trip not found' } });
   });
 
-  it('GET / lists (no permission gate)', () => {
+  it('GET / lists (no permission gate)', async () => {
     const svc = makeService({ list: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<AccommodationsService>);
-    expect(new AccommodationsController(svc).list(user, '5')).toEqual({ accommodations: [{ id: 1 }] });
+    expect(await new AccommodationsController(svc).list(user, '5')).toEqual({ accommodations: [{ id: 1 }] });
   });
 
   describe('POST /', () => {
-    it('403 without day_edit', () => {
+    it('403 without day_edit', async () => {
       const svc = makeService({ canEdit: vi.fn().mockReturnValue(false) });
-      expect(thrown(() => new AccommodationsController(svc).create(user, '5', refs))).toEqual({ status: 403, body: { error: 'No permission' } });
+      expect(await thrown(() => new AccommodationsController(svc).create(user, '5', refs))).toEqual({ status: 403, body: { error: 'No permission' } });
     });
 
-    it('400 when refs are missing', () => {
-      expect(thrown(() => new AccommodationsController(makeService()).create(user, '5', { place_id: 2 }))).toEqual({
+    it('400 when refs are missing', async () => {
+      expect(await thrown(() => new AccommodationsController(makeService()).create(user, '5', { place_id: 2 }))).toEqual({
         status: 400, body: { error: 'place_id, start_day_id, and end_day_id are required' },
       });
     });
 
-    it('404 with the first validateRefs error message', () => {
+    it('404 with the first validateRefs error message', async () => {
       const svc = makeService({ validateRefs: vi.fn().mockReturnValue([{ field: 'place_id', message: 'Place not found' }]) } as Partial<AccommodationsService>);
-      expect(thrown(() => new AccommodationsController(svc).create(user, '5', refs))).toEqual({ status: 404, body: { error: 'Place not found' } });
+      expect(await thrown(() => new AccommodationsController(svc).create(user, '5', refs))).toEqual({ status: 404, body: { error: 'Place not found' } });
     });
 
-    it('creates and emits accommodation:created + reservation:created', () => {
+    it('creates and emits accommodation:created + reservation:created', async () => {
       const create = vi.fn().mockReturnValue({ id: 9 });
       const broadcast = vi.fn();
       const svc = makeService({ create, broadcast } as Partial<AccommodationsService>);
-      expect(new AccommodationsController(svc).create(user, '5', refs, 'sock')).toEqual({ accommodation: { id: 9 } });
+      expect(await new AccommodationsController(svc).create(user, '5', refs, 'sock')).toEqual({ accommodation: { id: 9 } });
       expect(broadcast).toHaveBeenCalledWith('5', 'accommodation:created', { accommodation: { id: 9 } }, 'sock');
       expect(broadcast).toHaveBeenCalledWith('5', 'reservation:created', {}, 'sock');
     });
   });
 
   describe('PUT /:id', () => {
-    it('404 when the accommodation is missing', () => {
+    it('404 when the accommodation is missing', async () => {
       const svc = makeService({ get: vi.fn().mockReturnValue(undefined) } as Partial<AccommodationsService>);
-      expect(thrown(() => new AccommodationsController(svc).update(user, '5', '9', refs))).toEqual({ status: 404, body: { error: 'Accommodation not found' } });
+      expect(await thrown(() => new AccommodationsController(svc).update(user, '5', '9', refs))).toEqual({ status: 404, body: { error: 'Accommodation not found' } });
     });
 
-    it('updates and broadcasts', () => {
+    it('updates and broadcasts', async () => {
       const get = vi.fn().mockReturnValue({ id: 9 });
       const update = vi.fn().mockReturnValue({ id: 9, notes: 'x' });
       const broadcast = vi.fn();
       const svc = makeService({ get, update, broadcast } as Partial<AccommodationsService>);
-      expect(new AccommodationsController(svc).update(user, '5', '9', refs, 'sock')).toEqual({ accommodation: { id: 9, notes: 'x' } });
+      expect(await new AccommodationsController(svc).update(user, '5', '9', refs, 'sock')).toEqual({ accommodation: { id: 9, notes: 'x' } });
       expect(broadcast).toHaveBeenCalledWith('5', 'accommodation:updated', { accommodation: { id: 9, notes: 'x' } }, 'sock');
     });
   });
 
   describe('DELETE /:id', () => {
-    it('404 when missing', () => {
+    it('404 when missing', async () => {
       const svc = makeService({ get: vi.fn().mockReturnValue(undefined) } as Partial<AccommodationsService>);
-      expect(thrown(() => new AccommodationsController(svc).remove(user, '5', '9'))).toEqual({ status: 404, body: { error: 'Accommodation not found' } });
+      expect(await thrown(() => new AccommodationsController(svc).remove(user, '5', '9'))).toEqual({ status: 404, body: { error: 'Accommodation not found' } });
     });
 
-    it('emits the linked reservation/budget cascade then accommodation:deleted', () => {
+    it('emits the linked reservation/budget cascade then accommodation:deleted', async () => {
       const get = vi.fn().mockReturnValue({ id: 9 });
       const remove = vi.fn().mockReturnValue({ linkedReservationId: 4, deletedBudgetItemId: 7 });
       const broadcast = vi.fn();
       const svc = makeService({ get, remove, broadcast } as Partial<AccommodationsService>);
-      expect(new AccommodationsController(svc).remove(user, '5', '9', 'sock')).toEqual({ success: true });
+      expect(await new AccommodationsController(svc).remove(user, '5', '9', 'sock')).toEqual({ success: true });
       expect(broadcast).toHaveBeenCalledWith('5', 'reservation:deleted', { reservationId: 4 }, 'sock');
       expect(broadcast).toHaveBeenCalledWith('5', 'budget:deleted', { itemId: 7 }, 'sock');
       expect(broadcast).toHaveBeenCalledWith('5', 'accommodation:deleted', { accommodationId: 9 }, 'sock');

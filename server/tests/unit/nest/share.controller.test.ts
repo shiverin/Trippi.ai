@@ -24,8 +24,10 @@ function res() {
   return r as unknown as Response & { statusCode: number };
 }
 
-function thrown(fn: () => unknown): { status: number; body: unknown } {
-  try { fn(); } catch (err) {
+async function thrown(fn: () => unknown | Promise<unknown>): Promise<{ status: number; body: unknown }> {
+  try {
+    await fn();
+  } catch (err) {
     expect(err).toBeInstanceOf(HttpException);
     const e = err as HttpException;
     return { status: e.getStatus(), body: e.getResponse() };
@@ -36,41 +38,41 @@ function thrown(fn: () => unknown): { status: number; body: unknown } {
 beforeEach(() => vi.clearAllMocks());
 
 describe('TripShareController', () => {
-  it('POST 404 without access, 403 without share_manage', () => {
-    expect(thrown(() => new TripShareController(svc({ verifyTripAccess: vi.fn().mockReturnValue(undefined) })).create(user, '5', {}, res()))).toEqual({ status: 404, body: { error: 'Trip not found' } });
-    expect(thrown(() => new TripShareController(svc({ canManage: vi.fn().mockReturnValue(false) })).create(user, '5', {}, res()))).toEqual({ status: 403, body: { error: 'No permission' } });
+  it('POST 404 without access, 403 without share_manage', async () => {
+    expect(await thrown(() => new TripShareController(svc({ verifyTripAccess: vi.fn().mockReturnValue(undefined) })).create(user, '5', {}, res()))).toEqual({ status: 404, body: { error: 'Trip not found' } });
+    expect(await thrown(() => new TripShareController(svc({ canManage: vi.fn().mockReturnValue(false) })).create(user, '5', {}, res()))).toEqual({ status: 403, body: { error: 'No permission' } });
   });
 
-  it('POST answers 201 on create, 200 on update', () => {
+  it('POST answers 201 on create, 200 on update', async () => {
     const createdRes = res();
     const c1 = new TripShareController(svc({ createOrUpdate: vi.fn().mockReturnValue({ token: 't', created: true }) } as Partial<ShareService>));
-    expect(c1.create(user, '5', { share_map: true }, createdRes)).toEqual({ token: 't' });
+    expect(await c1.create(user, '5', { share_map: true }, createdRes)).toEqual({ token: 't' });
     expect(createdRes.statusCode).toBe(201);
 
     const updatedRes = res();
     const c2 = new TripShareController(svc({ createOrUpdate: vi.fn().mockReturnValue({ token: 't', created: false }) } as Partial<ShareService>));
-    expect(c2.create(user, '5', {}, updatedRes)).toEqual({ token: 't' });
+    expect(await c2.create(user, '5', {}, updatedRes)).toEqual({ token: 't' });
     expect(updatedRes.statusCode).toBe(200);
   });
 
-  it('GET 404 without access, returns info or a null token', () => {
-    expect(thrown(() => new TripShareController(svc({ verifyTripAccess: vi.fn().mockReturnValue(undefined) })).get(user, '5'))).toEqual({ status: 404, body: { error: 'Trip not found' } });
-    expect(new TripShareController(svc({ get: vi.fn().mockReturnValue({ token: 't' }) } as Partial<ShareService>)).get(user, '5')).toEqual({ token: 't' });
-    expect(new TripShareController(svc({ get: vi.fn().mockReturnValue(null) } as Partial<ShareService>)).get(user, '5')).toEqual({ token: null });
+  it('GET 404 without access, returns info or a null token', async () => {
+    expect(await thrown(() => new TripShareController(svc({ verifyTripAccess: vi.fn().mockReturnValue(undefined) })).get(user, '5'))).toEqual({ status: 404, body: { error: 'Trip not found' } });
+    expect(await new TripShareController(svc({ get: vi.fn().mockReturnValue({ token: 't' }) } as Partial<ShareService>)).get(user, '5')).toEqual({ token: 't' });
+    expect(await new TripShareController(svc({ get: vi.fn().mockReturnValue(null) } as Partial<ShareService>)).get(user, '5')).toEqual({ token: null });
   });
 
-  it('DELETE 403 without share_manage, else removes', () => {
-    expect(thrown(() => new TripShareController(svc({ canManage: vi.fn().mockReturnValue(false) })).remove(user, '5'))).toEqual({ status: 403, body: { error: 'No permission' } });
+  it('DELETE 403 without share_manage, else removes', async () => {
+    expect(await thrown(() => new TripShareController(svc({ canManage: vi.fn().mockReturnValue(false) })).remove(user, '5'))).toEqual({ status: 403, body: { error: 'No permission' } });
     const remove = vi.fn();
-    expect(new TripShareController(svc({ remove } as Partial<ShareService>)).remove(user, '5')).toEqual({ success: true });
+    expect(await new TripShareController(svc({ remove } as Partial<ShareService>)).remove(user, '5')).toEqual({ success: true });
     expect(remove).toHaveBeenCalledWith('5');
   });
 });
 
 describe('SharedController', () => {
-  it('404 for an invalid token, else returns the snapshot', () => {
-    expect(thrown(() => new SharedController(svc({ getSharedTripData: vi.fn().mockReturnValue(null) } as Partial<ShareService>)).read('bad'))).toEqual({ status: 404, body: { error: 'Invalid or expired link' } });
-    expect(new SharedController(svc({ getSharedTripData: vi.fn().mockReturnValue({ trip: { id: 9 } }) } as Partial<ShareService>)).read('tok')).toEqual({ trip: { id: 9 } });
+  it('404 for an invalid token, else returns the snapshot', async () => {
+    expect(await thrown(() => new SharedController(svc({ getSharedTripData: vi.fn().mockReturnValue(null) } as Partial<ShareService>)).read('bad'))).toEqual({ status: 404, body: { error: 'Invalid or expired link' } });
+    expect(await new SharedController(svc({ getSharedTripData: vi.fn().mockReturnValue({ trip: { id: 9 } }) } as Partial<ShareService>)).read('tok')).toEqual({ trip: { id: 9 } });
   });
 
   describe('place-photo proxy', () => {
@@ -92,7 +94,7 @@ describe('SharedController', () => {
       return new SharedController(svc({ getSharedPlacePhotoPath: vi.fn().mockReturnValue(path) } as Partial<ShareService>));
     }
 
-    it('404 without streaming when the photo is not cached for the token', () => {
+    it('404 without streaming when the photo is not cached for the token', async () => {
       const res = photoRes();
       controller(null).placePhotoBytes('tok', 'p1', res);
       expect(res.status).toHaveBeenCalledWith(404);
@@ -100,7 +102,7 @@ describe('SharedController', () => {
       expect(createReadStream).not.toHaveBeenCalled();
     });
 
-    it('streams the cached file with image/jpeg + an immutable cache header on a hit', () => {
+    it('streams the cached file with image/jpeg + an immutable cache header on a hit', async () => {
       const stream = { on: vi.fn().mockReturnThis(), pipe: vi.fn() };
       createReadStream.mockReturnValue(stream);
       const res = photoRes();
@@ -111,7 +113,7 @@ describe('SharedController', () => {
       expect(stream.pipe).toHaveBeenCalledWith(res);
     });
 
-    it('falls back to 404 when the read stream errors before headers were sent', () => {
+    it('falls back to 404 when the read stream errors before headers were sent', async () => {
       let onError: () => void = () => {};
       const stream = { on: vi.fn((ev: string, cb: () => void) => { if (ev === 'error') onError = cb; return stream; }), pipe: vi.fn() };
       createReadStream.mockReturnValue(stream);
@@ -122,7 +124,7 @@ describe('SharedController', () => {
       expect(res.json).toHaveBeenCalledWith({ error: 'Photo not cached' });
     });
 
-    it('does not re-send a 404 when the stream errors after headers were flushed', () => {
+    it('does not re-send a 404 when the stream errors after headers were flushed', async () => {
       let onError: () => void = () => {};
       const stream = { on: vi.fn((ev: string, cb: () => void) => { if (ev === 'error') onError = cb; return stream; }), pipe: vi.fn() };
       createReadStream.mockReturnValue(stream);

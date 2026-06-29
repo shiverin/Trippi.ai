@@ -1,4 +1,6 @@
 import { logInfo, logError } from './services/auditLog';
+import { asyncDb } from './db/asyncDatabase';
+import { resolveDbProvider } from './db/providerMode';
 
 import archiver from 'archiver';
 import cron, { type ScheduledTask } from 'node-cron';
@@ -43,6 +45,19 @@ export function buildCronExpression(settings: BackupSettings): string {
 }
 
 let currentTask: ScheduledTask | null = null;
+
+function isOracleAsyncRuntime(): boolean {
+  return resolveDbProvider() === 'oracle-async';
+}
+
+async function getAppSettingValue(key: string): Promise<string | undefined> {
+  if (isOracleAsyncRuntime()) {
+    return (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value;
+  }
+
+  const { db } = require('./db/database');
+  return (db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined)?.value;
+}
 
 function getDefaults(): BackupSettings {
   return { enabled: false, interval: 'daily', keep_days: 7, hour: 2, day_of_week: 0, day_of_month: 1 };
@@ -156,6 +171,10 @@ function startDemoReset(): void {
     demoTask = null;
   }
   if (process.env.DEMO_MODE?.toLowerCase() !== 'true') return;
+  if (isOracleAsyncRuntime()) {
+    logInfo('Demo hourly reset disabled for oracle-async runtime');
+    return;
+  }
 
   demoTask = cron.schedule('0 * * * *', () => {
     try {
@@ -171,29 +190,60 @@ function startDemoReset(): void {
 // Trip reminders: daily check at 9 AM local time for trips starting tomorrow
 let reminderTask: ScheduledTask | null = null;
 
+async function countTripsWithReminders(): Promise<number> {
+  if (isOracleAsyncRuntime()) {
+    const row = await asyncDb
+      .prepare('SELECT COUNT(*) as c FROM trips WHERE reminder_days > 0 AND start_date IS NOT NULL')
+      .get<{ c: number }>();
+    return Number(row?.c ?? 0);
+  }
+
+  const { db } = require('./db/database');
+  return (
+    db.prepare('SELECT COUNT(*) as c FROM trips WHERE reminder_days > 0 AND start_date IS NOT NULL').get() as {
+      c: number;
+    }
+  ).c;
+}
+
+async function listActiveReminderTrips(): Promise<
+  { id: number; title: string; user_id: number; start_date: string; reminder_days: number }[]
+> {
+  const sql = `
+    SELECT t.id, t.title, t.user_id, t.start_date, t.reminder_days FROM trips t
+    WHERE t.reminder_days > 0
+      AND t.start_date IS NOT NULL
+      AND t.start_date <> ''
+  `;
+  if (isOracleAsyncRuntime()) {
+    return asyncDb.prepare(sql).all();
+  }
+
+  const { db } = require('./db/database');
+  return db.prepare(sql).all() as { id: number; title: string; user_id: number; start_date: string; reminder_days: number }[];
+}
+
 function startTripReminders(): void {
+  void startTripRemindersAsync();
+}
+
+async function startTripRemindersAsync(): Promise<void> {
   if (reminderTask) {
     reminderTask.stop();
     reminderTask = null;
   }
 
   try {
-    const { db } = require('./db/database');
-    const getSetting = (key: string) =>
-      (db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined)?.value;
-    const reminderEnabled = getSetting('notify_trip_reminder') !== 'false';
-    const channelsRaw = getSetting('notification_channels') || getSetting('notification_channel') || 'none';
+    const reminderEnabled = (await getAppSettingValue('notify_trip_reminder')) !== 'false';
+    const channelsRaw =
+      (await getAppSettingValue('notification_channels')) || (await getAppSettingValue('notification_channel')) || 'none';
     const activeChannels = channelsRaw === 'none' ? [] : channelsRaw.split(',').map((c: string) => c.trim());
     if (!reminderEnabled) {
       logInfo('Trip reminders: disabled in settings');
       return;
     }
 
-    const tripCount = (
-      db.prepare('SELECT COUNT(*) as c FROM trips WHERE reminder_days > 0 AND start_date IS NOT NULL').get() as {
-        c: number;
-      }
-    ).c;
+    const tripCount = await countTripsWithReminders();
     logInfo(
       `Trip reminders: enabled via [${activeChannels.join(',')}]${tripCount > 0 ? `, ${tripCount} trip(s) with active reminders` : ''}`,
     );
@@ -206,19 +256,9 @@ function startTripReminders(): void {
     '0 9 * * *',
     async () => {
       try {
-        const { db } = require('./db/database');
         const { send } = require('./services/notificationService');
 
-        const activeTrips = db
-          .prepare(
-            `
-              SELECT t.id, t.title, t.user_id, t.start_date, t.reminder_days FROM trips t
-              WHERE t.reminder_days > 0
-                AND t.start_date IS NOT NULL
-                AND t.start_date <> ''
-            `,
-          )
-          .all() as { id: number; title: string; user_id: number; start_date: string; reminder_days: number }[];
+        const activeTrips = await listActiveReminderTrips();
         const trips = activeTrips.filter((trip) => trip.start_date === dateOnly(trip.reminder_days));
 
         for (const trip of trips) {
@@ -266,16 +306,67 @@ function timestampValue(value: unknown): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+async function listDueTodos(today: string, dueCutoff: string): Promise<
+  {
+    id: number;
+    trip_id: number;
+    name: string;
+    due_date: string;
+    reminded_at: unknown;
+    assigned_user_id: number | null;
+    trip_title: string;
+    trip_owner_id: number;
+  }[]
+> {
+  const sql = `
+    SELECT ti.id, ti.trip_id, ti.name, ti.due_date, ti.assigned_user_id, ti.reminded_at,
+           t.title AS trip_title, t.user_id AS trip_owner_id
+    FROM todo_items ti
+    JOIN trips t ON t.id = ti.trip_id
+    WHERE ti.checked = 0
+      AND ti.due_date IS NOT NULL
+      AND ti.due_date <> ''
+      AND ti.due_date <= ?
+      AND ti.due_date >= ?
+  `;
+  if (isOracleAsyncRuntime()) {
+    return asyncDb.prepare(sql).all(dueCutoff, today);
+  }
+
+  const { db } = require('./db/database');
+  return db.prepare(sql).all(dueCutoff, today) as {
+    id: number;
+    trip_id: number;
+    name: string;
+    due_date: string;
+    reminded_at: unknown;
+    assigned_user_id: number | null;
+    trip_title: string;
+    trip_owner_id: number;
+  }[];
+}
+
+async function markTodoReminderSent(todoId: number): Promise<void> {
+  if (isOracleAsyncRuntime()) {
+    await asyncDb.prepare('UPDATE todo_items SET reminded_at = CURRENT_TIMESTAMP WHERE id = ?').run(todoId);
+    return;
+  }
+
+  const { db } = require('./db/database');
+  db.prepare('UPDATE todo_items SET reminded_at = CURRENT_TIMESTAMP WHERE id = ?').run(todoId);
+}
+
 function startTodoReminders(): void {
+  void startTodoRemindersAsync();
+}
+
+async function startTodoRemindersAsync(): Promise<void> {
   if (todoReminderTask) {
     todoReminderTask.stop();
     todoReminderTask = null;
   }
 
-  const { db } = require('./db/database');
-  const getSetting = (key: string) =>
-    (db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined)?.value;
-  const enabled = getSetting('notify_todo_due') !== 'false';
+  const enabled = (await getAppSettingValue('notify_todo_due')) !== 'false';
   if (!enabled) {
     logInfo('Todo due reminders: disabled in settings');
     return;
@@ -289,35 +380,10 @@ function startTodoReminders(): void {
       try {
         const { send } = require('./services/notificationService');
 
-        const today = dateOnly();
-        const dueCutoff = dateOnly(TODO_REMINDER_LEAD_DAYS);
-        const reminderCutoff = Date.now() - 20 * 60 * 60 * 1000;
-        const todos = (
-          db
-            .prepare(
-              `
-        SELECT ti.id, ti.trip_id, ti.name, ti.due_date, ti.assigned_user_id, ti.reminded_at,
-               t.title AS trip_title, t.user_id AS trip_owner_id
-        FROM todo_items ti
-        JOIN trips t ON t.id = ti.trip_id
-        WHERE ti.checked = 0
-          AND ti.due_date IS NOT NULL
-          AND ti.due_date <> ''
-          AND ti.due_date <= ?
-          AND ti.due_date >= ?
-      `,
-            )
-            .all(dueCutoff, today) as {
-            id: number;
-            trip_id: number;
-            name: string;
-            due_date: string;
-            reminded_at: unknown;
-            assigned_user_id: number | null;
-            trip_title: string;
-            trip_owner_id: number;
-          }[]
-        ).filter((todo) => {
+	        const today = dateOnly();
+	        const dueCutoff = dateOnly(TODO_REMINDER_LEAD_DAYS);
+	        const reminderCutoff = Date.now() - 20 * 60 * 60 * 1000;
+        const todos = (await listDueTodos(today, dueCutoff)).filter((todo) => {
           const remindedAt = timestampValue(todo.reminded_at);
           return remindedAt === null || remindedAt <= reminderCutoff;
         });
@@ -336,9 +402,9 @@ function startTodoReminders(): void {
               tripId: String(todo.trip_id),
               due: todo.due_date,
             },
-          }).catch(() => {});
-          db.prepare('UPDATE todo_items SET reminded_at = CURRENT_TIMESTAMP WHERE id = ?').run(todo.id);
-        }
+	          }).catch(() => {});
+          await markTodoReminderSent(todo.id);
+	        }
 
         if (todos.length > 0) {
           logInfo(`Todo reminders sent for ${todos.length} item(s)`);
@@ -405,6 +471,17 @@ function purgeExpiredIdempotencyKeys(
   return result.changes;
 }
 
+async function purgeExpiredIdempotencyKeysRuntime(
+  now: number = Date.now(),
+  ttlSeconds: number = idempotencyTtlSeconds(),
+): Promise<number> {
+  if (!isOracleAsyncRuntime()) return purgeExpiredIdempotencyKeys(now, ttlSeconds);
+
+  const cutoff = Math.floor(now / 1000) - ttlSeconds;
+  const result = await asyncDb.prepare('DELETE FROM idempotency_keys WHERE created_at < ?').run(cutoff);
+  return result.changes;
+}
+
 function startIdempotencyCleanup(): void {
   if (idempotencyCleanupTask) {
     idempotencyCleanupTask.stop();
@@ -414,9 +491,9 @@ function startIdempotencyCleanup(): void {
   const tz = process.env.TZ || 'UTC';
   idempotencyCleanupTask = cron.schedule(
     '0 3 * * *',
-    () => {
+    async () => {
       try {
-        const removed = purgeExpiredIdempotencyKeys();
+        const removed = await purgeExpiredIdempotencyKeysRuntime();
         if (removed > 0) {
           logInfo(`Idempotency cleanup: removed ${removed} expired key(s)`);
         }
@@ -435,6 +512,10 @@ function startTrippiPhotoCacheCleanup(): void {
   if (trippiPhotoCacheTask) {
     trippiPhotoCacheTask.stop();
     trippiPhotoCacheTask = null;
+  }
+  if (isOracleAsyncRuntime()) {
+    logInfo('Trippi photo cache cleanup disabled for oracle-async runtime');
+    return;
   }
 
   // Run once immediately on startup to evict any entries left over from a previous run
@@ -464,6 +545,10 @@ function startPlacePhotoCacheCleanup(): void {
     placePhotoCacheTask.stop();
     placePhotoCacheTask = null;
   }
+  if (isOracleAsyncRuntime()) {
+    logInfo('Place-photo cache cleanup disabled for oracle-async runtime');
+    return;
+  }
 
   const sweep = () => {
     try {
@@ -491,6 +576,10 @@ function startAirTrailSync(): void {
   if (airtrailSyncTask) {
     airtrailSyncTask.stop();
     airtrailSyncTask = null;
+  }
+  if (isOracleAsyncRuntime()) {
+    logInfo('AirTrail sync disabled for oracle-async runtime');
+    return;
   }
 
   const { db } = require('./db/database');

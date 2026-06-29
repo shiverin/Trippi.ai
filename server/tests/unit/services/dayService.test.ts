@@ -76,19 +76,19 @@ afterAll(() => {
 // ── verifyTripAccess ──────────────────────────────────────────────────────────
 
 describe('verifyTripAccess', () => {
-  it('DAY-SVC-001 — returns trip row for owner', () => {
+  it('DAY-SVC-001 — returns trip row for owner', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
-    const result = verifyTripAccess(trip.id, user.id) as any;
+    const result = (await verifyTripAccess(trip.id, user.id)) as any;
     expect(result).toBeDefined();
     expect(result.id).toBe(trip.id);
   });
 
-  it('DAY-SVC-002 — returns falsy for non-member', () => {
+  it('DAY-SVC-002 — returns falsy for non-member', async () => {
     const { user: owner } = createUser(testDb);
     const { user: stranger } = createUser(testDb);
     const trip = createTrip(testDb, owner.id);
-    expect(verifyTripAccess(trip.id, stranger.id)).toBeFalsy();
+    await expect(verifyTripAccess(trip.id, stranger.id)).resolves.toBeFalsy();
   });
 });
 

@@ -78,7 +78,7 @@ export class TripsController {
 
   @Post()
   @HttpCode(201)
-  create(@CurrentUser() user: User, @Body() body: Record<string, unknown>, @Req() req: Request) {
+  async create(@CurrentUser() user: User, @Body() body: Record<string, unknown>, @Req() req: Request) {
     if (!this.trips.can('trip_create', user.role, null, user.id, false)) {
       throw new HttpException({ error: 'No permission to create trips' }, 403);
     }
@@ -94,7 +94,7 @@ export class TripsController {
       throw new HttpException({ error: 'End date must be after start date' }, 400);
     }
     const parsedDayCount = day_count ? Math.min(Math.max(Number(day_count) || 7, 1), 365) : undefined;
-    const { trip, tripId, reminderDays } = this.trips.create(user.id, {
+    const { trip, tripId, reminderDays } = await this.trips.create(user.id, {
       title,
       description,
       start_date,

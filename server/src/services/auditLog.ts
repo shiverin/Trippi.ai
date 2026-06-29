@@ -1,4 +1,5 @@
 import { db } from '../db/database';
+import { resolveDbProvider } from '../db/providerMode';
 
 import { Request } from 'express';
 import fs from 'fs';
@@ -135,6 +136,12 @@ export function writeAudit(entry: {
   debugDetails?: Record<string, unknown>;
   ip?: string | null;
 }): void {
+  if (resolveDbProvider() === 'oracle-async') {
+    const label = ACTION_LABELS[entry.action] || entry.action;
+    const brief = buildInfoSummary(entry.action, entry.details);
+    logInfo(`uid:${entry.userId ?? 'anonymous'} ${label}${brief} ip=${entry.ip || '-'} audit_db=skipped_oracle_async`);
+    return;
+  }
   try {
     const auditUserId = resolveAuditUserId(entry.userId);
     const detailsJson = entry.details && Object.keys(entry.details).length > 0 ? JSON.stringify(entry.details) : null;

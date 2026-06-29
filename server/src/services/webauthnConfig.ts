@@ -1,4 +1,5 @@
 import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { getAppUrl } from './notifications';
 
 /**
@@ -20,6 +21,12 @@ import { getAppUrl } from './notifications';
 function getSetting(key: string): string | null {
   const raw = (db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined)
     ?.value;
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : null;
+}
+
+async function getSettingAsync(key: string): Promise<string | null> {
+  const raw = (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value;
   const trimmed = raw?.trim();
   return trimmed ? trimmed : null;
 }
@@ -80,7 +87,39 @@ export function resolveWebauthnConfig(): WebauthnConfig | null {
   return { rpID, rpName: 'trippi.ai', origins };
 }
 
+export async function resolveWebauthnConfigAsync(): Promise<WebauthnConfig | null> {
+  const explicitRpId = (process.env.WEBAUTHN_RP_ID || (await getSettingAsync('webauthn_rp_id')))?.trim() || null;
+  const explicitOrigins = (process.env.WEBAUTHN_ORIGINS || (await getSettingAsync('webauthn_origins')) || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+
+  const appUrl = getAppUrl();
+  const appHost = hostOf(appUrl);
+
+  let rpID = explicitRpId;
+  if (!rpID && appHost && !isIpHost(appHost)) {
+    rpID = appHost;
+  }
+  if (!rpID) return null;
+
+  let origins = explicitOrigins;
+  if (origins.length === 0) {
+    if (appHost) origins = [appUrl.replace(/\/+$/, '')];
+    if (rpID === 'localhost') {
+      origins = Array.from(new Set([...origins, 'http://localhost:5173', 'http://localhost:3001']));
+    }
+  }
+  if (origins.length === 0) return null;
+
+  return { rpID, rpName: 'trippi.ai', origins };
+}
+
 /** True when a usable RP ID resolves for this deployment (exposed as a pure boolean on app-config). */
 export function isPasskeyConfigured(): boolean {
   return resolveWebauthnConfig() !== null;
+}
+
+export async function isPasskeyConfiguredAsync(): Promise<boolean> {
+  return (await resolveWebauthnConfigAsync()) !== null;
 }

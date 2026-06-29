@@ -5,6 +5,18 @@ import type { Trip } from '../types'
 
 export const tripRepo = {
   async list(): Promise<{ trips: Trip[]; archivedTrips: Trip[] }> {
+    const readCachedTrips = async () => {
+      const all = await offlineDb.trips.toArray()
+      const cached = {
+        trips: all.filter(t => !t.is_archived),
+        archivedTrips: all.filter(t => t.is_archived),
+      }
+      if (cached.trips.length === 0 && cached.archivedTrips.length === 0) {
+        throw new Error('No cached trips available')
+      }
+      return cached
+    }
+
     return onlineThenCache(
       async () => {
         const [active, archived] = await Promise.all([
@@ -15,13 +27,7 @@ export const tripRepo = {
         archived.trips.forEach(t => upsertTrip(t))
         return { trips: active.trips, archivedTrips: archived.trips }
       },
-      async () => {
-        const all = await offlineDb.trips.toArray()
-        return {
-          trips: all.filter(t => !t.is_archived),
-          archivedTrips: all.filter(t => t.is_archived),
-        }
-      },
+      readCachedTrips,
     )
   },
 

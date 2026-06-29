@@ -120,9 +120,9 @@ const parseTimeout = (value: string | undefined, fallback: number): number => {
 }
 
 export const API_TIMEOUTS = {
-  default: parseTimeout((import.meta as { env?: { VITE_API_TIMEOUT_MS?: string } }).env?.VITE_API_TIMEOUT_MS, 20000),
-  background: parseTimeout((import.meta as { env?: { VITE_API_BACKGROUND_TIMEOUT_MS?: string } }).env?.VITE_API_BACKGROUND_TIMEOUT_MS, 12000),
-  heavy: parseTimeout((import.meta as { env?: { VITE_API_HEAVY_TIMEOUT_MS?: string } }).env?.VITE_API_HEAVY_TIMEOUT_MS, 30000),
+  default: parseTimeout((import.meta as { env?: { VITE_API_TIMEOUT_MS?: string } }).env?.VITE_API_TIMEOUT_MS, 30000),
+  background: parseTimeout((import.meta as { env?: { VITE_API_BACKGROUND_TIMEOUT_MS?: string } }).env?.VITE_API_BACKGROUND_TIMEOUT_MS, 15000),
+  heavy: parseTimeout((import.meta as { env?: { VITE_API_HEAVY_TIMEOUT_MS?: string } }).env?.VITE_API_HEAVY_TIMEOUT_MS, 45000),
 }
 
 export const apiClient: AxiosInstance = axios.create({

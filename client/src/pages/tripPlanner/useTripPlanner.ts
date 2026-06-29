@@ -31,6 +31,19 @@ import { getTransportForDay } from '../../utils/dayMerge';
 import { getDayRelevantPlaceIds } from '../../utils/dayRelevantPlaceIds';
 import { resolvePoolAssignmentId } from './tripPlannerModel';
 
+const TRANSPORT_TYPES = new Set([
+  'flight',
+  'train',
+  'subway',
+  'bus',
+  'car',
+  'taxi',
+  'bicycle',
+  'cruise',
+  'ferry',
+  'transport_other',
+]);
+
 /**
  * Trip planner page logic — the big one. Owns the trip store wiring, addon
  * gating, accommodations/members loading, the tab + resizable-panel + selection
@@ -124,19 +137,6 @@ export function useTripPlanner() {
       })
       .catch(() => {});
   }, []);
-
-  const TRANSPORT_TYPES = new Set([
-    'flight',
-    'train',
-    'subway',
-    'bus',
-    'car',
-    'taxi',
-    'bicycle',
-    'cruise',
-    'ferry',
-    'transport_other',
-  ]);
 
   const TRIP_TABS = [
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
@@ -285,20 +285,33 @@ export function useTripPlanner() {
     if (expandedDayIds) {
       for (const dayId of expandedDayIds) activeDayIds.add(dayId);
     }
-    if (activeDayIds.size === 0) return [];
+    if (activeDayIds.size === 0) {
+      for (const day of days) activeDayIds.add(day.id);
+    }
 
     const seen = new Set<number>();
     const ids: number[] = [];
-    for (const dayId of activeDayIds) {
-      const dayAssignments = assignments[String(dayId)] || [];
-      const dayAssignmentIds = dayAssignments.map((a) => a.id);
-      for (const r of getTransportForDay({ reservations, dayId, dayAssignmentIds, days })) {
-        if (r.__leg && r.__leg.index !== 0) continue;
-        if ((r.endpoints || []).length < 2) continue;
-        const id = Number(r.id);
-        if (!Number.isFinite(id) || seen.has(id)) continue;
-        seen.add(id);
-        ids.push(id);
+    const addReservation = (r: Reservation) => {
+      if ((r as any).__leg && (r as any).__leg.index !== 0) return;
+      if ((r.endpoints || []).length < 2) return;
+      const id = Number(r.id);
+      if (!Number.isFinite(id) || seen.has(id)) return;
+      seen.add(id);
+      ids.push(id);
+    };
+
+    if (activeDayIds.size > 0) {
+      for (const dayId of activeDayIds) {
+        const dayAssignments = assignments[String(dayId)] || [];
+        const dayAssignmentIds = dayAssignments.map((a) => a.id);
+        for (const r of getTransportForDay({ reservations, dayId, dayAssignmentIds, days })) {
+          addReservation(r);
+        }
+      }
+    } else {
+      for (const r of reservations) {
+        if (!TRANSPORT_TYPES.has(r.type)) continue;
+        addReservation(r);
       }
     }
     return ids;

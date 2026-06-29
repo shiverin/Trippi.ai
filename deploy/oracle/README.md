@@ -98,6 +98,27 @@ sudo docker compose --env-file deploy/oracle/.env -f deploy/oracle/docker-compos
 
 Open `https://trippi.example.com`.
 
+## Encrypted Vercel-to-VM Tunnel
+
+If Vercel cannot reliably proxy to the VM's public HTTPS hostname, run a
+Cloudflare quick tunnel on the VM and point Vercel rewrites at the tunnel URL:
+
+```bash
+cd /opt/trippi/app
+sudo bash deploy/oracle/cloudflared-quick-tunnel.sh
+```
+
+The script prints `TRIPPI_TUNNEL_URL=https://...trycloudflare.com`. Use that
+URL as the backend origin in `vercel.json`, then deploy Vercel. Traffic is:
+
+```text
+browser --HTTPS--> Vercel --HTTPS--> Cloudflare edge --encrypted tunnel--> VM
+```
+
+Quick-tunnel hostnames can change if the tunnel service restarts. For a durable
+production hostname, create a named Cloudflare Tunnel on a domain you control
+and use that hostname in `vercel.json` instead.
+
 ## Backups
 
 Create a local backup archive:

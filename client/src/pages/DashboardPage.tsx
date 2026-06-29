@@ -168,21 +168,23 @@ export default function DashboardPage(): React.ReactElement {
                 </div>
               )}
               {spotlight && (
-                <BoardingPassHero
-                  trip={spotlight}
-                  bundle={heroBundle}
-                  locale={locale}
-                  onOpen={() => navigate(`/trips/${spotlight.id}`)}
-                  onEdit={() => {
-                    setEditingTrip(spotlight);
-                    setShowForm(true);
-                  }}
-                  onCopy={() => setCopyTrip(spotlight)}
-                  onArchive={() =>
-                    spotlight.is_archived ? handleUnarchive(spotlight.id) : handleArchive(spotlight.id)
-                  }
-                  onDelete={() => setDeleteTrip(spotlight)}
-                />
+                <div className="spotlight-stack">
+                  <BoardingPassHero
+                    trip={spotlight}
+                    bundle={heroBundle}
+                    locale={locale}
+                    onOpen={() => navigate(`/trips/${spotlight.id}`)}
+                    onEdit={() => {
+                      setEditingTrip(spotlight);
+                      setShowForm(true);
+                    }}
+                    onCopy={() => setCopyTrip(spotlight)}
+                    onArchive={() =>
+                      spotlight.is_archived ? handleUnarchive(spotlight.id) : handleArchive(spotlight.id)
+                    }
+                    onDelete={() => setDeleteTrip(spotlight)}
+                  />
+                </div>
               )}
 
               <AtlasStats stats={stats} />

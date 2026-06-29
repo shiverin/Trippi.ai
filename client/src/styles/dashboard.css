@@ -139,6 +139,11 @@
 }
 .trek-dash .page-main {
   min-width: 0;
+  display: grid;
+  gap: 56px;
+}
+.trek-dash .spotlight-stack {
+  min-width: 0;
 }
 .trek-dash .page-sidebar {
   position: sticky;
@@ -271,7 +276,7 @@
   cursor: pointer;
   height: 520px;
   box-shadow: var(--sh-lg);
-  margin-bottom: 56px;
+  margin-bottom: 0;
   isolation: isolate;
   transition:
     transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
@@ -664,7 +669,7 @@
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr 1fr;
   gap: 16px;
-  margin-bottom: 56px;
+  margin-bottom: 0;
 }
 .trek-dash .atlas-card {
   background: var(--glass-bg);
@@ -794,7 +799,7 @@
   align-items: baseline;
   justify-content: space-between;
   margin-bottom: 22px;
-  margin-top: 8px;
+  margin-top: 0;
 }
 .trek-dash .sec-title {
   font-size: 28px;
@@ -852,7 +857,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 22px;
-  margin-bottom: 56px;
+  margin-bottom: 0;
   transition: all 0.3s ease;
 }
 .trek-dash .trips.list-view {
@@ -1481,6 +1486,10 @@
     padding-left: 32px;
     padding-right: 32px;
     grid-template-columns: 1fr;
+    row-gap: 40px;
+  }
+  .trek-dash .page-main {
+    gap: 40px;
   }
   .trek-dash .page-sidebar {
     position: static;
@@ -1514,7 +1523,10 @@
   }
   .trek-dash .page {
     padding: 16px 16px 120px;
-    gap: 0;
+    gap: 24px;
+  }
+  .trek-dash .page-main {
+    gap: 24px;
   }
   .trek-dash .greeting {
     grid-template-columns: 1fr;
@@ -1559,7 +1571,7 @@
     border-radius: 20px;
     overflow: hidden;
     box-shadow: var(--glass-shadow), var(--glass-highlight);
-    margin-bottom: 22px;
+    margin-bottom: 0;
     cursor: pointer;
   }
   .trek-dash .pass-card .pass-cell {
@@ -1614,7 +1626,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin: 0 0 26px;
+    margin: 0;
   }
   .trek-dash .atlas-card.passport,
   .trek-dash .atlas-card:last-child {
@@ -1652,7 +1664,7 @@
   .trek-dash .trips {
     grid-template-columns: 1fr;
     gap: 16px;
-    margin-bottom: 28px;
+    margin-bottom: 0;
   }
   .trek-dash .add-trip-card {
     min-height: 180px;

@@ -8,9 +8,29 @@
 
 <br />
 
-<strong>your trippi, our troppi</strong>
+<p><a href="https://trippi.ai/"><strong>trippi.ai</strong></a></p>
 
-trippi.ai is a self-hosted, real-time collaborative travel planner with maps, budgets, packing lists, a journal, and AI built in.
+<p><strong>Your trippi, our troppi.</strong></p>
+
+<p>Planning a trip should be exciting &mdash; not annoying.</p>
+
+<p>
+  <a href="https://trippi.ai/">trippi.ai</a> helps you turn messy travel ideas into a clear, organized itinerary.
+  No more jumping between maps, notes, booking emails, spreadsheets, and group chats.
+</p>
+
+<p>
+  With <a href="https://trippi.ai/">trippi.ai</a>, you can build your adventure in one place: interactive maps,
+  drag-and-drop itineraries, route planning, budgets, reservations, and everything else that keeps your trip on track.
+</p>
+
+<p>
+  <a href="https://trippi.ai/">trippi.ai</a> also connects with AI agents on platforms like ChatGPT, Claude, and Gemini,
+  so your AI can help plan your trip with you. Tell it where you want to go, what kind of experience you want, and let it
+  help organize the details.
+</p>
+
+<p>Say goodbye to chaotic trip planning.<br />Say hello to your trippi.</p>
 
 <br />
 

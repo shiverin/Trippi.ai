@@ -503,26 +503,32 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
       return;
     }
     const merged = mergedItemsMap[selectedDayId] || [];
-    type RouteWaypoint = { id: number; lat: number; lng: number; kind: 'place' | 'transport' };
+    type RouteWaypoint = { id: number; lat: number; lng: number; kind: 'place' | 'transport'; name?: string };
     const runs: RouteWaypoint[][] = [];
     let cur: RouteWaypoint[] = [];
     for (const it of merged) {
       if (it.type === 'place' && it.data.place?.lat && it.data.place?.lng) {
-        cur.push({ id: it.data.id, lat: it.data.place.lat, lng: it.data.place.lng, kind: 'place' });
+        cur.push({
+          id: it.data.id,
+          lat: it.data.place.lat,
+          lng: it.data.place.lng,
+          kind: 'place',
+          name: it.data.place.name,
+        });
       } else if (it.type === 'transport') {
         const r = it.data;
         const { from, to } = getTransportRouteEndpoints(r, selectedDayId);
         if (from || to) {
           // Located transport: route to its departure point, break the run (the
           // flight/train itself isn't driven), and let its arrival start the next.
-          if (from) cur.push({ id: r.id, lat: from.lat, lng: from.lng, kind: 'transport' });
+          if (from) cur.push({ id: r.id, lat: from.lat, lng: from.lng, kind: 'transport', name: r.title });
           if (cur.length >= 2) runs.push(cur);
           cur = [];
-          if (to) cur.push({ id: r.id, lat: to.lat, lng: to.lng, kind: 'transport' });
+          if (to) cur.push({ id: r.id, lat: to.lat, lng: to.lng, kind: 'transport', name: r.title });
         } else if (cur.length > 0) {
           // No location: ignore for routing, but attribute the through-leg to the
           // booking so its distance/duration shows under it (purely cosmetic).
-          cur[cur.length - 1] = { ...cur[cur.length - 1], id: r.id, kind: 'transport' };
+          cur[cur.length - 1] = { ...cur[cur.length - 1], id: r.id, kind: 'transport', name: r.title };
         }
       }
     }
@@ -568,6 +574,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
       const addLeg = (id: number, item: RouteConnectorItem) => {
         map[id] = [...(map[id] || []), item];
       };
+      const moveVerb = routeProfile === 'walking' ? 'Walk to' : 'Drive to';
       for (const run of runs) {
         try {
           const r = await calculateRouteWithLegs(
@@ -583,7 +590,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
             } else if (from.kind === 'transport') {
               addLeg(from.id, { seg: leg, label: 'From arrival' });
             } else {
-              addLeg(from.id, { seg: leg });
+              addLeg(from.id, { seg: leg, label: `${moveVerb} ${to.name || 'next stop'}` });
             }
           });
         } catch (err) {

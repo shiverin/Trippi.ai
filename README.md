@@ -34,23 +34,6 @@
 
 <br />
 
-<a href="https://hub.docker.com/r/shiverin/trippi.ai"><img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?style=for-the-badge" /></a>
-&nbsp;
-<a href="https://discord.gg/NhZBDSd4qW"><img alt="Discord" src="https://img.shields.io/badge/Discord-join-5865F2?style=for-the-badge" /></a>
-&nbsp;
-<a href="https://kanban.pakulat.org/shared/I4wxF6inOOMB0C6hH6kQm3efyNxFjwyI"><img alt="Roadmap" src="https://img.shields.io/badge/Roadmap-view-0EA5E9?style=for-the-badge" /></a>
-<br />
-<a href="https://github.com/shiverin/Trippi.ai"><img alt="Source" src="https://img.shields.io/badge/Source-GitHub-0F2A56?style=for-the-badge" /></a>
-&nbsp;
-<a href="https://github.com/shiverin/Trippi.ai/issues/new?template=bug_report.yml"><img alt="Issues" src="https://img.shields.io/badge/Issues-report-2F6FED?style=for-the-badge" /></a>
-<br />
-<a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL_v3-6B7280?style=flat-square" /></a>
-<a href="https://github.com/shiverin/Trippi.ai/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/shiverin/Trippi.ai?include_prereleases&style=flat-square&color=6B7280" /></a>
-<a href="https://hub.docker.com/r/shiverin/trippi.ai"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/shiverin/trippi.ai?style=flat-square&color=6B7280" /></a>
-<a href="https://github.com/shiverin/Trippi.ai"><img alt="Stars" src="https://img.shields.io/github/stars/shiverin/Trippi.ai?style=flat-square&color=6B7280" /></a>
-
-</div>
-
 ---
 
 <div align="center">

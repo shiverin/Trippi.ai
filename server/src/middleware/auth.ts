@@ -1,5 +1,6 @@
 import { JWT_SECRET } from '../config';
 import { db } from '../db/database';
+import { logWarn } from '../services/auditLog';
 import { isDemoEmail } from '../services/demo';
 import { AuthRequest, OptionalAuthRequest, User } from '../types';
 import { applyIdempotency } from './idempotency';
@@ -27,6 +28,7 @@ export function extractToken(req: Request): string | null {
  * stolen token kept working after the victim reset.
  */
 export function verifyJwtAndLoadUser(token: string): User | null {
+  const startedAt = Date.now();
   try {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as {
       id: number;
@@ -53,6 +55,11 @@ export function verifyJwtAndLoadUser(token: string): User | null {
     return user as User;
   } catch {
     return null;
+  } finally {
+    const ms = Date.now() - startedAt;
+    if (ms >= 1000) {
+      logWarn(`[perf] verifyJwtAndLoadUser took ${ms}ms`);
+    }
   }
 }
 

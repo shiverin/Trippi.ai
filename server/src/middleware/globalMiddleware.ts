@@ -190,8 +190,20 @@ export function applyGlobalMiddleware(app: express.Application, opts: { bodyPars
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path === '/api/health') return next();
     const startedAt = Date.now();
+    let finished = false;
+    const slowTimer = setTimeout(() => {
+      if (!finished) {
+        logWarn(`[perf] slow in-flight request ${req.method} ${req.path} >5000ms ip=${req.ip}`);
+      }
+    }, 5000);
+    slowTimer.unref?.();
     res.on('finish', () => {
+      finished = true;
+      clearTimeout(slowTimer);
       const ms = Date.now() - startedAt;
+      if (ms >= 1000) {
+        logWarn(`[perf] ${req.method} ${req.path} ${res.statusCode} ${ms}ms ip=${req.ip}`);
+      }
       if (res.statusCode >= 500) {
         logError(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ip=${req.ip}`);
       } else if (res.statusCode === 401 || res.statusCode === 403) {

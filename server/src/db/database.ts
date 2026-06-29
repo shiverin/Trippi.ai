@@ -1,6 +1,7 @@
 import { Place, Tag } from '../types';
 import { runMigrations } from './migrations';
 import { OracleNativeAdapter } from './oracleNativeAdapter';
+import { requestedOracleNative, resolveDbProvider } from './providerMode';
 import { createTables } from './schema';
 import { runSeeds } from './seeds';
 
@@ -11,8 +12,15 @@ import path from 'path';
 // In test mode each vitest worker gets an isolated in-memory DB so that
 // parallel forks can't race on the same file or share migration state.
 const isTest = process.env.NODE_ENV === 'test';
-const isOracleNative =
-  (process.env.TRIPPI_DB_PROVIDER || process.env.TRIPPI_DB_MODE || '').trim().toLowerCase() === 'oracle-native';
+const dbProvider = resolveDbProvider();
+const isOracleNative = dbProvider === 'oracle-native-blocking';
+
+if (requestedOracleNative() && !isOracleNative) {
+  console.warn(
+    '[DB] TRIPPI_DB_PROVIDER=oracle-native requested, but ORACLE_NATIVE_ALLOW_BLOCKING is not true. ' +
+      'Falling back to Oracle-backed SQLite mode so slow Oracle calls cannot block the HTTP server.',
+  );
+}
 
 let dbPath: string;
 if (isTest) {

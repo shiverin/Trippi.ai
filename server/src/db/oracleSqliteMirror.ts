@@ -4,6 +4,7 @@ import {
   getOracleAutonomousConfigFromEnv,
   openOracleAutonomousConnection,
 } from './oracleAutonomous';
+import { resolveDbProvider } from './providerMode';
 import { createTables } from './schema';
 import { runSeeds } from './seeds';
 
@@ -61,8 +62,7 @@ export interface OracleRestoreResult {
 const DEFAULT_BATCH_SIZE = 250;
 
 export function isOracleBackedMode(env: NodeJS.ProcessEnv = process.env): boolean {
-  const provider = (env.TRIPPI_DB_PROVIDER || env.TRIPPI_DB_MODE || '').trim().toLowerCase();
-  return provider === 'oracle' || provider === 'oracle-mirror' || provider === 'oracle-backed';
+  return resolveDbProvider(env) === 'oracle-backed';
 }
 
 export function resolveSqliteDbPath(env: NodeJS.ProcessEnv = process.env): string {

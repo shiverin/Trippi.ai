@@ -1,5 +1,6 @@
 import { db, isOwner } from '../db/database';
 import { Trip, User } from '../types';
+import { logWarn } from './auditLog';
 import { listBudgetItems } from './budgetService';
 import { listNotes as listCollabNotes } from './collabService';
 import { listDays, listAccommodations } from './dayService';
@@ -172,28 +173,36 @@ export function generateDays(
 // ── Trip CRUD ─────────────────────────────────────────────────────────────
 
 export function listTrips(userId: number, archived: number | null) {
-  if (archived === null) {
-    return db
-      .prepare(
-        `
+  const startedAt = Date.now();
+  try {
+    if (archived === null) {
+      return db
+        .prepare(
+          `
       ${TRIP_SELECT}
       LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = :userId
       WHERE (t.user_id = :userId OR m.user_id IS NOT NULL)
       ORDER BY t.created_at DESC
     `,
-      )
-      .all({ userId });
-  }
-  return db
-    .prepare(
-      `
+        )
+        .all({ userId });
+    }
+    return db
+      .prepare(
+        `
     ${TRIP_SELECT}
     LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = :userId
     WHERE (t.user_id = :userId OR m.user_id IS NOT NULL) AND t.is_archived = :archived
     ORDER BY t.created_at DESC
   `,
-    )
-    .all({ userId, archived });
+      )
+      .all({ userId, archived });
+  } finally {
+    const ms = Date.now() - startedAt;
+    if (ms >= 1000) {
+      logWarn(`[perf] listTrips archived=${archived ?? 'all'} took ${ms}ms`);
+    }
+  }
 }
 
 interface CreateTripData {

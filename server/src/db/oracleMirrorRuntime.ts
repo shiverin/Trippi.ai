@@ -5,6 +5,7 @@ import {
   resolveSqliteDbPath,
   restoreSqliteFromOracle,
 } from './oracleSqliteMirror';
+import { requestedOracleNative } from './providerMode';
 
 import fs from 'fs';
 
@@ -42,7 +43,14 @@ export async function prepareOracleBackedMode(): Promise<void> {
   if (!isOracleBackedMode()) return;
 
   const sqlitePath = resolveSqliteDbPath();
-  console.log('[Oracle DB] TRIPPI_DB_PROVIDER=oracle enabled.');
+  if (requestedOracleNative()) {
+    console.warn(
+      '[Oracle DB] TRIPPI_DB_PROVIDER=oracle-native requested without ORACLE_NATIVE_ALLOW_BLOCKING=true; ' +
+        'using Oracle-backed SQLite compatibility mode for fast request handling.',
+    );
+  } else {
+    console.log('[Oracle DB] TRIPPI_DB_PROVIDER=oracle enabled.');
+  }
   console.log('[Oracle DB] Using Oracle-backed SQLite compatibility mode while the native Oracle port is in progress.');
 
   const stats = await getOracleMirrorStats();

@@ -18,7 +18,9 @@
     "test:integration": "vitest run tests/integration",
     "test:ws": "vitest run tests/websocket",
     "test:e2e": "vitest run tests/e2e",
-    "test:coverage": "rm -rf coverage && vitest run --coverage --fileParallelism=false --maxWorkers=1 --coverage.processingConcurrency=1 --coverage.clean=false --coverage.cleanOnRerun=false --testTimeout 240000 --hookTimeout 240000"
+    "test:coverage": "rm -rf coverage && vitest run --coverage --fileParallelism=false --maxWorkers=1 --coverage.processingConcurrency=1 --coverage.clean=false --coverage.cleanOnRerun=false --testTimeout 240000 --hookTimeout 240000",
+    "oracle:smoke": "tsx scripts/oracle-autonomous-smoke.ts",
+    "oracle:mirror": "tsx scripts/oracle-mirror-sqlite.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.28.0",
@@ -41,6 +43,7 @@
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^9.0.1",
+    "oracledb": "^7.0.0",
     "otplib": "^12.0.1",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",

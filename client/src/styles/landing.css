@@ -998,7 +998,7 @@
 }
 
 .landing-faq {
-  padding-top: 80px;
+  padding-top: 118px;
 }
 
 .landing-faq__grid {
@@ -1268,6 +1268,10 @@
 
   .landing-section {
     padding: 78px 20px;
+  }
+
+  .landing-faq {
+    padding-top: 78px;
   }
 
   .landing-section__heading h2,

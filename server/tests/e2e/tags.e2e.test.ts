@@ -31,7 +31,14 @@ const { mocks } = vi.hoisted(() => ({
     deleteTag: vi.fn(),
   },
 }));
-vi.mock('../../src/services/tagService', () => mocks);
+vi.mock('../../src/services/tagService', () => ({
+  ...mocks,
+  listTagsAsync: mocks.listTags,
+  createTagAsync: mocks.createTag,
+  getTagByIdAndUserAsync: mocks.getTagByIdAndUser,
+  updateTagAsync: mocks.updateTag,
+  deleteTagAsync: mocks.deleteTag,
+}));
 
 import { TagsModule } from '../../src/nest/tags/tags.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

@@ -25,7 +25,12 @@ vi.mock('../../src/db/database', () => ({ db, closeDb: () => {}, reinitialize: (
 const { settingsSvc } = vi.hoisted(() => ({
   settingsSvc: { getUserSettings: vi.fn(), upsertSetting: vi.fn(), bulkUpsertSettings: vi.fn() },
 }));
-vi.mock('../../src/services/settingsService', () => settingsSvc);
+vi.mock('../../src/services/settingsService', () => ({
+  ...settingsSvc,
+  getUserSettingsAsync: settingsSvc.getUserSettings,
+  upsertSettingAsync: settingsSvc.upsertSetting,
+  bulkUpsertSettingsAsync: settingsSvc.bulkUpsertSettings,
+}));
 
 import { SettingsModule } from '../../src/nest/settings/settings.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

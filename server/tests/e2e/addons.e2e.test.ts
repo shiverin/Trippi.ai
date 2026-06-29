@@ -23,6 +23,7 @@ const { db } = vi.hoisted(() => {
   tmp.exec(`CREATE TABLE photo_provider_fields (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id TEXT, field_key TEXT,
     label TEXT, input_type TEXT, placeholder TEXT, hint TEXT, required INTEGER, secret INTEGER,
     settings_key TEXT, payload_key TEXT, sort_order INTEGER);`);
+  tmp.exec('CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT);');
   return { db: tmp };
 });
 
@@ -35,8 +36,16 @@ const { getCollabFeatures, getBagTracking, getPhotoProviderConfig } = vi.hoisted
   getBagTracking: vi.fn(() => ({ enabled: true })),
   getPhotoProviderConfig: vi.fn(() => ({ url: 'https://immich.example' })),
 }));
-vi.mock('../../src/services/adminService', () => ({ getCollabFeatures, getBagTracking }));
-vi.mock('../../src/services/memories/helpersService', () => ({ getPhotoProviderConfig }));
+vi.mock('../../src/services/adminService', () => ({
+  getCollabFeatures,
+  getCollabFeaturesAsync: getCollabFeatures,
+  getBagTracking,
+  getBagTrackingAsync: getBagTracking,
+}));
+vi.mock('../../src/services/memories/helpersService', () => ({
+  getPhotoProviderConfig,
+  getPhotoProviderConfigAsync: getPhotoProviderConfig,
+}));
 
 import { AddonsModule } from '../../src/nest/addons/addons.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
@@ -58,6 +67,7 @@ describe('GET /api/addons e2e (real auth guard + temp SQLite)', () => {
     seedUser(db as never, { id: 1 });
     db.prepare("INSERT INTO addons (id, name, type, icon, enabled, sort_order) VALUES ('packing','Packing','trip','Backpack',1,1)").run();
     db.prepare("INSERT INTO addons (id, name, type, icon, enabled, sort_order) VALUES ('disabled','Disabled','trip','X',0,2)").run();
+    db.prepare("INSERT INTO app_settings (key, value) VALUES ('bag_tracking_enabled','true')").run();
     db.prepare("INSERT INTO photo_providers (id, name, icon, enabled, sort_order) VALUES ('immich','Immich','Image',1,1)").run();
     db.prepare(`INSERT INTO photo_provider_fields (provider_id, field_key, label, input_type, placeholder, hint, required, secret, settings_key, payload_key, sort_order)
       VALUES ('immich','base_url','Base URL','text','https://...',NULL,1,0,'immich_url',NULL,1)`).run();

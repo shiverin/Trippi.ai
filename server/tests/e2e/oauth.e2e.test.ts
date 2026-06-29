@@ -27,7 +27,7 @@ vi.mock('../../src/services/auditLog', () => ({ writeAudit: vi.fn(), getClientIp
 vi.mock('../../src/services/notifications', () => ({ getMcpSafeUrl: () => 'https://app' }));
 
 const { isAddonEnabled } = vi.hoisted(() => ({ isAddonEnabled: vi.fn(() => true) }));
-vi.mock('../../src/services/adminService', () => ({ isAddonEnabled }));
+vi.mock('../../src/services/adminService', () => ({ isAddonEnabled, isAddonEnabledAsync: isAddonEnabled }));
 
 const { oauthSvc } = vi.hoisted(() => ({
   oauthSvc: {
@@ -38,7 +38,26 @@ const { oauthSvc } = vi.hoisted(() => ({
     getUserByAccessToken: vi.fn(),
   },
 }));
-vi.mock('../../src/services/oauthService', () => oauthSvc);
+vi.mock('../../src/services/oauthService', () => ({
+  ...oauthSvc,
+  validateAuthorizeRequestAsync: oauthSvc.validateAuthorizeRequest,
+  createAuthCodeAsync: oauthSvc.createAuthCode,
+  consumeAuthCodeAsync: oauthSvc.consumeAuthCode,
+  saveConsentAsync: oauthSvc.saveConsent,
+  issueTokensAsync: oauthSvc.issueTokens,
+  issueClientCredentialsTokenAsync: oauthSvc.issueClientCredentialsToken,
+  refreshTokensAsync: oauthSvc.refreshTokens,
+  revokeTokenAsync: oauthSvc.revokeToken,
+  verifyPKCEAsync: oauthSvc.verifyPKCE,
+  authenticateClientAsync: oauthSvc.authenticateClient,
+  listOAuthClientsAsync: oauthSvc.listOAuthClients,
+  createOAuthClientAsync: oauthSvc.createOAuthClient,
+  deleteOAuthClientAsync: oauthSvc.deleteOAuthClient,
+  rotateOAuthClientSecretAsync: oauthSvc.rotateOAuthClientSecret,
+  listOAuthSessionsAsync: oauthSvc.listOAuthSessions,
+  revokeSessionAsync: oauthSvc.revokeSession,
+  getUserByAccessTokenAsync: oauthSvc.getUserByAccessToken,
+}));
 
 import { OauthModule } from '../../src/nest/oauth/oauth.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

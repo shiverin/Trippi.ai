@@ -26,7 +26,9 @@ vi.mock('../../src/db/database', () => ({ db, closeDb: () => {}, reinitialize: (
 const { mockGetActive, mockDismiss } = vi.hoisted(() => ({ mockGetActive: vi.fn(), mockDismiss: vi.fn() }));
 vi.mock('../../src/systemNotices/service', () => ({
   getActiveNoticesFor: mockGetActive,
+  getActiveNoticesForAsync: mockGetActive,
   dismissNotice: mockDismiss,
+  dismissNoticeAsync: mockDismiss,
 }));
 
 import { SystemNoticesModule } from '../../src/nest/system-notices/system-notices.module';

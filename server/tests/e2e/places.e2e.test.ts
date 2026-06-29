@@ -36,7 +36,7 @@ vi.mock('../../src/websocket', () => ({ broadcast: vi.fn() }));
 vi.mock('../../src/services/journeyService', () => ({ onPlaceCreated: vi.fn(), onPlaceUpdated: vi.fn(), onPlaceDeleted: vi.fn() }));
 
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn() }));
-vi.mock('../../src/services/permissions', () => ({ checkPermission }));
+vi.mock('../../src/services/permissions', () => ({ checkPermission, checkPermissionAsync: checkPermission }));
 
 const { pl } = vi.hoisted(() => ({
   pl: {
@@ -45,7 +45,20 @@ const { pl } = vi.hoisted(() => ({
     importNaverList: vi.fn(), searchPlaceImage: vi.fn(),
   },
 }));
-vi.mock('../../src/services/placeService', () => pl);
+vi.mock('../../src/services/placeService', () => ({
+  ...pl,
+  listPlacesAsync: pl.listPlaces,
+  createPlaceAsync: pl.createPlace,
+  getPlaceAsync: pl.getPlace,
+  updatePlaceAsync: pl.updatePlace,
+  deletePlaceAsync: pl.deletePlace,
+  deletePlacesManyAsync: pl.deletePlacesMany,
+  importGpxAsync: pl.importGpx,
+  importMapFileAsync: pl.importMapFile,
+  importGoogleListAsync: pl.importGoogleList,
+  importNaverListAsync: pl.importNaverList,
+  searchPlaceImageAsync: pl.searchPlaceImage,
+}));
 
 import { PlacesModule } from '../../src/nest/places/places.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

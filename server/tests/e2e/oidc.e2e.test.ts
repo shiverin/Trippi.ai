@@ -13,7 +13,7 @@ import { Test } from '@nestjs/testing';
 vi.mock('../../src/services/notifications', () => ({ getAppUrl: () => 'https://app' }));
 
 const { toggles } = vi.hoisted(() => ({ toggles: { oidc_login: true } }));
-vi.mock('../../src/services/authService', () => ({ resolveAuthToggles: () => toggles }));
+vi.mock('../../src/services/authService', () => ({ resolveAuthToggles: () => toggles, resolveAuthTogglesAsync: () => toggles }));
 
 const { oidcSvc } = vi.hoisted(() => ({
   oidcSvc: {
@@ -22,7 +22,21 @@ const { oidcSvc } = vi.hoisted(() => ({
     findOrCreateUser: vi.fn(), touchLastLogin: vi.fn(), generateToken: vi.fn(), frontendUrl: (p: string) => 'https://app' + p,
   },
 }));
-vi.mock('../../src/services/oidcService', () => oidcSvc);
+vi.mock('../../src/services/oidcService', () => ({
+  ...oidcSvc,
+  getOidcConfigAsync: oidcSvc.getOidcConfig,
+  discoverAsync: oidcSvc.discover,
+  createStateAsync: oidcSvc.createState,
+  consumeStateAsync: oidcSvc.consumeState,
+  createAuthCodeAsync: oidcSvc.createAuthCode,
+  consumeAuthCodeAsync: oidcSvc.consumeAuthCode,
+  exchangeCodeForTokenAsync: oidcSvc.exchangeCodeForToken,
+  getUserInfoAsync: oidcSvc.getUserInfo,
+  verifyIdTokenAsync: oidcSvc.verifyIdToken,
+  findOrCreateUserAsync: oidcSvc.findOrCreateUser,
+  touchLastLoginAsync: oidcSvc.touchLastLogin,
+  generateTokenAsync: oidcSvc.generateToken,
+}));
 
 import { OidcModule } from '../../src/nest/oidc/oidc.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

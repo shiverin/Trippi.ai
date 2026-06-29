@@ -31,7 +31,7 @@ vi.mock('../../src/websocket', () => ({ broadcast: vi.fn() }));
 vi.mock('../../src/services/notificationService', () => ({ send: vi.fn().mockResolvedValue(undefined) }));
 
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn() }));
-vi.mock('../../src/services/permissions', () => ({ checkPermission }));
+vi.mock('../../src/services/permissions', () => ({ checkPermission, checkPermissionAsync: checkPermission }));
 
 const { svc } = vi.hoisted(() => ({
   svc: {
@@ -41,7 +41,27 @@ const { svc } = vi.hoisted(() => ({
     listMessages: vi.fn(), createMessage: vi.fn(), deleteMessage: vi.fn(), addOrRemoveReaction: vi.fn(), fetchLinkPreview: vi.fn(),
   },
 }));
-vi.mock('../../src/services/collabService', () => svc);
+vi.mock('../../src/services/collabService', () => ({
+  ...svc,
+  verifyTripAccessAsync: svc.verifyTripAccess,
+  listNotesAsync: svc.listNotes,
+  createNoteAsync: svc.createNote,
+  updateNoteAsync: svc.updateNote,
+  deleteNoteAsync: svc.deleteNote,
+  addNoteFileAsync: svc.addNoteFile,
+  getFormattedNoteByIdAsync: svc.getFormattedNoteById,
+  deleteNoteFileAsync: svc.deleteNoteFile,
+  listPollsAsync: svc.listPolls,
+  createPollAsync: svc.createPoll,
+  votePollAsync: svc.votePoll,
+  closePollAsync: svc.closePoll,
+  deletePollAsync: svc.deletePoll,
+  listMessagesAsync: svc.listMessages,
+  createMessageAsync: svc.createMessage,
+  deleteMessageAsync: svc.deleteMessage,
+  addOrRemoveReactionAsync: svc.addOrRemoveReaction,
+  fetchLinkPreviewAsync: svc.fetchLinkPreview,
+}));
 
 import { CollabModule } from '../../src/nest/collab/collab.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

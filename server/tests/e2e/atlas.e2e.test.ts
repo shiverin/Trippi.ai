@@ -40,7 +40,22 @@ const { mocks } = vi.hoisted(() => ({
     deleteBucketItem: vi.fn(),
   },
 }));
-vi.mock('../../src/services/atlasService', () => mocks);
+vi.mock('../../src/services/atlasService', () => ({
+  ...mocks,
+  getStatsAsync: mocks.getStats,
+  getCountryPlacesAsync: mocks.getCountryPlaces,
+  markCountryVisitedAsync: mocks.markCountryVisited,
+  unmarkCountryVisitedAsync: mocks.unmarkCountryVisited,
+  markRegionVisitedAsync: mocks.markRegionVisited,
+  unmarkRegionVisitedAsync: mocks.unmarkRegionVisited,
+  getVisitedRegionsAsync: mocks.getVisitedRegions,
+  getRegionGeoAsync: mocks.getRegionGeo,
+  getCountryGeoAsync: mocks.getCountryGeo,
+  listBucketListAsync: mocks.listBucketList,
+  createBucketItemAsync: mocks.createBucketItem,
+  updateBucketItemAsync: mocks.updateBucketItem,
+  deleteBucketItemAsync: mocks.deleteBucketItem,
+}));
 
 import { AtlasModule } from '../../src/nest/atlas/atlas.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

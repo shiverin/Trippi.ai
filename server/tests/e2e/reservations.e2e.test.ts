@@ -37,7 +37,7 @@ vi.mock('../../src/websocket', () => ({ broadcast: vi.fn() }));
 vi.mock('../../src/services/notificationService', () => ({ send: vi.fn().mockResolvedValue(undefined) }));
 
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn() }));
-vi.mock('../../src/services/permissions', () => ({ checkPermission }));
+vi.mock('../../src/services/permissions', () => ({ checkPermission, checkPermissionAsync: checkPermission }));
 
 const { resv, budget, day } = vi.hoisted(() => ({
   resv: {
@@ -50,9 +50,33 @@ const { resv, budget, day } = vi.hoisted(() => ({
     getAccommodation: vi.fn(), updateAccommodation: vi.fn(), deleteAccommodation: vi.fn(),
   },
 }));
-vi.mock('../../src/services/reservationService', () => resv);
-vi.mock('../../src/services/budgetService', () => budget);
-vi.mock('../../src/services/dayService', () => day);
+vi.mock('../../src/services/reservationService', () => ({
+  ...resv,
+  verifyTripAccessAsync: resv.verifyTripAccess,
+  listReservationsAsync: resv.listReservations,
+  createReservationAsync: resv.createReservation,
+  updatePositionsAsync: resv.updatePositions,
+  getReservationAsync: resv.getReservation,
+  updateReservationAsync: resv.updateReservation,
+  deleteReservationAsync: resv.deleteReservation,
+  getUpcomingReservationsAsync: resv.getUpcomingReservations,
+}));
+vi.mock('../../src/services/budgetService', () => ({
+  ...budget,
+  createBudgetItemAsync: budget.createBudgetItem,
+  updateBudgetItemAsync: budget.updateBudgetItem,
+  deleteBudgetItemAsync: budget.deleteBudgetItem,
+  linkBudgetItemToReservationAsync: budget.linkBudgetItemToReservation,
+}));
+vi.mock('../../src/services/dayService', () => ({
+  ...day,
+  listAccommodationsAsync: day.listAccommodations,
+  validateAccommodationRefsAsync: day.validateAccommodationRefs,
+  createAccommodationAsync: day.createAccommodation,
+  getAccommodationAsync: day.getAccommodation,
+  updateAccommodationAsync: day.updateAccommodation,
+  deleteAccommodationAsync: day.deleteAccommodation,
+}));
 
 import { ReservationsModule } from '../../src/nest/reservations/reservations.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

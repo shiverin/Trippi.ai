@@ -35,12 +35,19 @@ vi.mock('../../src/db/asyncDatabase', async () => {
 });
 
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn() }));
-vi.mock('../../src/services/permissions', () => ({ checkPermission }));
+vi.mock('../../src/services/permissions', () => ({ checkPermission, checkPermissionAsync: checkPermission }));
 
 const { shareSvc } = vi.hoisted(() => ({
   shareSvc: { createOrUpdateShareLink: vi.fn(), getShareLink: vi.fn(), deleteShareLink: vi.fn(), getSharedTripData: vi.fn(), getSharedPlacePhotoPath: vi.fn() },
 }));
-vi.mock('../../src/services/shareService', () => shareSvc);
+vi.mock('../../src/services/shareService', () => ({
+  ...shareSvc,
+  createOrUpdateShareLinkAsync: shareSvc.createOrUpdateShareLink,
+  getShareLinkAsync: shareSvc.getShareLink,
+  deleteShareLinkAsync: shareSvc.deleteShareLink,
+  getSharedTripDataAsync: shareSvc.getSharedTripData,
+  getSharedPlacePhotoPathAsync: shareSvc.getSharedPlacePhotoPath,
+}));
 
 import { ShareModule } from '../../src/nest/share/share.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

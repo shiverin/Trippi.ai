@@ -24,14 +24,27 @@ const { db } = vi.hoisted(() => {
 vi.mock('../../src/db/database', () => ({ db, closeDb: () => {}, reinitialize: () => {} }));
 vi.mock('../../src/services/auditLog', () => ({ writeAudit: vi.fn(), getClientIp: () => '1.2.3.4', logInfo: vi.fn() }));
 vi.mock('../../src/mcp', () => ({ invalidateMcpSessions: vi.fn() }));
-vi.mock('../../src/services/notificationPreferencesService', () => ({ getPreferencesMatrix: vi.fn(() => ({})), setAdminPreferences: vi.fn() }));
-vi.mock('../../src/services/settingsService', () => ({ getAdminUserDefaults: vi.fn(() => ({})), setAdminUserDefaults: vi.fn() }));
+vi.mock('../../src/services/notificationPreferencesService', () => {
+  const getPreferencesMatrix = vi.fn(() => ({}));
+  const setAdminPreferences = vi.fn();
+  return { getPreferencesMatrix, getPreferencesMatrixAsync: getPreferencesMatrix, setAdminPreferences, setAdminPreferencesAsync: setAdminPreferences };
+});
+vi.mock('../../src/services/settingsService', () => {
+  const getAdminUserDefaults = vi.fn(() => ({}));
+  const setAdminUserDefaults = vi.fn();
+  return { getAdminUserDefaults, getAdminUserDefaultsAsync: getAdminUserDefaults, setAdminUserDefaults, setAdminUserDefaultsAsync: setAdminUserDefaults };
+});
 vi.mock('../../src/services/notificationService', () => ({ send: vi.fn().mockResolvedValue(undefined) }));
 
 const { adminSvc } = vi.hoisted(() => ({
   adminSvc: { listUsers: vi.fn(), createUser: vi.fn(), updatePlacesPhotos: vi.fn() },
 }));
-vi.mock('../../src/services/adminService', () => adminSvc);
+vi.mock('../../src/services/adminService', () => ({
+  ...adminSvc,
+  listUsersAsync: adminSvc.listUsers,
+  createUserAsync: adminSvc.createUser,
+  updatePlacesPhotosAsync: adminSvc.updatePlacesPhotos,
+}));
 
 import { AdminModule } from '../../src/nest/admin/admin.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

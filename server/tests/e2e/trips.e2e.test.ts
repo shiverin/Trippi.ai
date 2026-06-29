@@ -17,7 +17,8 @@ const { db } = vi.hoisted(() => {
   const tmp = new Database(':memory:');
   tmp.exec('PRAGMA journal_mode = WAL');
   tmp.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE, role TEXT NOT NULL DEFAULT 'user', password_version INTEGER NOT NULL DEFAULT 0);`);
+    email TEXT NOT NULL UNIQUE, role TEXT NOT NULL DEFAULT 'user', avatar TEXT,
+    password_version INTEGER NOT NULL DEFAULT 0);`);
   tmp.exec(`CREATE TABLE trips (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -32,7 +33,7 @@ const { db } = vi.hoisted(() => {
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   );`);
-  tmp.exec('CREATE TABLE trip_members (trip_id INTEGER, user_id INTEGER);');
+  tmp.exec('CREATE TABLE trip_members (trip_id INTEGER, user_id INTEGER, added_at TEXT DEFAULT CURRENT_TIMESTAMP, invited_by INTEGER);');
   tmp.exec('CREATE TABLE days (id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER, day_number INTEGER, date TEXT);');
   return { db: tmp };
 });
@@ -47,7 +48,7 @@ vi.mock('../../src/services/auditLog', () => ({ writeAudit: vi.fn(), getClientIp
 vi.mock('../../src/services/demo', () => ({ isDemoEmail: vi.fn(() => false) }));
 
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn() }));
-vi.mock('../../src/services/permissions', () => ({ checkPermission }));
+vi.mock('../../src/services/permissions', () => ({ checkPermission, checkPermissionAsync: checkPermission }));
 
 const { tripSvc } = vi.hoisted(() => ({
   tripSvc: {
@@ -62,12 +63,12 @@ const { tripSvc } = vi.hoisted(() => ({
 }));
 vi.mock('../../src/services/tripService', () => tripSvc);
 vi.mock('../../src/services/dayService', () => ({ listDays: () => ({ days: [] }), listAccommodations: () => [] }));
-vi.mock('../../src/services/placeService', () => ({ listPlaces: () => [] }));
+vi.mock('../../src/services/placeService', () => ({ listPlaces: () => [], listPlacesAsync: () => [] }));
 vi.mock('../../src/services/packingService', () => ({ listItems: () => [] }));
 vi.mock('../../src/services/todoService', () => ({ listItems: () => [] }));
 vi.mock('../../src/services/budgetService', () => ({ listBudgetItems: () => [] }));
 vi.mock('../../src/services/reservationService', () => ({ listReservations: () => [] }));
-vi.mock('../../src/services/fileService', () => ({ listFiles: () => [] }));
+vi.mock('../../src/services/fileService', () => ({ listFiles: () => [], listFilesAsync: () => [] }));
 
 import { TripsModule } from '../../src/nest/trips/trips.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

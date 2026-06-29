@@ -35,9 +35,32 @@ const { prefs, inapp, channels } = vi.hoisted(() => ({
     getUserNtfyConfig: vi.fn(), getAdminNtfyConfig: vi.fn(),
   },
 }));
-vi.mock('../../src/services/notificationPreferencesService', () => prefs);
-vi.mock('../../src/services/inAppNotifications', () => inapp);
-vi.mock('../../src/services/notifications', () => channels);
+vi.mock('../../src/services/notificationPreferencesService', () => ({
+  ...prefs,
+  getPreferencesMatrixAsync: prefs.getPreferencesMatrix,
+  setPreferencesAsync: prefs.setPreferences,
+}));
+vi.mock('../../src/services/inAppNotifications', () => ({
+  ...inapp,
+  getNotificationsAsync: inapp.getNotifications,
+  getUnreadCountAsync: inapp.getUnreadCount,
+  markReadAsync: inapp.markRead,
+  markUnreadAsync: inapp.markUnread,
+  markAllReadAsync: inapp.markAllRead,
+  deleteNotificationAsync: inapp.deleteNotification,
+  deleteAllAsync: inapp.deleteAll,
+  respondToBooleanAsync: inapp.respondToBoolean,
+}));
+vi.mock('../../src/services/notifications', () => ({
+  ...channels,
+  testSmtpAsync: channels.testSmtp,
+  testWebhookAsync: channels.testWebhook,
+  testNtfyAsync: channels.testNtfy,
+  getUserWebhookUrlAsync: channels.getUserWebhookUrl,
+  getAdminWebhookUrlAsync: channels.getAdminWebhookUrl,
+  getUserNtfyConfigAsync: channels.getUserNtfyConfig,
+  getAdminNtfyConfigAsync: channels.getAdminNtfyConfig,
+}));
 
 import { NotificationsModule } from '../../src/nest/notifications/notifications.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

@@ -31,7 +31,14 @@ const { mocks } = vi.hoisted(() => ({
     deleteCategory: vi.fn(),
   },
 }));
-vi.mock('../../src/services/categoryService', () => mocks);
+vi.mock('../../src/services/categoryService', () => ({
+  ...mocks,
+  listCategoriesAsync: mocks.listCategories,
+  createCategoryAsync: mocks.createCategory,
+  getCategoryByIdAsync: mocks.getCategoryById,
+  updateCategoryAsync: mocks.updateCategory,
+  deleteCategoryAsync: mocks.deleteCategory,
+}));
 
 import { CategoriesModule } from '../../src/nest/categories/categories.module';
 import { DatabaseModule } from '../../src/nest/database/database.module';

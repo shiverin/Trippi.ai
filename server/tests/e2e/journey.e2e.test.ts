@@ -25,18 +25,23 @@ const { db } = vi.hoisted(() => {
 vi.mock('../../src/db/database', () => ({ db, closeDb: () => {}, reinitialize: () => {} }));
 
 const { isAddonEnabled } = vi.hoisted(() => ({ isAddonEnabled: vi.fn(() => true) }));
-vi.mock('../../src/services/adminService', () => ({ isAddonEnabled }));
-vi.mock('../../src/services/fileService', () => ({ getAllowedExtensions: () => '*' }));
+vi.mock('../../src/services/adminService', () => ({ isAddonEnabled, isAddonEnabledAsync: isAddonEnabled }));
+vi.mock('../../src/services/fileService', () => ({ getAllowedExtensions: () => '*', getAllowedExtensionsAsync: () => '*' }));
 vi.mock('../../src/services/memories/immichService', () => ({ uploadToImmich: vi.fn(), streamImmichAsset: vi.fn() }));
 vi.mock('../../src/services/memories/photoResolverService', () => ({ streamPhoto: vi.fn() }));
 
 const { jsvc } = vi.hoisted(() => ({
   jsvc: { listJourneys: vi.fn(), createJourney: vi.fn(), getJourneyFull: vi.fn() },
 }));
-vi.mock('../../src/services/journeyService', () => jsvc);
+vi.mock('../../src/services/journeyService', () => ({
+  ...jsvc,
+  listJourneysAsync: jsvc.listJourneys,
+  createJourneyAsync: jsvc.createJourney,
+  getJourneyFullAsync: jsvc.getJourneyFull,
+}));
 
 const { sharesvc } = vi.hoisted(() => ({ sharesvc: { getPublicJourney: vi.fn() } }));
-vi.mock('../../src/services/journeyShareService', () => sharesvc);
+vi.mock('../../src/services/journeyShareService', () => ({ ...sharesvc, getPublicJourneyAsync: sharesvc.getPublicJourney }));
 
 import { JourneyModule } from '../../src/nest/journey/journey.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';

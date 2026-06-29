@@ -6,6 +6,12 @@ import crypto from 'crypto';
 
 const PLACE_PHOTO_PROXY_PREFIX = '/api/maps/place-photo/';
 
+function isExpired(expiresAt: unknown): boolean {
+  if (expiresAt == null || expiresAt === '') return false;
+  const expiresTime = new Date(String(expiresAt)).getTime();
+  return Number.isFinite(expiresTime) && expiresTime <= Date.now();
+}
+
 /**
  * Place photo proxy URLs (`/api/maps/place-photo/<id>/bytes`) are served by the
  * JWT-guarded MapsController, so they 401 for an unauthenticated shared-trip
@@ -124,10 +130,8 @@ export function deleteShareLink(tripId: string): void {
  * permission flags. Returns null if the token is invalid or the trip is gone.
  */
 export function getSharedTripData(token: string): Record<string, any> | null {
-  const shareRow = db
-    .prepare("SELECT * FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))")
-    .get(token) as any;
-  if (!shareRow) return null;
+  const shareRow = db.prepare('SELECT * FROM share_tokens WHERE token = ?').get(token) as any;
+  if (!shareRow || isExpired(shareRow.expires_at)) return null;
 
   const tripId = shareRow.trip_id;
 
@@ -307,12 +311,10 @@ export function getSharedTripData(token: string): Record<string, any> | null {
  * answers a plain 404, mirroring the authenticated bytes endpoint.
  */
 export function getSharedPlacePhotoPath(token: string, placeId: string): string | null {
-  const shareRow = db
-    .prepare(
-      "SELECT trip_id FROM share_tokens WHERE token = ? AND (expires_at IS NULL OR expires_at > datetime('now'))",
-    )
-    .get(token) as { trip_id: string } | undefined;
-  if (!shareRow) return null;
+  const shareRow = db.prepare('SELECT trip_id, expires_at FROM share_tokens WHERE token = ?').get(token) as
+    | { trip_id: string; expires_at?: string | null }
+    | undefined;
+  if (!shareRow || isExpired(shareRow.expires_at)) return null;
 
   const expectedUrl = `${PLACE_PHOTO_PROXY_PREFIX}${encodeURIComponent(placeId)}/bytes`;
   const place = db

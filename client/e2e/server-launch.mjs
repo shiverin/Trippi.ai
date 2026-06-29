@@ -27,7 +27,7 @@ const env = {
   TRIPPI_DB_FILE: dbFile,
   ADMIN_EMAIL: 'e2e@trippi.local',
   ADMIN_PASSWORD: 'E2eTest12345!',
-  PORT: '3001',
+  PORT: process.env.PORT || '3001',
   NODE_ENV: 'development',
 }
 

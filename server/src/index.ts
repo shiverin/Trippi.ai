@@ -1,6 +1,3 @@
-import { buildApp } from './bootstrap';
-import * as scheduler from './scheduler';
-import { getAppUrl, getMcpSafeUrl } from './services/notifications';
 import type { INestApplication } from '@nestjs/common';
 
 import 'dotenv/config';
@@ -8,6 +5,10 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import 'reflect-metadata';
+
+type SchedulerModule = typeof import('./scheduler');
+
+let scheduler: SchedulerModule | null = null;
 
 // Create upload and data directories on startup
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -29,6 +30,7 @@ const APP_VERSION: string = process.env.APP_VERSION || (require('../package.json
 
 const onListen = () => {
   const { logInfo: sLogInfo, logWarn: sLogWarn } = require('./services/auditLog');
+  const { getAppUrl, getMcpSafeUrl } = require('./services/notifications') as typeof import('./services/notifications');
   const LOG_LVL = (process.env.LOG_LEVEL || 'info').toLowerCase();
   const tz = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const origins = process.env.ALLOWED_ORIGINS || '(same-origin)';
@@ -77,6 +79,7 @@ const onListen = () => {
   if (process.env.DEMO_MODE?.toLowerCase() === 'true' && process.env.NODE_ENV?.toLowerCase() === 'production') {
     sLogWarn('SECURITY WARNING: DEMO_MODE is enabled in production!');
   }
+  scheduler = require('./scheduler') as SchedulerModule;
   scheduler.start();
   scheduler.startTripReminders();
   scheduler.startTodoReminders();
@@ -86,6 +89,8 @@ const onListen = () => {
   scheduler.startTrippiPhotoCacheCleanup();
   scheduler.startPlacePhotoCacheCleanup();
   scheduler.startAirTrailSync();
+  const { startOracleBackedSync } = require('./db/oracleMirrorRuntime') as typeof import('./db/oracleMirrorRuntime');
+  startOracleBackedSync();
   const { startTokenCleanup } = require('./services/ephemeralTokens');
   startTokenCleanup();
   import('./websocket').then(({ setupWebSocket }) => {
@@ -102,6 +107,9 @@ async function bootstrap(): Promise<void> {
   // global pipeline + /uploads + every /api domain + the platform/transport routes
   // (/mcp, /.well-known, OAuth SDK, SPA catch-all). buildApp() owns the composition
   // order; it is shared with the integration-test harness so they can't drift.
+  const { prepareOracleBackedMode } = await import('./db/oracleMirrorRuntime');
+  await prepareOracleBackedMode();
+  const { buildApp } = await import('./bootstrap');
   nestApp = await buildApp();
   server = http.createServer(nestApp.getHttpAdapter().getInstance());
   if (HOST) server.listen(PORT, HOST, onListen);
@@ -118,15 +126,19 @@ function shutdown(signal: string): void {
   const { logInfo: sLogInfo, logError: sLogError } = require('./services/auditLog');
   const { closeMcpSessions } = require('./mcp');
   sLogInfo(`${signal} received — shutting down gracefully...`);
-  scheduler.stop();
+  scheduler?.stop();
   closeMcpSessions();
   void nestApp?.close();
   server.close(() => {
-    sLogInfo('HTTP server closed');
-    const { closeDb } = require('./db/database');
-    closeDb();
-    sLogInfo('Shutdown complete');
-    process.exit(0);
+    void (async () => {
+      sLogInfo('HTTP server closed');
+      const { stopOracleBackedSync } = require('./db/oracleMirrorRuntime') as typeof import('./db/oracleMirrorRuntime');
+      await stopOracleBackedSync();
+      const { closeDb } = require('./db/database');
+      closeDb();
+      sLogInfo('Shutdown complete');
+      process.exit(0);
+    })();
   });
   setTimeout(() => {
     sLogError('Forced shutdown after timeout');

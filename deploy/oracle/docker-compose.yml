@@ -39,6 +39,7 @@ services:
     volumes:
       - ${TRIPPI_DATA_DIR:-/opt/trippi/data}:/app/data
       - ${TRIPPI_UPLOADS_DIR:-/opt/trippi/uploads}:/app/uploads
+      - ${ORACLE_DB_WALLET_LOCATION:-/opt/trippi/oracle-wallet}:${ORACLE_DB_WALLET_LOCATION:-/opt/trippi/oracle-wallet}:ro
     expose:
       - "3000"
     healthcheck:

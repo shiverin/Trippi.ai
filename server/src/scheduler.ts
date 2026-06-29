@@ -209,16 +209,17 @@ function startTripReminders(): void {
         const { db } = require('./db/database');
         const { send } = require('./services/notificationService');
 
-        const trips = db
+        const activeTrips = db
           .prepare(
             `
-        SELECT t.id, t.title, t.user_id, t.reminder_days FROM trips t
-        WHERE t.reminder_days > 0
-          AND t.start_date IS NOT NULL
-          AND t.start_date = date('now', '+' || t.reminder_days || ' days')
-      `,
+              SELECT t.id, t.title, t.user_id, t.start_date, t.reminder_days FROM trips t
+              WHERE t.reminder_days > 0
+                AND t.start_date IS NOT NULL
+                AND t.start_date <> ''
+            `,
           )
-          .all() as { id: number; title: string; user_id: number; reminder_days: number }[];
+          .all() as { id: number; title: string; user_id: number; start_date: string; reminder_days: number }[];
+        const trips = activeTrips.filter((trip) => trip.start_date === dateOnly(trip.reminder_days));
 
         for (const trip of trips) {
           await send({
@@ -251,6 +252,20 @@ function startTripReminders(): void {
 const TODO_REMINDER_LEAD_DAYS = 3;
 let todoReminderTask: ScheduledTask | null = null;
 
+function dateOnly(offsetDays = 0): string {
+  const date = new Date();
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+}
+
+function timestampValue(value: unknown): number | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.getTime();
+  const parsed = Date.parse(String(value));
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function startTodoReminders(): void {
   if (todoReminderTask) {
     todoReminderTask.stop();
@@ -274,33 +289,38 @@ function startTodoReminders(): void {
       try {
         const { send } = require('./services/notificationService');
 
-        // Select unchecked todos with a due date inside the lead window
-        // that haven't been reminded in the last 24 hours. `due_date` is
-        // stored as a YYYY-MM-DD text; SQLite date() handles it directly.
-        const todos = db
-          .prepare(
-            `
-        SELECT ti.id, ti.trip_id, ti.name, ti.due_date, ti.assigned_user_id,
+        const today = dateOnly();
+        const dueCutoff = dateOnly(TODO_REMINDER_LEAD_DAYS);
+        const reminderCutoff = Date.now() - 20 * 60 * 60 * 1000;
+        const todos = (
+          db
+            .prepare(
+              `
+        SELECT ti.id, ti.trip_id, ti.name, ti.due_date, ti.assigned_user_id, ti.reminded_at,
                t.title AS trip_title, t.user_id AS trip_owner_id
         FROM todo_items ti
         JOIN trips t ON t.id = ti.trip_id
         WHERE ti.checked = 0
           AND ti.due_date IS NOT NULL
           AND ti.due_date <> ''
-          AND date(ti.due_date) <= date('now', '+' || ? || ' days')
-          AND date(ti.due_date) >= date('now')
-          AND (ti.reminded_at IS NULL OR ti.reminded_at <= datetime('now', '-20 hours'))
+          AND ti.due_date <= ?
+          AND ti.due_date >= ?
       `,
-          )
-          .all(TODO_REMINDER_LEAD_DAYS) as {
-          id: number;
-          trip_id: number;
-          name: string;
-          due_date: string;
-          assigned_user_id: number | null;
-          trip_title: string;
-          trip_owner_id: number;
-        }[];
+            )
+            .all(dueCutoff, today) as {
+            id: number;
+            trip_id: number;
+            name: string;
+            due_date: string;
+            reminded_at: unknown;
+            assigned_user_id: number | null;
+            trip_title: string;
+            trip_owner_id: number;
+          }[]
+        ).filter((todo) => {
+          const remindedAt = timestampValue(todo.reminded_at);
+          return remindedAt === null || remindedAt <= reminderCutoff;
+        });
 
         for (const todo of todos) {
           const targetScope: 'user' | 'trip' = todo.assigned_user_id ? 'user' : 'trip';

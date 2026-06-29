@@ -245,43 +245,37 @@ export function updateBudgetItem(
     expense_date?: string | null;
   },
 ) {
-  const item = db.prepare('SELECT * FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+  const item = db.prepare('SELECT * FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId) as
+    | BudgetItem
+    | undefined;
   if (!item) return null;
 
   db.prepare(
     `
     UPDATE budget_items SET
-      category = COALESCE(?, category),
-      name = COALESCE(?, name),
-      total_price = CASE WHEN ? IS NOT NULL THEN ? ELSE total_price END,
-      currency = CASE WHEN ? THEN ? ELSE currency END,
-      exchange_rate = CASE WHEN ? IS NOT NULL THEN ? ELSE exchange_rate END,
-      persons = CASE WHEN ? IS NOT NULL THEN ? ELSE persons END,
-      days = CASE WHEN ? THEN ? ELSE days END,
-      note = CASE WHEN ? THEN ? ELSE note END,
-      sort_order = CASE WHEN ? IS NOT NULL THEN ? ELSE sort_order END,
-      expense_date = CASE WHEN ? THEN ? ELSE expense_date END
+      category = ?,
+      name = ?,
+      total_price = ?,
+      currency = ?,
+      exchange_rate = ?,
+      persons = ?,
+      days = ?,
+      note = ?,
+      sort_order = ?,
+      expense_date = ?
     WHERE id = ?
   `,
   ).run(
-    data.category || null,
-    data.name || null,
-    data.total_price !== undefined ? 1 : null,
-    data.total_price !== undefined ? data.total_price : 0,
-    data.currency !== undefined ? 1 : 0,
-    data.currency !== undefined ? data.currency || null : null,
-    data.exchange_rate !== undefined ? 1 : null,
-    data.exchange_rate !== undefined ? data.exchange_rate : 1,
-    data.persons !== undefined ? 1 : null,
-    data.persons !== undefined ? data.persons : null,
-    data.days !== undefined ? 1 : 0,
-    data.days !== undefined ? data.days : null,
-    data.note !== undefined ? 1 : 0,
-    data.note !== undefined ? data.note : null,
-    data.sort_order !== undefined ? 1 : null,
-    data.sort_order !== undefined ? data.sort_order : 0,
-    data.expense_date !== undefined ? 1 : 0,
-    data.expense_date !== undefined ? data.expense_date || null : null,
+    data.category || item.category,
+    data.name || item.name,
+    data.total_price !== undefined ? data.total_price : item.total_price,
+    data.currency !== undefined ? data.currency || null : item.currency,
+    data.exchange_rate !== undefined ? data.exchange_rate : item.exchange_rate,
+    data.persons !== undefined ? data.persons : item.persons,
+    data.days !== undefined ? data.days : item.days,
+    data.note !== undefined ? data.note : item.note,
+    data.sort_order !== undefined ? data.sort_order : item.sort_order,
+    data.expense_date !== undefined ? data.expense_date || null : item.expense_date,
     id,
   );
 
@@ -425,7 +419,7 @@ export function getPerPersonSummary(tripId: string | number) {
     JOIN budget_items bi ON bm.budget_item_id = bi.id
     JOIN users u ON bm.user_id = u.id
     WHERE bi.trip_id = ?
-    GROUP BY bm.user_id
+    GROUP BY bm.user_id, u.username, u.avatar
   `,
     )
     .all(tripId) as {
@@ -656,10 +650,14 @@ export function reorderBudgetItems(tripId: string | number, orderedIds: number[]
 }
 
 export function reorderBudgetCategories(tripId: string | number, orderedCategories: string[]) {
-  const upsert = db.prepare(
-    'INSERT INTO budget_category_order (trip_id, category, sort_order) VALUES (?, ?, ?) ON CONFLICT(trip_id, category) DO UPDATE SET sort_order = excluded.sort_order',
+  const update = db.prepare('UPDATE budget_category_order SET sort_order = ? WHERE trip_id = ? AND category = ?');
+  const insert = db.prepare(
+    'INSERT OR IGNORE INTO budget_category_order (trip_id, category, sort_order) VALUES (?, ?, ?)',
   );
-  db.transaction(() => {
-    orderedCategories.forEach((cat, index) => upsert.run(tripId, cat, index));
-  })();
+  db.transaction((categories: string[]) => {
+    categories.forEach((cat, index) => {
+      const result = update.run(index, tripId, cat);
+      if (result.changes === 0) insert.run(tripId, cat, index);
+    });
+  })(orderedCategories);
 }

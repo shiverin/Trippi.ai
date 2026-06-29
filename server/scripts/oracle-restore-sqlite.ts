@@ -1,7 +1,7 @@
-import { mirrorSqliteToOracle, resolveSqliteDbPath } from '../src/db/oracleSqliteMirror';
+import { resolveSqliteDbPath, restoreSqliteFromOracle } from '../src/db/oracleSqliteMirror';
 
 async function main(): Promise<void> {
-  const result = await mirrorSqliteToOracle(resolveSqliteDbPath());
+  const result = await restoreSqliteFromOracle(resolveSqliteDbPath());
   console.log(JSON.stringify(result, null, 2));
 }
 

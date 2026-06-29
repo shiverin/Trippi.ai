@@ -5,6 +5,7 @@ APP_DIR="${APP_DIR:-/opt/trippi/app}"
 REPO_URL="${REPO_URL:-https://github.com/shiverin/Trippi.ai.git}"
 BRANCH="${BRANCH:-main}"
 ENABLE_UFW="${ENABLE_UFW:-0}"
+SWAP_SIZE_GB="${SWAP_SIZE_GB:-4}"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run as root: sudo APP_DIR=${APP_DIR} REPO_URL=${REPO_URL} bash deploy/oracle/install.sh"
@@ -12,6 +13,40 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 export DEBIAN_FRONTEND=noninteractive
+
+ensure_swap() {
+  if ! [[ "${SWAP_SIZE_GB}" =~ ^[0-9]+$ ]]; then
+    echo "SWAP_SIZE_GB must be a whole number of GB, got: ${SWAP_SIZE_GB}"
+    exit 1
+  fi
+
+  if [[ "${SWAP_SIZE_GB}" == "0" ]]; then
+    echo "Swap creation disabled."
+    return
+  fi
+
+  if swapon --show=NAME --noheadings | grep -q .; then
+    echo "Swap already configured."
+    return
+  fi
+
+  local swapfile="/swapfile"
+  if [[ ! -f "${swapfile}" ]]; then
+    if ! fallocate -l "${SWAP_SIZE_GB}G" "${swapfile}"; then
+      dd if=/dev/zero of="${swapfile}" bs=1M count="$((SWAP_SIZE_GB * 1024))" status=progress
+    fi
+    chmod 600 "${swapfile}"
+    mkswap "${swapfile}"
+  fi
+
+  swapon "${swapfile}"
+  if ! grep -qE '^[^#]+\s+none\s+swap\s+' /etc/fstab; then
+    echo "${swapfile} none swap sw 0 0" >> /etc/fstab
+  fi
+  echo "Configured ${SWAP_SIZE_GB}GB swap."
+}
+
+ensure_swap
 
 apt-get update
 apt-get install -y ca-certificates curl gnupg git openssl sqlite3 ufw

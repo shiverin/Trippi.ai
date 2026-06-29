@@ -176,11 +176,15 @@ export class BudgetController {
   reorderCategories(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
-    @Body('orderedCategories') orderedCategories: string[],
+    @Body() body: { orderedCategories?: unknown; categories?: unknown },
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
+    const orderedCategories = Array.isArray(body.orderedCategories) ? body.orderedCategories : body.categories;
+    if (!Array.isArray(orderedCategories) || orderedCategories.some((category) => typeof category !== 'string')) {
+      throw new HttpException({ error: 'orderedCategories must be an array of strings' }, 400);
+    }
     this.budget.reorderCategories(tripId, orderedCategories);
     this.budget.broadcast(tripId, 'budget:reordered', { orderedCategories }, socketId);
     return { success: true };

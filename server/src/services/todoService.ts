@@ -56,34 +56,39 @@ export function updateItem(
   },
   bodyKeys: string[],
 ) {
-  const item = db.prepare('SELECT * FROM todo_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+  const item = db.prepare('SELECT * FROM todo_items WHERE id = ? AND trip_id = ?').get(id, tripId) as
+    | {
+        name: string;
+        checked: number;
+        category: string | null;
+        due_date: string | null;
+        description: string | null;
+        assigned_user_id: number | null;
+        priority: number | null;
+      }
+    | undefined;
   if (!item) return null;
 
   db.prepare(
     `
     UPDATE todo_items SET
-      name = COALESCE(?, name),
-      checked = CASE WHEN ? IS NOT NULL THEN ? ELSE checked END,
-      category = COALESCE(?, category),
-      due_date = CASE WHEN ? THEN ? ELSE due_date END,
-      description = CASE WHEN ? THEN ? ELSE description END,
-      assigned_user_id = CASE WHEN ? THEN ? ELSE assigned_user_id END,
-      priority = CASE WHEN ? THEN ? ELSE priority END
+      name = ?,
+      checked = ?,
+      category = ?,
+      due_date = ?,
+      description = ?,
+      assigned_user_id = ?,
+      priority = ?
     WHERE id = ?
   `,
   ).run(
-    data.name || null,
-    data.checked !== undefined ? 1 : null,
-    data.checked ? 1 : 0,
-    data.category || null,
-    bodyKeys.includes('due_date') ? 1 : 0,
-    data.due_date ?? null,
-    bodyKeys.includes('description') ? 1 : 0,
-    data.description ?? null,
-    bodyKeys.includes('assigned_user_id') ? 1 : 0,
-    data.assigned_user_id ?? null,
-    bodyKeys.includes('priority') ? 1 : 0,
-    data.priority ?? 0,
+    data.name || item.name,
+    data.checked !== undefined ? (data.checked ? 1 : 0) : item.checked,
+    data.category || item.category,
+    bodyKeys.includes('due_date') ? (data.due_date ?? null) : item.due_date,
+    bodyKeys.includes('description') ? (data.description ?? null) : item.description,
+    bodyKeys.includes('assigned_user_id') ? (data.assigned_user_id ?? null) : item.assigned_user_id,
+    bodyKeys.includes('priority') ? (data.priority ?? 0) : item.priority,
     id,
   );
 

@@ -86,13 +86,17 @@ export class ReservationsController {
     if (!Array.isArray(body.positions)) {
       throw new HttpException({ error: 'positions must be an array' }, 400);
     }
-    this.reservations.updatePositions(tripId, body.positions, body.day_id);
-    this.reservations.broadcast(
-      tripId,
-      'reservation:positions',
-      { positions: body.positions, day_id: body.day_id },
-      socketId,
-    );
+    const positions = body.positions.map((item) => {
+      const row = item as { id?: unknown; day_plan_position?: unknown };
+      const id = Number(row.id);
+      const dayPlanPosition = Number(row.day_plan_position);
+      if (!Number.isFinite(id) || !Number.isFinite(dayPlanPosition)) {
+        throw new HttpException({ error: 'positions must contain id and day_plan_position numbers' }, 400);
+      }
+      return { id, day_plan_position: dayPlanPosition };
+    });
+    this.reservations.updatePositions(tripId, positions, body.day_id);
+    this.reservations.broadcast(tripId, 'reservation:positions', { positions, day_id: body.day_id }, socketId);
     return { success: true };
   }
 

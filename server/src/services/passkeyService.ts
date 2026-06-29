@@ -67,21 +67,20 @@ function storeChallenge(
   );
 }
 
-/**
- * Atomically claim a challenge by its EXACT bytes + type. This is a single
- * DELETE ... RETURNING statement that runs BEFORE any async verification, so a
- * concurrent double-submit of the same assertion can never spend one challenge
- * twice (the replay window a SELECT→await→DELETE ordering would open).
- */
 function claimChallenge(
   challenge: string,
   type: 'registration' | 'authentication',
   now: number,
 ): { user_id: number | null } | null {
-  const row = db
-    .prepare('DELETE FROM webauthn_challenges WHERE challenge = ? AND type = ? AND expires_at > ? RETURNING user_id')
-    .get(challenge, type, now) as { user_id: number | null } | undefined;
-  return row ?? null;
+  const claim = db.transaction(() => {
+    const row = db
+      .prepare('SELECT id, user_id FROM webauthn_challenges WHERE challenge = ? AND type = ? AND expires_at > ?')
+      .get(challenge, type, now) as { id: number; user_id: number | null } | undefined;
+    if (!row) return null;
+    const result = db.prepare('DELETE FROM webauthn_challenges WHERE id = ?').run(row.id);
+    return result.changes > 0 ? { user_id: row.user_id } : null;
+  });
+  return claim();
 }
 
 /** Decode the challenge the authenticator echoed back inside clientDataJSON. */

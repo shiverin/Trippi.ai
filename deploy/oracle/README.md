@@ -9,14 +9,19 @@ This deploys trippi on an Oracle Cloud Infrastructure VM with:
 - MCP and WebSockets proxied through the same public hostname.
 
 This path preserves the current backend architecture. No database rewrite is required.
+Despite the directory name, the VM installer and Docker Compose stack are generic
+Ubuntu VM deployment assets; they can also be reused on Azure, Google Compute
+Engine, AWS EC2, or another VPS. See
+`docs/free-backend-fallback-runbook.md` for provider-specific zero-spend notes.
 
 ## Oracle setup
 
 Create an OCI VM that fits the Always Free tier. Recommended shape:
 
 - Image: Ubuntu 24.04 or 22.04
-- Shape: Ampere A1 flex, 1 OCPU, 6 GB RAM or higher if available
-- Boot volume: 50 GB+
+- Shape: Ampere A1 flex, 1 OCPU, 6 GB RAM
+- Fallback shape: `VM.Standard.E2.1.Micro` if A1 capacity is unavailable
+- Boot volume: 50 GB
 - VCN ingress rules:
   - TCP `22` from your IP
   - TCP `80` from `0.0.0.0/0`
@@ -33,6 +38,13 @@ sudo apt-get update
 sudo apt-get install -y git
 git clone https://github.com/shiverin/Trippi.ai.git /tmp/trippi
 sudo bash /tmp/trippi/deploy/oracle/install.sh
+```
+
+The installer creates a 4 GB swap file by default. Keep that enabled for
+`VM.Standard.E2.1.Micro`; Docker image builds are tight on 1 GB RAM. To override:
+
+```bash
+sudo SWAP_SIZE_GB=6 bash /tmp/trippi/deploy/oracle/install.sh
 ```
 
 For a private repo or fork, pass `REPO_URL`:
@@ -117,3 +129,26 @@ https://trippi.example.com/mcp
 ```
 
 Caddy proxies the streamable HTTP endpoint and WebSockets on the same hostname.
+
+## OCI capacity troubleshooting
+
+If OCI returns `Out of capacity for shape ... in availability domain AD-1`, the
+request is valid but Oracle has no host capacity for that free shape at that
+moment. Do not switch to a paid shape unless the account quota and budget policy
+are intentionally changed first.
+
+Safe retry order:
+
+1. Retry `VM.Standard.A1.Flex` with Ubuntu 24.04 aarch64, 1 OCPU, 6 GB RAM.
+2. Retry A1 with less RAM, down to 1 GB, if needed.
+3. Retry `VM.Standard.E2.1.Micro` with regular Ubuntu 24.04.
+4. If both fail, wait and retry later, or upgrade the account to Pay As You Go
+   only after the account owner explicitly approves the billing change and while
+   keeping quota policies capped to Always Free-sized resources.
+
+For this repo, a 1 GB E2 micro can run the stack only with swap enabled. Expect
+slow builds; A1 remains the preferred free shape.
+
+For CLI-based retry attempts, use `deploy/oracle/safe-retry-launch.sh`. It
+defaults to dry-run and refuses non-free candidate shapes or boot volumes above
+50 GB.

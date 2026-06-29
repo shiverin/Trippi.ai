@@ -80,7 +80,7 @@ export function listPlaces(
   filters: { search?: string; category?: string; tag?: string; assignment?: 'all' | 'unassigned' | 'assigned' },
 ) {
   let query = `
-    SELECT DISTINCT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon
+    SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM places p
     LEFT JOIN categories c ON p.category_id = c.id
     WHERE p.trip_id = ?
@@ -303,17 +303,17 @@ export function updatePlace(
   db.prepare(
     `
     UPDATE places SET
-      name = COALESCE(?, name),
+      name = ?,
       description = ?,
       lat = ?,
       lng = ?,
       address = ?,
       category_id = ?,
       price = ?,
-      currency = COALESCE(?, currency),
+      currency = ?,
       place_time = ?,
       end_time = ?,
-      duration_minutes = COALESCE(?, duration_minutes),
+      duration_minutes = ?,
       notes = ?,
       image_url = ?,
       google_place_id = ?,
@@ -321,22 +321,22 @@ export function updatePlace(
       osm_id = ?,
       website = ?,
       phone = ?,
-      transport_mode = COALESCE(?, transport_mode),
+      transport_mode = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `,
   ).run(
-    name || null,
+    name || existingPlace.name,
     description !== undefined ? description : existingPlace.description,
     lat !== undefined ? lat : existingPlace.lat,
     lng !== undefined ? lng : existingPlace.lng,
     address !== undefined ? address : existingPlace.address,
     category_id !== undefined ? category_id : existingPlace.category_id,
     price !== undefined ? price : existingPlace.price,
-    currency || null,
+    currency || existingPlace.currency,
     place_time !== undefined ? place_time : existingPlace.place_time,
     end_time !== undefined ? end_time : existingPlace.end_time,
-    duration_minutes || null,
+    duration_minutes || existingPlace.duration_minutes,
     notes !== undefined ? notes : existingPlace.notes,
     image_url !== undefined ? image_url : existingPlace.image_url,
     google_place_id !== undefined ? google_place_id : existingPlace.google_place_id,
@@ -344,7 +344,7 @@ export function updatePlace(
     osm_id !== undefined ? osm_id : existingPlace.osm_id,
     website !== undefined ? website : existingPlace.website,
     phone !== undefined ? phone : existingPlace.phone,
-    transport_mode || null,
+    transport_mode || existingPlace.transport_mode,
     placeId,
   );
 

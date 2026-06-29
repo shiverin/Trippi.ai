@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   BookMarked,
   CheckSquare,
   ChevronDown,
@@ -305,6 +306,40 @@ export default function LoginPage(): React.ReactElement {
         overflow: 'hidden',
       }}
     >
+      {/* Back to landing page */}
+      <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          aria-label="Back to home"
+          title="Back to home"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 12px',
+            borderRadius: 99,
+            background: 'rgba(0,0,0,0.06)',
+            border: 'none',
+            fontSize: 13,
+            fontWeight: 600,
+            color: '#374151',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) =>
+            (e.currentTarget.style.background = 'rgba(0,0,0,0.1)')
+          }
+          onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) =>
+            (e.currentTarget.style.background = 'rgba(0,0,0,0.06)')
+          }
+        >
+          <ArrowLeft size={14} />
+          Home
+        </button>
+      </div>
+
       {/* Language dropdown */}
       <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
         <button

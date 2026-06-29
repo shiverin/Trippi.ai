@@ -225,7 +225,7 @@ export default function DashboardPage(): React.ReactElement {
                   </div>
                 )}
 
-                <div className={`trips${viewMode === 'list' ? 'list-view' : ''}`}>
+                <div className={`trips${viewMode === 'list' ? ' list-view' : ''}`}>
                   {gridTrips.map((trip) => (
                     <TripCard
                       key={trip.id}

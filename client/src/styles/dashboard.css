@@ -801,6 +801,13 @@
   margin-bottom: 22px;
   margin-top: 0;
 }
+.trek-dash .trips-section {
+  display: grid;
+  gap: 26px;
+}
+.trek-dash .trips-section .sec-head {
+  margin-bottom: 0;
+}
 .trek-dash .sec-title {
   font-size: 28px;
   font-weight: 600;
@@ -856,13 +863,14 @@
 .trek-dash .trips {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
+  column-gap: 22px;
+  row-gap: 32px;
   margin-bottom: 0;
   transition: all 0.3s ease;
 }
 .trek-dash .trips.list-view {
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 24px;
 }
 .trek-dash .trips.list-view .trip-card {
   display: grid;
@@ -1645,7 +1653,7 @@
     flex-direction: column;
     align-items: stretch;
     gap: 14px;
-    margin-bottom: 16px;
+    margin-bottom: 0;
   }
   .trek-dash .sec-title {
     font-size: 24px;
@@ -1663,7 +1671,7 @@
   }
   .trek-dash .trips {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 22px;
     margin-bottom: 0;
   }
   .trek-dash .add-trip-card {

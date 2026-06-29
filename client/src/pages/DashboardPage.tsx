@@ -189,7 +189,7 @@ export default function DashboardPage(): React.ReactElement {
 
               <AtlasStats stats={stats} />
 
-              <section>
+              <section className="trips-section">
                 <div className="sec-head">
                   <h3 className="sec-title">{t('dashboard.title')}</h3>
                   <div className="sec-tools">

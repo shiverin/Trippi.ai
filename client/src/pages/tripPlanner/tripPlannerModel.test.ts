@@ -101,6 +101,9 @@ describe('buildDisplayedPinOrderMap', () => {
       10: [1],
       30: [2],
     })
+  })
+})
+
 describe('booking route visibility', () => {
   const endpoints = [
     { role: 'from', sequence: 0, lat: 1, lng: 1, name: 'A' },

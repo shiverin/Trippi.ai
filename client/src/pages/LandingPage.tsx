@@ -17,7 +17,6 @@ import {
   faqItems,
   featureProof,
   footerLinks,
-  heroBadges,
   heroMetrics,
   landingNavItems,
   pricingTiers,
@@ -150,14 +149,6 @@ function HeroSection() {
             <PlayCircle size={19} />
             Watch demo
           </a>
-        </div>
-        <div className="landing-hero__badges" aria-label="Product positioning">
-          {heroBadges.map(({ label, Icon }) => (
-            <span key={label}>
-              <Icon size={15} />
-              {label}
-            </span>
-          ))}
         </div>
       </div>
       <div className="landing-hero__visual" aria-label="Trippi product preview">

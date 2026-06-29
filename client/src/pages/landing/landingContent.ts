@@ -5,7 +5,6 @@ import {
   FileText,
   FolderOpen,
   Globe2,
-  Heart,
   ListChecks,
   LockKeyhole,
   type LucideIcon,
@@ -243,12 +242,6 @@ export const footerLinks: LandingNavItem[] = [
   ...landingNavItems,
   { label: 'Support', href: 'mailto:support@trippi.ai' },
   { label: 'GitHub', href: 'https://github.com/shiverin/Trippi.ai' },
-];
-
-export const heroBadges = [
-  { label: 'Self-hosted', Icon: Server },
-  { label: 'Open-source friendly', Icon: Heart },
-  { label: 'Private by default', Icon: LockKeyhole },
 ];
 
 export const heroMetrics = [

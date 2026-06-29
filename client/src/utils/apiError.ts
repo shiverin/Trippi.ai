@@ -4,6 +4,6 @@
  * has not been used in project … or it is disabled") instead of a generic fallback.
  */
 export function getApiErrorMessage(err: unknown, fallback: string): string {
-  const message = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error;
-  return typeof message === 'string' && message.trim() ? message : fallback;
+  const message = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error
+  return typeof message === 'string' && message.trim() ? message : fallback
 }

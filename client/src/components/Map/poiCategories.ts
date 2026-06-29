@@ -1,14 +1,14 @@
-import { BedDouble, Camera, Coffee, Landmark, Ticket, Trees, Utensils, Wine, type LucideIcon } from 'lucide-react';
+import { Utensils, Coffee, Wine, BedDouble, Camera, Landmark, Trees, Ticket, type LucideIcon } from 'lucide-react'
 
 // The POI categories shown in the map "explore" pill. The `key` is the contract
 // with the server (CATEGORY_OSM_FILTERS in mapsService.ts) — the OSM tag mapping
 // lives there; label/icon/colour live here. `color` doubles as the active-pill
 // fill AND the marker colour, so the pill and the map agree visually.
 export interface PoiCategory {
-  key: string;
-  labelKey: string;
-  Icon: LucideIcon;
-  color: string;
+  key: string
+  labelKey: string
+  Icon: LucideIcon
+  color: string
 }
 
 export const POI_CATEGORIES: PoiCategory[] = [
@@ -20,24 +20,24 @@ export const POI_CATEGORIES: PoiCategory[] = [
   { key: 'museum', labelKey: 'poi.cat.museums', Icon: Landmark, color: '#6366F1' },
   { key: 'nature', labelKey: 'poi.cat.nature', Icon: Trees, color: '#16A34A' },
   { key: 'activity', labelKey: 'poi.cat.activities', Icon: Ticket, color: '#F59E0B' },
-];
+]
 
 export const POI_CATEGORY_BY_KEY: Record<string, PoiCategory> = Object.fromEntries(
-  POI_CATEGORIES.map((c) => [c.key, c])
-);
+  POI_CATEGORIES.map(c => [c.key, c]),
+)
 
 // One POI result from /api/maps/pois (mirror of the server's OverpassPoi).
 export interface Poi {
-  osm_id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  category: string;
-  poi_type: string;
-  address: string | null;
-  website: string | null;
-  phone: string | null;
-  opening_hours: string | null;
-  cuisine: string | null;
-  source: 'openstreetmap';
+  osm_id: string
+  name: string
+  lat: number
+  lng: number
+  category: string
+  poi_type: string
+  address: string | null
+  website: string | null
+  phone: string | null
+  opening_hours: string | null
+  cuisine: string | null
+  source: 'openstreetmap'
 }

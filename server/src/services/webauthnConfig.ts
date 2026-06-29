@@ -1,5 +1,5 @@
-import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { getAppUrl } from './notifications';
 
 /**
@@ -26,8 +26,7 @@ function getSetting(key: string): string | null {
 }
 
 async function getSettingAsync(key: string): Promise<string | null> {
-  const raw = (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))
-    ?.value;
+  const raw = (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value;
   const trimmed = raw?.trim();
   return trimmed ? trimmed : null;
 }

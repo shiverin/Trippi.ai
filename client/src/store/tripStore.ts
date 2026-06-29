@@ -1,53 +1,43 @@
-import { create } from 'zustand';
-import { categoriesApi, tagsApi, tripsApi } from '../api/client';
-import { offlineDb } from '../db/offlineDb';
-import { budgetRepo } from '../repo/budgetRepo';
-import { dayRepo } from '../repo/dayRepo';
-import { fileRepo } from '../repo/fileRepo';
-import { packingRepo } from '../repo/packingRepo';
-import { placeRepo } from '../repo/placeRepo';
-import { reservationRepo } from '../repo/reservationRepo';
-import { todoRepo } from '../repo/todoRepo';
-import { tripRepo } from '../repo/tripRepo';
+import { create } from 'zustand'
+import type { StoreApi } from 'zustand'
+import { tripsApi, tagsApi, categoriesApi } from '../api/client'
+import { offlineDb } from '../db/offlineDb'
+import { tripRepo } from '../repo/tripRepo'
+import { dayRepo } from '../repo/dayRepo'
+import { placeRepo } from '../repo/placeRepo'
+import { packingRepo } from '../repo/packingRepo'
+import { todoRepo } from '../repo/todoRepo'
+import { budgetRepo } from '../repo/budgetRepo'
+import { reservationRepo } from '../repo/reservationRepo'
+import { fileRepo } from '../repo/fileRepo'
+import { createPlacesSlice } from './slices/placesSlice'
+import { createAssignmentsSlice } from './slices/assignmentsSlice'
+import { createDaysSlice } from './slices/daysSlice'
+import { createDayNotesSlice } from './slices/dayNotesSlice'
+import { createPackingSlice } from './slices/packingSlice'
+import { createTodoSlice } from './slices/todoSlice'
+import { createBudgetSlice } from './slices/budgetSlice'
+import { createReservationsSlice } from './slices/reservationsSlice'
+import { createFilesSlice } from './slices/filesSlice'
+import { handleRemoteEvent } from './slices/remoteEventHandler'
 import type {
-  AssignmentsMap,
-  BudgetItem,
-  Category,
-  Day,
-  DayNotesMap,
-  PackingItem,
-  Place,
-  Reservation,
-  Tag,
-  TodoItem,
-  Trip,
-  TripFile,
-  WebSocketEvent,
-} from '../types';
-import { getApiErrorMessage } from '../types';
-import type { AssignmentsSlice } from './slices/assignmentsSlice';
-import { createAssignmentsSlice } from './slices/assignmentsSlice';
-import type { BudgetSlice } from './slices/budgetSlice';
-import { createBudgetSlice } from './slices/budgetSlice';
-import type { DayNotesSlice } from './slices/dayNotesSlice';
-import { createDayNotesSlice } from './slices/dayNotesSlice';
-import type { DaysSlice } from './slices/daysSlice';
-import { createDaysSlice } from './slices/daysSlice';
-import type { FilesSlice } from './slices/filesSlice';
-import { createFilesSlice } from './slices/filesSlice';
-import type { PackingSlice } from './slices/packingSlice';
-import { createPackingSlice } from './slices/packingSlice';
-import type { PlacesSlice } from './slices/placesSlice';
-import { createPlacesSlice } from './slices/placesSlice';
-import { handleRemoteEvent } from './slices/remoteEventHandler';
-import type { ReservationsSlice } from './slices/reservationsSlice';
-import { createReservationsSlice } from './slices/reservationsSlice';
-import type { TodoSlice } from './slices/todoSlice';
-import { createTodoSlice } from './slices/todoSlice';
+  Trip, Day, Place, Assignment, DayNote, PackingItem, TodoItem,
+  Tag, Category, BudgetItem, TripFile, Reservation,
+  AssignmentsMap, DayNotesMap, WebSocketEvent,
+} from '../types'
+import { getApiErrorMessage } from '../types'
+import type { PlacesSlice } from './slices/placesSlice'
+import type { AssignmentsSlice } from './slices/assignmentsSlice'
+import type { DaysSlice } from './slices/daysSlice'
+import type { DayNotesSlice } from './slices/dayNotesSlice'
+import type { PackingSlice } from './slices/packingSlice'
+import type { TodoSlice } from './slices/todoSlice'
+import type { BudgetSlice } from './slices/budgetSlice'
+import type { ReservationsSlice } from './slices/reservationsSlice'
+import type { FilesSlice } from './slices/filesSlice'
 
 export interface TripStoreState
-  extends
-    PlacesSlice,
+  extends PlacesSlice,
     AssignmentsSlice,
     DaysSlice,
     DayNotesSlice,
@@ -56,31 +46,31 @@ export interface TripStoreState
     BudgetSlice,
     ReservationsSlice,
     FilesSlice {
-  trip: Trip | null;
-  days: Day[];
-  places: Place[];
-  assignments: AssignmentsMap;
-  dayNotes: DayNotesMap;
-  packingItems: PackingItem[];
-  todoItems: TodoItem[];
-  tags: Tag[];
-  categories: Category[];
-  budgetItems: BudgetItem[];
-  files: TripFile[];
-  reservations: Reservation[];
-  selectedDayId: number | null;
-  isLoading: boolean;
-  error: string | null;
+  trip: Trip | null
+  days: Day[]
+  places: Place[]
+  assignments: AssignmentsMap
+  dayNotes: DayNotesMap
+  packingItems: PackingItem[]
+  todoItems: TodoItem[]
+  tags: Tag[]
+  categories: Category[]
+  budgetItems: BudgetItem[]
+  files: TripFile[]
+  reservations: Reservation[]
+  selectedDayId: number | null
+  isLoading: boolean
+  error: string | null
 
-  setSelectedDay: (dayId: number | null) => void;
-  handleRemoteEvent: (event: WebSocketEvent) => void;
-  resetTrip: () => void;
-  loadTrip: (tripId: number | string) => Promise<void>;
-  hydrateActiveTrip: (tripId: number | string) => Promise<void>;
-  refreshDays: (tripId: number | string) => Promise<void>;
-  updateTrip: (tripId: number | string, data: Partial<Trip>) => Promise<Trip>;
-  addTag: (data: Partial<Tag> & { name: string }) => Promise<Tag>;
-  addCategory: (data: Partial<Category> & { name: string }) => Promise<Category>;
+  setSelectedDay: (dayId: number | null) => void
+  handleRemoteEvent: (event: WebSocketEvent) => void
+  resetTrip: () => void
+  loadTrip: (tripId: number | string) => Promise<void>
+  hydrateActiveTrip: (tripId: number | string) => Promise<void>
+  refreshDays: (tripId: number | string) => Promise<void>
+  updateTrip: (tripId: number | string, data: Partial<Trip>) => Promise<Trip>
+  addTag: (data: Partial<Tag> & { name: string }) => Promise<Tag>
+  addCategory: (data: Partial<Category> & { name: string }) => Promise<Category>
 }
 
 export const useTripStore = create<TripStoreState>((set, get) => ({
@@ -107,38 +97,26 @@ export const useTripStore = create<TripStoreState>((set, get) => ({
   // Clear every trip-scoped slice so switching trips (or losing access to one)
   // can never leave a previous trip's data visible. Global tags/categories are
   // left intact. Called at the top of loadTrip.
-  resetTrip: () =>
-    set({
-      trip: null,
-      days: [],
-      places: [],
-      assignments: {},
-      dayNotes: {},
-      packingItems: [],
-      todoItems: [],
-      budgetItems: [],
-      files: [],
-      reservations: [],
-      selectedDayId: null,
-      error: null,
-    }),
+  resetTrip: () => set({
+    trip: null,
+    days: [],
+    places: [],
+    assignments: {},
+    dayNotes: {},
+    packingItems: [],
+    todoItems: [],
+    budgetItems: [],
+    files: [],
+    reservations: [],
+    selectedDayId: null,
+    error: null,
+  }),
 
   loadTrip: async (tripId: number | string) => {
-    get().resetTrip();
-    set({ isLoading: true, error: null });
+    get().resetTrip()
+    set({ isLoading: true, error: null })
     try {
-      const [
-        tripData,
-        daysData,
-        placesData,
-        packingData,
-        todoData,
-        budgetData,
-        reservationsData,
-        filesData,
-        tagsData,
-        categoriesData,
-      ] = await Promise.all([
+      const [tripData, daysData, placesData, packingData, todoData, budgetData, reservationsData, filesData, tagsData, categoriesData] = await Promise.all([
         tripRepo.get(tripId),
         dayRepo.list(tripId),
         placeRepo.list(tripId),
@@ -151,18 +129,18 @@ export const useTripStore = create<TripStoreState>((set, get) => ({
         reservationRepo.list(tripId).catch(() => ({ reservations: [] as Reservation[] })),
         fileRepo.list(tripId).catch(() => ({ files: [] as TripFile[] })),
         navigator.onLine
-          ? tagsApi.list().catch(() => offlineDb.tags.toArray().then((tags) => ({ tags })))
-          : offlineDb.tags.toArray().then((tags) => ({ tags })),
+          ? tagsApi.list().catch(() => offlineDb.tags.toArray().then(tags => ({ tags })))
+          : offlineDb.tags.toArray().then(tags => ({ tags })),
         navigator.onLine
-          ? categoriesApi.list().catch(() => offlineDb.categories.toArray().then((categories) => ({ categories })))
-          : offlineDb.categories.toArray().then((categories) => ({ categories })),
-      ]);
+          ? categoriesApi.list().catch(() => offlineDb.categories.toArray().then(categories => ({ categories })))
+          : offlineDb.categories.toArray().then(categories => ({ categories })),
+      ])
 
-      const assignmentsMap: AssignmentsMap = {};
-      const dayNotesMap: DayNotesMap = {};
+      const assignmentsMap: AssignmentsMap = {}
+      const dayNotesMap: DayNotesMap = {}
       for (const day of daysData.days) {
-        assignmentsMap[String(day.id)] = day.assignments || [];
-        dayNotesMap[String(day.id)] = day.notes_items || [];
+        assignmentsMap[String(day.id)] = day.assignments || []
+        dayNotesMap[String(day.id)] = day.notes_items || []
       }
 
       set({
@@ -179,11 +157,11 @@ export const useTripStore = create<TripStoreState>((set, get) => ({
         tags: tagsData.tags,
         categories: categoriesData.categories,
         isLoading: false,
-      });
+      })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      set({ isLoading: false, error: message });
-      throw err;
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      set({ isLoading: false, error: message })
+      throw err
     }
   },
 
@@ -194,74 +172,65 @@ export const useTripStore = create<TripStoreState>((set, get) => ({
   hydrateActiveTrip: async (tripId: number | string) => {
     await Promise.all([
       get().refreshDays(tripId),
-      placeRepo
-        .list(tripId)
-        .then((d) => set({ places: d.places }))
-        .catch(() => {}),
-      packingRepo
-        .list(tripId)
-        .then((d) => set({ packingItems: d.items }))
-        .catch(() => {}),
-      todoRepo
-        .list(tripId)
-        .then((d) => set({ todoItems: d.items }))
-        .catch(() => {}),
+      placeRepo.list(tripId).then(d => set({ places: d.places })).catch(() => {}),
+      packingRepo.list(tripId).then(d => set({ packingItems: d.items })).catch(() => {}),
+      todoRepo.list(tripId).then(d => set({ todoItems: d.items })).catch(() => {}),
       get().loadBudgetItems(tripId),
       get().loadReservations(tripId),
       get().loadFiles(tripId),
-    ]);
+    ])
   },
 
   refreshDays: async (tripId: number | string) => {
     try {
-      const daysData = await dayRepo.list(tripId);
-      const assignmentsMap: AssignmentsMap = {};
-      const dayNotesMap: DayNotesMap = {};
+      const daysData = await dayRepo.list(tripId)
+      const assignmentsMap: AssignmentsMap = {}
+      const dayNotesMap: DayNotesMap = {}
       for (const day of daysData.days) {
-        assignmentsMap[String(day.id)] = day.assignments || [];
-        dayNotesMap[String(day.id)] = day.notes_items || [];
+        assignmentsMap[String(day.id)] = day.assignments || []
+        dayNotesMap[String(day.id)] = day.notes_items || []
       }
-      set({ days: daysData.days, assignments: assignmentsMap, dayNotes: dayNotesMap });
+      set({ days: daysData.days, assignments: assignmentsMap, dayNotes: dayNotesMap })
     } catch (err: unknown) {
-      console.error('Failed to refresh days:', err);
+      console.error('Failed to refresh days:', err)
     }
   },
 
   updateTrip: async (tripId: number | string, data: Partial<Trip>) => {
     try {
-      const result = await tripsApi.update(tripId, data);
-      set({ trip: result.trip });
-      const daysData = await dayRepo.list(tripId);
-      const assignmentsMap: AssignmentsMap = {};
-      const dayNotesMap: DayNotesMap = {};
+      const result = await tripsApi.update(tripId, data)
+      set({ trip: result.trip })
+      const daysData = await dayRepo.list(tripId)
+      const assignmentsMap: AssignmentsMap = {}
+      const dayNotesMap: DayNotesMap = {}
       for (const day of daysData.days) {
-        assignmentsMap[String(day.id)] = day.assignments || [];
-        dayNotesMap[String(day.id)] = day.notes_items || [];
+        assignmentsMap[String(day.id)] = day.assignments || []
+        dayNotesMap[String(day.id)] = day.notes_items || []
       }
-      set({ days: daysData.days, assignments: assignmentsMap, dayNotes: dayNotesMap });
-      return result.trip;
+      set({ days: daysData.days, assignments: assignmentsMap, dayNotes: dayNotesMap })
+      return result.trip
     } catch (err: unknown) {
-      throw new Error(getApiErrorMessage(err, 'Error updating trip'));
+      throw new Error(getApiErrorMessage(err, 'Error updating trip'))
     }
   },
 
   addTag: async (data: Partial<Tag> & { name: string }) => {
     try {
-      const result = await tagsApi.create(data);
-      set((state) => ({ tags: [...state.tags, result.tag] }));
-      return result.tag;
+      const result = await tagsApi.create(data)
+      set((state) => ({ tags: [...state.tags, result.tag] }))
+      return result.tag
     } catch (err: unknown) {
-      throw new Error(getApiErrorMessage(err, 'Error creating tag'));
+      throw new Error(getApiErrorMessage(err, 'Error creating tag'))
     }
   },
 
   addCategory: async (data: Partial<Category> & { name: string }) => {
     try {
-      const result = await categoriesApi.create(data);
-      set((state) => ({ categories: [...state.categories, result.category] }));
-      return result.category;
+      const result = await categoriesApi.create(data)
+      set((state) => ({ categories: [...state.categories, result.category] }))
+      return result.category
     } catch (err: unknown) {
-      throw new Error(getApiErrorMessage(err, 'Error creating category'));
+      throw new Error(getApiErrorMessage(err, 'Error creating category'))
     }
   },
 
@@ -274,4 +243,4 @@ export const useTripStore = create<TripStoreState>((set, get) => ({
   ...createBudgetSlice(set, get),
   ...createReservationsSlice(set, get),
   ...createFilesSlice(set, get),
-}));
+}))

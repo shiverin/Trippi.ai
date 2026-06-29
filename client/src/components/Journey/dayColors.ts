@@ -29,4 +29,4 @@ export const DAY_COLORS = [
   '#facc15', // yellow
   '#c026d3', // fuchsia-600
   '#0ea5e9', // sky-500
-];
+]

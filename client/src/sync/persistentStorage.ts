@@ -8,11 +8,11 @@
  */
 export async function requestPersistentStorage(): Promise<boolean> {
   try {
-    if (typeof navigator === 'undefined' || !navigator.storage?.persist) return false;
+    if (typeof navigator === 'undefined' || !navigator.storage?.persist) return false
     // Already persisted? Avoid re-prompting where the API distinguishes.
-    if (navigator.storage.persisted && (await navigator.storage.persisted())) return true;
-    return await navigator.storage.persist();
+    if (navigator.storage.persisted && (await navigator.storage.persisted())) return true
+    return await navigator.storage.persist()
   } catch {
-    return false;
+    return false
   }
 }

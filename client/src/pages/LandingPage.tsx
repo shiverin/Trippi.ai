@@ -1,4 +1,15 @@
-import { ArrowRight, Bell, ChevronDown, Compass, Github, Mail, Menu, Moon, PlayCircle, X } from 'lucide-react';
+import {
+  ArrowRight,
+  Bell,
+  ChevronDown,
+  Compass,
+  Github,
+  Mail,
+  Menu,
+  Moon,
+  PlayCircle,
+  X,
+} from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/landing.css';

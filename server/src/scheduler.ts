@@ -1,6 +1,6 @@
+import { logInfo, logError } from './services/auditLog';
 import { asyncDb } from './db/asyncDatabase';
 import { resolveDbProvider } from './db/providerMode';
-import { logInfo, logError } from './services/auditLog';
 
 import archiver from 'archiver';
 import cron, { type ScheduledTask } from 'node-cron';
@@ -220,13 +220,7 @@ async function listActiveReminderTrips(): Promise<
   }
 
   const { db } = require('./db/database');
-  return db.prepare(sql).all() as {
-    id: number;
-    title: string;
-    user_id: number;
-    start_date: string;
-    reminder_days: number;
-  }[];
+  return db.prepare(sql).all() as { id: number; title: string; user_id: number; start_date: string; reminder_days: number }[];
 }
 
 function startTripReminders(): void {
@@ -242,9 +236,7 @@ async function startTripRemindersAsync(): Promise<void> {
   try {
     const reminderEnabled = (await getAppSettingValue('notify_trip_reminder')) !== 'false';
     const channelsRaw =
-      (await getAppSettingValue('notification_channels')) ||
-      (await getAppSettingValue('notification_channel')) ||
-      'none';
+      (await getAppSettingValue('notification_channels')) || (await getAppSettingValue('notification_channel')) || 'none';
     const activeChannels = channelsRaw === 'none' ? [] : channelsRaw.split(',').map((c: string) => c.trim());
     if (!reminderEnabled) {
       logInfo('Trip reminders: disabled in settings');
@@ -314,10 +306,7 @@ function timestampValue(value: unknown): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-async function listDueTodos(
-  today: string,
-  dueCutoff: string,
-): Promise<
+async function listDueTodos(today: string, dueCutoff: string): Promise<
   {
     id: number;
     trip_id: number;
@@ -391,9 +380,9 @@ async function startTodoRemindersAsync(): Promise<void> {
       try {
         const { send } = require('./services/notificationService');
 
-        const today = dateOnly();
-        const dueCutoff = dateOnly(TODO_REMINDER_LEAD_DAYS);
-        const reminderCutoff = Date.now() - 20 * 60 * 60 * 1000;
+	        const today = dateOnly();
+	        const dueCutoff = dateOnly(TODO_REMINDER_LEAD_DAYS);
+	        const reminderCutoff = Date.now() - 20 * 60 * 60 * 1000;
         const todos = (await listDueTodos(today, dueCutoff)).filter((todo) => {
           const remindedAt = timestampValue(todo.reminded_at);
           return remindedAt === null || remindedAt <= reminderCutoff;
@@ -413,9 +402,9 @@ async function startTodoRemindersAsync(): Promise<void> {
               tripId: String(todo.trip_id),
               due: todo.due_date,
             },
-          }).catch(() => {});
+	          }).catch(() => {});
           await markTodoReminderSent(todo.id);
-        }
+	        }
 
         if (todos.length > 0) {
           logInfo(`Todo reminders sent for ${todos.length} item(s)`);

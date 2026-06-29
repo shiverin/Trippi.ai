@@ -8,8 +8,8 @@ import { tripRepo } from '../../repo/tripRepo';
 import { useAuthStore } from '../../store/authStore';
 import { getApiErrorMessage } from '../../types';
 import {
-  type DashboardTodo,
   type DashboardTrip,
+  type DashboardTodo,
   type HeroBundle,
   type TravelStats,
   type UpcomingReservation,

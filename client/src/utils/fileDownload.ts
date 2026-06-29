@@ -1,4 +1,4 @@
-import { getCachedBlob } from '../db/offlineDb';
+import { getCachedBlob } from '../db/offlineDb'
 
 // MIME types safe to open inline (will not execute script in any browser).
 // Everything else (text/html, image/svg+xml, text/javascript, …) is forced to
@@ -12,7 +12,7 @@ const SAFE_INLINE_TYPES = new Set([
   'image/avif',
   'image/bmp',
   'image/tiff',
-]);
+])
 
 /**
  * Asserts that `url` is a relative same-origin path so that
@@ -21,27 +21,24 @@ const SAFE_INLINE_TYPES = new Set([
  */
 function assertRelativeUrl(url: string): void {
   if (!url.startsWith('/') || url.startsWith('//') || url.startsWith('/\\')) {
-    throw new Error(`Refusing to fetch non-relative URL: ${url}`);
+    throw new Error(`Refusing to fetch non-relative URL: ${url}`)
   }
 }
 
 function triggerAnchorDownload(blobUrl: string, filename?: string): void {
-  const a = document.createElement('a');
-  a.href = blobUrl;
-  if (filename) a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    URL.revokeObjectURL(blobUrl);
-    a.remove();
-  }, 100);
+  const a = document.createElement('a')
+  a.href = blobUrl
+  if (filename) a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove() }, 100)
 }
 
 // navigator.standalone is true only on iOS when running as an
 // add-to-home-screen PWA. In that context, target="_blank" hands off to
 // Safari, which cannot access blob URLs sandboxed to the WebView.
 function isIosStandalone(): boolean {
-  return (navigator as any).standalone === true;
+  return (navigator as any).standalone === true
 }
 
 /**
@@ -53,26 +50,26 @@ function isIosStandalone(): boolean {
  * still reports true ("sometimes it works, sometimes it doesn't").
  */
 async function getFileBlob(url: string): Promise<Blob> {
-  assertRelativeUrl(url);
+  assertRelativeUrl(url)
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    const cached = await getCachedBlob(url);
-    if (cached) return cached;
-    throw new Error('File not available offline');
+    const cached = await getCachedBlob(url)
+    if (cached) return cached
+    throw new Error('File not available offline')
   }
-  let resp: Response;
+  let resp: Response
   try {
-    resp = await fetch(url, { credentials: 'include' });
+    resp = await fetch(url, { credentials: 'include' })
   } catch (err) {
     // Genuine network failure — the fetch itself rejected (offline, or a flaky
     // link even though navigator.onLine is true). Serve the pre-downloaded copy.
-    const cached = await getCachedBlob(url);
-    if (cached) return cached;
-    throw err;
+    const cached = await getCachedBlob(url)
+    if (cached) return cached
+    throw err
   }
   // The server answered: a non-ok status (401/403/404/…) is a real error and must
   // surface, not be masked by a stale cached copy.
-  if (!resp.ok) throw new Error(resp.status === 401 ? 'Unauthorized' : `HTTP ${resp.status}`);
-  return await resp.blob();
+  if (!resp.ok) throw new Error(resp.status === 401 ? 'Unauthorized' : `HTTP ${resp.status}`)
+  return await resp.blob()
 }
 
 /**
@@ -83,9 +80,9 @@ async function getFileBlob(url: string): Promise<Blob> {
  * cache when the network is unavailable.
  */
 export async function downloadFile(url: string, filename?: string): Promise<void> {
-  const blob = await getFileBlob(url);
-  const blobUrl = URL.createObjectURL(blob);
-  triggerAnchorDownload(blobUrl, filename);
+  const blob = await getFileBlob(url)
+  const blobUrl = URL.createObjectURL(blob)
+  triggerAnchorDownload(blobUrl, filename)
 }
 
 /**
@@ -106,31 +103,28 @@ export async function downloadFile(url: string, filename?: string): Promise<void
  * spurious in-page download is triggered.
  */
 export async function openFile(url: string, filename?: string): Promise<void> {
-  const blob = await getFileBlob(url);
-  const blobUrl = URL.createObjectURL(blob);
+  const blob = await getFileBlob(url)
+  const blobUrl = URL.createObjectURL(blob)
 
   // Force download for MIME types that can execute script when rendered inline
   if (!SAFE_INLINE_TYPES.has(blob.type)) {
-    triggerAnchorDownload(blobUrl, filename);
-    return;
+    triggerAnchorDownload(blobUrl, filename)
+    return
   }
 
   // iOS PWA: target="_blank" would open Safari, which can't access the blob
   if (isIosStandalone()) {
-    triggerAnchorDownload(blobUrl, filename);
-    return;
+    triggerAnchorDownload(blobUrl, filename)
+    return
   }
 
-  const a = document.createElement('a');
-  a.href = blobUrl;
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
-  document.body.appendChild(a);
-  a.click();
+  const a = document.createElement('a')
+  a.href = blobUrl
+  a.target = '_blank'
+  a.rel = 'noopener noreferrer'
+  document.body.appendChild(a)
+  a.click()
   // Keep the blob URL alive long enough for the new tab to load it, then
   // clean up the DOM node and revoke the URL.
-  setTimeout(() => {
-    URL.revokeObjectURL(blobUrl);
-    a.remove();
-  }, 30_000);
+  setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove() }, 30_000)
 }

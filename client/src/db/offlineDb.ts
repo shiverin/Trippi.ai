@@ -1,18 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type {
-  Accommodation,
-  BudgetItem,
-  Category,
-  Day,
-  PackingItem,
-  Place,
-  Reservation,
-  Tag,
-  TodoItem,
-  Trip,
-  TripFile,
-  TripMember,
-} from '../types';
+import type { Trip, Day, Place, PackingItem, TodoItem, BudgetItem, Reservation, TripFile, Accommodation, TripMember, Tag, Category } from '../types';
 
 /** TripMember enriched with tripId so we can index by trip. */
 export interface CachedTripMember extends TripMember {
@@ -123,41 +110,36 @@ class TrippiOfflineDb extends Dexie {
     super(name);
 
     this.version(1).stores({
-      trips: 'id',
-      days: 'id, trip_id',
-      places: 'id, trip_id',
+      trips:        'id',
+      days:         'id, trip_id',
+      places:       'id, trip_id',
       packingItems: 'id, trip_id',
-      todoItems: 'id, trip_id',
-      budgetItems: 'id, trip_id',
+      todoItems:    'id, trip_id',
+      budgetItems:  'id, trip_id',
       reservations: 'id, trip_id',
-      tripFiles: 'id, trip_id',
-      mutationQueue: 'id, tripId, status, createdAt',
-      syncMeta: 'tripId',
-      blobCache: 'url, cachedAt',
+      tripFiles:    'id, trip_id',
+      mutationQueue:'id, tripId, status, createdAt',
+      syncMeta:     'tripId',
+      blobCache:    'url, cachedAt',
     });
 
     this.version(2).stores({
       accommodations: 'id, trip_id',
-      tripMembers: '[tripId+id], tripId',
-      tags: 'id',
-      categories: 'id',
+      tripMembers:    '[tripId+id], tripId',
+      tags:           'id',
+      categories:     'id',
     });
 
     // v3: scope the blob cache by trip so it can be evicted with the trip and
     // bounded by an LRU budget (see enforceBlobBudget).
-    this.version(3)
-      .stores({
-        blobCache: 'url, cachedAt, tripId',
-      })
-      .upgrade(async (tx) => {
-        await tx
-          .table('blobCache')
-          .toCollection()
-          .modify((row: Partial<BlobCacheEntry>) => {
-            if (row.tripId == null) row.tripId = -1;
-            if (row.bytes == null) row.bytes = row.blob?.size ?? 0;
-          });
+    this.version(3).stores({
+      blobCache: 'url, cachedAt, tripId',
+    }).upgrade(async (tx) => {
+      await tx.table('blobCache').toCollection().modify((row: Partial<BlobCacheEntry>) => {
+        if (row.tripId == null) row.tripId = -1;
+        if (row.bytes == null) row.bytes = row.blob?.size ?? 0;
       });
+    });
   }
 }
 
@@ -203,11 +185,7 @@ export async function reopenAnonymous(): Promise<void> {
  */
 export async function deleteCurrentUserDb(): Promise<void> {
   if (_db.name !== ANON_DB_NAME) {
-    try {
-      await _db.delete();
-    } catch {
-      /* ignore — fall through to anon */
-    }
+    try { await _db.delete(); } catch { /* ignore — fall through to anon */ }
   }
   _db = new TrippiOfflineDb(ANON_DB_NAME);
   await _db.open();
@@ -252,7 +230,7 @@ export async function upsertAccommodations(items: Accommodation[]): Promise<void
 }
 
 export async function upsertTripMembers(tripId: number, members: TripMember[]): Promise<void> {
-  const rows: CachedTripMember[] = members.map((m) => ({ ...m, tripId }));
+  const rows: CachedTripMember[] = members.map(m => ({ ...m, tripId }));
   await offlineDb.tripMembers.bulkPut(rows);
 }
 
@@ -278,7 +256,9 @@ export async function getCachedBlob(url: string): Promise<Blob | null> {
   try {
     const entry = await offlineDb.blobCache.get(url);
     if (!entry) return null;
-    return entry.blob.type ? entry.blob : new Blob([entry.blob], { type: entry.mime || 'application/octet-stream' });
+    return entry.blob.type
+      ? entry.blob
+      : new Blob([entry.blob], { type: entry.mime || 'application/octet-stream' });
   } catch {
     return null;
   }
@@ -301,7 +281,7 @@ export const BLOB_CACHE_MAX_BYTES = 100 * 1024 * 1024; // 100 MB
  */
 export async function enforceBlobBudget(
   maxCount = BLOB_CACHE_MAX_ENTRIES,
-  maxBytes = BLOB_CACHE_MAX_BYTES
+  maxBytes = BLOB_CACHE_MAX_BYTES,
 ): Promise<void> {
   const entries = await offlineDb.blobCache.orderBy('cachedAt').toArray();
   let count = entries.length;
@@ -351,7 +331,7 @@ export async function clearTripData(tripId: number): Promise<void> {
       await offlineDb.mutationQueue.where('tripId').equals(tripId).delete();
       await offlineDb.syncMeta.where('tripId').equals(tripId).delete();
       await offlineDb.blobCache.where('tripId').equals(tripId).delete();
-    }
+    },
   );
   // Remove the trip row itself outside the transaction since it's a separate table
   await offlineDb.trips.delete(tripId);

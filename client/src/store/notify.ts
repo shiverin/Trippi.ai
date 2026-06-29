@@ -3,7 +3,7 @@
 // global `window.__addToast` channel that ToastContainer registers and that
 // SystemNoticeBanner already uses for the same reason.
 
-type NotifyType = 'success' | 'error' | 'warning' | 'info';
+type NotifyType = 'success' | 'error' | 'warning' | 'info'
 
 /**
  * Show a toast from outside the React tree. No-ops gracefully if the
@@ -12,6 +12,6 @@ type NotifyType = 'success' | 'error' | 'warning' | 'info';
  */
 export function notify(message: string, type: NotifyType = 'info', duration?: number): void {
   if (typeof window !== 'undefined' && typeof window.__addToast === 'function') {
-    window.__addToast(message, type, duration);
+    window.__addToast(message, type, duration)
   }
 }

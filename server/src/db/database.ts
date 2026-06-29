@@ -90,7 +90,9 @@ const db = new Proxy({} as Database.Database, {
   get(_, prop: string | symbol) {
     if (!_db) {
       if (isOracleAsync) {
-        throw new Error('Sync database access is disabled when TRIPPI_DB_PROVIDER=oracle-async. Use asyncDb instead.');
+        throw new Error(
+          'Sync database access is disabled when TRIPPI_DB_PROVIDER=oracle-async. Use asyncDb instead.',
+        );
       }
       throw new Error('Database connection is not available (restore in progress?)');
     }

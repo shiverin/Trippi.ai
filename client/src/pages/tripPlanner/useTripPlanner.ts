@@ -29,7 +29,7 @@ import { useTripStore } from '../../store/tripStore';
 import type { Accommodation, Day, Place, Reservation, TripMember } from '../../types';
 import { getTransportForDay } from '../../utils/dayMerge';
 import { getDayRelevantPlaceIds } from '../../utils/dayRelevantPlaceIds';
-import { resolvePoolAssignmentId } from './tripPlannerModel';
+import { buildDisplayedPinOrderMap, hasValidPlaceCoordinates, resolvePoolAssignmentId } from './tripPlannerModel';
 
 const TRANSPORT_TYPES = new Set([
   'flight',
@@ -431,7 +431,7 @@ export function useTripPlanner() {
         : null;
 
     return places.filter((p) => {
-      if (!p.lat || !p.lng) return false;
+      if (!hasValidPlaceCoordinates(p)) return false;
       if (selectedDayId && !dayRelevantPlaceIds.has(p.id)) return false;
       if (mapPlacesFilter === 'tracks' && !p.route_geometry) return false;
       if (mapCategoryFilter.size > 0) {
@@ -909,24 +909,16 @@ export function useTripPlanner() {
 
   const selectedPlace = selectedPlaceId ? places.find((p) => p.id === selectedPlaceId) : null;
 
-  // Build placeId → order-number map from the selected day's assignments
-  const dayOrderMap = useMemo(() => {
-    if (!selectedDayId) return {};
-    const da = assignments[String(selectedDayId)] || [];
-    const sorted = [...da].sort((a, b) => a.order_index - b.order_index);
-    const map = {};
-    sorted.forEach((a, i) => {
-      if (!a.place?.id) return;
-      if (!map[a.place.id]) map[a.place.id] = [];
-      map[a.place.id].push(i + 1);
-    });
-    return map;
-  }, [selectedDayId, assignments]);
+  // Build placeId → marker badge map from the pins that are actually visible.
+  const dayOrderMap = useMemo(
+    () => buildDisplayedPinOrderMap({ selectedDayId, assignments, mapPlaces }),
+    [selectedDayId, assignments, mapPlaces]
+  );
 
   // Places assigned to selected day (with coords) — used for map fitting
   const dayPlaces = useMemo(() => {
     if (!selectedDayId) return [];
-    return places.filter((p) => p?.lat && p?.lng && dayRelevantPlaceIds.has(p.id));
+    return places.filter((p) => hasValidPlaceCoordinates(p) && dayRelevantPlaceIds.has(p.id));
   }, [selectedDayId, places, dayRelevantPlaceIds]);
 
   const mapTileUrl = settings.map_tile_url || 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';

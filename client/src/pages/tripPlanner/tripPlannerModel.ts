@@ -4,7 +4,53 @@
  * the FE "page = wiring container + data hook" convention (see PATTERN.md).
  */
 
-import type { Assignment } from '../../types'
+import type { Assignment, Place } from '../../types'
+
+type MappablePlace = Pick<Place, 'id' | 'lat' | 'lng'>
+
+export function hasValidPlaceCoordinates(place: Pick<Place, 'lat' | 'lng'> | null | undefined): boolean {
+  return (
+    typeof place?.lat === 'number' &&
+    Number.isFinite(place.lat) &&
+    typeof place?.lng === 'number' &&
+    Number.isFinite(place.lng)
+  )
+}
+
+export function buildDisplayedPinOrderMap({
+  selectedDayId,
+  assignments,
+  mapPlaces,
+}: {
+  selectedDayId: number | null | undefined
+  assignments: Record<string | number, Assignment[]>
+  mapPlaces: MappablePlace[]
+}): Record<number, number[]> {
+  const displayedPlaces = mapPlaces.filter(hasValidPlaceCoordinates)
+  const displayedIds = new Set(displayedPlaces.map((place) => place.id))
+  const map: Record<number, number[]> = {}
+  let nextBadgeNumber = 1
+
+  const numberDisplayedPin = (placeId: number | null | undefined) => {
+    if (placeId == null || !displayedIds.has(placeId) || map[placeId]) return
+    map[placeId] = [nextBadgeNumber]
+    nextBadgeNumber += 1
+  }
+
+  if (selectedDayId) {
+    const dayAssignments = assignments[String(selectedDayId)] || []
+    const sorted = [...dayAssignments].sort((a, b) => a.order_index - b.order_index)
+    for (const assignment of sorted) {
+      numberDisplayedPin(assignment.place?.id)
+    }
+  }
+
+  for (const place of displayedPlaces) {
+    numberDisplayedPin(place.id)
+  }
+
+  return map
+}
 
 /**
  * Resolve the day-assignment to use when a place is edited from the Places pool,

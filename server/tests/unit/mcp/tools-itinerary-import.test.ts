@@ -527,6 +527,58 @@ describe('Tool: apply_itinerary_plan', () => {
     });
   });
 
+  it('falls back to approximate destination pins when geocoding is rate-limited', async () => {
+    const { user } = createUser(testDb);
+    searchPlacesMock.mockRejectedValue(new Error('Nominatim API error: 429 Too Many Requests'));
+
+    await withHarness(user.id, async (h) => {
+      const result = await h.client.callTool({
+        name: 'apply_itinerary_plan',
+        arguments: {
+          target: { kind: 'new_trip', title: 'Rate Limited Yunnan', currency: 'CNY' },
+          destination_context: 'Yunnan, China',
+          exportPdf: true,
+          days: [
+            {
+              day_number: 1,
+              city: 'Kunming',
+              activities: [
+                { title: 'Green Lake Park', category: 'nature', location: { query: 'Green Lake Park' } },
+                {
+                  title: 'High-speed train to Dali',
+                  category: 'transport',
+                  location: { query: 'Kunming Railway Station' },
+                },
+              ],
+            },
+            {
+              day_number: 2,
+              city: 'Dali',
+              activities: [
+                { title: 'Dali Ancient City', category: 'attraction', location: { query: 'Dali Ancient City' } },
+              ],
+            },
+          ],
+        },
+      });
+
+      const data = parseToolResult(result) as any;
+      expect(data.success).toBe(true);
+      expect(data.pdf).toMatchObject({ filename: 'yunnan.pdf', contentType: 'application/pdf' });
+      expect(data.warnings).toHaveLength(3);
+      expect(data.warnings[0]).toContain('geocoding was rate-limited');
+      expect((testDb.prepare('SELECT COUNT(*) AS count FROM trips').get() as { count: number }).count).toBe(1);
+      expect((testDb.prepare('SELECT COUNT(*) AS count FROM places').get() as { count: number }).count).toBe(3);
+      expect((testDb.prepare('SELECT COUNT(*) AS count FROM day_assignments').get() as { count: number }).count).toBe(
+        3,
+      );
+      expect(testDb.prepare("SELECT lat, lng FROM places WHERE name = 'Green Lake Park'").get()).toMatchObject({
+        lat: 25.0389,
+        lng: 102.7183,
+      });
+    });
+  });
+
   it('retries simplified geocoding queries before failing an import', async () => {
     const { user } = createUser(testDb);
     searchPlacesMock.mockImplementation(async (_userId: number, query: string) => ({

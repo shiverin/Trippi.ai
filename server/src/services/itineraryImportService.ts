@@ -12,9 +12,10 @@ import { randomUUID } from 'crypto';
 export const MAX_ITINERARY_IMPORT_DAYS = 90;
 export const MAX_ITINERARY_IMPORT_ACTIVITIES = 300;
 
-const GEO_CONCURRENCY = 6;
+const GEO_CONCURRENCY = 1;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const RATE_LIMIT_RETRY_DELAY_MS = 1300;
 
 export type ImportCategory =
   | 'attraction'
@@ -100,6 +101,7 @@ interface ResolvedLocation {
   website: string | null;
   phone: string | null;
   source: string | null;
+  approximate?: boolean;
 }
 
 interface ResolvedActivity extends ImportActivity {
@@ -337,6 +339,50 @@ function locationFromCandidate(candidate: Record<string, unknown>, fallback: Imp
   };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  return /\b429\b|too many requests|rate limit/i.test(message);
+}
+
+const APPROXIMATE_CENTERS: { pattern: RegExp; name: string; lat: number; lng: number }[] = [
+  { pattern: /\bkunming\b|昆明/i, name: 'Kunming', lat: 25.0389, lng: 102.7183 },
+  { pattern: /\bdali\b|大理/i, name: 'Dali', lat: 25.6065, lng: 100.2676 },
+  { pattern: /\blijiang\b|丽江|麗江/i, name: 'Lijiang', lat: 26.8565, lng: 100.2271 },
+  { pattern: /\byunnan\b|云南|雲南/i, name: 'Yunnan', lat: 25.0453, lng: 102.7097 },
+  { pattern: /\bchina\b|中国|中國/i, name: 'China', lat: 35.8617, lng: 104.1954 },
+];
+
+function approximateLocation(
+  location: ImportLocation,
+  city: string | undefined,
+  destinationContext: string | undefined,
+): ResolvedLocation | null {
+  const context = [location.query, location.address, location.name, city, destinationContext]
+    .filter(Boolean)
+    .join(', ');
+  const center = APPROXIMATE_CENTERS.find((candidate) => candidate.pattern.test(context));
+  if (!center) return null;
+
+  const label = clean(location.name) ?? clean(location.query) ?? center.name;
+  return {
+    name: label,
+    address: compactWhitespace([label, city, destinationContext].filter(Boolean).join(', ')),
+    lat: center.lat,
+    lng: center.lng,
+    google_place_id: clean(location.google_place_id) ?? null,
+    google_ftid: clean(location.google_ftid) ?? null,
+    osm_id: clean(location.osm_id) ?? null,
+    website: null,
+    phone: null,
+    source: 'approximate',
+    approximate: true,
+  };
+}
+
 function compactWhitespace(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
@@ -426,13 +472,13 @@ async function resolveLocation(
   destinationContext: string | undefined,
   lang: string | undefined,
   path: string,
-): Promise<ResolvedLocation> {
+): Promise<{ location: ResolvedLocation; warning?: string }> {
   const detailsId = clean(location.google_place_id) ?? clean(location.osm_id);
   if (detailsId) {
     try {
       const details = await getPlaceDetails(userId, detailsId, lang);
       const resolved = locationFromCandidate(details.place, location);
-      if (resolved) return resolved;
+      if (resolved) return { location: resolved };
     } catch {
       // Fall through to text search below. A stale provider ID should not make an
       // otherwise searchable itinerary impossible to import.
@@ -445,9 +491,29 @@ async function resolveLocation(
     try {
       const search = await searchPlaces(userId, query, lang);
       const match = search.places.map((candidate) => locationFromCandidate(candidate, location)).find(Boolean);
-      if (match) return match;
+      if (match) return { location: match };
     } catch (err) {
       lastSearchError = err instanceof Error ? err.message : 'Location search failed.';
+      if (isRateLimitError(err)) {
+        await sleep(RATE_LIMIT_RETRY_DELAY_MS);
+        try {
+          const retry = await searchPlaces(userId, query, lang);
+          const match = retry.places.map((candidate) => locationFromCandidate(candidate, location)).find(Boolean);
+          if (match) return { location: match };
+        } catch (retryErr) {
+          lastSearchError = retryErr instanceof Error ? retryErr.message : lastSearchError;
+        }
+
+        const approximate = approximateLocation(location, city, destinationContext);
+        if (approximate) {
+          return {
+            location: approximate,
+            warning: `${path}: geocoding was rate-limited; used approximate ${
+              city ?? destinationContext ?? 'destination'
+            } coordinates for "${location.query}".`,
+          };
+        }
+      }
     }
   }
 
@@ -475,12 +541,16 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: number): Promise<ResolvedDay[]> {
+async function resolveImportLocations(
+  input: ApplyItineraryPlanInput,
+  userId: number,
+): Promise<{ resolvedDays: ResolvedDay[]; warnings: string[] }> {
   const resolvedDays = input.days.map((day) => ({
     ...day,
     activities: day.activities.map((activity) => ({ ...activity }) as ResolvedActivity),
     accommodation: day.accommodation ? ({ ...day.accommodation } as ResolvedAccommodation) : undefined,
   }));
+  const warnings: string[] = [];
 
   const jobs: {
     path: string;
@@ -525,11 +595,12 @@ async function resolveImportLocations(input: ApplyItineraryPlanInput, userId: nu
       input.lang,
       job.path,
     );
-    job.apply(resolved);
-    return resolved;
+    job.apply(resolved.location);
+    if (resolved.warning) warnings.push(resolved.warning);
+    return resolved.location;
   });
 
-  return resolvedDays;
+  return { resolvedDays, warnings };
 }
 
 function loadCategoryLookup(): Map<string, number> {
@@ -707,7 +778,7 @@ export async function applyItineraryPlan(
   input: ApplyItineraryPlanInput,
 ): Promise<ApplyItineraryPlanResult> {
   validateInput(input);
-  const resolvedDays = await resolveImportLocations(input, userId);
+  const { resolvedDays, warnings } = await resolveImportLocations(input, userId);
   const batchId = `mcp_${randomUUID()}`;
   const counts = buildCounts();
   const events = buildEvents();
@@ -820,7 +891,7 @@ export async function applyItineraryPlan(
     trip: transactionResult.trip,
     batchId,
     counts,
-    warnings: [],
+    warnings,
     events,
   };
 

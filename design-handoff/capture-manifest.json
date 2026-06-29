@@ -1,42 +1,59 @@
 {
-  "capturedAt": "2026-06-27T16:55:13.708Z",
-  "baseURL": "http://127.0.0.1:5173",
+  "capturedAt": "2026-06-29T06:52:24.706Z",
+  "baseURL": "http://localhost:5173",
+  "seed": {
+    "mode": "DEMO_MODE",
+    "email": "admin@trippi.app",
+    "tripId": 3
+  },
   "screens": [
     {
       "name": "01-login-desktop",
       "file": "screens/01-login-desktop.png"
     },
     {
-      "name": "02-dashboard-empty-desktop",
-      "file": "screens/02-dashboard-empty-desktop.png"
+      "name": "02-dashboard-demo-desktop",
+      "file": "screens/02-dashboard-demo-desktop.png"
     },
     {
-      "name": "03-dashboard-with-trip-desktop",
-      "file": "screens/03-dashboard-with-trip-desktop.png"
+      "name": "03-trip-planner-desktop",
+      "file": "screens/03-trip-planner-desktop.png"
     },
     {
-      "name": "04-trip-planner-desktop",
-      "file": "screens/04-trip-planner-desktop.png"
+      "name": "04-trip-costs-desktop",
+      "file": "screens/04-trip-costs-desktop.png"
     },
     {
       "name": "05-trip-files-desktop",
       "file": "screens/05-trip-files-desktop.png"
     },
     {
-      "name": "06-settings-desktop",
-      "file": "screens/06-settings-desktop.png"
+      "name": "06-vacay-desktop",
+      "file": "screens/06-vacay-desktop.png"
     },
     {
-      "name": "07-admin-desktop",
-      "file": "screens/07-admin-desktop.png"
+      "name": "07-atlas-desktop",
+      "file": "screens/07-atlas-desktop.png"
     },
     {
-      "name": "08-dashboard-mobile",
-      "file": "screens/08-dashboard-mobile.png"
+      "name": "08-admin-desktop",
+      "file": "screens/08-admin-desktop.png"
     },
     {
-      "name": "09-trip-planner-mobile",
-      "file": "screens/09-trip-planner-mobile.png"
+      "name": "09-dashboard-mobile",
+      "file": "screens/09-dashboard-mobile.png"
+    },
+    {
+      "name": "10-trip-planner-mobile",
+      "file": "screens/10-trip-planner-mobile.png"
+    },
+    {
+      "name": "11-vacay-mobile",
+      "file": "screens/11-vacay-mobile.png"
+    },
+    {
+      "name": "12-atlas-mobile",
+      "file": "screens/12-atlas-mobile.png"
     }
   ]
 }

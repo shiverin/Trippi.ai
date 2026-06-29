@@ -43,7 +43,7 @@ export function useDashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
   const toast = useToast()
   const { t, locale } = useTranslation()
-  const { demoMode, authCheckFailed, loadUser } = useAuthStore()
+  const { demoMode, overlaysDisabled, authCheckFailed, loadUser } = useAuthStore()
 
   const toggleViewMode = () => {
     setViewMode(prev => {
@@ -183,7 +183,7 @@ export function useDashboard() {
 
   return {
     // cross-cutting
-    demoMode, locale, t, navigate,
+    demoMode, overlaysDisabled, locale, t, navigate,
     // data + derived
     spotlight, heroBundle, stats, upcoming, gridTrips, isLoading,
     loadError: loadError || authCheckFailed, retryLoad,

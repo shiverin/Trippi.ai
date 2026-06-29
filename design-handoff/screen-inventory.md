@@ -2,6 +2,25 @@
 
 Source: `client/src/App.tsx`
 
+## Current Capture Set
+
+Screens in `design-handoff/screens/` are captured from the live local app in demo mode with seeded data and UI overlays disabled. Planner captures default to the seeded New York City trip so the map pins are shown at city scale.
+
+| File | Viewport | Screen |
+| --- | --- | --- |
+| `01-login-desktop.png` | Desktop | Login |
+| `02-dashboard-demo-desktop.png` | Desktop | Demo dashboard with seeded trip data |
+| `03-trip-planner-desktop.png` | Desktop | Trip planner map |
+| `04-trip-costs-desktop.png` | Desktop | Trip costs |
+| `05-trip-files-desktop.png` | Desktop | Trip files |
+| `06-vacay-desktop.png` | Desktop | Vacay |
+| `07-atlas-desktop.png` | Desktop | Atlas map |
+| `08-admin-desktop.png` | Desktop | Admin |
+| `09-dashboard-mobile.png` | Mobile | Demo dashboard |
+| `10-trip-planner-mobile.png` | Mobile | Trip planner map |
+| `11-vacay-mobile.png` | Mobile | Vacay |
+| `12-atlas-mobile.png` | Mobile | Atlas map |
+
 ## Public Screens
 
 | Route | Screen | Notes |
@@ -51,4 +70,3 @@ Source: `client/src/App.tsx`
 - The app uses CSS custom properties for light and dark themes.
 - Icons come primarily from `lucide-react`.
 - There are no `*.figma.ts(x)` Code Connect files currently present.
-

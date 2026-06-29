@@ -11,6 +11,9 @@ import { setAuthed } from '../sync/authGate'
 import { unregisterSyncTriggers } from '../sync/syncTriggers'
 import { useSystemNoticeStore } from './systemNoticeStore.js'
 
+const BUILD_DISABLE_OVERLAYS =
+  (import.meta as { env?: { VITE_TRIPPI_DISABLE_OVERLAYS?: string } }).env?.VITE_TRIPPI_DISABLE_OVERLAYS === 'true'
+
 interface AuthResponse {
   user: User
   token: string
@@ -33,6 +36,7 @@ interface AuthState {
   authCheckFailed: boolean
   error: string | null
   demoMode: boolean
+  overlaysDisabled: boolean
   devMode: boolean
   isPrerelease: boolean
   appVersion: string
@@ -57,6 +61,7 @@ interface AuthState {
   uploadAvatar: (file: File) => Promise<AvatarResponse>
   deleteAvatar: () => Promise<void>
   setDemoMode: (val: boolean) => void
+  setOverlaysDisabled: (val: boolean) => void
   setDevMode: (val: boolean) => void
   setIsPrerelease: (val: boolean) => void
   setAppVersion: (val: string) => void
@@ -95,6 +100,7 @@ export const useAuthStore = create<AuthState>()(
   authCheckFailed: false,
   error: null,
   demoMode: localStorage.getItem('demo_mode') === 'true',
+  overlaysDisabled: BUILD_DISABLE_OVERLAYS,
   devMode: false,
   isPrerelease: false,
   appVersion: '',
@@ -124,7 +130,7 @@ export const useAuthStore = create<AuthState>()(
       await onAuthSuccess(data.user.id)
       connect()
       tripSyncManager.syncAll().catch(console.error)
-      if (!data.user?.must_change_password) {
+      if (!data.user?.must_change_password && !get().overlaysDisabled) {
         useSystemNoticeStore.getState().fetch()
       }
       return data as AuthResponse
@@ -149,7 +155,7 @@ export const useAuthStore = create<AuthState>()(
       await onAuthSuccess(data.user.id)
       connect()
       tripSyncManager.syncAll().catch(console.error)
-      if (!data.user?.must_change_password) {
+      if (!data.user?.must_change_password && !get().overlaysDisabled) {
         useSystemNoticeStore.getState().fetch()
       }
       return data as AuthResponse
@@ -174,7 +180,9 @@ export const useAuthStore = create<AuthState>()(
       await onAuthSuccess(data.user.id)
       connect()
       tripSyncManager.syncAll().catch(console.error)
-      useSystemNoticeStore.getState().fetch()
+      if (!get().overlaysDisabled) {
+        useSystemNoticeStore.getState().fetch()
+      }
       return data
     } catch (err: unknown) {
       const error = getApiErrorMessage(err, 'Registration failed')
@@ -311,6 +319,7 @@ export const useAuthStore = create<AuthState>()(
     set({ demoMode: val })
   },
 
+  setOverlaysDisabled: (val: boolean) => set({ overlaysDisabled: BUILD_DISABLE_OVERLAYS || val }),
   setDevMode: (val: boolean) => set({ devMode: val }),
   setIsPrerelease: (val: boolean) => set({ isPrerelease: val }),
   setAppVersion: (val: string) => set({ appVersion: val }),

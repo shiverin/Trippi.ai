@@ -25,13 +25,24 @@ const { canAccessTrip } = vi.hoisted(() => ({ canAccessTrip: vi.fn() }));
 vi.mock('../../src/db/database', () => ({
   db, canAccessTrip, isOwner: vi.fn(() => true), getPlaceWithTags: vi.fn(), closeDb: () => {}, reinitialize: () => {},
 }));
-vi.mock('../../src/db/asyncDatabase', async () => {
-  const actual = await vi.importActual<typeof import('../../src/db/asyncDatabase')>('../../src/db/asyncDatabase');
-  return {
-    ...actual,
-    canAccessTripAsync: async (tripId: string | number, userId: number) => canAccessTrip(tripId, userId),
-  };
-});
+vi.mock('../../src/db/asyncDatabase', () => ({
+  asyncDb: {
+    prepare: (sql: string) => {
+      const statement = db.prepare(sql);
+      return {
+        get: async (...args: unknown[]) => statement.get(...args),
+        all: async (...args: unknown[]) => statement.all(...args),
+        run: async (...args: unknown[]) => statement.run(...args),
+      };
+    },
+    exec: async (sql: string) => {
+      db.exec(sql);
+    },
+    close: async () => {},
+  },
+  canAccessTripAsync: async (tripId: string | number, userId: number) => canAccessTrip(tripId, userId),
+  closeAsyncDb: async () => {},
+}));
 vi.mock('../../src/websocket', () => ({ broadcast: vi.fn() }));
 vi.mock('../../src/services/journeyService', () => ({ onPlaceCreated: vi.fn(), onPlaceUpdated: vi.fn(), onPlaceDeleted: vi.fn() }));
 

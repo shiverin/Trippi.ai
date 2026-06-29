@@ -13,12 +13,12 @@ export default defineConfig({
     ],
     setupFiles: ['tests/setup.ts'],
     // The full client suite is DOM-heavy and can saturate local/CI CPUs when
-    // Vitest fans out too many fork workers, causing unrelated user-event tests
-    // to hit 15s timeouts. Match the server timeout and cap workers for stability.
+    // Vitest fans out fork workers, causing unrelated user-event tests to hit
+    // timeouts. Match the server timeout and keep this serial for stability.
     testTimeout: 30000,
     hookTimeout: 30000,
     pool: 'forks',
-    maxWorkers: 4,
+    maxWorkers: 1,
     silent: false,
     reporters: ['verbose'],
     coverage: {

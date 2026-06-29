@@ -46,6 +46,14 @@ vi.mock('../../src/config', () => ({
   DEFAULT_LANGUAGE: 'en',
 }));
 vi.mock('../../src/websocket', () => ({ broadcast: vi.fn(), broadcastToUser: vi.fn() }));
+vi.mock('../../src/services/auditLog', async () => {
+  const actual = await vi.importActual<typeof import('../../src/services/auditLog')>('../../src/services/auditLog');
+  return {
+    ...actual,
+    writeAudit: vi.fn(),
+    writeAuditAsync: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 // Mock filesystem-dependent service functions to avoid real disk I/O in tests
 vi.mock('../../src/services/backupService', async () => {

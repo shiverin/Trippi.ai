@@ -655,9 +655,12 @@ describe('AtlasPage', () => {
         // Popup appeared — verify its content
         expect(screen.getAllByText(/add to bucket list/i).length).toBeGreaterThan(0);
 
-        // Click Mark as visited (inline handler on the choose type button)
+        // Click Mark as visited (inline handler on the choose type button).
+        // Use fireEvent here because this popup can be torn down immediately after
+        // the optimistic API action, and userEvent may wait on an element that is
+        // already leaving the DOM in full-suite runs.
         const markBtn = screen.getByText(/mark as visited/i);
-        await user.click(markBtn);
+        fireEvent.click(markBtn);
 
         await waitFor(() => {
           expect(screen.queryByText(/mark as visited/i)).not.toBeInTheDocument();

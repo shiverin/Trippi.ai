@@ -85,6 +85,8 @@ beforeEach(() => {
   resetTestDb(testDb);
   resetRateLimits(nestApp);
   invalidatePermissionsCache();
+  vi.mocked(placeService.importGoogleList).mockReset();
+  vi.mocked(placeService.searchPlaceImage).mockReset();
 });
 
 afterAll(async () => {

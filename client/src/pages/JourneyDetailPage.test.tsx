@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildUser } from '../../tests/helpers/factories';
 import { server } from '../../tests/helpers/msw/server';
-import { cleanup, render, screen, waitFor } from '../../tests/helpers/render';
+import { cleanup, fireEvent, render, screen, waitFor } from '../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../tests/helpers/store';
 import { useAuthStore } from '../store/authStore';
 import { useJourneyStore } from '../store/journeyStore';
@@ -3548,9 +3548,10 @@ describe('JourneyDetailPage', () => {
       const fileInput = document.querySelector('input[type="file"][accept="image/*"][multiple]') as HTMLInputElement;
       expect(fileInput).toBeTruthy();
 
-      // Simulate file selection
+      // Drive the hidden input directly; userEvent.upload can hang under this
+      // file's fake-timer setup in the full-suite run.
       const testFile = new File(['fake-content'], 'test-photo.jpg', { type: 'image/jpeg' });
-      await user.upload(fileInput, testFile);
+      fireEvent.change(fileInput, { target: { files: [testFile] } });
 
       await waitFor(() => {
         expect(uploadCalled).toBe(true);

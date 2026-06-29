@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { HttpException } from '@nestjs/common';
 import type { Request } from 'express';
 
@@ -62,7 +62,14 @@ async function thrownAsync(fn: () => Promise<unknown>): Promise<{ status: number
   throw new Error('expected throw');
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.useRealTimers();
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('JwtAuthGuard', () => {
   const guard = new JwtAuthGuard();

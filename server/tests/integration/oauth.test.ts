@@ -34,6 +34,53 @@ const { testDb, dbMock } = vi.hoisted(() => {
 });
 
 vi.mock('../../src/db/database', () => dbMock);
+vi.mock('../../src/db/asyncDatabase', () => {
+    const makeStatement = (sql: string) => {
+        const statement = testDb.prepare(sql);
+        return {
+            get: async (...args: unknown[]) => statement.get(...args),
+            all: async (...args: unknown[]) => statement.all(...args),
+            run: async (...args: unknown[]) => statement.run(...args),
+        };
+    };
+    const makeTransaction = <Args extends unknown[], Result>(
+        fn: (...args: Args) => Result | Promise<Result>,
+    ) => {
+        const run = async (...args: Args): Promise<Awaited<Result>> => {
+            testDb.exec('BEGIN');
+            try {
+                const result = await fn(...args);
+                testDb.exec('COMMIT');
+                return result as Awaited<Result>;
+            } catch (err) {
+                testDb.exec('ROLLBACK');
+                throw err;
+            }
+        };
+        return Object.assign(run, {
+            default: run,
+            deferred: run,
+            immediate: run,
+            exclusive: run,
+        });
+    };
+
+    return {
+        asyncDb: {
+            prepare: makeStatement,
+            exec: async (sql: string) => {
+                testDb.exec(sql);
+            },
+            transaction: makeTransaction,
+            pragma: async (source: string) => testDb.pragma(source),
+            close: async () => {},
+        },
+        closeAsyncDb: async () => {},
+        getPlaceWithTagsAsync: async (placeId: number | string) => dbMock.getPlaceWithTags(placeId),
+        canAccessTripAsync: async (tripId: number | string, userId: number) => dbMock.canAccessTrip(tripId, userId),
+        isOwnerAsync: async (tripId: number | string, userId: number) => dbMock.isOwner(tripId, userId),
+    };
+});
 vi.mock('../../src/config', () => ({
     JWT_SECRET: 'test-jwt-secret-for-trippi-testing-only',
     ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',

@@ -25,6 +25,7 @@ describe('itemWeight (bag total weight calc)', () => {
 });
 
 beforeEach(() => {
+  vi.useRealTimers();
   resetAllStores();
   // Side-effect APIs PackingListPanel calls on mount
   server.use(
@@ -35,6 +36,10 @@ beforeEach(() => {
   );
   seedStore(useAuthStore, { user: buildUser(), isAuthenticated: true });
   seedStore(useTripStore, { trip: buildTrip({ id: 1 }) });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('PackingListPanel', () => {

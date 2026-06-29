@@ -6,7 +6,10 @@ vi.useFakeTimers();
 // Prevent real HTTP requests
 vi.stubGlobal('fetch', vi.fn());
 
-afterAll(() => vi.unstubAllGlobals());
+afterAll(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 import {
   estimateCondition,

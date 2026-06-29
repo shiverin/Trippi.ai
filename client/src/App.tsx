@@ -16,6 +16,7 @@ import InAppNotificationsPage from './pages/InAppNotificationsPage.tsx';
 import JourneyDetailPage from './pages/JourneyDetailPage';
 import JourneyPage from './pages/JourneyPage';
 import JourneyPublicPage from './pages/JourneyPublicPage';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import OAuthAuthorizePage from './pages/OAuthAuthorizePage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
@@ -82,7 +83,7 @@ function ProtectedRoute({ children, adminRequired = false, addonId }: ProtectedR
   );
 }
 
-function RootRedirect() {
+function RootRoute() {
   const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
@@ -93,7 +94,7 @@ function RootRedirect() {
     );
   }
 
-  return <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />;
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />;
 }
 
 export default function App() {
@@ -240,14 +241,15 @@ export default function App() {
     location.pathname.startsWith('/register') ||
     location.pathname.startsWith('/forgot-password') ||
     location.pathname.startsWith('/reset-password');
+  const isLandingPage = location.pathname === '/';
 
   return (
     <TranslationProvider>
-      {!isAuthPage && <SystemNoticeHost />}
+      {!isAuthPage && !isLandingPage && <SystemNoticeHost />}
       <ToastContainer />
-      <OfflineBanner />
+      {!isLandingPage && <OfflineBanner />}
       <Routes>
-        <Route path="/" element={<RootRedirect />} />
+        <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/shared/:token" element={<SharedTripPage />} />
         <Route path="/public/journey/:token" element={<JourneyPublicPage />} />

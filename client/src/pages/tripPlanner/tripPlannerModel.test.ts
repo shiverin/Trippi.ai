@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolvePoolAssignmentId } from './tripPlannerModel'
+import { buildDisplayedPinOrderMap, hasValidPlaceCoordinates, resolvePoolAssignmentId } from './tripPlannerModel'
 import { buildAssignment, buildPlace } from '../../../tests/helpers/factories'
 
 describe('resolvePoolAssignmentId', () => {
@@ -21,5 +21,79 @@ describe('resolvePoolAssignmentId', () => {
       4: [buildAssignment({ id: 2, day_id: 4, place: buildPlace({ id: 7 }) })],
     }
     expect(resolvePoolAssignmentId(assignments, 7)).toBeNull()
+  })
+})
+
+describe('hasValidPlaceCoordinates', () => {
+  it('treats numeric zero coordinates as valid', () => {
+    expect(hasValidPlaceCoordinates(buildPlace({ lat: 0, lng: 0 }))).toBe(true)
+  })
+
+  it('rejects missing coordinates', () => {
+    expect(hasValidPlaceCoordinates(buildPlace({ lat: null, lng: 103.8 }))).toBe(false)
+    expect(hasValidPlaceCoordinates(buildPlace({ lat: 1.3, lng: null }))).toBe(false)
+  })
+})
+
+describe('buildDisplayedPinOrderMap', () => {
+  it('numbers selected-day pins contiguously after hidden and ungeocoded stops are skipped', () => {
+    const first = buildPlace({ id: 10, lat: 31.2, lng: 121.5 })
+    const hidden = buildPlace({ id: 20, lat: 31.3, lng: 121.6 })
+    const second = buildPlace({ id: 30, lat: 31.4, lng: 121.7 })
+    const ungeocoded = buildPlace({ id: 40, lat: null, lng: null })
+    const extraVisible = buildPlace({ id: 50, lat: 31.5, lng: 121.8 })
+
+    const orderMap = buildDisplayedPinOrderMap({
+      selectedDayId: 5,
+      assignments: {
+        5: [
+          buildAssignment({ day_id: 5, order_index: 0, place: first }),
+          buildAssignment({ day_id: 5, order_index: 1, place: hidden }),
+          buildAssignment({ day_id: 5, order_index: 2, place: second }),
+          buildAssignment({ day_id: 5, order_index: 3, place: ungeocoded }),
+        ],
+      },
+      mapPlaces: [first, second, ungeocoded, extraVisible],
+    })
+
+    expect(orderMap).toEqual({
+      10: [1],
+      30: [2],
+      50: [3],
+    })
+  })
+
+  it('assigns one badge per displayed pin when a place appears multiple times in the timeline', () => {
+    const place = buildPlace({ id: 10, lat: 31.2, lng: 121.5 })
+
+    const orderMap = buildDisplayedPinOrderMap({
+      selectedDayId: 5,
+      assignments: {
+        5: [
+          buildAssignment({ day_id: 5, order_index: 0, place }),
+          buildAssignment({ day_id: 5, order_index: 3, place }),
+        ],
+      },
+      mapPlaces: [place],
+    })
+
+    expect(orderMap).toEqual({ 10: [1] })
+  })
+
+  it('numbers all visible pins in map order when no day is selected', () => {
+    const first = buildPlace({ id: 10, lat: 0, lng: 0 })
+    const hidden = buildPlace({ id: 20, lat: null, lng: 103.8 })
+    const second = buildPlace({ id: 30, lat: 1.3, lng: 103.9 })
+
+    const orderMap = buildDisplayedPinOrderMap({
+      selectedDayId: null,
+      assignments: {},
+      mapPlaces: [first, hidden, second],
+    })
+
+    expect(orderMap).toEqual({
+      10: [1],
+      30: [2],
+    })
   })
 })

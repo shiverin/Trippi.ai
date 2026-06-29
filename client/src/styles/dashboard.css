@@ -787,6 +787,9 @@
   bottom: 18px;
   opacity: 0.55;
 }
+.trek-dash .atlas-card:last-child .spark {
+  right: -4px;
+}
 .trek-dash .spark polyline,
 .trek-dash .spark path,
 .trek-dash .spark circle:not([stroke]) {

@@ -156,14 +156,14 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
     }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
+      if (!(await hasTripPermission('reservation_edit', tripId, userId))) return permissionDenied();
 
-      if (start_day_id && !getDay(start_day_id, tripId))
+      if (start_day_id && !(await getDay(start_day_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'start_day_id does not belong to this trip.' }],
           isError: true,
         };
-      if (end_day_id && !getDay(end_day_id, tripId))
+      if (end_day_id && !(await getDay(end_day_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'end_day_id does not belong to this trip.' }],
           isError: true,
@@ -175,7 +175,7 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
       const meta: Record<string, string> = { ...(metadata ?? {}) };
       if (price != null) meta.price = String(price);
 
-      const { reservation } = createReservation(tripId, {
+      const { reservation } = await createReservation(tripId, {
         title,
         type,
         reservation_time,
@@ -192,7 +192,7 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
       });
 
       if (price != null && price > 0) {
-        const item = linkBudgetItemToReservation(tripId, reservation.id, {
+        const item = await linkBudgetItemToReservation(tripId, reservation.id, {
           name: title,
           category: budget_category || type,
           total_price: price,
@@ -251,9 +251,9 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
     }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
+      if (!(await hasTripPermission('reservation_edit', tripId, userId))) return permissionDenied();
 
-      const existing = getReservation(reservationId, tripId);
+      const existing = await getReservation(reservationId, tripId);
       if (!existing) return { content: [{ type: 'text' as const, text: 'Transport not found.' }], isError: true };
 
       const resolvedType = type ?? existing.type;
@@ -265,12 +265,12 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
           isError: true,
         };
 
-      if (start_day_id && !getDay(start_day_id, tripId))
+      if (start_day_id && !(await getDay(start_day_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'start_day_id does not belong to this trip.' }],
           isError: true,
         };
-      if (end_day_id && !getDay(end_day_id, tripId))
+      if (end_day_id && !(await getDay(end_day_id, tripId)))
         return {
           content: [{ type: 'text' as const, text: 'end_day_id does not belong to this trip.' }],
           isError: true,
@@ -284,7 +284,7 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
         resolvedEndpoints = resolved.endpoints;
       }
 
-      const { reservation } = updateReservation(
+      const { reservation } = await updateReservation(
         reservationId,
         tripId,
         {
@@ -321,8 +321,8 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
     async ({ tripId, reservationId }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
-      if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
-      const { deleted } = deleteReservation(reservationId, tripId);
+      if (!(await hasTripPermission('reservation_edit', tripId, userId))) return permissionDenied();
+      const { deleted } = await deleteReservation(reservationId, tripId);
       if (!deleted) return { content: [{ type: 'text' as const, text: 'Transport not found.' }], isError: true };
       safeBroadcast(tripId, 'reservation:deleted', { reservationId });
       return ok({ success: true });

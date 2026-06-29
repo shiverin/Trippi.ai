@@ -132,33 +132,33 @@ describe('BudgetService', () => {
   });
 
   describe('syncReservationPrice', () => {
-    it('returns early when the reservation is not found', () => {
+    it('returns early when the reservation is not found', async () => {
       dbMock._stmt.get.mockReturnValueOnce(undefined);
-      svc().syncReservationPrice('5', 42, 250, 'sock');
+      await svc().syncReservationPrice('5', 42, 250, 'sock');
       expect(dbMock._stmt.run).not.toHaveBeenCalled();
       expect(broadcast).not.toHaveBeenCalled();
     });
 
-    it('merges into existing metadata and broadcasts reservation:updated', () => {
+    it('merges into existing metadata and broadcasts reservation:updated', async () => {
       dbMock._stmt.get
         .mockReturnValueOnce({ id: 42, metadata: '{"vendor":"ACME"}' }) // lookup
         .mockReturnValueOnce({ id: 42, metadata: '{"vendor":"ACME","price":"250"}' }); // reload
-      svc().syncReservationPrice('5', 42, 250, 'sock');
+      await svc().syncReservationPrice('5', 42, 250, 'sock');
       const writtenMeta = JSON.parse(dbMock._stmt.run.mock.calls[0][0] as string);
       expect(writtenMeta).toEqual({ vendor: 'ACME', price: '250' });
       expect(broadcast).toHaveBeenCalledWith('5', 'reservation:updated', { reservation: { id: 42, metadata: '{"vendor":"ACME","price":"250"}' } }, 'sock');
     });
 
-    it('starts from an empty object when the reservation has no metadata', () => {
+    it('starts from an empty object when the reservation has no metadata', async () => {
       dbMock._stmt.get.mockReturnValueOnce({ id: 42, metadata: null }).mockReturnValueOnce({ id: 42 });
-      svc().syncReservationPrice('5', 42, 99, undefined);
+      await svc().syncReservationPrice('5', 42, 99, undefined);
       const writtenMeta = JSON.parse(dbMock._stmt.run.mock.calls[0][0] as string);
       expect(writtenMeta).toEqual({ price: '99' });
     });
 
-    it('swallows errors so a sync failure never breaks the budget update', () => {
+    it('swallows errors so a sync failure never breaks the budget update', async () => {
       dbMock.prepare.mockImplementationOnce(() => { throw new Error('db gone'); });
-      expect(() => svc().syncReservationPrice('5', 42, 250, 'sock')).not.toThrow();
+      await expect(svc().syncReservationPrice('5', 42, 250, 'sock')).resolves.toBeUndefined();
       expect(broadcast).not.toHaveBeenCalled();
     });
   });

@@ -35,32 +35,32 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('MapsService', () => {
   describe('kill-switch settings reads', () => {
-    it('reports a switch disabled when the stored value is exactly "false"', () => {
-      expect(svc({ value: 'false' }).autocompleteDisabled()).toBe(true);
-      expect(svc({ value: 'false' }).detailsDisabled()).toBe(true);
-      expect(svc({ value: 'false' }).photosDisabled()).toBe(true);
+    it('reports a switch disabled when the stored value is exactly "false"', async () => {
+      expect(await svc({ value: 'false' }).autocompleteDisabled()).toBe(true);
+      expect(await svc({ value: 'false' }).detailsDisabled()).toBe(true);
+      expect(await svc({ value: 'false' }).photosDisabled()).toBe(true);
     });
 
-    it('reports enabled when the value is "true"', () => {
-      expect(svc({ value: 'true' }).autocompleteDisabled()).toBe(false);
-      expect(svc({ value: 'true' }).detailsDisabled()).toBe(false);
-      expect(svc({ value: 'true' }).photosDisabled()).toBe(false);
+    it('reports enabled when the value is "true"', async () => {
+      expect(await svc({ value: 'true' }).autocompleteDisabled()).toBe(false);
+      expect(await svc({ value: 'true' }).detailsDisabled()).toBe(false);
+      expect(await svc({ value: 'true' }).photosDisabled()).toBe(false);
     });
 
-    it('reports enabled when the setting row is absent', () => {
-      expect(svc(undefined).autocompleteDisabled()).toBe(false);
-      expect(svc(undefined).detailsDisabled()).toBe(false);
-      expect(svc(undefined).photosDisabled()).toBe(false);
+    it('reports enabled when the setting row is absent', async () => {
+      expect(await svc(undefined).autocompleteDisabled()).toBe(false);
+      expect(await svc(undefined).detailsDisabled()).toBe(false);
+      expect(await svc(undefined).photosDisabled()).toBe(false);
     });
 
-    it('queries the matching app_settings key', () => {
+    it('queries the matching app_settings key', async () => {
       const { db, get } = makeDb({ value: 'true' });
       const s = new MapsService(db);
-      s.autocompleteDisabled();
+      await s.autocompleteDisabled();
       expect(get).toHaveBeenCalledWith(expect.stringContaining('app_settings'), 'places_autocomplete_enabled');
-      s.detailsDisabled();
+      await s.detailsDisabled();
       expect(get).toHaveBeenCalledWith(expect.any(String), 'places_details_enabled');
-      s.photosDisabled();
+      await s.photosDisabled();
       expect(get).toHaveBeenCalledWith(expect.any(String), 'places_photos_enabled');
     });
   });

@@ -55,7 +55,7 @@ export class DaysService {
     return dayService.updateDay(id, current, fields);
   }
 
-  remove(id: string): void {
-    dayService.deleteDay(id);
+  remove(id: string) {
+    return dayService.deleteDay(id);
   }
 }

@@ -106,7 +106,7 @@ describe('canAccessJourney', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id, { title: 'My Journey' });
 
-    const result = canAccessJourney(journey.id, user.id);
+    const result = await canAccessJourney(journey.id, user.id);
 
     expect(result).not.toBeNull();
     expect(result!.id).toBe(journey.id);
@@ -119,7 +119,7 @@ describe('canAccessJourney', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, contrib.id, 'editor');
 
-    const result = canAccessJourney(journey.id, contrib.id);
+    const result = await canAccessJourney(journey.id, contrib.id);
 
     expect(result).not.toBeNull();
     expect(result!.id).toBe(journey.id);
@@ -130,7 +130,7 @@ describe('canAccessJourney', () => {
     const { user: stranger } = createUser(testDb);
     const journey = createJourney(testDb, owner.id);
 
-    const result = canAccessJourney(journey.id, stranger.id);
+    const result = await canAccessJourney(journey.id, stranger.id);
 
     expect(result).toBeNull();
   });
@@ -141,7 +141,7 @@ describe('isOwner', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    expect(isOwner(journey.id, user.id)).toBe(true);
+    expect(await isOwner(journey.id, user.id)).toBe(true);
   });
 
   it('JOURNEY-SVC-005: returns false for contributor', async () => {
@@ -150,7 +150,7 @@ describe('isOwner', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, contrib.id, 'editor');
 
-    expect(isOwner(journey.id, contrib.id)).toBe(false);
+    expect(await isOwner(journey.id, contrib.id)).toBe(false);
   });
 
   it('JOURNEY-SVC-006: returns false for stranger', async () => {
@@ -158,7 +158,7 @@ describe('isOwner', () => {
     const { user: stranger } = createUser(testDb);
     const journey = createJourney(testDb, owner.id);
 
-    expect(isOwner(journey.id, stranger.id)).toBe(false);
+    expect(await isOwner(journey.id, stranger.id)).toBe(false);
   });
 });
 
@@ -167,7 +167,7 @@ describe('canEdit', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    expect(canEdit(journey.id, user.id)).toBe(true);
+    expect(await canEdit(journey.id, user.id)).toBe(true);
   });
 
   it('JOURNEY-SVC-008: editor contributor can edit', async () => {
@@ -176,7 +176,7 @@ describe('canEdit', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, editor.id, 'editor');
 
-    expect(canEdit(journey.id, editor.id)).toBe(true);
+    expect(await canEdit(journey.id, editor.id)).toBe(true);
   });
 
   it('JOURNEY-SVC-009: viewer contributor cannot edit', async () => {
@@ -185,7 +185,7 @@ describe('canEdit', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, viewer.id, 'viewer');
 
-    expect(canEdit(journey.id, viewer.id)).toBe(false);
+    expect(await canEdit(journey.id, viewer.id)).toBe(false);
   });
 
   it('JOURNEY-SVC-010: stranger cannot edit', async () => {
@@ -193,7 +193,7 @@ describe('canEdit', () => {
     const { user: stranger } = createUser(testDb);
     const journey = createJourney(testDb, owner.id);
 
-    expect(canEdit(journey.id, stranger.id)).toBe(false);
+    expect(await canEdit(journey.id, stranger.id)).toBe(false);
   });
 });
 
@@ -206,7 +206,7 @@ describe('listJourneys', () => {
     createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01', location_name: 'Paris' });
     createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-02', location_name: 'Lyon' });
 
-    const result = listJourneys(user.id);
+    const result = await listJourneys(user.id);
 
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe('Road Trip');
@@ -220,7 +220,7 @@ describe('listJourneys', () => {
     const journey = createJourney(testDb, owner.id, { title: 'Shared Trip' });
     addJourneyContributor(testDb, journey.id, contrib.id, 'editor');
 
-    const result = listJourneys(contrib.id);
+    const result = await listJourneys(contrib.id);
 
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe('Shared Trip');
@@ -231,7 +231,7 @@ describe('listJourneys', () => {
     const { user: other } = createUser(testDb);
     createJourney(testDb, owner.id, { title: 'Private' });
 
-    const result = listJourneys(other.id);
+    const result = await listJourneys(other.id);
 
     expect(result).toHaveLength(0);
   });
@@ -244,7 +244,7 @@ describe('listJourneys', () => {
     await addTripToJourney(journey.id, trip1.id, user.id);
     await addTripToJourney(journey.id, trip2.id, user.id);
 
-    const result = listJourneys(user.id);
+    const result = await listJourneys(user.id);
 
     expect(result).toHaveLength(1);
     expect(result[0].trip_date_min).toBe('2025-06-01');
@@ -294,7 +294,7 @@ describe('getJourneyFull', () => {
       story: 'Arrived!',
     });
 
-    const result = getJourneyFull(journey.id, user.id);
+    const result = await getJourneyFull(journey.id, user.id);
 
     expect(result).not.toBeNull();
     expect(result!.title).toBe('Full Journey');
@@ -309,7 +309,7 @@ describe('getJourneyFull', () => {
     const { user: stranger } = createUser(testDb);
     const journey = createJourney(testDb, owner.id);
 
-    const result = getJourneyFull(journey.id, stranger.id);
+    const result = await getJourneyFull(journey.id, stranger.id);
 
     expect(result).toBeNull();
   });
@@ -320,7 +320,7 @@ describe('updateJourney', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id, { title: 'Old Title' });
 
-    const updated = updateJourney(journey.id, user.id, { title: 'New Title', subtitle: 'New Sub' });
+    const updated = await updateJourney(journey.id, user.id, { title: 'New Title', subtitle: 'New Sub' });
 
     expect(updated).not.toBeNull();
     expect(updated!.title).toBe('New Title');
@@ -335,7 +335,7 @@ describe('updateJourney', () => {
     const journey = createJourney(testDb, owner.id, { title: 'Original' });
     addJourneyContributor(testDb, journey.id, editor.id, 'editor');
 
-    const updated = updateJourney(journey.id, editor.id, { title: 'Edited' });
+    const updated = await updateJourney(journey.id, editor.id, { title: 'Edited' });
 
     expect(updated).toBeNull();
   });
@@ -346,7 +346,7 @@ describe('updateJourney', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, viewer.id, 'viewer');
 
-    const result = updateJourney(journey.id, viewer.id, { title: 'Hacked' });
+    const result = await updateJourney(journey.id, viewer.id, { title: 'Hacked' });
 
     expect(result).toBeNull();
   });
@@ -355,7 +355,7 @@ describe('updateJourney', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id, { title: 'Same' });
 
-    const result = updateJourney(journey.id, user.id, {});
+    const result = await updateJourney(journey.id, user.id, {});
 
     expect(result).not.toBeNull();
     expect(result!.title).toBe('Same');
@@ -365,7 +365,7 @@ describe('updateJourney', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id, { title: 'To Archive' });
 
-    const result = updateJourney(journey.id, user.id, { status: 'archived' });
+    const result = await updateJourney(journey.id, user.id, { status: 'archived' });
 
     expect(result).not.toBeNull();
     expect(result!.status).toBe('archived');
@@ -375,7 +375,7 @@ describe('updateJourney', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id, { title: 'Stay Active' });
 
-    const result = updateJourney(journey.id, user.id, { status: 'bogus' });
+    const result = await updateJourney(journey.id, user.id, { status: 'bogus' });
 
     expect(result).not.toBeNull();
     expect(result!.status).toBe('active');
@@ -387,7 +387,7 @@ describe('deleteJourney', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    const result = deleteJourney(journey.id, user.id);
+    const result = await deleteJourney(journey.id, user.id);
 
     expect(result).toBe(true);
     const row = testDb.prepare('SELECT * FROM journeys WHERE id = ?').get(journey.id);
@@ -400,7 +400,7 @@ describe('deleteJourney', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, editor.id, 'editor');
 
-    const result = deleteJourney(journey.id, editor.id);
+    const result = await deleteJourney(journey.id, editor.id);
 
     expect(result).toBe(false);
     const row = testDb.prepare('SELECT * FROM journeys WHERE id = ?').get(journey.id);
@@ -467,7 +467,7 @@ describe('addTripToJourney / removeTripFromJourney', () => {
     const trip = createTrip(testDb, user.id, { title: 'Remove Me' });
     await addTripToJourney(journey.id, trip.id, user.id);
 
-    const result = removeTripFromJourney(journey.id, trip.id, user.id);
+    const result = await removeTripFromJourney(journey.id, trip.id, user.id);
 
     expect(result).toBe(true);
     const link = testDb.prepare(
@@ -484,7 +484,7 @@ describe('addTripToJourney / removeTripFromJourney', () => {
     await addTripToJourney(journey.id, trip.id, owner.id);
     addJourneyContributor(testDb, journey.id, editor.id, 'editor');
 
-    const result = removeTripFromJourney(journey.id, trip.id, editor.id);
+    const result = await removeTripFromJourney(journey.id, trip.id, editor.id);
 
     expect(result).toBe(false);
   });
@@ -501,7 +501,7 @@ describe('listEntries', () => {
       entry_date: '2026-03-01',
     });
 
-    const result = listEntries(journey.id, user.id);
+    const result = await listEntries(journey.id, user.id);
 
     expect(result).not.toBeNull();
     expect(result).toHaveLength(1);
@@ -514,7 +514,7 @@ describe('listEntries', () => {
     const { user: stranger } = createUser(testDb);
     const journey = createJourney(testDb, owner.id);
 
-    const result = listEntries(journey.id, stranger.id);
+    const result = await listEntries(journey.id, stranger.id);
 
     expect(result).toBeNull();
   });
@@ -525,7 +525,7 @@ describe('createEntry', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    const entry = createEntry(journey.id, user.id, {
+    const entry = await createEntry(journey.id, user.id, {
       title: 'Beach Day',
       entry_date: '2026-03-10',
       story: 'Beautiful sunset',
@@ -548,7 +548,7 @@ describe('createEntry', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, viewer.id, 'viewer');
 
-    const entry = createEntry(journey.id, viewer.id, {
+    const entry = await createEntry(journey.id, viewer.id, {
       title: 'Should Fail',
       entry_date: '2026-03-10',
     });
@@ -566,7 +566,7 @@ describe('updateEntry', () => {
       entry_date: '2026-03-01',
     });
 
-    const updated = updateEntry(entry.id, user.id, { title: 'Updated', mood: 'excited' });
+    const updated = await updateEntry(entry.id, user.id, { title: 'Updated', mood: 'excited' });
 
     expect(updated).not.toBeNull();
     expect(updated!.title).toBe('Updated');
@@ -582,7 +582,7 @@ describe('updateEntry', () => {
       entry_date: '2026-03-01',
     });
 
-    const updated = updateEntry(entry.id, user.id, { story: 'Now I have a story!' });
+    const updated = await updateEntry(entry.id, user.id, { story: 'Now I have a story!' });
 
     expect(updated).not.toBeNull();
     expect(updated!.type).toBe('entry');
@@ -592,7 +592,7 @@ describe('updateEntry', () => {
   it('JOURNEY-SVC-034: returns null for non-existent entry', async () => {
     const { user } = createUser(testDb);
 
-    const result = updateEntry(99999, user.id, { title: 'No Such Entry' });
+    const result = await updateEntry(99999, user.id, { title: 'No Such Entry' });
 
     expect(result).toBeNull();
   });
@@ -615,7 +615,7 @@ describe('updateEntry', () => {
       author_id: 999999,
     };
 
-    const updated = updateEntry(entry.id, user.id, malicious as Parameters<typeof updateEntry>[2]);
+    const updated = await updateEntry(entry.id, user.id, malicious as Parameters<typeof updateEntry>[2]);
 
     expect(updated).not.toBeNull();
     expect(updated!.title).toBe('Updated'); // legit field still applied
@@ -630,7 +630,7 @@ describe('deleteEntry', () => {
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
 
-    const result = deleteEntry(entry.id, user.id);
+    const result = await deleteEntry(entry.id, user.id);
 
     expect(result).toBe(true);
     const row = testDb.prepare('SELECT * FROM journey_entries WHERE id = ?').get(entry.id);
@@ -640,7 +640,7 @@ describe('deleteEntry', () => {
   it('JOURNEY-SVC-036: returns false for non-existent entry', async () => {
     const { user } = createUser(testDb);
 
-    expect(deleteEntry(99999, user.id)).toBe(false);
+    expect(await deleteEntry(99999, user.id)).toBe(false);
   });
 
   it('JOURNEY-SVC-037: viewer cannot delete entry', async () => {
@@ -650,7 +650,7 @@ describe('deleteEntry', () => {
     addJourneyContributor(testDb, journey.id, viewer.id, 'viewer');
     const entry = createJourneyEntry(testDb, journey.id, owner.id, { entry_date: '2026-03-01' });
 
-    expect(deleteEntry(entry.id, viewer.id)).toBe(false);
+    expect(await deleteEntry(entry.id, viewer.id)).toBe(false);
   });
 
   it('JOURNEY-SVC-037b: deleting a filled skeleton reverts it back to skeleton', async () => {
@@ -667,7 +667,7 @@ describe('deleteEntry', () => {
     `).run(journey.id, trip.id, place.id, user.id, now, now);
     const entry = testDb.prepare('SELECT * FROM journey_entries WHERE journey_id = ? AND source_place_id = ?').get(journey.id, place.id) as any;
 
-    const result = deleteEntry(entry.id, user.id);
+    const result = await deleteEntry(entry.id, user.id);
     expect(result).toBe(true);
 
     // Entry should still exist but reverted to skeleton
@@ -686,7 +686,7 @@ describe('deleteEntry', () => {
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01', story: 'Manual entry' });
 
-    const result = deleteEntry(entry.id, user.id);
+    const result = await deleteEntry(entry.id, user.id);
     expect(result).toBe(true);
 
     const row = testDb.prepare('SELECT * FROM journey_entries WHERE id = ?').get(entry.id);
@@ -702,7 +702,7 @@ describe('addPhoto / addProviderPhoto / deletePhoto', () => {
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
 
-    const photo = addPhoto(entry.id, user.id, '/uploads/photo.jpg', '/uploads/thumb.jpg', 'Sunset');
+    const photo = await addPhoto(entry.id, user.id, '/uploads/photo.jpg', '/uploads/thumb.jpg', 'Sunset');
 
     expect(photo).not.toBeNull();
     expect(photo!.file_path).toBe('/uploads/photo.jpg');
@@ -714,7 +714,7 @@ describe('addPhoto / addProviderPhoto / deletePhoto', () => {
   it('JOURNEY-SVC-039: addPhoto returns null for non-existent entry', async () => {
     const { user } = createUser(testDb);
 
-    const result = addPhoto(99999, user.id, '/uploads/photo.jpg');
+    const result = await addPhoto(99999, user.id, '/uploads/photo.jpg');
 
     expect(result).toBeNull();
   });
@@ -724,7 +724,7 @@ describe('addPhoto / addProviderPhoto / deletePhoto', () => {
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
 
-    const photo = addProviderPhoto(entry.id, user.id, 'immich', 'asset-123', 'My caption');
+    const photo = await addProviderPhoto(entry.id, user.id, 'immich', 'asset-123', 'My caption');
 
     expect(photo).not.toBeNull();
     expect(photo!.provider).toBe('immich');
@@ -737,8 +737,8 @@ describe('addPhoto / addProviderPhoto / deletePhoto', () => {
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
 
-    addProviderPhoto(entry.id, user.id, 'immich', 'dup-asset');
-    const duplicate = addProviderPhoto(entry.id, user.id, 'immich', 'dup-asset');
+    await addProviderPhoto(entry.id, user.id, 'immich', 'dup-asset');
+    const duplicate = await addProviderPhoto(entry.id, user.id, 'immich', 'dup-asset');
 
     expect(duplicate).toBeNull();
   });
@@ -747,9 +747,9 @@ describe('addPhoto / addProviderPhoto / deletePhoto', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
-    const photo = addPhoto(entry.id, user.id, '/uploads/delete-me.jpg');
+    const photo = await addPhoto(entry.id, user.id, '/uploads/delete-me.jpg');
 
-    const deleted = deletePhoto(photo!.id, user.id);
+    const deleted = await deletePhoto(photo!.id, user.id);
 
     expect(deleted).not.toBeNull();
     expect(deleted!.id).toBe(photo!.id);
@@ -760,7 +760,7 @@ describe('addPhoto / addProviderPhoto / deletePhoto', () => {
   it('JOURNEY-SVC-043: deletePhoto returns null for non-existent photo', async () => {
     const { user } = createUser(testDb);
 
-    expect(deletePhoto(99999, user.id)).toBeNull();
+    expect(await deletePhoto(99999, user.id)).toBeNull();
   });
 
   it('JOURNEY-SVC-044: viewer cannot add photo', async () => {
@@ -770,7 +770,7 @@ describe('addPhoto / addProviderPhoto / deletePhoto', () => {
     addJourneyContributor(testDb, journey.id, viewer.id, 'viewer');
     const entry = createJourneyEntry(testDb, journey.id, owner.id, { entry_date: '2026-03-01' });
 
-    const result = addPhoto(entry.id, viewer.id, '/uploads/no.jpg');
+    const result = await addPhoto(entry.id, viewer.id, '/uploads/no.jpg');
 
     expect(result).toBeNull();
   });
@@ -784,7 +784,7 @@ describe('addContributor / updateContributorRole / removeContributor', () => {
     const { user: newContrib } = createUser(testDb);
     const journey = createJourney(testDb, owner.id);
 
-    const result = addContributor(journey.id, owner.id, newContrib.id, 'editor');
+    const result = await addContributor(journey.id, owner.id, newContrib.id, 'editor');
 
     expect(result).toBe(true);
     const row = testDb.prepare(
@@ -801,7 +801,7 @@ describe('addContributor / updateContributorRole / removeContributor', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, editor.id, 'editor');
 
-    const result = addContributor(journey.id, editor.id, newUser.id, 'viewer');
+    const result = await addContributor(journey.id, editor.id, newUser.id, 'viewer');
 
     expect(result).toBe(false);
   });
@@ -810,7 +810,7 @@ describe('addContributor / updateContributorRole / removeContributor', () => {
     const { user: owner } = createUser(testDb);
     const journey = createJourney(testDb, owner.id);
 
-    const result = addContributor(journey.id, owner.id, owner.id, 'editor');
+    const result = await addContributor(journey.id, owner.id, owner.id, 'editor');
 
     expect(result).toBe(false);
   });
@@ -821,7 +821,7 @@ describe('addContributor / updateContributorRole / removeContributor', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, contrib.id, 'viewer');
 
-    const result = updateContributorRole(journey.id, owner.id, contrib.id, 'editor');
+    const result = await updateContributorRole(journey.id, owner.id, contrib.id, 'editor');
 
     expect(result).toBe(true);
     const row = testDb.prepare(
@@ -838,7 +838,7 @@ describe('addContributor / updateContributorRole / removeContributor', () => {
     addJourneyContributor(testDb, journey.id, editor.id, 'editor');
     addJourneyContributor(testDb, journey.id, target.id, 'viewer');
 
-    const result = updateContributorRole(journey.id, editor.id, target.id, 'editor');
+    const result = await updateContributorRole(journey.id, editor.id, target.id, 'editor');
 
     expect(result).toBe(false);
   });
@@ -849,7 +849,7 @@ describe('addContributor / updateContributorRole / removeContributor', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, contrib.id, 'editor');
 
-    const result = removeContributor(journey.id, owner.id, contrib.id);
+    const result = await removeContributor(journey.id, owner.id, contrib.id);
 
     expect(result).toBe(true);
     const row = testDb.prepare(
@@ -864,7 +864,7 @@ describe('addContributor / updateContributorRole / removeContributor', () => {
 
     // attempting to remove the owner's own contributor record should not work
     // (the SQL filters role != 'owner')
-    removeContributor(journey.id, owner.id, owner.id);
+    await removeContributor(journey.id, owner.id, owner.id);
 
     const row = testDb.prepare(
       'SELECT * FROM journey_contributors WHERE journey_id = ? AND user_id = ?'
@@ -887,7 +887,7 @@ describe('getSuggestions', () => {
       end_date: fiveDaysAgo,
     });
 
-    const suggestions = getSuggestions(user.id);
+    const suggestions = await getSuggestions(user.id);
 
     expect(suggestions.length).toBe(1);
     expect((suggestions[0] as any).title).toBe('Recent Trip');
@@ -905,7 +905,7 @@ describe('getSuggestions', () => {
     const journey = createJourney(testDb, user.id);
     await addTripToJourney(journey.id, trip.id, user.id);
 
-    const suggestions = getSuggestions(user.id);
+    const suggestions = await getSuggestions(user.id);
 
     expect(suggestions.length).toBe(0);
   });
@@ -919,7 +919,7 @@ describe('getSuggestions', () => {
       end_date: tomorrow,
     });
 
-    const suggestions = getSuggestions(user.id);
+    const suggestions = await getSuggestions(user.id);
 
     expect(suggestions.length).toBe(0);
   });
@@ -942,7 +942,7 @@ describe('syncTripPlaces', () => {
     createDayAssignment(testDb, days055[0].id, place1.id);
     createDayAssignment(testDb, days055[1].id, place2.id);
 
-    syncTripPlaces(journey.id, trip.id, user.id);
+    await syncTripPlaces(journey.id, trip.id, user.id);
 
     const skeletons = testDb.prepare(
       "SELECT * FROM journey_entries WHERE journey_id = ? AND type = 'skeleton'"
@@ -964,8 +964,8 @@ describe('syncTripPlaces', () => {
     const day056 = testDb.prepare('SELECT id FROM days WHERE trip_id = ? ORDER BY date ASC LIMIT 1').get(trip.id) as { id: number };
     createDayAssignment(testDb, day056.id, place056.id);
 
-    syncTripPlaces(journey.id, trip.id, user.id);
-    syncTripPlaces(journey.id, trip.id, user.id); // second call
+    await syncTripPlaces(journey.id, trip.id, user.id);
+    await syncTripPlaces(journey.id, trip.id, user.id); // second call
 
     const skeletons = testDb.prepare(
       "SELECT * FROM journey_entries WHERE journey_id = ? AND type = 'skeleton'"
@@ -988,7 +988,7 @@ describe('syncTripPlaces', () => {
     const place = createPlace(testDb, trip.id, { name: 'Colosseum' });
     createDayAssignment(testDb, day.id, place.id);
 
-    syncTripPlaces(journey.id, trip.id, user.id);
+    await syncTripPlaces(journey.id, trip.id, user.id);
 
     const skeleton = testDb.prepare(
       "SELECT * FROM journey_entries WHERE journey_id = ? AND source_place_id = ?"
@@ -1015,7 +1015,7 @@ describe('onPlaceCreated', () => {
     const place = createPlace(testDb, trip.id, { name: 'Sagrada Familia' });
     const day058 = testDb.prepare('SELECT id FROM days WHERE trip_id = ? ORDER BY date ASC LIMIT 1').get(trip.id) as { id: number };
     createDayAssignment(testDb, day058.id, place.id);
-    onPlaceCreated(trip.id, place.id);
+    await onPlaceCreated(trip.id, place.id);
 
     const skeleton = testDb.prepare(
       "SELECT * FROM journey_entries WHERE journey_id = ? AND source_place_id = ? AND type = 'skeleton'"
@@ -1028,7 +1028,7 @@ describe('onPlaceCreated', () => {
     const trip = createTrip(testDb, user.id, { title: 'Unlinked Trip' });
     const place = createPlace(testDb, trip.id, { name: 'Remote Place' });
 
-    onPlaceCreated(trip.id, place.id);
+    await onPlaceCreated(trip.id, place.id);
 
     const entries = testDb.prepare(
       "SELECT * FROM journey_entries WHERE source_place_id = ?"
@@ -1049,8 +1049,8 @@ describe('onPlaceCreated', () => {
     const place = createPlace(testDb, trip.id, { name: 'Arc de Triomphe' });
     const day060 = testDb.prepare('SELECT id FROM days WHERE trip_id = ? ORDER BY date ASC LIMIT 1').get(trip.id) as { id: number };
     createDayAssignment(testDb, day060.id, place.id);
-    onPlaceCreated(trip.id, place.id);
-    onPlaceCreated(trip.id, place.id); // second call
+    await onPlaceCreated(trip.id, place.id);
+    await onPlaceCreated(trip.id, place.id); // second call
 
     const entries = testDb.prepare(
       "SELECT * FROM journey_entries WHERE journey_id = ? AND source_place_id = ?"
@@ -1075,7 +1075,7 @@ describe('onPlaceUpdated', () => {
 
     // Update the place name directly in DB
     testDb.prepare('UPDATE places SET name = ?, address = ? WHERE id = ?').run('New Name', 'New Address', place.id);
-    onPlaceUpdated(place.id);
+    await onPlaceUpdated(place.id);
 
     const entry = testDb.prepare(
       "SELECT * FROM journey_entries WHERE journey_id = ? AND source_place_id = ? AND type = 'skeleton'"
@@ -1102,11 +1102,11 @@ describe('onPlaceUpdated', () => {
     const skeleton = testDb.prepare(
       "SELECT id FROM journey_entries WHERE journey_id = ? AND source_place_id = ?"
     ).get(journey.id, place.id) as { id: number };
-    updateEntry(skeleton.id, user.id, { story: 'My story', title: 'Custom Title' });
+    await updateEntry(skeleton.id, user.id, { story: 'My story', title: 'Custom Title' });
 
     // Now update the place
     testDb.prepare('UPDATE places SET name = ?, address = ? WHERE id = ?').run('Changed Place', 'Changed Addr', place.id);
-    onPlaceUpdated(place.id);
+    await onPlaceUpdated(place.id);
 
     const entry = testDb.prepare(
       "SELECT * FROM journey_entries WHERE id = ?"
@@ -1121,7 +1121,7 @@ describe('onPlaceUpdated', () => {
     const place = createPlace(testDb, trip.id, { name: 'Orphan Place' });
 
     // Should not throw
-    onPlaceUpdated(place.id);
+    await onPlaceUpdated(place.id);
 
     const entries = testDb.prepare(
       "SELECT * FROM journey_entries WHERE source_place_id = ?"
@@ -1142,7 +1142,7 @@ describe('onPlaceDeleted', () => {
     const place = createPlace(testDb, trip.id, { name: 'To Be Deleted' });
     await addTripToJourney(journey.id, trip.id, user.id);
 
-    onPlaceDeleted(place.id);
+    await onPlaceDeleted(place.id);
 
     const entry = testDb.prepare(
       "SELECT * FROM journey_entries WHERE source_place_id = ?"
@@ -1167,9 +1167,9 @@ describe('onPlaceDeleted', () => {
     const skeleton = testDb.prepare(
       "SELECT id FROM journey_entries WHERE journey_id = ? AND source_place_id = ?"
     ).get(journey.id, place.id) as { id: number };
-    updateEntry(skeleton.id, user.id, { story: 'I really enjoyed this place' });
+    await updateEntry(skeleton.id, user.id, { story: 'I really enjoyed this place' });
 
-    onPlaceDeleted(place.id);
+    await onPlaceDeleted(place.id);
 
     const entry = testDb.prepare(
       "SELECT * FROM journey_entries WHERE id = ?"
@@ -1186,7 +1186,7 @@ describe('onPlaceDeleted', () => {
     const place = createPlace(testDb, trip.id, { name: 'Nowhere' });
 
     // Should not throw
-    onPlaceDeleted(place.id);
+    await onPlaceDeleted(place.id);
   });
 });
 
@@ -1199,10 +1199,10 @@ describe('linkPhotoToEntry', () => {
     const entry1 = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
     const entry2 = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-02' });
 
-    const photo = addPhoto(entry1.id, user.id, '/uploads/link-test.jpg');
+    const photo = await addPhoto(entry1.id, user.id, '/uploads/link-test.jpg');
     expect(photo).not.toBeNull();
 
-    const result = linkPhotoToEntry(entry2.id, photo!.id, user.id);
+    const result = await linkPhotoToEntry(entry2.id, photo!.id, user.id);
     expect(result).not.toBeNull();
     expect(result!.entry_id).toBe(entry2.id);
   });
@@ -1211,9 +1211,9 @@ describe('linkPhotoToEntry', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
-    const photo = addPhoto(entry.id, user.id, '/uploads/same-entry.jpg');
+    const photo = await addPhoto(entry.id, user.id, '/uploads/same-entry.jpg');
 
-    const result = linkPhotoToEntry(entry.id, photo!.id, user.id);
+    const result = await linkPhotoToEntry(entry.id, photo!.id, user.id);
     expect(result).not.toBeNull();
     expect(result!.id).toBe(photo!.id);
     expect(result!.entry_id).toBe(entry.id);
@@ -1222,7 +1222,7 @@ describe('linkPhotoToEntry', () => {
   it('JOURNEY-SVC-069: returns null for non-existent entry', async () => {
     const { user } = createUser(testDb);
 
-    const result = linkPhotoToEntry(99999, 1, user.id);
+    const result = await linkPhotoToEntry(99999, 1, user.id);
     expect(result).toBeNull();
   });
 
@@ -1231,7 +1231,7 @@ describe('linkPhotoToEntry', () => {
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
 
-    const result = linkPhotoToEntry(entry.id, 99999, user.id);
+    const result = await linkPhotoToEntry(entry.id, 99999, user.id);
     expect(result).toBeNull();
   });
 
@@ -1241,9 +1241,9 @@ describe('linkPhotoToEntry', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, viewer.id, 'viewer');
     const entry = createJourneyEntry(testDb, journey.id, owner.id, { entry_date: '2026-03-01' });
-    const photo = addPhoto(entry.id, owner.id, '/uploads/owner-photo.jpg');
+    const photo = await addPhoto(entry.id, owner.id, '/uploads/owner-photo.jpg');
 
-    const result = linkPhotoToEntry(entry.id, photo!.id, viewer.id);
+    const result = await linkPhotoToEntry(entry.id, photo!.id, viewer.id);
     expect(result).toBeNull();
   });
 });
@@ -1255,9 +1255,9 @@ describe('setPhotoProvider', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
-    const photo = addPhoto(entry.id, user.id, '/uploads/provider-test.jpg');
+    const photo = await addPhoto(entry.id, user.id, '/uploads/provider-test.jpg');
 
-    setPhotoProvider(photo!.id, 'immich', 'immich-asset-789', user.id);
+    await setPhotoProvider(photo!.id, 'immich', 'immich-asset-789', user.id);
 
     const updated = testDb.prepare(`
       SELECT jp.*, tkp.provider, tkp.asset_id, tkp.owner_id
@@ -1277,9 +1277,9 @@ describe('updatePhoto', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
-    const photo = addPhoto(entry.id, user.id, '/uploads/caption-test.jpg', undefined, 'Old caption');
+    const photo = await addPhoto(entry.id, user.id, '/uploads/caption-test.jpg', undefined, 'Old caption');
 
-    const result = updatePhoto(photo!.id, user.id, { caption: 'New caption' });
+    const result = await updatePhoto(photo!.id, user.id, { caption: 'New caption' });
 
     expect(result).not.toBeNull();
     expect(result!.caption).toBe('New caption');
@@ -1289,9 +1289,9 @@ describe('updatePhoto', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
-    const photo = addPhoto(entry.id, user.id, '/uploads/sort-test.jpg');
+    const photo = await addPhoto(entry.id, user.id, '/uploads/sort-test.jpg');
 
-    const result = updatePhoto(photo!.id, user.id, { sort_order: 10 });
+    const result = await updatePhoto(photo!.id, user.id, { sort_order: 10 });
 
     expect(result).not.toBeNull();
     expect(result!.sort_order).toBe(10);
@@ -1300,7 +1300,7 @@ describe('updatePhoto', () => {
   it('JOURNEY-SVC-075: returns null for non-existent photo', async () => {
     const { user } = createUser(testDb);
 
-    const result = updatePhoto(99999, user.id, { caption: 'Nope' });
+    const result = await updatePhoto(99999, user.id, { caption: 'Nope' });
     expect(result).toBeNull();
   });
 
@@ -1308,9 +1308,9 @@ describe('updatePhoto', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
-    const photo = addPhoto(entry.id, user.id, '/uploads/noop-test.jpg', undefined, 'Stay');
+    const photo = await addPhoto(entry.id, user.id, '/uploads/noop-test.jpg', undefined, 'Stay');
 
-    const result = updatePhoto(photo!.id, user.id, {});
+    const result = await updatePhoto(photo!.id, user.id, {});
 
     expect(result).not.toBeNull();
     expect(result!.caption).toBe('Stay');
@@ -1322,9 +1322,9 @@ describe('updatePhoto', () => {
     const journey = createJourney(testDb, owner.id);
     addJourneyContributor(testDb, journey.id, viewer.id, 'viewer');
     const entry = createJourneyEntry(testDb, journey.id, owner.id, { entry_date: '2026-03-01' });
-    const photo = addPhoto(entry.id, owner.id, '/uploads/viewer-update.jpg');
+    const photo = await addPhoto(entry.id, owner.id, '/uploads/viewer-update.jpg');
 
-    const result = updatePhoto(photo!.id, viewer.id, { caption: 'Hacked' });
+    const result = await updatePhoto(photo!.id, viewer.id, { caption: 'Hacked' });
     expect(result).toBeNull();
   });
 });
@@ -1337,7 +1337,7 @@ describe('listUserTrips', () => {
     createTrip(testDb, user.id, { title: 'Trip A', start_date: '2026-01-01', end_date: '2026-01-03' });
     createTrip(testDb, user.id, { title: 'Trip B', start_date: '2026-02-01', end_date: '2026-02-03' });
 
-    const trips = listUserTrips(user.id);
+    const trips = await listUserTrips(user.id);
 
     expect(trips.length).toBe(2);
     // ordered by start_date DESC
@@ -1348,7 +1348,7 @@ describe('listUserTrips', () => {
   it('JOURNEY-SVC-079: returns empty for user with no trips', async () => {
     const { user } = createUser(testDb);
 
-    const trips = listUserTrips(user.id);
+    const trips = await listUserTrips(user.id);
 
     expect(trips.length).toBe(0);
   });
@@ -1358,7 +1358,7 @@ describe('listUserTrips', () => {
     const { user: user2 } = createUser(testDb);
     createTrip(testDb, user1.id, { title: 'User1 Trip' });
 
-    const trips = listUserTrips(user2.id);
+    const trips = await listUserTrips(user2.id);
 
     expect(trips.length).toBe(0);
   });
@@ -1371,9 +1371,9 @@ describe('Edge cases', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
-    const photo = addPhoto(entry.id, user.id, '/uploads/gallery-move.jpg');
+    const photo = await addPhoto(entry.id, user.id, '/uploads/gallery-move.jpg');
 
-    const result = deleteEntry(entry.id, user.id);
+    const result = await deleteEntry(entry.id, user.id);
     expect(result).toBe(true);
 
     // Junction row must be gone (ON DELETE CASCADE from journey_entries).
@@ -1386,7 +1386,7 @@ describe('Edge cases', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    const result = updateJourney(journey.id, user.id, { cover_gradient: 'linear-gradient(to right, #ff0000, #0000ff)' });
+    const result = await updateJourney(journey.id, user.id, { cover_gradient: 'linear-gradient(to right, #ff0000, #0000ff)' });
 
     expect(result).not.toBeNull();
     expect((result as any).cover_gradient).toBe('linear-gradient(to right, #ff0000, #0000ff)');
@@ -1396,7 +1396,7 @@ describe('Edge cases', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id, { title: 'Original' });
 
-    const result = updateJourney(journey.id, user.id, { bogus: 'field' } as any);
+    const result = await updateJourney(journey.id, user.id, { bogus: 'field' } as any);
 
     expect(result).not.toBeNull();
     expect(result!.title).toBe('Original');
@@ -1406,7 +1406,7 @@ describe('Edge cases', () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    const entry = createEntry(journey.id, user.id, {
+    const entry = await createEntry(journey.id, user.id, {
       entry_date: '2026-03-10',
       tags: ['food', 'culture'],
       pros_cons: { pros: ['Great view'], cons: ['Expensive'] },
@@ -1424,7 +1424,7 @@ describe('Edge cases', () => {
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01' });
 
-    const result = updateEntry(entry.id, user.id, {
+    const result = await updateEntry(entry.id, user.id, {
       tags: ['beach', 'adventure'],
       pros_cons: { pros: ['Fun'], cons: [] },
     });
@@ -1476,9 +1476,9 @@ describe('Edge cases', () => {
     const filled = testDb.prepare(
       "SELECT id FROM journey_entries WHERE journey_id = ? AND source_place_id = ? AND type = 'skeleton'"
     ).get(journey.id, place2.id) as { id: number };
-    updateEntry(filled.id, user.id, { story: 'Now filled!' });
+    await updateEntry(filled.id, user.id, { story: 'Now filled!' });
 
-    removeTripFromJourney(journey.id, trip.id, user.id);
+    await removeTripFromJourney(journey.id, trip.id, user.id);
 
     // skeleton for place1 should be deleted
     const skeletonRow = testDb.prepare(
@@ -1504,7 +1504,7 @@ describe('addProviderPhoto — passphrase', () => {
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-15' });
 
-    const photo = addProviderPhoto(entry.id, user.id, 'synologyphotos', 'pp-asset-1', undefined, 'secret-pp');
+    const photo = await addProviderPhoto(entry.id, user.id, 'synologyphotos', 'pp-asset-1', undefined, 'secret-pp');
 
     expect(photo).not.toBeNull();
 
@@ -1535,10 +1535,10 @@ describe('reorderEntries', () => {
     const e1 = insertEntry(journey.id, user.id, { entry_date: '2026-08-01', entry_time: '09:00', sort_order: 0 });
     const e2 = insertEntry(journey.id, user.id, { entry_date: '2026-08-01', entry_time: '14:00', sort_order: 1 });
 
-    const ok = reorderEntries(journey.id, user.id, [e2.id, e1.id]);
+    const ok = await reorderEntries(journey.id, user.id, [e2.id, e1.id]);
     expect(ok).toBe(true);
 
-    const entries = listEntries(journey.id, user.id)!;
+    const entries = await listEntries(journey.id, user.id)!;
     const dayEntries = entries.filter(e => e.entry_date === '2026-08-01');
     expect(dayEntries.map(e => e.id)).toEqual([e2.id, e1.id]);
   });
@@ -1549,7 +1549,7 @@ describe('reorderEntries', () => {
     const j2 = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, j2.id, user.id, { entry_date: '2026-08-02' });
 
-    const ok = reorderEntries(j1.id, user.id, [entry.id]);
+    const ok = await reorderEntries(j1.id, user.id, [entry.id]);
     expect(ok).toBe(false);
   });
 
@@ -1560,9 +1560,9 @@ describe('reorderEntries', () => {
     const day1b = insertEntry(journey.id, user.id, { entry_date: '2026-08-01', sort_order: 1 });
     const day2 = insertEntry(journey.id, user.id, { entry_date: '2026-08-02', sort_order: 0 });
 
-    reorderEntries(journey.id, user.id, [day1b.id, day1a.id]);
+    await reorderEntries(journey.id, user.id, [day1b.id, day1a.id]);
 
-    const entries = listEntries(journey.id, user.id)!;
+    const entries = await listEntries(journey.id, user.id)!;
     const day2Entry = entries.find(e => e.id === day2.id)!;
     expect(day2Entry.sort_order).toBe(0);
   });
@@ -1585,7 +1585,7 @@ describe('syncTripPlaces sort_order', () => {
     createDayAssignment(testDb, day.id, p2.id);
     createDayAssignment(testDb, day.id, p3.id);
 
-    syncTripPlaces(journey.id, trip.id, user.id);
+    await syncTripPlaces(journey.id, trip.id, user.id);
 
     const rows = testDb.prepare(
       'SELECT sort_order FROM journey_entries WHERE journey_id = ? ORDER BY sort_order ASC'
@@ -1612,7 +1612,7 @@ describe('onPlaceCreated sort_order', () => {
 
     const place = createPlace(testDb, trip.id, { name: 'Late Addition' });
     createDayAssignment(testDb, day.id, place.id);
-    onPlaceCreated(trip.id, place.id);
+    await onPlaceCreated(trip.id, place.id);
 
     const newEntry = testDb.prepare(
       'SELECT sort_order FROM journey_entries WHERE journey_id = ? AND source_place_id = ?'

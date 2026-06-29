@@ -1,16 +1,16 @@
 import { ADDON_IDS } from '../../addons';
-import { isAddonEnabled } from '../../services/adminService';
+import { isAddonEnabledAsync } from '../../services/adminService';
 import {
-  markCountryVisited,
-  unmarkCountryVisited,
-  createBucketItem,
-  deleteBucketItem,
+  markCountryVisitedAsync as markCountryVisited,
+  unmarkCountryVisitedAsync as unmarkCountryVisited,
+  createBucketItemAsync as createBucketItem,
+  deleteBucketItemAsync as deleteBucketItem,
   getStats as getAtlasStats,
-  listManuallyVisitedRegions,
-  markRegionVisited,
-  unmarkRegionVisited,
-  getCountryPlaces,
-  updateBucketItem,
+  listManuallyVisitedRegionsAsync as listManuallyVisitedRegions,
+  markRegionVisitedAsync as markRegionVisited,
+  unmarkRegionVisitedAsync as unmarkRegionVisited,
+  getCountryPlacesAsync as getCountryPlaces,
+  updateBucketItemAsync as updateBucketItem,
 } from '../../services/atlasService';
 import { isDemoUser } from '../../services/authService';
 import { canRead, canWrite } from '../scopes';
@@ -26,11 +26,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export function registerAtlasTools(server: McpServer, userId: number, scopes: string[] | null): void {
+export async function registerAtlasTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
   const R = canRead(scopes, 'atlas');
   const W = canWrite(scopes, 'atlas');
 
-  if (!isAddonEnabled(ADDON_IDS.ATLAS)) return;
+  if (!(await isAddonEnabledAsync(ADDON_IDS.ATLAS))) return;
 
   // --- BUCKET LIST ---
 
@@ -50,7 +50,7 @@ export function registerAtlasTools(server: McpServer, userId: number, scopes: st
       },
       async ({ name, lat, lng, country_code, notes }) => {
         if (isDemoUser(userId)) return demoDenied();
-        const item = createBucketItem(userId, { name, lat, lng, country_code, notes });
+        const item = await createBucketItem(userId, { name, lat, lng, country_code, notes });
         return ok({ item });
       },
     );
@@ -67,7 +67,7 @@ export function registerAtlasTools(server: McpServer, userId: number, scopes: st
       },
       async ({ itemId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        const deleted = deleteBucketItem(userId, itemId);
+        const deleted = await deleteBucketItem(userId, itemId);
         if (!deleted)
           return { content: [{ type: 'text' as const, text: 'Bucket list item not found.' }], isError: true };
         return ok({ success: true });
@@ -92,7 +92,7 @@ export function registerAtlasTools(server: McpServer, userId: number, scopes: st
       },
       async ({ country_code }) => {
         if (isDemoUser(userId)) return demoDenied();
-        markCountryVisited(userId, country_code.toUpperCase());
+        await markCountryVisited(userId, country_code.toUpperCase());
         return ok({ success: true, country_code: country_code.toUpperCase() });
       },
     );
@@ -109,7 +109,7 @@ export function registerAtlasTools(server: McpServer, userId: number, scopes: st
       },
       async ({ country_code }) => {
         if (isDemoUser(userId)) return demoDenied();
-        unmarkCountryVisited(userId, country_code.toUpperCase());
+        await unmarkCountryVisited(userId, country_code.toUpperCase());
         return ok({ success: true, country_code: country_code.toUpperCase() });
       },
     );
@@ -139,7 +139,7 @@ export function registerAtlasTools(server: McpServer, userId: number, scopes: st
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async () => {
-        const regions = listManuallyVisitedRegions(userId);
+        const regions = await listManuallyVisitedRegions(userId);
         return ok({ regions });
       },
     );
@@ -158,8 +158,8 @@ export function registerAtlasTools(server: McpServer, userId: number, scopes: st
       },
       async ({ regionCode, regionName, countryCode }) => {
         if (isDemoUser(userId)) return demoDenied();
-        markRegionVisited(userId, regionCode, regionName, countryCode);
-        const row = listManuallyVisitedRegions(userId).find((r) => r.region_code === regionCode);
+        await markRegionVisited(userId, regionCode, regionName, countryCode);
+        const row = (await listManuallyVisitedRegions(userId)).find((r) => r.region_code === regionCode);
         // Echo in the client-facing shape ({ code, name, ... }) rather than raw DB columns.
         const region = row
           ? { code: row.region_code, name: row.region_name, country_code: row.country_code, manuallyMarked: true }
@@ -180,7 +180,7 @@ export function registerAtlasTools(server: McpServer, userId: number, scopes: st
       },
       async ({ regionCode }) => {
         if (isDemoUser(userId)) return demoDenied();
-        unmarkRegionVisited(userId, regionCode);
+        await unmarkRegionVisited(userId, regionCode);
         return ok({ success: true });
       },
     );
@@ -196,7 +196,7 @@ export function registerAtlasTools(server: McpServer, userId: number, scopes: st
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ countryCode }) => {
-        const result = getCountryPlaces(userId, countryCode);
+        const result = await getCountryPlaces(userId, countryCode);
         return ok(result);
       },
     );
@@ -219,7 +219,7 @@ export function registerAtlasTools(server: McpServer, userId: number, scopes: st
       },
       async ({ itemId, name, notes, lat, lng, country_code, target_date }) => {
         if (isDemoUser(userId)) return demoDenied();
-        const item = updateBucketItem(userId, itemId, { name, notes, lat, lng, country_code, target_date });
+        const item = await updateBucketItem(userId, itemId, { name, notes, lat, lng, country_code, target_date });
         if (!item) return { content: [{ type: 'text' as const, text: 'Bucket list item not found.' }], isError: true };
         return ok({ item });
       },

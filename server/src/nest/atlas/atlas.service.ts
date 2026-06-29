@@ -1,17 +1,19 @@
 import {
   getStats,
-  getCountryPlaces,
-  markCountryVisited,
-  unmarkCountryVisited,
-  markRegionVisited,
-  unmarkRegionVisited,
+  getCountryPlacesAsync,
+  markCountryVisitedAsync,
+  unmarkCountryVisitedAsync,
+  markRegionVisitedAsync,
+  unmarkRegionVisitedAsync,
   getVisitedRegions,
   getRegionGeo,
   getCountryGeo,
-  listBucketList,
   createBucketItem,
+  createBucketItemAsync,
   updateBucketItem,
-  deleteBucketItem,
+  updateBucketItemAsync,
+  deleteBucketItemAsync,
+  listBucketListAsync,
 } from '../../services/atlasService';
 import { Injectable } from '@nestjs/common';
 
@@ -43,38 +45,38 @@ export class AtlasService {
   }
 
   countryPlaces(userId: number, code: string) {
-    return getCountryPlaces(userId, code);
+    return getCountryPlacesAsync(userId, code);
   }
 
-  markCountry(userId: number, code: string): void {
-    markCountryVisited(userId, code);
+  markCountry(userId: number, code: string) {
+    return markCountryVisitedAsync(userId, code);
   }
 
-  unmarkCountry(userId: number, code: string): void {
-    unmarkCountryVisited(userId, code);
+  unmarkCountry(userId: number, code: string) {
+    return unmarkCountryVisitedAsync(userId, code);
   }
 
-  markRegion(userId: number, code: string, name: string, countryCode: string): void {
-    markRegionVisited(userId, code, name, countryCode);
+  markRegion(userId: number, code: string, name: string, countryCode: string) {
+    return markRegionVisitedAsync(userId, code, name, countryCode);
   }
 
-  unmarkRegion(userId: number, code: string): void {
-    unmarkRegionVisited(userId, code);
+  unmarkRegion(userId: number, code: string) {
+    return unmarkRegionVisitedAsync(userId, code);
   }
 
   bucketList(userId: number) {
-    return listBucketList(userId);
+    return listBucketListAsync(userId);
   }
 
   createBucketItem(userId: number, data: CreateBucketData) {
-    return createBucketItem(userId, data);
+    return createBucketItemAsync(userId, data);
   }
 
   updateBucketItem(userId: number, itemId: string, data: UpdateBucketData) {
-    return updateBucketItem(userId, itemId, data);
+    return updateBucketItemAsync(userId, itemId, data);
   }
 
-  deleteBucketItem(userId: number, itemId: string): boolean {
-    return deleteBucketItem(userId, itemId);
+  deleteBucketItem(userId: number, itemId: string) {
+    return deleteBucketItemAsync(userId, itemId);
   }
 }

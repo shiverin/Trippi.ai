@@ -1,21 +1,21 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 
 export { verifyTripAccess } from './tripAccess';
 
 // ── Items ──────────────────────────────────────────────────────────────────
 
-export function listItems(tripId: string | number) {
-  return db.prepare('SELECT * FROM todo_items WHERE trip_id = ? ORDER BY sort_order ASC, created_at ASC').all(tripId);
+export async function listItems(tripId: string | number) {
+  return asyncDb.prepare('SELECT * FROM todo_items WHERE trip_id = ? ORDER BY sort_order ASC, created_at ASC').all(tripId);
 }
 
 /**
  * Pending todos across all active trips the user can access. Used by the
  * dashboard sidebar so it can show action items without opening a trip first.
  */
-export function listPendingTodos(userId: number, limit = 6) {
+export async function listPendingTodos(userId: number, limit = 6) {
   const today = new Date().toISOString().slice(0, 10);
 
-  return db
+  return asyncDb
     .prepare(
       `
     SELECT ti.id, ti.trip_id, ti.name, ti.category, ti.checked, ti.sort_order,
@@ -45,7 +45,7 @@ export function listPendingTodos(userId: number, limit = 6) {
     .all(userId, userId, today, limit);
 }
 
-export function createItem(
+export async function createItem(
   tripId: string | number,
   data: {
     name: string;
@@ -56,12 +56,12 @@ export function createItem(
     priority?: number;
   },
 ) {
-  const maxOrder = db.prepare('SELECT MAX(sort_order) as max FROM todo_items WHERE trip_id = ?').get(tripId) as {
-    max: number | null;
-  };
-  const sortOrder = (maxOrder.max !== null ? maxOrder.max : -1) + 1;
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM todo_items WHERE trip_id = ?')
+    .get<{ max: number | null }>(tripId);
+  const sortOrder = (maxOrder?.max !== null && maxOrder?.max !== undefined ? maxOrder.max : -1) + 1;
 
-  const result = db
+  const result = await asyncDb
     .prepare(
       'INSERT INTO todo_items (trip_id, name, checked, category, sort_order, due_date, description, assigned_user_id, priority) VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)',
     )
@@ -76,10 +76,10 @@ export function createItem(
       data.priority || 0,
     );
 
-  return db.prepare('SELECT * FROM todo_items WHERE id = ?').get(result.lastInsertRowid);
+  return asyncDb.prepare('SELECT * FROM todo_items WHERE id = ?').get(result.lastInsertRowid);
 }
 
-export function updateItem(
+export async function updateItem(
   tripId: string | number,
   id: string | number,
   data: {
@@ -93,7 +93,7 @@ export function updateItem(
   },
   bodyKeys: string[],
 ) {
-  const item = db.prepare('SELECT * FROM todo_items WHERE id = ? AND trip_id = ?').get(id, tripId) as
+  const item = await asyncDb.prepare('SELECT * FROM todo_items WHERE id = ? AND trip_id = ?').get<
     | {
         name: string;
         checked: number;
@@ -103,10 +103,11 @@ export function updateItem(
         assigned_user_id: number | null;
         priority: number | null;
       }
-    | undefined;
+    | undefined
+  >(id, tripId);
   if (!item) return null;
 
-  db.prepare(
+  await asyncDb.prepare(
     `
     UPDATE todo_items SET
       name = ?,
@@ -129,21 +130,21 @@ export function updateItem(
     id,
   );
 
-  return db.prepare('SELECT * FROM todo_items WHERE id = ?').get(id);
+  return asyncDb.prepare('SELECT * FROM todo_items WHERE id = ?').get(id);
 }
 
-export function deleteItem(tripId: string | number, id: string | number) {
-  const item = db.prepare('SELECT id FROM todo_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+export async function deleteItem(tripId: string | number, id: string | number) {
+  const item = await asyncDb.prepare('SELECT id FROM todo_items WHERE id = ? AND trip_id = ?').get(id, tripId);
   if (!item) return false;
 
-  db.prepare('DELETE FROM todo_items WHERE id = ?').run(id);
+  await asyncDb.prepare('DELETE FROM todo_items WHERE id = ?').run(id);
   return true;
 }
 
 // ── Category Assignees ─────────────────────────────────────────────────────
 
-export function getCategoryAssignees(tripId: string | number) {
-  const rows = db
+export async function getCategoryAssignees(tripId: string | number) {
+  const rows = await asyncDb
     .prepare(
       `
     SELECT tca.category_name, tca.user_id, u.username, u.avatar
@@ -163,17 +164,23 @@ export function getCategoryAssignees(tripId: string | number) {
   return assignees;
 }
 
-export function updateCategoryAssignees(tripId: string | number, categoryName: string, userIds: number[] | undefined) {
-  db.prepare('DELETE FROM todo_category_assignees WHERE trip_id = ? AND category_name = ?').run(tripId, categoryName);
+export async function updateCategoryAssignees(
+  tripId: string | number,
+  categoryName: string,
+  userIds: number[] | undefined,
+) {
+  await asyncDb
+    .prepare('DELETE FROM todo_category_assignees WHERE trip_id = ? AND category_name = ?')
+    .run(tripId, categoryName);
 
   if (Array.isArray(userIds) && userIds.length > 0) {
-    const insert = db.prepare(
+    const insert = asyncDb.prepare(
       'INSERT OR IGNORE INTO todo_category_assignees (trip_id, category_name, user_id) VALUES (?, ?, ?)',
     );
-    for (const uid of userIds) insert.run(tripId, categoryName, uid);
+    for (const uid of userIds) await insert.run(tripId, categoryName, uid);
   }
 
-  return db
+  return asyncDb
     .prepare(
       `
     SELECT tca.user_id, u.username, u.avatar
@@ -187,12 +194,12 @@ export function updateCategoryAssignees(tripId: string | number, categoryName: s
 
 // ── Reorder ────────────────────────────────────────────────────────────────
 
-export function reorderItems(tripId: string | number, orderedIds: number[]) {
-  const update = db.prepare('UPDATE todo_items SET sort_order = ? WHERE id = ? AND trip_id = ?');
-  const updateMany = db.transaction((ids: number[]) => {
-    ids.forEach((id, index) => {
-      update.run(index, id, tripId);
-    });
+export async function reorderItems(tripId: string | number, orderedIds: number[]) {
+  const update = asyncDb.prepare('UPDATE todo_items SET sort_order = ? WHERE id = ? AND trip_id = ?');
+  const updateMany = asyncDb.transaction(async (ids: number[]) => {
+    for (const [index, id] of ids.entries()) {
+      await update.run(index, id, tripId);
+    }
   });
-  updateMany(orderedIds);
+  await updateMany(orderedIds);
 }

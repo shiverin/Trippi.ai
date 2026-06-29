@@ -1,5 +1,6 @@
-import { db } from '../db/database';
-import { Reservation } from '../types';
+import { asyncDb } from '../db/asyncDatabase';
+import type { BudgetItem, BudgetItemMember, BudgetItemPayer, Reservation } from '../types';
+import { avatarUrl } from './avatarUrl';
 
 export { verifyTripAccess } from './tripAccess';
 
@@ -19,8 +20,8 @@ export interface ReservationEndpoint {
 
 export type EndpointInput = Omit<ReservationEndpoint, 'id' | 'reservation_id' | 'sequence'> & { sequence?: number };
 
-export function loadEndpointsByTrip(tripId: string | number): Map<number, ReservationEndpoint[]> {
-  const rows = db
+export async function loadEndpointsByTrip(tripId: string | number): Promise<Map<number, ReservationEndpoint[]>> {
+  const rows = await asyncDb
     .prepare(
       `
     SELECT e.* FROM reservation_endpoints e
@@ -29,7 +30,7 @@ export function loadEndpointsByTrip(tripId: string | number): Map<number, Reserv
     ORDER BY e.reservation_id, e.sequence
   `,
     )
-    .all(tripId) as ReservationEndpoint[];
+    .all<ReservationEndpoint>(tripId);
   const map = new Map<number, ReservationEndpoint[]>();
   for (const r of rows) {
     const list = map.get(r.reservation_id!) ?? [];
@@ -39,10 +40,136 @@ export function loadEndpointsByTrip(tripId: string | number): Map<number, Reserv
   return map;
 }
 
-function loadEndpoints(reservationId: number): ReservationEndpoint[] {
-  return db
+async function loadEndpoints(reservationId: number): Promise<ReservationEndpoint[]> {
+  return asyncDb
     .prepare('SELECT * FROM reservation_endpoints WHERE reservation_id = ? ORDER BY sequence')
-    .all(reservationId) as ReservationEndpoint[];
+    .all<ReservationEndpoint>(reservationId);
+}
+
+async function loadBudgetItemMembers(
+  itemId: number | string | bigint,
+): Promise<(BudgetItemMember & { avatar_url: string | null })[]> {
+  const rows = await asyncDb
+    .prepare(
+      `
+    SELECT bm.user_id, bm.paid, u.username, u.avatar
+    FROM budget_item_members bm
+    JOIN users u ON bm.user_id = u.id
+    WHERE bm.budget_item_id = ?
+  `,
+    )
+    .all<BudgetItemMember>(itemId);
+  return rows.map((m) => ({ ...m, avatar_url: avatarUrl(m) }));
+}
+
+async function loadBudgetItemPayers(
+  itemId: number | string | bigint,
+): Promise<(BudgetItemPayer & { avatar_url: string | null })[]> {
+  const rows = await asyncDb
+    .prepare(
+      `
+    SELECT bp.user_id, bp.amount, u.username, u.avatar
+    FROM budget_item_payers bp
+    JOIN users u ON bp.user_id = u.id
+    WHERE bp.budget_item_id = ?
+  `,
+    )
+    .all<BudgetItemPayer>(itemId);
+  return rows.map((p) => ({ ...p, avatar_url: avatarUrl(p) }));
+}
+
+async function hydrateBudgetItem(itemId: number | string | bigint): Promise<BudgetItem | null> {
+  const item = await asyncDb.prepare('SELECT * FROM budget_items WHERE id = ?').get<BudgetItem>(itemId);
+  if (!item) return null;
+  item.members = await loadBudgetItemMembers(itemId);
+  item.payers = await loadBudgetItemPayers(itemId);
+  return item;
+}
+
+async function ensureBudgetCategoryOrder(tripId: string | number, category: string): Promise<void> {
+  const exists = await asyncDb
+    .prepare('SELECT 1 FROM budget_category_order WHERE trip_id = ? AND category = ?')
+    .get(tripId, category);
+  if (exists) return;
+
+  const maxCatOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM budget_category_order WHERE trip_id = ?')
+    .get<{ max: number | null }>(tripId);
+  const catOrder = (maxCatOrder?.max !== null && maxCatOrder?.max !== undefined ? maxCatOrder.max : -1) + 1;
+  await asyncDb
+    .prepare('INSERT OR IGNORE INTO budget_category_order (trip_id, category, sort_order) VALUES (?, ?, ?)')
+    .run(tripId, category, catOrder);
+}
+
+export async function getLinkedReservationBudgetItem(
+  tripId: string | number,
+  reservationId: string | number,
+): Promise<Pick<BudgetItem, 'id' | 'category'> | undefined> {
+  return asyncDb
+    .prepare('SELECT id, category FROM budget_items WHERE trip_id = ? AND reservation_id = ?')
+    .get<Pick<BudgetItem, 'id' | 'category'>>(tripId, reservationId);
+}
+
+export async function createLinkedBudgetItemForReservation(
+  tripId: string | number,
+  reservationId: number,
+  data: { name: string; category?: string; total_price: number },
+): Promise<BudgetItem> {
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM budget_items WHERE trip_id = ?')
+    .get<{ max: number | null }>(tripId);
+  const sortOrder = (maxOrder?.max !== null && maxOrder?.max !== undefined ? maxOrder.max : -1) + 1;
+  const category = data.category || 'other';
+
+  await ensureBudgetCategoryOrder(tripId, category);
+
+  const result = await asyncDb
+    .prepare(
+      'INSERT INTO budget_items (trip_id, category, name, total_price, currency, exchange_rate, persons, days, note, sort_order, expense_date, reservation_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .run(tripId, category, data.name, data.total_price || 0, null, 1, null, null, null, sortOrder, null, reservationId);
+
+  const item = await hydrateBudgetItem(Number(result.lastInsertRowid));
+  if (!item) throw new Error('Failed to load created budget item');
+  item.reservation_id = reservationId;
+  return item;
+}
+
+export async function updateReservationBudgetItem(
+  id: string | number,
+  tripId: string | number,
+  data: { category?: string; name?: string; total_price?: number },
+): Promise<BudgetItem | null> {
+  const item = await asyncDb
+    .prepare('SELECT * FROM budget_items WHERE id = ? AND trip_id = ?')
+    .get<BudgetItem>(id, tripId);
+  if (!item) return null;
+
+  const category = data.category || item.category;
+  await asyncDb
+    .prepare(
+      `
+    UPDATE budget_items SET
+      category = ?,
+      name = ?,
+      total_price = ?
+    WHERE id = ?
+  `,
+    )
+    .run(category, data.name || item.name, data.total_price !== undefined ? data.total_price : item.total_price, id);
+
+  if (data.category) {
+    await ensureBudgetCategoryOrder(tripId, data.category);
+  }
+
+  return hydrateBudgetItem(id);
+}
+
+export async function deleteReservationBudgetItem(id: string | number, tripId: string | number): Promise<boolean> {
+  const item = await asyncDb.prepare('SELECT id FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+  if (!item) return false;
+  await asyncDb.prepare('DELETE FROM budget_items WHERE id = ?').run(id);
+  return true;
 }
 
 // Resolve the day row whose date matches the date portion of an ISO-ish
@@ -50,13 +177,13 @@ function loadEndpoints(reservationId: number): ReservationEndpoint[] {
 // `reservation_time` / `reservation_end_time` so non-transport bookings
 // (tours, restaurants, events, ...) end up on the right day in the UI,
 // which now filters by day_id instead of reservation_time.
-function resolveDayIdFromTime(tripId: string | number, time: string | null | undefined): number | null {
+async function resolveDayIdFromTime(tripId: string | number, time: string | null | undefined): Promise<number | null> {
   if (!time) return null;
   const datePart = time.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return null;
-  const row = db.prepare('SELECT id FROM days WHERE trip_id = ? AND date = ? LIMIT 1').get(tripId, datePart) as
-    | { id: number }
-    | undefined;
+  const row = await asyncDb
+    .prepare('SELECT id FROM days WHERE trip_id = ? AND date = ? LIMIT 1')
+    .get<{ id: number }>(tripId, datePart);
   return row?.id ?? null;
 }
 
@@ -66,47 +193,47 @@ function resolveDayIdFromTime(tripId: string | number, time: string | null | und
 // day matching their absolute reservation_time — the same derivation create/updateReservation
 // use. Only updates when a matching day exists, so a booking whose date now falls outside
 // the new range is left untouched. Hotels keep their range on the linked day_accommodation.
-export function resyncReservationDays(tripId: string | number): void {
-  const rows = db
+export async function resyncReservationDays(tripId: string | number): Promise<void> {
+  const rows = await asyncDb
     .prepare(
       `SELECT id, reservation_time, reservation_end_time, day_id, end_day_id
        FROM reservations
       WHERE trip_id = ? AND type != 'hotel' AND reservation_time IS NOT NULL`,
     )
-    .all(tripId) as {
-    id: number;
-    reservation_time: string | null;
-    reservation_end_time: string | null;
-    day_id: number | null;
-    end_day_id: number | null;
-  }[];
-  const update = db.prepare('UPDATE reservations SET day_id = ?, end_day_id = ? WHERE id = ?');
+    .all<{
+      id: number;
+      reservation_time: string | null;
+      reservation_end_time: string | null;
+      day_id: number | null;
+      end_day_id: number | null;
+    }>(tripId);
+  const update = asyncDb.prepare('UPDATE reservations SET day_id = ?, end_day_id = ? WHERE id = ?');
   for (const r of rows) {
-    const newDayId = resolveDayIdFromTime(tripId, r.reservation_time);
+    const newDayId = await resolveDayIdFromTime(tripId, r.reservation_time);
     if (newDayId == null) continue;
     const newEndDayId = r.reservation_end_time
-      ? (resolveDayIdFromTime(tripId, r.reservation_end_time) ?? r.end_day_id)
+      ? ((await resolveDayIdFromTime(tripId, r.reservation_end_time)) ?? r.end_day_id)
       : r.end_day_id;
     if (newDayId !== r.day_id || newEndDayId !== r.end_day_id) {
-      update.run(newDayId, newEndDayId, r.id);
+      await update.run(newDayId, newEndDayId, r.id);
     }
   }
 }
 
-function saveEndpoints(reservationId: number, endpoints: EndpointInput[]): void {
+async function saveEndpoints(reservationId: number, endpoints: EndpointInput[]): Promise<void> {
   // Bind the transaction lazily on each call. Binding at module load time
   // captures the DB connection that was open then, which becomes invalid
   // after demo-reset / restore-from-backup closes and reinitialises the
   // connection — every later endpoint save would throw
   // "The database connection is not open".
-  const tx = db.transaction((rid: number, eps: EndpointInput[]) => {
-    db.prepare('DELETE FROM reservation_endpoints WHERE reservation_id = ?').run(rid);
-    const insert = db.prepare(`
+  const tx = asyncDb.transaction(async (rid: number, eps: EndpointInput[]) => {
+    await asyncDb.prepare('DELETE FROM reservation_endpoints WHERE reservation_id = ?').run(rid);
+    const insert = asyncDb.prepare(`
       INSERT INTO reservation_endpoints (reservation_id, role, sequence, name, code, lat, lng, timezone, local_time, local_date)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    eps.forEach((e, i) => {
-      insert.run(
+    for (const [i, e] of eps.entries()) {
+      await insert.run(
         rid,
         e.role,
         e.sequence ?? i,
@@ -118,13 +245,13 @@ function saveEndpoints(reservationId: number, endpoints: EndpointInput[]): void 
         e.local_time ?? null,
         e.local_date ?? null,
       );
-    });
+    }
   });
-  tx(reservationId, endpoints);
+  await tx(reservationId, endpoints);
 }
 
-export function listReservations(tripId: string | number) {
-  const reservations = db
+export async function listReservations(tripId: string | number) {
+  const reservations = await asyncDb
     .prepare(
       `
     SELECT r.*, d.day_number, p.name as place_name, r.assignment_id,
@@ -139,9 +266,9 @@ export function listReservations(tripId: string | number) {
     ORDER BY r.reservation_time ASC, r.created_at ASC
   `,
     )
-    .all(tripId) as any[];
+    .all<any>(tripId);
 
-  const dayPositions = db
+  const dayPositions = await asyncDb
     .prepare(
       `
     SELECT rdp.reservation_id, rdp.day_id, rdp.position
@@ -150,7 +277,7 @@ export function listReservations(tripId: string | number) {
     WHERE r.trip_id = ?
   `,
     )
-    .all(tripId) as { reservation_id: number; day_id: number; position: number }[];
+    .all<{ reservation_id: number; day_id: number; position: number }>(tripId);
 
   const posMap = new Map<number, Record<number, number>>();
   for (const dp of dayPositions) {
@@ -158,7 +285,7 @@ export function listReservations(tripId: string | number) {
     posMap.get(dp.reservation_id)![dp.day_id] = dp.position;
   }
 
-  const endpointsMap = loadEndpointsByTrip(tripId);
+  const endpointsMap = await loadEndpointsByTrip(tripId);
 
   for (const r of reservations) {
     r.day_positions = posMap.get(r.id) || null;
@@ -177,11 +304,11 @@ export function listReservations(tripId: string | number) {
  * as upcoming when its own time is in the future, or — for timeless entries —
  * when its day falls on or after today. Cancelled bookings are skipped.
  */
-export function getUpcomingReservations(userId: number, limit = 6) {
+export async function getUpcomingReservations(userId: number, limit = 6) {
   const today = new Date().toISOString().slice(0, 10);
   const now = new Date().toISOString();
 
-  const reservations = db
+  const reservations = await asyncDb
     .prepare(
       `
     SELECT r.id, r.trip_id, r.title, r.type, r.status, r.location,
@@ -204,13 +331,13 @@ export function getUpcomingReservations(userId: number, limit = 6) {
     LIMIT ?
   `,
     )
-    .all(userId, userId, now, today, limit) as any[];
+    .all<any>(userId, userId, now, today, limit);
 
   return reservations;
 }
 
-export function getReservationWithJoins(id: string | number) {
-  const row = db
+export async function getReservationWithJoins(id: string | number) {
+  const row = await asyncDb
     .prepare(
       `
     SELECT r.*, d.day_number, p.name as place_name, r.assignment_id,
@@ -224,9 +351,9 @@ export function getReservationWithJoins(id: string | number) {
     WHERE r.id = ?
   `,
     )
-    .get(id) as any;
+    .get<any>(id);
   if (!row) return undefined;
-  row.endpoints = loadEndpoints(row.id);
+  row.endpoints = await loadEndpoints(row.id);
   // accommodation_id is a TEXT column; the integer FK reads back as a numeric
   // string (e.g. "14.0"). Normalize to an int so clients can parse it.
   row.accommodation_id = row.accommodation_id == null ? null : Math.trunc(Number(row.accommodation_id));
@@ -262,10 +389,10 @@ interface CreateReservationData {
   needs_review?: boolean;
 }
 
-export function createReservation(
+export async function createReservation(
   tripId: string | number,
   data: CreateReservationData,
-): { reservation: any; accommodationCreated: boolean } {
+): Promise<{ reservation: any; accommodationCreated: boolean }> {
   const {
     title,
     reservation_time,
@@ -300,7 +427,7 @@ export function createReservation(
       confirmation: accConf,
     } = create_accommodation;
     if (start_day_id && end_day_id) {
-      const accResult = db
+      const accResult = await asyncDb
         .prepare(
           'INSERT INTO day_accommodations (trip_id, place_id, start_day_id, end_day_id, check_in, check_out, confirmation) VALUES (?, ?, ?, ?, ?, ?, ?)',
         )
@@ -324,14 +451,14 @@ export function createReservation(
   const resolvedType = type || 'other';
   let resolvedDayId: number | null = day_id ?? null;
   if (resolvedDayId == null && resolvedType !== 'hotel' && reservation_time) {
-    resolvedDayId = resolveDayIdFromTime(tripId, reservation_time);
+    resolvedDayId = await resolveDayIdFromTime(tripId, reservation_time);
   }
   let resolvedEndDayId: number | null = end_day_id ?? null;
   if (resolvedEndDayId == null && resolvedType !== 'hotel' && reservation_end_time) {
-    resolvedEndDayId = resolveDayIdFromTime(tripId, reservation_end_time);
+    resolvedEndDayId = await resolveDayIdFromTime(tripId, reservation_end_time);
   }
 
-  const result = db
+  const result = await asyncDb
     .prepare(
       `
     INSERT INTO reservations (trip_id, day_id, end_day_id, place_id, assignment_id, title, reservation_time, reservation_end_time, location, confirmation_number, notes, status, type, accommodation_id, metadata, needs_review)
@@ -358,61 +485,60 @@ export function createReservation(
     );
 
   if (endpoints && endpoints.length > 0) {
-    saveEndpoints(Number(result.lastInsertRowid), endpoints);
+    await saveEndpoints(Number(result.lastInsertRowid), endpoints);
   }
 
   // Sync check-in/out to accommodation if linked
   if (accommodation_id && metadata) {
     const meta = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
     if (meta.check_in_time || meta.check_in_end_time || meta.check_out_time) {
-      db.prepare(
-        'UPDATE day_accommodations SET check_in = COALESCE(?, check_in), check_in_end = COALESCE(?, check_in_end), check_out = COALESCE(?, check_out) WHERE id = ?',
-      ).run(meta.check_in_time || null, meta.check_in_end_time || null, meta.check_out_time || null, accommodation_id);
+      await asyncDb
+        .prepare(
+          'UPDATE day_accommodations SET check_in = COALESCE(?, check_in), check_in_end = COALESCE(?, check_in_end), check_out = COALESCE(?, check_out) WHERE id = ?',
+        )
+        .run(meta.check_in_time || null, meta.check_in_end_time || null, meta.check_out_time || null, accommodation_id);
     }
     if (confirmation_number) {
-      db.prepare('UPDATE day_accommodations SET confirmation = COALESCE(?, confirmation) WHERE id = ?').run(
-        confirmation_number,
-        accommodation_id,
-      );
+      await asyncDb
+        .prepare('UPDATE day_accommodations SET confirmation = COALESCE(?, confirmation) WHERE id = ?')
+        .run(confirmation_number, accommodation_id);
     }
   }
 
-  const reservation = getReservationWithJoins(Number(result.lastInsertRowid));
+  const reservation = await getReservationWithJoins(Number(result.lastInsertRowid));
   return { reservation, accommodationCreated };
 }
 
-export function updatePositions(
+export async function updatePositions(
   tripId: string | number,
   positions: { id: number; day_plan_position: number }[],
   dayId?: number | string,
-) {
+): Promise<void> {
   if (dayId) {
     // Per-day positions for multi-day reservations
-    const stmt = db.prepare(
+    const stmt = asyncDb.prepare(
       'INSERT OR REPLACE INTO reservation_day_positions (reservation_id, day_id, position) VALUES (?, ?, ?)',
     );
-    const updateMany = db.transaction((items: { id: number; day_plan_position: number }[]) => {
+    const updateMany = asyncDb.transaction(async (items: { id: number; day_plan_position: number }[]) => {
       for (const item of items) {
-        stmt.run(item.id, dayId, item.day_plan_position);
+        await stmt.run(item.id, dayId, item.day_plan_position);
       }
     });
-    updateMany(positions);
+    await updateMany(positions);
   } else {
     // Legacy: update global position
-    const stmt = db.prepare('UPDATE reservations SET day_plan_position = ? WHERE id = ? AND trip_id = ?');
-    const updateMany = db.transaction((items: { id: number; day_plan_position: number }[]) => {
+    const stmt = asyncDb.prepare('UPDATE reservations SET day_plan_position = ? WHERE id = ? AND trip_id = ?');
+    const updateMany = asyncDb.transaction(async (items: { id: number; day_plan_position: number }[]) => {
       for (const item of items) {
-        stmt.run(item.day_plan_position, item.id, tripId);
+        await stmt.run(item.day_plan_position, item.id, tripId);
       }
     });
-    updateMany(positions);
+    await updateMany(positions);
   }
 }
 
-export function getReservation(id: string | number, tripId: string | number) {
-  return db.prepare('SELECT * FROM reservations WHERE id = ? AND trip_id = ?').get(id, tripId) as
-    | Reservation
-    | undefined;
+export async function getReservation(id: string | number, tripId: string | number): Promise<Reservation | undefined> {
+  return asyncDb.prepare('SELECT * FROM reservations WHERE id = ? AND trip_id = ?').get<Reservation>(id, tripId);
 }
 
 interface UpdateReservationData {
@@ -435,12 +561,12 @@ interface UpdateReservationData {
   needs_review?: boolean;
 }
 
-export function updateReservation(
+export async function updateReservation(
   id: string | number,
   tripId: string | number,
   data: UpdateReservationData,
   current: Reservation,
-): { reservation: any; accommodationChanged: boolean } {
+): Promise<{ reservation: any; accommodationChanged: boolean }> {
   const {
     title,
     reservation_time,
@@ -467,7 +593,7 @@ export function updateReservation(
   let resolvedAccId: number | null =
     accommodation_id !== undefined ? accommodation_id || null : (current.accommodation_id ?? null);
   if (resolvedAccId) {
-    const accExists = db.prepare('SELECT id FROM day_accommodations WHERE id = ?').get(resolvedAccId);
+    const accExists = await asyncDb.prepare('SELECT id FROM day_accommodations WHERE id = ?').get(resolvedAccId);
     if (!accExists) resolvedAccId = null;
   }
   if (type === 'hotel' && create_accommodation) {
@@ -481,19 +607,21 @@ export function updateReservation(
     } = create_accommodation;
     if (start_day_id && end_day_id) {
       if (resolvedAccId) {
-        db.prepare(
-          'UPDATE day_accommodations SET place_id = ?, start_day_id = ?, end_day_id = ?, check_in = ?, check_out = ?, confirmation = ? WHERE id = ?',
-        ).run(
-          accPlaceId || null,
-          start_day_id,
-          end_day_id,
-          check_in || null,
-          check_out || null,
-          accConf || confirmation_number || null,
-          resolvedAccId,
-        );
+        await asyncDb
+          .prepare(
+            'UPDATE day_accommodations SET place_id = ?, start_day_id = ?, end_day_id = ?, check_in = ?, check_out = ?, confirmation = ? WHERE id = ?',
+          )
+          .run(
+            accPlaceId || null,
+            start_day_id,
+            end_day_id,
+            check_in || null,
+            check_out || null,
+            accConf || confirmation_number || null,
+            resolvedAccId,
+          );
       } else if (accPlaceId) {
-        const accResult = db
+        const accResult = await asyncDb
           .prepare(
             'INSERT INTO day_accommodations (trip_id, place_id, start_day_id, end_day_id, check_in, check_out, confirmation) VALUES (?, ?, ?, ?, ?, ?, ?)',
           )
@@ -537,7 +665,7 @@ export function updateReservation(
     // No day set but we have a date — pin it to the matching day so the booking
     // still shows in the Plan (covers bookings saved without a selected day, and
     // the case where an earlier edit cleared day_id).
-    nextDayId = resolveDayIdFromTime(tripId, nextReservationTime);
+    nextDayId = await resolveDayIdFromTime(tripId, nextReservationTime);
   } else if (day_id === undefined) {
     // Field absent and nothing to derive from — keep whatever it had.
     nextDayId = current.day_id ?? null;
@@ -549,13 +677,14 @@ export function updateReservation(
   if (end_day_id !== undefined) {
     nextEndDayId = end_day_id ?? null;
   } else if (reservation_end_time !== undefined && resolvedType !== 'hotel') {
-    nextEndDayId = resolveDayIdFromTime(tripId, nextReservationEndTime);
+    nextEndDayId = await resolveDayIdFromTime(tripId, nextReservationEndTime);
   } else {
     nextEndDayId = (current as any).end_day_id ?? null;
   }
 
-  db.prepare(
-    `
+  await asyncDb
+    .prepare(
+      `
     UPDATE reservations SET
       title = ?,
       reservation_time = ?,
@@ -574,27 +703,28 @@ export function updateReservation(
       needs_review = ?
     WHERE id = ?
   `,
-  ).run(
-    title || current.title,
-    nextReservationTime,
-    nextReservationEndTime,
-    location !== undefined ? location || null : current.location,
-    confirmation_number !== undefined ? confirmation_number || null : current.confirmation_number,
-    notes !== undefined ? notes || null : current.notes,
-    nextDayId,
-    nextEndDayId,
-    place_id !== undefined ? place_id || null : current.place_id,
-    assignment_id !== undefined ? assignment_id || null : current.assignment_id,
-    status || current.status,
-    type || current.type,
-    resolvedAccId,
-    metadata !== undefined ? (metadata ? JSON.stringify(metadata) : null) : current.metadata,
-    needs_review === undefined ? (current as any).needs_review : needs_review ? 1 : 0,
-    id,
-  );
+    )
+    .run(
+      title || current.title,
+      nextReservationTime,
+      nextReservationEndTime,
+      location !== undefined ? location || null : current.location,
+      confirmation_number !== undefined ? confirmation_number || null : current.confirmation_number,
+      notes !== undefined ? notes || null : current.notes,
+      nextDayId,
+      nextEndDayId,
+      place_id !== undefined ? place_id || null : current.place_id,
+      assignment_id !== undefined ? assignment_id || null : current.assignment_id,
+      status || current.status,
+      type || current.type,
+      resolvedAccId,
+      metadata !== undefined ? (metadata ? JSON.stringify(metadata) : null) : current.metadata,
+      needs_review === undefined ? (current as any).needs_review : needs_review ? 1 : 0,
+      id,
+    );
 
   if (endpoints !== undefined) {
-    saveEndpoints(Number(id), endpoints);
+    await saveEndpoints(Number(id), endpoints);
   }
 
   // Sync check-in/out to accommodation if linked
@@ -603,49 +733,50 @@ export function updateReservation(
   if (resolvedAccId && resolvedMeta) {
     const meta = typeof resolvedMeta === 'string' ? JSON.parse(resolvedMeta) : resolvedMeta;
     if (meta.check_in_time || meta.check_in_end_time || meta.check_out_time) {
-      db.prepare(
-        'UPDATE day_accommodations SET check_in = COALESCE(?, check_in), check_in_end = COALESCE(?, check_in_end), check_out = COALESCE(?, check_out) WHERE id = ?',
-      ).run(meta.check_in_time || null, meta.check_in_end_time || null, meta.check_out_time || null, resolvedAccId);
+      await asyncDb
+        .prepare(
+          'UPDATE day_accommodations SET check_in = COALESCE(?, check_in), check_in_end = COALESCE(?, check_in_end), check_out = COALESCE(?, check_out) WHERE id = ?',
+        )
+        .run(meta.check_in_time || null, meta.check_in_end_time || null, meta.check_out_time || null, resolvedAccId);
     }
     const resolvedConf = confirmation_number !== undefined ? confirmation_number : current.confirmation_number;
     if (resolvedConf) {
-      db.prepare('UPDATE day_accommodations SET confirmation = COALESCE(?, confirmation) WHERE id = ?').run(
-        resolvedConf,
-        resolvedAccId,
-      );
+      await asyncDb
+        .prepare('UPDATE day_accommodations SET confirmation = COALESCE(?, confirmation) WHERE id = ?')
+        .run(resolvedConf, resolvedAccId);
     }
   }
 
-  const reservation = getReservationWithJoins(id);
+  const reservation = await getReservationWithJoins(id);
   return { reservation, accommodationChanged };
 }
 
-export function deleteReservation(
+export async function deleteReservation(
   id: string | number,
   tripId: string | number,
-): {
+): Promise<{
   deleted: { id: number; title: string; type: string; accommodation_id: number | null } | undefined;
   accommodationDeleted: boolean;
   deletedBudgetItemId: number | null;
-} {
-  const reservation = db
+}> {
+  const reservation = await asyncDb
     .prepare('SELECT id, title, type, accommodation_id FROM reservations WHERE id = ? AND trip_id = ?')
-    .get(id, tripId) as { id: number; title: string; type: string; accommodation_id: number | null } | undefined;
+    .get<{ id: number; title: string; type: string; accommodation_id: number | null }>(id, tripId);
   if (!reservation) return { deleted: undefined, accommodationDeleted: false, deletedBudgetItemId: null };
 
   let accommodationDeleted = false;
   if (reservation.accommodation_id) {
-    db.prepare('DELETE FROM day_accommodations WHERE id = ?').run(reservation.accommodation_id);
+    await asyncDb.prepare('DELETE FROM day_accommodations WHERE id = ?').run(reservation.accommodation_id);
     accommodationDeleted = true;
   }
 
-  const linkedBudget = db
+  const linkedBudget = await asyncDb
     .prepare('SELECT id FROM budget_items WHERE trip_id = ? AND reservation_id = ?')
-    .get(tripId, id) as { id: number } | undefined;
+    .get<{ id: number }>(tripId, id);
   if (linkedBudget) {
-    db.prepare('DELETE FROM budget_items WHERE id = ?').run(linkedBudget.id);
+    await asyncDb.prepare('DELETE FROM budget_items WHERE id = ?').run(linkedBudget.id);
   }
 
-  db.prepare('DELETE FROM reservations WHERE id = ?').run(id);
+  await asyncDb.prepare('DELETE FROM reservations WHERE id = ?').run(id);
   return { deleted: reservation, accommodationDeleted, deletedBudgetItemId: linkedBudget ? linkedBudget.id : null };
 }

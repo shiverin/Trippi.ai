@@ -1,7 +1,8 @@
 import { ADDON_IDS } from '../../addons';
+import { asyncDb } from '../../db/asyncDatabase';
 import { db } from '../../db/database';
 import { broadcast } from '../../websocket';
-import { isAddonEnabled } from '../adminService';
+import { isAddonEnabled, isAddonEnabledAsync } from '../adminService';
 import { logError, logInfo } from '../auditLog';
 import { getReservation, getReservationWithJoins, updateReservation } from '../reservationService';
 import {
@@ -14,7 +15,7 @@ import {
   saveFlight,
 } from './airtrailClient';
 import { canonicalHash, entityCode, mapFlightToReservation } from './airtrailMapper';
-import { getAirtrailCredentials, isAirtrailWriteEnabled } from './airtrailService';
+import { getAirtrailCredentialsAsync, isAirtrailWriteEnabledAsync } from './airtrailService';
 
 /** Global on/off: the addon must be enabled and sync not explicitly turned off. */
 export function syncGloballyEnabled(): boolean {
@@ -25,18 +26,26 @@ export function syncGloballyEnabled(): boolean {
   return row?.value !== 'false';
 }
 
-function broadcastUpdated(tripId: number, reservationId: number): void {
+export async function syncGloballyEnabledAsync(): Promise<boolean> {
+  if (!(await isAddonEnabledAsync(ADDON_IDS.AIRTRAIL))) return false;
+  const row = await asyncDb
+    .prepare("SELECT value FROM app_settings WHERE key = 'airtrail_sync_enabled'")
+    .get<{ value: string }>();
+  return row?.value !== 'false';
+}
+
+async function broadcastUpdated(tripId: number, reservationId: number): Promise<void> {
   try {
-    const reservation = getReservationWithJoins(reservationId);
+    const reservation = await getReservationWithJoins(reservationId);
     if (reservation) broadcast(tripId, 'reservation:updated', { reservation });
   } catch {
     /* broadcast failure is non-fatal */
   }
 }
 
-function detach(tripId: number, reservationId: number): void {
-  db.prepare('UPDATE reservations SET sync_enabled = 0 WHERE id = ?').run(reservationId);
-  broadcastUpdated(tripId, reservationId);
+async function detach(tripId: number, reservationId: number): Promise<void> {
+  await asyncDb.prepare('UPDATE reservations SET sync_enabled = 0 WHERE id = ?').run(reservationId);
+  await broadcastUpdated(tripId, reservationId);
 }
 
 // ── AirTrail → trippi.ai (poll) ───────────────────────────────────────────────────
@@ -49,7 +58,7 @@ function detach(tripId: number, reservationId: number): void {
  * flights are never auto-added to a trip. Returns how many rows changed.
  */
 async function syncOwner(uid: number): Promise<number> {
-  const creds = getAirtrailCredentials(uid);
+  const creds = await getAirtrailCredentialsAsync(uid);
   if (!creds) return 0; // owner disconnected — leave their linked rows as-is
 
   let flights: AirtrailFlightRaw[];
@@ -61,17 +70,17 @@ async function syncOwner(uid: number): Promise<number> {
   }
   const byId = new Map(flights.map((f) => [String(f.id), f]));
 
-  const linked = db
+  const linked = await asyncDb
     .prepare(
       "SELECT id, trip_id, external_id, external_hash FROM reservations WHERE external_source = 'airtrail' AND sync_enabled = 1 AND external_owner_user_id = ?",
     )
-    .all(uid) as { id: number; trip_id: number; external_id: string; external_hash: string | null }[];
+    .all<{ id: number; trip_id: number; external_id: string; external_hash: string | null }>(uid);
 
   let changed = 0;
   for (const row of linked) {
     const flight = byId.get(String(row.external_id));
     if (!flight) {
-      detach(row.trip_id, row.id); // deleted in AirTrail → keep row, stop syncing
+      await detach(row.trip_id, row.id); // deleted in AirTrail → keep row, stop syncing
       changed++;
       continue;
     }
@@ -79,16 +88,14 @@ async function syncOwner(uid: number): Promise<number> {
     const hash = canonicalHash(flight);
     if (hash === row.external_hash) continue;
 
-    const current = getReservation(row.id, row.trip_id);
+    const current = await getReservation(row.id, row.trip_id);
     if (!current) continue;
     try {
-      updateReservation(row.id, row.trip_id, mapFlightToReservation(flight) as any, current as any);
-      db.prepare('UPDATE reservations SET external_hash = ?, external_synced_at = ? WHERE id = ?').run(
-        hash,
-        new Date().toISOString(),
-        row.id,
-      );
-      broadcastUpdated(row.trip_id, row.id);
+      await updateReservation(row.id, row.trip_id, mapFlightToReservation(flight) as any, current as any);
+      await asyncDb
+        .prepare('UPDATE reservations SET external_hash = ?, external_synced_at = ? WHERE id = ?')
+        .run(hash, new Date().toISOString(), row.id);
+      await broadcastUpdated(row.trip_id, row.id);
       changed++;
     } catch (err) {
       logError(`AirTrail sync: failed to update reservation ${row.id}: ${err instanceof Error ? err.message : err}`);
@@ -102,15 +109,15 @@ let running = false;
 /** Background poll across every connected owner (scheduler). */
 export async function runAirtrailSync(): Promise<void> {
   if (running) return;
-  if (!syncGloballyEnabled()) return;
+  if (!(await syncGloballyEnabledAsync())) return;
   running = true;
   let changed = 0;
   try {
-    const owners = db
+    const owners = await asyncDb
       .prepare(
         "SELECT DISTINCT external_owner_user_id AS uid FROM reservations WHERE external_source = 'airtrail' AND sync_enabled = 1 AND external_owner_user_id IS NOT NULL",
       )
-      .all() as { uid: number }[];
+      .all<{ uid: number }>();
     for (const { uid } of owners) changed += await syncOwner(uid);
     if (changed > 0) logInfo(`AirTrail sync: applied ${changed} change(s)`);
   } catch (err) {
@@ -126,7 +133,7 @@ export async function runAirtrailSync(): Promise<void> {
  * background poll.
  */
 export async function runAirtrailSyncForUser(userId: number): Promise<{ changed: number }> {
-  if (!syncGloballyEnabled()) return { changed: 0 };
+  if (!(await syncGloballyEnabledAsync())) return { changed: 0 };
   try {
     return { changed: await syncOwner(userId) };
   } catch (err) {
@@ -236,25 +243,29 @@ export function buildSavePayload(reservation: any, existing: AirtrailFlightRaw):
  * next pull's AirTrail-wins policy can't silently revert the local edit.
  */
 export async function pushReservationToAirtrail(reservationId: number, tripId: number): Promise<void> {
-  if (!syncGloballyEnabled()) return;
+  if (!(await syncGloballyEnabledAsync())) return;
 
-  const row = db
+  const row = await asyncDb
     .prepare(
       "SELECT id, trip_id, external_id, external_owner_user_id, sync_enabled FROM reservations WHERE id = ? AND external_source = 'airtrail'",
     )
-    .get(reservationId) as
-    | { id: number; trip_id: number; external_id: string; external_owner_user_id: number | null; sync_enabled: number }
-    | undefined;
+    .get<{
+      id: number;
+      trip_id: number;
+      external_id: string;
+      external_owner_user_id: number | null;
+      sync_enabled: number;
+    }>(reservationId);
   if (!row || !row.sync_enabled) return;
 
   // AirTrail is read-only by default (#1240). Only push when the flight's owner has
   // explicitly opted in. A no-op skip (not a detach): the link stays active so the
   // inbound, AirTrail-wins pull keeps the reservation up to date.
-  if (!row.external_owner_user_id || !isAirtrailWriteEnabled(row.external_owner_user_id)) return;
+  if (!row.external_owner_user_id || !(await isAirtrailWriteEnabledAsync(row.external_owner_user_id))) return;
 
-  const creds: AirtrailCreds | null = getAirtrailCredentials(row.external_owner_user_id);
+  const creds: AirtrailCreds | null = await getAirtrailCredentialsAsync(row.external_owner_user_id);
   if (!creds) {
-    detach(tripId, row.id); // owner disconnected — cannot push, so stop syncing
+    await detach(tripId, row.id); // owner disconnected — cannot push, so stop syncing
     return;
   }
 
@@ -262,16 +273,16 @@ export async function pushReservationToAirtrail(reservationId: number, tripId: n
   try {
     existing = await getFlight(creds, Number(row.external_id));
   } catch (err) {
-    if (err instanceof AirtrailAuthError) detach(tripId, row.id);
+    if (err instanceof AirtrailAuthError) await detach(tripId, row.id);
     else logError(`AirTrail push: get failed for reservation ${row.id}: ${err instanceof Error ? err.message : err}`);
     return;
   }
   if (!existing) {
-    detach(tripId, row.id); // gone in AirTrail → treat like a remote delete
+    await detach(tripId, row.id); // gone in AirTrail → treat like a remote delete
     return;
   }
 
-  const reservation = getReservationWithJoins(row.id);
+  const reservation = await getReservationWithJoins(row.id);
   if (!reservation) return;
 
   const payload = buildSavePayload(reservation, existing);
@@ -283,11 +294,9 @@ export async function pushReservationToAirtrail(reservationId: number, tripId: n
     // next poll doesn't treat our own write as an inbound change.
     const saved = await getFlight(creds, Number(row.external_id));
     if (saved) {
-      db.prepare('UPDATE reservations SET external_hash = ?, external_synced_at = ? WHERE id = ?').run(
-        canonicalHash(saved),
-        new Date().toISOString(),
-        row.id,
-      );
+      await asyncDb
+        .prepare('UPDATE reservations SET external_hash = ?, external_synced_at = ? WHERE id = ?')
+        .run(canonicalHash(saved), new Date().toISOString(), row.id);
     }
   } catch (err) {
     logError(`AirTrail push failed for reservation ${row.id}: ${err instanceof Error ? err.message : err}`);

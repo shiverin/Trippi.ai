@@ -37,13 +37,13 @@ export class AtlasController {
   constructor(private readonly atlas: AtlasService) {}
 
   @Get('stats')
-  stats(@CurrentUser() user: User) {
+  async stats(@CurrentUser() user: User) {
     return this.atlas.stats(user.id);
   }
 
   @Get('regions')
   @Header('Cache-Control', 'no-cache, no-store')
-  regions(@CurrentUser() user: User) {
+  async regions(@CurrentUser() user: User) {
     return this.atlas.visitedRegions(user.id);
   }
 
@@ -70,51 +70,51 @@ export class AtlasController {
   }
 
   @Get('country/:code')
-  countryPlaces(@CurrentUser() user: User, @Param('code') code: string) {
+  async countryPlaces(@CurrentUser() user: User, @Param('code') code: string) {
     return this.atlas.countryPlaces(user.id, code.toUpperCase());
   }
 
   @Post('country/:code/mark')
   @HttpCode(200)
-  markCountry(@CurrentUser() user: User, @Param('code') code: string): { success: boolean } {
-    this.atlas.markCountry(user.id, code.toUpperCase());
+  async markCountry(@CurrentUser() user: User, @Param('code') code: string): Promise<{ success: boolean }> {
+    await this.atlas.markCountry(user.id, code.toUpperCase());
     return { success: true };
   }
 
   @Delete('country/:code/mark')
-  unmarkCountry(@CurrentUser() user: User, @Param('code') code: string): { success: boolean } {
-    this.atlas.unmarkCountry(user.id, code.toUpperCase());
+  async unmarkCountry(@CurrentUser() user: User, @Param('code') code: string): Promise<{ success: boolean }> {
+    await this.atlas.unmarkCountry(user.id, code.toUpperCase());
     return { success: true };
   }
 
   @Post('region/:code/mark')
   @HttpCode(200)
-  markRegion(
+  async markRegion(
     @CurrentUser() user: User,
     @Param('code') code: string,
     @Body('name') name?: string,
     @Body('country_code') countryCode?: string,
-  ): { success: boolean } {
+  ): Promise<{ success: boolean }> {
     if (!name || !countryCode) {
       throw new HttpException({ error: 'name and country_code are required' }, 400);
     }
-    this.atlas.markRegion(user.id, code.toUpperCase(), name, countryCode.toUpperCase());
+    await this.atlas.markRegion(user.id, code.toUpperCase(), name, countryCode.toUpperCase());
     return { success: true };
   }
 
   @Delete('region/:code/mark')
-  unmarkRegion(@CurrentUser() user: User, @Param('code') code: string): { success: boolean } {
-    this.atlas.unmarkRegion(user.id, code.toUpperCase());
+  async unmarkRegion(@CurrentUser() user: User, @Param('code') code: string): Promise<{ success: boolean }> {
+    await this.atlas.unmarkRegion(user.id, code.toUpperCase());
     return { success: true };
   }
 
   @Get('bucket-list')
-  bucketList(@CurrentUser() user: User) {
-    return { items: this.atlas.bucketList(user.id) };
+  async bucketList(@CurrentUser() user: User) {
+    return { items: await this.atlas.bucketList(user.id) };
   }
 
   @Post('bucket-list')
-  createBucketItem(
+  async createBucketItem(
     @CurrentUser() user: User,
     @Body()
     body: {
@@ -125,16 +125,16 @@ export class AtlasController {
       notes?: string | null;
       target_date?: string | null;
     },
-  ): { item: unknown } {
+  ): Promise<{ item: unknown }> {
     if (!body.name?.trim()) {
       throw new HttpException({ error: 'Name is required' }, 400);
     }
     const { name, lat, lng, country_code, notes, target_date } = body;
-    return { item: this.atlas.createBucketItem(user.id, { name, lat, lng, country_code, notes, target_date }) };
+    return { item: await this.atlas.createBucketItem(user.id, { name, lat, lng, country_code, notes, target_date }) };
   }
 
   @Put('bucket-list/:id')
-  updateBucketItem(
+  async updateBucketItem(
     @CurrentUser() user: User,
     @Param('id') id: string,
     @Body()
@@ -146,9 +146,9 @@ export class AtlasController {
       country_code?: string | null;
       target_date?: string | null;
     },
-  ): { item: unknown } {
+  ): Promise<{ item: unknown }> {
     const { name, notes, lat, lng, country_code, target_date } = body;
-    const item = this.atlas.updateBucketItem(user.id, id, { name, notes, lat, lng, country_code, target_date });
+    const item = await this.atlas.updateBucketItem(user.id, id, { name, notes, lat, lng, country_code, target_date });
     if (!item) {
       throw new HttpException({ error: 'Item not found' }, 404);
     }
@@ -156,8 +156,8 @@ export class AtlasController {
   }
 
   @Delete('bucket-list/:id')
-  deleteBucketItem(@CurrentUser() user: User, @Param('id') id: string): { success: boolean } {
-    if (!this.atlas.deleteBucketItem(user.id, id)) {
+  async deleteBucketItem(@CurrentUser() user: User, @Param('id') id: string): Promise<{ success: boolean }> {
+    if (!(await this.atlas.deleteBucketItem(user.id, id))) {
       throw new HttpException({ error: 'Item not found' }, 404);
     }
     return { success: true };

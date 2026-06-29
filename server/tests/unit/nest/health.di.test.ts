@@ -15,7 +15,7 @@ describe('Nest dependency injection (vitest + swc)', () => {
     }).compile();
 
     const controller = moduleRef.get(HealthController);
-    expect(controller.getHealth()).toEqual({
+    expect(await controller.getHealth()).toEqual({
       ok: true,
       runtime: 'nestjs',
       diInjected: true,

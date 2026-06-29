@@ -39,9 +39,14 @@ vi.mock('../../../src/config', () => ({
 const { broadcastMock } = vi.hoisted(() => ({ broadcastMock: vi.fn() }));
 vi.mock('../../../src/websocket', () => ({ broadcast: broadcastMock }));
 
+const { collabFeatures } = vi.hoisted(() => ({
+  collabFeatures: { chat: true, notes: true, polls: true, whatsnext: true },
+}));
 vi.mock('../../../src/services/adminService', () => ({
   isAddonEnabled: vi.fn().mockReturnValue(true),
-  getCollabFeatures: vi.fn().mockReturnValue({ chat: true, notes: true, polls: true, whatsnext: true }),
+  isAddonEnabledAsync: vi.fn().mockResolvedValue(true),
+  getCollabFeatures: vi.fn().mockReturnValue(collabFeatures),
+  getCollabFeaturesAsync: vi.fn().mockResolvedValue(collabFeatures),
 }));
 
 // Mock async service functions that make external calls

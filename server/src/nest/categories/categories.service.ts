@@ -1,9 +1,9 @@
 import {
-  listCategories,
-  getCategoryById,
-  createCategory,
-  updateCategory,
-  deleteCategory,
+  listCategoriesAsync,
+  getCategoryByIdAsync,
+  createCategoryAsync,
+  updateCategoryAsync,
+  deleteCategoryAsync,
 } from '../../services/categoryService';
 import { Injectable } from '@nestjs/common';
 import type { Category } from '@trippi/shared';
@@ -15,23 +15,23 @@ import type { Category } from '@trippi/shared';
  */
 @Injectable()
 export class CategoriesService {
-  list(): Category[] {
-    return listCategories() as Category[];
+  async list(): Promise<Category[]> {
+    return (await listCategoriesAsync()) as Category[];
   }
 
-  getById(id: string | number): Category | undefined {
-    return getCategoryById(id) as Category | undefined;
+  async getById(id: string | number): Promise<Category | undefined> {
+    return (await getCategoryByIdAsync(id)) as Category | undefined;
   }
 
-  create(userId: number, name: string, color?: string, icon?: string): Category {
-    return createCategory(userId, name, color, icon) as Category;
+  async create(userId: number, name: string, color?: string, icon?: string): Promise<Category> {
+    return (await createCategoryAsync(userId, name, color, icon)) as Category;
   }
 
-  update(id: string | number, name?: string, color?: string, icon?: string): Category {
-    return updateCategory(id, name, color, icon) as Category;
+  async update(id: string | number, name?: string, color?: string, icon?: string): Promise<Category> {
+    return (await updateCategoryAsync(id, name, color, icon)) as Category;
   }
 
-  remove(id: string | number): void {
-    deleteCategory(id);
+  async remove(id: string | number): Promise<void> {
+    await deleteCategoryAsync(id);
   }
 }

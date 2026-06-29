@@ -57,12 +57,12 @@ export class AssignmentsService {
     return svc.assignmentExistsInDay(id, dayId, tripId);
   }
 
-  deleteAssignment(id: string): void {
-    svc.deleteAssignment(id);
+  deleteAssignment(id: string) {
+    return svc.deleteAssignment(id);
   }
 
-  reorderAssignments(dayId: string, orderedIds: number[]): void {
-    svc.reorderAssignments(dayId, orderedIds as never);
+  reorderAssignments(dayId: string, orderedIds: number[]) {
+    return svc.reorderAssignments(dayId, orderedIds as never);
   }
 
   getAssignmentForTrip(id: string, tripId: string) {

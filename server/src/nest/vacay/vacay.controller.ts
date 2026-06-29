@@ -31,7 +31,7 @@ export class VacayController {
   constructor(private readonly vacay: VacayService) {}
 
   @Get('plan')
-  getPlan(@CurrentUser() user: User) {
+  async getPlan(@CurrentUser() user: User) {
     return this.vacay.getPlanData(user.id);
   }
 
@@ -41,13 +41,13 @@ export class VacayController {
     @Body() body: Record<string, unknown>,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const planId = this.vacay.getActivePlanId(user.id);
+    const planId = await this.vacay.getActivePlanId(user.id);
     return this.vacay.updatePlan(planId, body, socketId);
   }
 
   @Post('plan/holiday-calendars')
   @HttpCode(200)
-  addHolidayCalendar(
+  async addHolidayCalendar(
     @CurrentUser() user: User,
     @Body() body: { region?: string; label?: string | null; color?: string; sort_order?: number },
     @Headers('x-socket-id') socketId?: string,
@@ -55,8 +55,8 @@ export class VacayController {
     if (!body.region) {
       throw new HttpException({ error: 'region required' }, 400);
     }
-    const planId = this.vacay.getActivePlanId(user.id);
-    const calendar = this.vacay.addHolidayCalendar(
+    const planId = await this.vacay.getActivePlanId(user.id);
+    const calendar = await this.vacay.addHolidayCalendar(
       planId,
       body.region,
       body.label ?? null,
@@ -68,15 +68,15 @@ export class VacayController {
   }
 
   @Put('plan/holiday-calendars/:id')
-  updateHolidayCalendar(
+  async updateHolidayCalendar(
     @CurrentUser() user: User,
     @Param('id') idParam: string,
     @Body() body: Record<string, unknown>,
     @Headers('x-socket-id') socketId?: string,
   ) {
     const id = parseInt(idParam);
-    const planId = this.vacay.getActivePlanId(user.id);
-    const calendar = this.vacay.updateHolidayCalendar(id, planId, body, socketId);
+    const planId = await this.vacay.getActivePlanId(user.id);
+    const calendar = await this.vacay.updateHolidayCalendar(id, planId, body, socketId);
     if (!calendar) {
       throw new HttpException({ error: 'Calendar not found' }, 404);
     }
@@ -84,42 +84,42 @@ export class VacayController {
   }
 
   @Delete('plan/holiday-calendars/:id')
-  deleteHolidayCalendar(
+  async deleteHolidayCalendar(
     @CurrentUser() user: User,
     @Param('id') idParam: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
     const id = parseInt(idParam);
-    const planId = this.vacay.getActivePlanId(user.id);
-    if (!this.vacay.deleteHolidayCalendar(id, planId, socketId)) {
+    const planId = await this.vacay.getActivePlanId(user.id);
+    if (!(await this.vacay.deleteHolidayCalendar(id, planId, socketId))) {
       throw new HttpException({ error: 'Calendar not found' }, 404);
     }
     return { success: true };
   }
 
   @Put('color')
-  setColor(
+  async setColor(
     @CurrentUser() user: User,
     @Body() body: { color?: string; target_user_id?: number | string },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const planId = this.vacay.getActivePlanId(user.id);
+    const planId = await this.vacay.getActivePlanId(user.id);
     const userId = body.target_user_id ? parseInt(String(body.target_user_id)) : user.id;
-    if (!this.vacay.getPlanUsers(planId).find((u) => u.id === userId)) {
+    if (!(await this.vacay.getPlanUsers(planId)).find((u) => u.id === userId)) {
       throw new HttpException({ error: 'User not in plan' }, 403);
     }
-    this.vacay.setUserColor(userId, planId, body.color, socketId);
+    await this.vacay.setUserColor(userId, planId, body.color, socketId);
     return { success: true };
   }
 
   @Post('invite')
   @HttpCode(200)
-  invite(@CurrentUser() user: User, @Body('user_id') userIdInput?: number | string) {
+  async invite(@CurrentUser() user: User, @Body('user_id') userIdInput?: number | string) {
     if (!userIdInput) {
       throw new HttpException({ error: 'user_id required' }, 400);
     }
-    const plan = this.vacay.getActivePlan(user.id);
-    const result = this.vacay.sendInvite(plan.id, user.id, user.username, user.email, userIdInput as number);
+    const plan = await this.vacay.getActivePlan(user.id);
+    const result = await this.vacay.sendInvite(plan.id, user.id, user.username, user.email, userIdInput as number);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -128,8 +128,8 @@ export class VacayController {
 
   @Post('invite/accept')
   @HttpCode(200)
-  acceptInvite(@CurrentUser() user: User, @Body('plan_id') planId: number, @Headers('x-socket-id') socketId?: string) {
-    const result = this.vacay.acceptInvite(user.id, planId, socketId);
+  async acceptInvite(@CurrentUser() user: User, @Body('plan_id') planId: number, @Headers('x-socket-id') socketId?: string) {
+    const result = await this.vacay.acceptInvite(user.id, planId, socketId);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -138,64 +138,64 @@ export class VacayController {
 
   @Post('invite/decline')
   @HttpCode(200)
-  declineInvite(@CurrentUser() user: User, @Body('plan_id') planId: number, @Headers('x-socket-id') socketId?: string) {
-    this.vacay.declineInvite(user.id, planId, socketId);
+  async declineInvite(@CurrentUser() user: User, @Body('plan_id') planId: number, @Headers('x-socket-id') socketId?: string) {
+    await this.vacay.declineInvite(user.id, planId, socketId);
     return { success: true };
   }
 
   @Post('invite/cancel')
   @HttpCode(200)
-  cancelInvite(@CurrentUser() user: User, @Body('user_id') targetUserId: number) {
-    const plan = this.vacay.getActivePlan(user.id);
-    this.vacay.cancelInvite(plan.id, targetUserId);
+  async cancelInvite(@CurrentUser() user: User, @Body('user_id') targetUserId: number) {
+    const plan = await this.vacay.getActivePlan(user.id);
+    await this.vacay.cancelInvite(plan.id, targetUserId);
     return { success: true };
   }
 
   @Post('dissolve')
   @HttpCode(200)
-  dissolve(@CurrentUser() user: User, @Headers('x-socket-id') socketId?: string) {
-    this.vacay.dissolvePlan(user.id, socketId);
+  async dissolve(@CurrentUser() user: User, @Headers('x-socket-id') socketId?: string) {
+    await this.vacay.dissolvePlan(user.id, socketId);
     return { success: true };
   }
 
   @Get('available-users')
-  availableUsers(@CurrentUser() user: User) {
-    const planId = this.vacay.getActivePlanId(user.id);
-    return { users: this.vacay.getAvailableUsers(user.id, planId) };
+  async availableUsers(@CurrentUser() user: User) {
+    const planId = await this.vacay.getActivePlanId(user.id);
+    return { users: await this.vacay.getAvailableUsers(user.id, planId) };
   }
 
   @Get('years')
-  years(@CurrentUser() user: User) {
-    const planId = this.vacay.getActivePlanId(user.id);
-    return { years: this.vacay.listYears(planId) };
+  async years(@CurrentUser() user: User) {
+    const planId = await this.vacay.getActivePlanId(user.id);
+    return { years: await this.vacay.listYears(planId) };
   }
 
   @Post('years')
   @HttpCode(200)
-  addYear(@CurrentUser() user: User, @Body('year') year?: number, @Headers('x-socket-id') socketId?: string) {
+  async addYear(@CurrentUser() user: User, @Body('year') year?: number, @Headers('x-socket-id') socketId?: string) {
     if (!year) {
       throw new HttpException({ error: 'Year required' }, 400);
     }
-    const planId = this.vacay.getActivePlanId(user.id);
-    return { years: this.vacay.addYear(planId, year, socketId) };
+    const planId = await this.vacay.getActivePlanId(user.id);
+    return { years: await this.vacay.addYear(planId, year, socketId) };
   }
 
   @Delete('years/:year')
-  deleteYear(@CurrentUser() user: User, @Param('year') yearParam: string, @Headers('x-socket-id') socketId?: string) {
+  async deleteYear(@CurrentUser() user: User, @Param('year') yearParam: string, @Headers('x-socket-id') socketId?: string) {
     const year = parseInt(yearParam);
-    const planId = this.vacay.getActivePlanId(user.id);
-    return { years: this.vacay.deleteYear(planId, year, socketId) };
+    const planId = await this.vacay.getActivePlanId(user.id);
+    return { years: await this.vacay.deleteYear(planId, year, socketId) };
   }
 
   @Get('entries/:year')
-  entries(@CurrentUser() user: User, @Param('year') year: string) {
-    const planId = this.vacay.getActivePlanId(user.id);
+  async entries(@CurrentUser() user: User, @Param('year') year: string) {
+    const planId = await this.vacay.getActivePlanId(user.id);
     return this.vacay.getEntries(planId, year);
   }
 
   @Post('entries/toggle')
   @HttpCode(200)
-  toggleEntry(
+  async toggleEntry(
     @CurrentUser() user: User,
     @Body() body: { date?: string; target_user_id?: number | string },
     @Headers('x-socket-id') socketId?: string,
@@ -203,11 +203,11 @@ export class VacayController {
     if (!body.date) {
       throw new HttpException({ error: 'date required' }, 400);
     }
-    const planId = this.vacay.getActivePlanId(user.id);
+    const planId = await this.vacay.getActivePlanId(user.id);
     let userId = user.id;
     if (body.target_user_id && parseInt(String(body.target_user_id)) !== user.id) {
       const tid = parseInt(String(body.target_user_id));
-      if (!this.vacay.getPlanUsers(planId).find((u) => u.id === tid)) {
+      if (!(await this.vacay.getPlanUsers(planId)).find((u) => u.id === tid)) {
         throw new HttpException({ error: 'User not in plan' }, 403);
       }
       userId = tid;
@@ -217,36 +217,36 @@ export class VacayController {
 
   @Post('entries/company-holiday')
   @HttpCode(200)
-  companyHoliday(
+  async companyHoliday(
     @CurrentUser() user: User,
     @Body() body: { date?: string; note?: string },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const planId = this.vacay.getActivePlanId(user.id);
+    const planId = await this.vacay.getActivePlanId(user.id);
     return this.vacay.toggleCompanyHoliday(planId, body.date as string, body.note, socketId);
   }
 
   @Get('stats/:year')
-  stats(@CurrentUser() user: User, @Param('year') yearParam: string) {
+  async stats(@CurrentUser() user: User, @Param('year') yearParam: string) {
     const year = parseInt(yearParam);
-    const planId = this.vacay.getActivePlanId(user.id);
-    return { stats: this.vacay.getStats(planId, year) };
+    const planId = await this.vacay.getActivePlanId(user.id);
+    return { stats: await this.vacay.getStats(planId, year) };
   }
 
   @Put('stats/:year')
-  updateStats(
+  async updateStats(
     @CurrentUser() user: User,
     @Param('year') yearParam: string,
     @Body() body: { vacation_days?: number; target_user_id?: number | string },
     @Headers('x-socket-id') socketId?: string,
   ) {
     const year = parseInt(yearParam);
-    const planId = this.vacay.getActivePlanId(user.id);
+    const planId = await this.vacay.getActivePlanId(user.id);
     const userId = body.target_user_id ? parseInt(String(body.target_user_id)) : user.id;
-    if (!this.vacay.getPlanUsers(planId).find((u) => u.id === userId)) {
+    if (!(await this.vacay.getPlanUsers(planId)).find((u) => u.id === userId)) {
       throw new HttpException({ error: 'User not in plan' }, 403);
     }
-    this.vacay.updateStats(userId, planId, year, body.vacation_days as number, socketId);
+    await this.vacay.updateStats(userId, planId, year, body.vacation_days as number, socketId);
     return { success: true };
   }
 

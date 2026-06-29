@@ -29,20 +29,40 @@ vi.mock('../../src/services/demo', () => ({ isDemoEmail: vi.fn(() => false) }));
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn() }));
 vi.mock('../../src/services/permissions', () => ({ checkPermission }));
 
-const { fileSvc } = vi.hoisted(() => ({
-  fileSvc: {
+const { fileSvc } = vi.hoisted(() => {
+  const fileSvc = {
     MAX_FILE_SIZE: 50 * 1024 * 1024, BLOCKED_EXTENSIONS: ['.exe', '.svg'], filesDir: '/tmp/files', getAllowedExtensions: () => '*',
     verifyTripAccess: vi.fn(), resolveFilePath: vi.fn(), authenticateDownload: vi.fn(),
     listFiles: vi.fn(), getFileById: vi.fn(), getDeletedFile: vi.fn(), createFile: vi.fn(), updateFile: vi.fn(),
     toggleStarred: vi.fn(), softDeleteFile: vi.fn(), restoreFile: vi.fn(), permanentDeleteFile: vi.fn(),
     emptyTrash: vi.fn(), createFileLink: vi.fn(), deleteFileLink: vi.fn(), getFileLinks: vi.fn(), formatFile: vi.fn(),
-  },
-}));
+  };
+  Object.assign(fileSvc, {
+    listFilesAsync: fileSvc.listFiles,
+    getFileByIdAsync: fileSvc.getFileById,
+    getDeletedFileAsync: fileSvc.getDeletedFile,
+    createFileAsync: fileSvc.createFile,
+    updateFileAsync: fileSvc.updateFile,
+    toggleStarredAsync: fileSvc.toggleStarred,
+    softDeleteFileAsync: fileSvc.softDeleteFile,
+    restoreFileAsync: fileSvc.restoreFile,
+    createFileLinkAsync: fileSvc.createFileLink,
+    deleteFileLinkAsync: fileSvc.deleteFileLink,
+    getFileLinksAsync: fileSvc.getFileLinks,
+  });
+  return { fileSvc };
+});
 vi.mock('../../src/services/fileService', () => fileSvc);
 
 const { photoSvc, helperSvc } = vi.hoisted(() => ({
-  photoSvc: { streamPhoto: vi.fn(), getPhotoInfo: vi.fn(), resolveTrippiPhoto: vi.fn() },
-  helperSvc: { canAccessTrippiPhoto: vi.fn() },
+  photoSvc: {
+    streamPhoto: vi.fn(),
+    streamPhotoAsync: vi.fn(),
+    getPhotoInfo: vi.fn(),
+    getPhotoInfoAsync: vi.fn(),
+    resolveTrippiPhoto: vi.fn(),
+  },
+  helperSvc: { canAccessTrippiPhoto: vi.fn(), canAccessTrippiPhotoAsync: vi.fn() },
 }));
 vi.mock('../../src/services/memories/photoResolverService', () => photoSvc);
 vi.mock('../../src/services/memories/helpersService', () => helperSvc);
@@ -77,6 +97,7 @@ describe('Files + photos e2e (real auth guard + temp SQLite)', () => {
     fileSvc.verifyTripAccess.mockReturnValue({ id: 5, user_id: 1 });
     checkPermission.mockReturnValue(true);
     helperSvc.canAccessTrippiPhoto.mockReturnValue(true);
+    helperSvc.canAccessTrippiPhotoAsync.mockResolvedValue(true);
   });
 
   afterAll(async () => {
@@ -128,6 +149,7 @@ describe('Files + photos e2e (real auth guard + temp SQLite)', () => {
 
   it('403 on a photo the user cannot access', async () => {
     helperSvc.canAccessTrippiPhoto.mockReturnValue(false);
+    helperSvc.canAccessTrippiPhotoAsync.mockResolvedValue(false);
     const res = await request(server).get('/api/photos/5/original').set('Cookie', sessionCookie(1));
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'Forbidden' });

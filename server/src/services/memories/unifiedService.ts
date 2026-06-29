@@ -1,18 +1,18 @@
-import { canAccessTripAsync } from '../../db/asyncDatabase';
-import { db } from '../../db/database';
+import { asyncDb, canAccessTripAsync } from '../../db/asyncDatabase';
+import { resolveDbProvider } from '../../db/providerMode';
 import { broadcast } from '../../websocket';
 import { encrypt_api_key } from '../apiKeyCrypto';
 import { send } from '../notificationService';
 import { ServiceResult, fail, success, mapDbError, Selection } from './helpersService';
-import { getOrCreateTrippiPhoto, deleteTrippiPhotoIfOrphan } from './photoResolverService';
+import { getOrCreateTrippiPhotoAsync, deleteTrippiPhotoIfOrphanAsync } from './photoResolverService';
 
-function _providers(): Array<{ id: string; enabled: boolean }> {
-  const rows = db.prepare('SELECT id, enabled FROM photo_providers').all() as Array<{ id: string; enabled: number }>;
+async function _providers(): Promise<Array<{ id: string; enabled: boolean }>> {
+  const rows = await asyncDb.prepare('SELECT id, enabled FROM photo_providers').all<{ id: string; enabled: number }>();
   return rows.map((r) => ({ id: r.id, enabled: r.enabled === 1 }));
 }
 
-function _validProvider(provider: string): ServiceResult<string> {
-  const providers = _providers();
+async function _validProvider(provider: string): Promise<ServiceResult<string>> {
+  const providers = await _providers();
   const found = providers.find((p) => p.id === provider);
   if (!found) {
     return fail(`Provider: "${provider}" is not supported`, 400);
@@ -30,7 +30,7 @@ export async function listTripPhotos(tripId: string, userId: number): Promise<Se
   }
 
   try {
-    const enabledProviders = _providers()
+    const enabledProviders = (await _providers())
       .filter((p) => p.enabled)
       .map((p) => p.id);
 
@@ -38,7 +38,7 @@ export async function listTripPhotos(tripId: string, userId: number): Promise<Se
       return fail('No photo providers enabled', 400);
     }
 
-    const photos = db
+    const photos = await asyncDb
       .prepare(
         `
       SELECT tp.photo_id, tkp.asset_id, tkp.provider, tp.user_id, tp.shared, tp.added_at,
@@ -56,7 +56,7 @@ export async function listTripPhotos(tripId: string, userId: number): Promise<Se
 
     return success(photos);
   } catch (error) {
-    return mapDbError(error, 'Failed to list trip photos');
+    return mapDbError(error as Error, 'Failed to list trip photos');
   }
 }
 
@@ -66,7 +66,7 @@ export async function listTripAlbumLinks(tripId: string, userId: number): Promis
     return fail('Trip not found or access denied', 404);
   }
 
-  const enabledProviders = _providers()
+  const enabledProviders = (await _providers())
     .filter((p) => p.enabled)
     .map((p) => p.id);
 
@@ -75,7 +75,7 @@ export async function listTripAlbumLinks(tripId: string, userId: number): Promis
   }
 
   try {
-    const links = db
+    const links = await asyncDb
       .prepare(
         `
       SELECT tal.id,
@@ -99,14 +99,14 @@ export async function listTripAlbumLinks(tripId: string, userId: number): Promis
 
     return success(links);
   } catch (error) {
-    return mapDbError(error, 'Failed to list trip album links');
+    return mapDbError(error as Error, 'Failed to list trip album links');
   }
 }
 
 //-----------------------------------------------
 // managing photos in trip
 
-function _addTripPhoto(
+async function _addTripPhoto(
   tripId: string,
   userId: number,
   provider: string,
@@ -114,21 +114,21 @@ function _addTripPhoto(
   shared: boolean,
   albumLinkId?: string,
   passphrase?: string,
-): ServiceResult<boolean> {
-  const providerResult = _validProvider(provider);
+): Promise<ServiceResult<boolean>> {
+  const providerResult = await _validProvider(provider);
   if (!providerResult.success) {
     return providerResult as ServiceResult<boolean>;
   }
   try {
-    const photoId = getOrCreateTrippiPhoto(provider, assetId, userId, passphrase);
-    const result = db
+    const photoId = await getOrCreateTrippiPhotoAsync(provider, assetId, userId, passphrase);
+    const result = await asyncDb
       .prepare(
         'INSERT OR IGNORE INTO trip_photos (trip_id, user_id, photo_id, shared, album_link_id) VALUES (?, ?, ?, ?, ?)',
       )
       .run(tripId, userId, photoId, shared ? 1 : 0, albumLinkId || null);
     return success(result.changes > 0);
   } catch (error) {
-    return mapDbError(error, 'Failed to add photo to trip');
+    return mapDbError(error as Error, 'Failed to add photo to trip');
   }
 }
 
@@ -151,14 +151,14 @@ export async function addTripPhotos(
 
   let added = 0;
   for (const selection of selections) {
-    const providerResult = _validProvider(selection.provider);
+    const providerResult = await _validProvider(selection.provider);
     if (!providerResult.success) {
       return providerResult as ServiceResult<{ added: number; shared: boolean }>;
     }
     for (const raw of selection.asset_ids) {
       const assetId = String(raw || '').trim();
       if (!assetId) continue;
-      const result = _addTripPhoto(
+      const result = await _addTripPhoto(
         tripId,
         userId,
         selection.provider,
@@ -194,7 +194,7 @@ export async function setTripPhotoSharing(
   }
 
   try {
-    db.prepare(
+    await asyncDb.prepare(
       `
       UPDATE trip_photos
       SET shared = ?
@@ -208,7 +208,7 @@ export async function setTripPhotoSharing(
     broadcast(tripId, 'memories:updated', { userId }, sid);
     return success(true);
   } catch (error) {
-    return mapDbError(error, 'Failed to update photo sharing');
+    return mapDbError(error as Error, 'Failed to update photo sharing');
   }
 }
 
@@ -224,7 +224,7 @@ export async function removeTripPhoto(
   }
 
   try {
-    db.prepare(
+    await asyncDb.prepare(
       `
       DELETE FROM trip_photos
       WHERE trip_id = ?
@@ -233,12 +233,12 @@ export async function removeTripPhoto(
     `,
     ).run(tripId, userId, photoId);
 
-    deleteTrippiPhotoIfOrphan(photoId);
+    await deleteTrippiPhotoIfOrphanAsync(photoId);
     broadcast(tripId, 'memories:updated', { userId }, sid);
 
     return success(true);
   } catch (error) {
-    return mapDbError(error, 'Failed to remove trip photo');
+    return mapDbError(error as Error, 'Failed to remove trip photo');
   }
 }
 
@@ -269,14 +269,14 @@ export async function createTripAlbumLink(
     return fail('album_id required', 400);
   }
 
-  const providerResult = _validProvider(provider);
+  const providerResult = await _validProvider(provider);
   if (!providerResult.success) {
     return providerResult as ServiceResult<true>;
   }
 
   try {
     const encryptedPassphrase = passphrase ? encrypt_api_key(passphrase) : null;
-    const result = db
+    const result = await asyncDb
       .prepare(
         'INSERT OR IGNORE INTO trip_album_links (trip_id, user_id, provider, album_id, album_name, passphrase) VALUES (?, ?, ?, ?, ?, ?)',
       )
@@ -288,7 +288,7 @@ export async function createTripAlbumLink(
 
     return success(true);
   } catch (error) {
-    return mapDbError(error, 'Failed to link album');
+    return mapDbError(error as Error, 'Failed to link album');
   }
 }
 
@@ -299,13 +299,13 @@ export async function removeAlbumLink(tripId: string, linkId: string, userId: nu
   }
 
   try {
-    const linkedPhotos = db
+    const linkedPhotos = await asyncDb
       .prepare('SELECT photo_id FROM trip_photos WHERE trip_id = ? AND album_link_id = ?')
-      .all(tripId, linkId) as Array<{ photo_id: number }>;
+      .all<{ photo_id: number }>(tripId, linkId);
 
-    db.transaction(() => {
-      db.prepare('DELETE FROM trip_photos WHERE trip_id = ? AND album_link_id = ?').run(tripId, linkId);
-      db.prepare('DELETE FROM trip_album_links WHERE id = ? AND trip_id = ? AND user_id = ?').run(
+    await asyncDb.transaction(async () => {
+      await asyncDb.prepare('DELETE FROM trip_photos WHERE trip_id = ? AND album_link_id = ?').run(tripId, linkId);
+      await asyncDb.prepare('DELETE FROM trip_album_links WHERE id = ? AND trip_id = ? AND user_id = ?').run(
         linkId,
         tripId,
         userId,
@@ -313,12 +313,12 @@ export async function removeAlbumLink(tripId: string, linkId: string, userId: nu
     })();
 
     for (const { photo_id } of linkedPhotos) {
-      deleteTrippiPhotoIfOrphan(photo_id);
+      await deleteTrippiPhotoIfOrphanAsync(photo_id);
     }
 
     return success(true);
   } catch (error) {
-    return mapDbError(error, 'Failed to remove album link');
+    return mapDbError(error as Error, 'Failed to remove album link');
   }
 }
 
@@ -333,27 +333,38 @@ async function _notifySharedTripPhotos(
   if (added <= 0) return success(undefined);
 
   try {
-    const actorRow = db.prepare('SELECT username, email FROM users WHERE id = ?').get(actorUserId) as {
-      username: string | null;
-      email: string | null;
-    };
+    const actorRow = await asyncDb
+      .prepare('SELECT username, email FROM users WHERE id = ?')
+      .get<{ username: string | null; email: string | null }>(actorUserId);
 
-    const tripInfo = db.prepare('SELECT title FROM trips WHERE id = ?').get(tripId) as { title: string } | undefined;
+    const tripInfo = await asyncDb.prepare('SELECT title FROM trips WHERE id = ?').get<{ title: string }>(tripId);
 
-    send({
-      event: 'photos_shared',
-      actorId: actorUserId,
-      scope: 'trip',
-      targetId: Number(tripId),
-      params: {
-        trip: tripInfo?.title || 'Untitled',
-        actor: actorRow?.email || 'Unknown',
-        count: String(added),
-        tripId: String(tripId),
-      },
-    }).catch(() => {});
+    if (resolveDbProvider() !== 'oracle-async') {
+      send({
+        event: 'photos_shared',
+        actorId: actorUserId,
+        scope: 'trip',
+        targetId: Number(tripId),
+        params: {
+          trip: tripInfo?.title || 'Untitled',
+          actor: actorRow?.email || 'Unknown',
+          count: String(added),
+          tripId: String(tripId),
+        },
+      }).catch(() => {});
+    }
     return success(undefined);
   } catch {
     return fail('Failed to send notifications', 500);
   }
 }
+
+export {
+  listTripPhotos as listTripPhotosAsync,
+  listTripAlbumLinks as listTripAlbumLinksAsync,
+  addTripPhotos as addTripPhotosAsync,
+  setTripPhotoSharing as setTripPhotoSharingAsync,
+  removeTripPhoto as removeTripPhotoAsync,
+  createTripAlbumLink as createTripAlbumLinkAsync,
+  removeAlbumLink as removeAlbumLinkAsync,
+};

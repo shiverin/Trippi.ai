@@ -23,38 +23,40 @@ export function registerTools(
   scopes: string[] | null,
   isStaticToken = false,
   getDeprecationNotice: () => string | null = () => null,
-): void {
-  registerTripTools(server, userId, scopes, getDeprecationNotice);
+): Promise<void> {
+  return (async () => {
+    registerTripTools(server, userId, scopes, getDeprecationNotice);
 
-  registerPlaceTools(server, userId, scopes);
+    registerPlaceTools(server, userId, scopes);
 
-  registerBudgetTools(server, userId, scopes);
+    await registerBudgetTools(server, userId, scopes);
 
-  registerPackingTools(server, userId, scopes);
+    await registerPackingTools(server, userId, scopes);
 
-  registerReservationTools(server, userId, scopes);
+    registerReservationTools(server, userId, scopes);
 
-  registerDayTools(server, userId, scopes);
+    registerDayTools(server, userId, scopes);
 
-  registerAssignmentTools(server, userId, scopes);
+    registerAssignmentTools(server, userId, scopes);
 
-  registerTagTools(server, userId, scopes);
+    registerTagTools(server, userId, scopes);
 
-  registerMapsWeatherTools(server, userId, scopes);
+    registerMapsWeatherTools(server, userId, scopes);
 
-  registerNotificationTools(server, userId, scopes);
+    registerNotificationTools(server, userId, scopes);
 
-  registerAtlasTools(server, userId, scopes);
+    await registerAtlasTools(server, userId, scopes);
 
-  registerCollabTools(server, userId, scopes);
+    await registerCollabTools(server, userId, scopes);
 
-  registerTransportTools(server, userId, scopes);
+    registerTransportTools(server, userId, scopes);
 
-  registerJourneyTools(server, userId, scopes);
+    await registerJourneyTools(server, userId, scopes);
 
-  registerVacayTools(server, userId, scopes);
+    await registerVacayTools(server, userId, scopes);
 
-  registerTodoTools(server, userId, scopes);
+    await registerTodoTools(server, userId, scopes);
 
-  registerMcpPrompts(server, userId, isStaticToken);
+    await registerMcpPrompts(server, userId, isStaticToken);
+  })();
 }

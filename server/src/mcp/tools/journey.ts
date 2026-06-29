@@ -1,6 +1,6 @@
 import { ADDON_IDS } from '../../addons';
-import { isAddonEnabled } from '../../services/adminService';
-import { isDemoUser } from '../../services/authService';
+import { isAddonEnabledAsync } from '../../services/adminService';
+import { isDemoUserAsync } from '../../services/authService';
 import {
   addContributor,
   addTripToJourney,
@@ -44,8 +44,8 @@ function notFound(msg: string) {
   return { content: [{ type: 'text' as const, text: msg }], isError: true };
 }
 
-export function registerJourneyTools(server: McpServer, userId: number, scopes: string[] | null): void {
-  if (!isAddonEnabled(ADDON_IDS.JOURNEY)) return;
+export async function registerJourneyTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
+  if (!(await isAddonEnabledAsync(ADDON_IDS.JOURNEY))) return;
 
   const R = canRead(scopes, 'journey');
   const W = canWrite(scopes, 'journey');
@@ -62,7 +62,7 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async () => {
-        const journeys = listJourneys(userId);
+        const journeys = await listJourneys(userId);
         return ok({ journeys });
       },
     );
@@ -78,7 +78,7 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ journeyId }) => {
-        const journey = getJourneyFull(journeyId, userId);
+        const journey = await getJourneyFull(journeyId, userId);
         if (!journey) return notFound('Journey not found or access denied.');
         return ok({ journey });
       },
@@ -95,8 +95,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ journeyId }) => {
-        if (!canAccessJourney(journeyId, userId)) return notFound('Journey not found or access denied.');
-        const entries = listEntries(journeyId, userId);
+        if (!(await canAccessJourney(journeyId, userId))) return notFound('Journey not found or access denied.');
+        const entries = await listEntries(journeyId, userId);
         return ok({ entries });
       },
     );
@@ -112,7 +112,7 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ journeyId }) => {
-        const journey = getJourneyFull(journeyId, userId);
+        const journey = await getJourneyFull(journeyId, userId);
         if (!journey) return notFound('Journey not found or access denied.');
         return ok({ contributors: (journey as any).contributors ?? [] });
       },
@@ -128,7 +128,7 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async () => {
-        const trips = getSuggestions(userId);
+        const trips = await getSuggestions(userId);
         return ok({ trips });
       },
     );
@@ -142,7 +142,7 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async () => {
-        const trips = listUserTrips(userId);
+        const trips = await listUserTrips(userId);
         return ok({ trips });
       },
     );
@@ -162,11 +162,11 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,
       },
       async ({ title, subtitle, trip_ids }) => {
-        if (isDemoUser(userId)) return demoDenied();
+        if (await isDemoUserAsync(userId)) return demoDenied();
         const journey = await createJourney(userId, { title, subtitle, trip_ids });
         // Return the fully-hydrated journey (entries/contributors/trips/stats/my_role),
         // matching get_journey, rather than the bare row.
-        return ok({ journey: getJourneyFull(journey.id, userId) ?? journey });
+        return ok({ journey: (await getJourneyFull(journey.id, userId)) ?? journey });
       },
     );
 
@@ -184,8 +184,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_WRITE,
       },
       async ({ journeyId, title, subtitle, status }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const journey = updateJourney(journeyId, userId, { title, subtitle, status });
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const journey = await updateJourney(journeyId, userId, { title, subtitle, status });
         if (!journey) return notFound('Journey not found or access denied.');
         return ok({ journey });
       },
@@ -202,8 +202,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_DELETE,
       },
       async ({ journeyId }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const success = deleteJourney(journeyId, userId);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const success = await deleteJourney(journeyId, userId);
         if (!success) return notFound('Journey not found or access denied.');
         return ok({ success: true });
       },
@@ -221,9 +221,9 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,
       },
       async ({ journeyId, tripId }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessJourney(journeyId, userId)) return notFound('Journey not found or access denied.');
-        const success = addTripToJourney(journeyId, tripId, userId);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        if (!(await canAccessJourney(journeyId, userId))) return notFound('Journey not found or access denied.');
+        const success = await addTripToJourney(journeyId, tripId, userId);
         return ok({ success });
       },
     );
@@ -240,8 +240,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_DELETE,
       },
       async ({ journeyId, tripId }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const success = removeTripFromJourney(journeyId, tripId, userId);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const success = await removeTripFromJourney(journeyId, tripId, userId);
         if (!success) return notFound('Journey not found or access denied.');
         return ok({ success });
       },
@@ -268,8 +268,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,
       },
       async ({ journeyId, entry_date, title, story, entry_time, location_name, mood, sort_order }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const entry = createEntry(journeyId, userId, {
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const entry = await createEntry(journeyId, userId, {
           entry_date,
           title,
           story,
@@ -280,7 +280,7 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         });
         if (!entry) return notFound('Journey not found or access denied.');
         // Return through the listEntries enrichment (parsed tags/pros_cons, photos, source_trip_name).
-        const enriched = listEntries(journeyId, userId)?.find((e) => e.id === entry.id) ?? entry;
+        const enriched = (await listEntries(journeyId, userId))?.find((e) => e.id === entry.id) ?? entry;
         return ok({ entry: enriched });
       },
     );
@@ -304,11 +304,11 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_WRITE,
       },
       async ({ entryId, title, story, entry_date, entry_time, mood }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const entry = updateEntry(entryId, userId, { title, story, entry_date, entry_time, mood }, undefined);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const entry = await updateEntry(entryId, userId, { title, story, entry_date, entry_time, mood }, undefined);
         if (!entry) return notFound('Entry not found or access denied.');
         // Return through the listEntries enrichment (parsed tags/pros_cons, photos), matching create_journey_entry.
-        const enriched = listEntries(entry.journey_id, userId)?.find((e) => e.id === entry.id) ?? entry;
+        const enriched = (await listEntries(entry.journey_id, userId))?.find((e) => e.id === entry.id) ?? entry;
         return ok({ entry: enriched });
       },
     );
@@ -324,8 +324,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_DELETE,
       },
       async ({ entryId }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const success = deleteEntry(entryId, userId, undefined);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const success = await deleteEntry(entryId, userId, undefined);
         if (!success) return notFound('Entry not found or access denied.');
         return ok({ success: true });
       },
@@ -343,8 +343,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_WRITE,
       },
       async ({ journeyId, orderedIds }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const success = reorderEntries(journeyId, userId, orderedIds, undefined);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const success = await reorderEntries(journeyId, userId, orderedIds, undefined);
         if (!success) return notFound('Journey not found, access denied, or entry IDs do not belong to this journey.');
         return ok({ success: true });
       },
@@ -363,8 +363,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,
       },
       async ({ journeyId, targetUserId, role }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const success = addContributor(journeyId, userId, targetUserId, role);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const success = await addContributor(journeyId, userId, targetUserId, role);
         if (!success) return notFound('Journey not found or access denied.');
         return ok({ success: true });
       },
@@ -383,8 +383,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_WRITE,
       },
       async ({ journeyId, targetUserId, role }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const success = updateContributorRole(journeyId, userId, targetUserId, role);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const success = await updateContributorRole(journeyId, userId, targetUserId, role);
         if (!success) return notFound('Journey not found or access denied.');
         return ok({ success: true });
       },
@@ -402,8 +402,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_DELETE,
       },
       async ({ journeyId, targetUserId }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const success = removeContributor(journeyId, userId, targetUserId);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const success = await removeContributor(journeyId, userId, targetUserId);
         if (!success) return notFound('Journey not found or access denied.');
         return ok({ success: true });
       },
@@ -421,8 +421,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_WRITE,
       },
       async ({ journeyId, hide_skeletons }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const result = updateJourneyPreferences(journeyId, userId, { hide_skeletons });
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const result = await updateJourneyPreferences(journeyId, userId, { hide_skeletons });
         if (!result) return notFound('Journey not found or access denied.');
         // Return the service result ({ hide_skeletons }), matching the REST route.
         return ok(result);
@@ -442,8 +442,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ journeyId }) => {
-        if (!canAccessJourney(journeyId, userId)) return notFound('Journey not found or access denied.');
-        const shareLink = getJourneyShareLink(journeyId);
+        if (!(await canAccessJourney(journeyId, userId))) return notFound('Journey not found or access denied.');
+        const shareLink = await getJourneyShareLink(journeyId);
         return ok({ shareLink });
       },
     );
@@ -459,8 +459,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_WRITE,
       },
       async ({ journeyId }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const shareLink = createOrUpdateJourneyShareLink(journeyId, userId, {});
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const shareLink = await createOrUpdateJourneyShareLink(journeyId, userId, {});
         if (!shareLink) return notFound('Journey not found or access denied.');
         return ok({ shareLink });
       },
@@ -477,8 +477,8 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_DELETE,
       },
       async ({ journeyId }) => {
-        if (isDemoUser(userId)) return demoDenied();
-        const success = deleteJourneyShareLink(journeyId, userId);
+        if (await isDemoUserAsync(userId)) return demoDenied();
+        const success = await deleteJourneyShareLink(journeyId, userId);
         if (!success) return notFound('Journey not found or access denied.');
         return ok({ success: true });
       },

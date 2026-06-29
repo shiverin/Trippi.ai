@@ -35,7 +35,7 @@ export class TodoController {
   @Get()
   async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { items: this.todo.listItems(tripId) };
+    return { items: await this.todo.listItems(tripId) };
   }
 
   @Post()
@@ -59,7 +59,14 @@ export class TodoController {
       throw new HttpException({ error: 'Item name is required' }, 400);
     }
     const { name, category, due_date, description, assigned_user_id, priority } = body;
-    const item = this.todo.createItem(tripId, { name, category, due_date, description, assigned_user_id, priority });
+    const item = await this.todo.createItem(tripId, {
+      name,
+      category,
+      due_date,
+      description,
+      assigned_user_id,
+      priority,
+    });
     this.todo.broadcast(tripId, 'todo:created', { item }, socketId);
     return { item };
   }
@@ -68,7 +75,7 @@ export class TodoController {
   async reorder(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body('orderedIds') orderedIds: number[]) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    this.todo.reorderItems(tripId, orderedIds);
+    await this.todo.reorderItems(tripId, orderedIds);
     return { success: true };
   }
 
@@ -86,7 +93,7 @@ export class TodoController {
       string,
       never
     >;
-    const updated = this.todo.updateItem(
+    const updated = await this.todo.updateItem(
       tripId,
       id,
       { name, checked, category, due_date, description, assigned_user_id, priority },
@@ -108,7 +115,7 @@ export class TodoController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.todo.deleteItem(tripId, id)) {
+    if (!(await this.todo.deleteItem(tripId, id))) {
       throw new HttpException({ error: 'Item not found' }, 404);
     }
     this.todo.broadcast(tripId, 'todo:deleted', { itemId: Number(id) }, socketId);
@@ -118,7 +125,7 @@ export class TodoController {
   @Get('category-assignees')
   async categoryAssignees(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { assignees: this.todo.getCategoryAssignees(tripId) };
+    return { assignees: await this.todo.getCategoryAssignees(tripId) };
   }
 
   @Put('category-assignees/:categoryName')
@@ -132,7 +139,7 @@ export class TodoController {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const category = decodeURIComponent(categoryName);
-    const rows = this.todo.updateCategoryAssignees(tripId, category, userIds);
+    const rows = await this.todo.updateCategoryAssignees(tripId, category, userIds);
     this.todo.broadcast(tripId, 'todo:assignees', { category, assignees: rows }, socketId);
     return { assignees: rows };
   }

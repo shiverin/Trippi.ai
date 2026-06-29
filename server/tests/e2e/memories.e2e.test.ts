@@ -31,24 +31,60 @@ vi.mock('../../src/websocket', () => ({ broadcast: vi.fn() }));
 
 // Provider services — fully mocked. fail/success/canAccessUserPhoto from the
 // helper module are kept real except canAccessUserPhoto which we override.
-const { unified, immich, synology } = vi.hoisted(() => ({
-  unified: {
+const { unified, immich, synology } = vi.hoisted(() => {
+  const unified = {
     listTripPhotos: vi.fn(), addTripPhotos: vi.fn(), setTripPhotoSharing: vi.fn(),
     removeTripPhoto: vi.fn(), listTripAlbumLinks: vi.fn(), createTripAlbumLink: vi.fn(), removeAlbumLink: vi.fn(),
-  },
-  immich: {
+  };
+  Object.assign(unified, {
+    listTripPhotosAsync: unified.listTripPhotos,
+    addTripPhotosAsync: unified.addTripPhotos,
+    setTripPhotoSharingAsync: unified.setTripPhotoSharing,
+    removeTripPhotoAsync: unified.removeTripPhoto,
+    listTripAlbumLinksAsync: unified.listTripAlbumLinks,
+    createTripAlbumLinkAsync: unified.createTripAlbumLink,
+    removeAlbumLinkAsync: unified.removeAlbumLink,
+  });
+  const immich = {
     getConnectionSettings: vi.fn(), saveImmichSettings: vi.fn(), setImmichAutoUpload: vi.fn(),
     testConnection: vi.fn(), getConnectionStatus: vi.fn(), browseTimeline: vi.fn(), searchPhotos: vi.fn(),
     streamImmichAsset: vi.fn(), listAlbums: vi.fn(), getAlbumPhotos: vi.fn(), syncAlbumAssets: vi.fn(),
     getAssetInfo: vi.fn(), isValidAssetId: vi.fn(),
-  },
-  synology: {
+  };
+  Object.assign(immich, {
+    getConnectionSettingsAsync: immich.getConnectionSettings,
+    saveImmichSettingsAsync: immich.saveImmichSettings,
+    setImmichAutoUploadAsync: immich.setImmichAutoUpload,
+    testConnectionAsync: immich.testConnection,
+    getConnectionStatusAsync: immich.getConnectionStatus,
+    browseTimelineAsync: immich.browseTimeline,
+    searchPhotosAsync: immich.searchPhotos,
+    streamImmichAssetAsync: immich.streamImmichAsset,
+    listAlbumsAsync: immich.listAlbums,
+    getAlbumPhotosAsync: immich.getAlbumPhotos,
+    syncAlbumAssetsAsync: immich.syncAlbumAssets,
+    getAssetInfoAsync: immich.getAssetInfo,
+  });
+  const synology = {
     getSynologySettings: vi.fn(), updateSynologySettings: vi.fn(), getSynologyStatus: vi.fn(),
     testSynologyConnection: vi.fn(), listSynologyAlbums: vi.fn(), getSynologyAlbumPhotos: vi.fn(),
     syncSynologyAlbumLink: vi.fn(), searchSynologyPhotos: vi.fn(), getSynologyAssetInfo: vi.fn(),
     streamSynologyAsset: vi.fn(),
-  },
-}));
+  };
+  Object.assign(synology, {
+    getSynologySettingsAsync: synology.getSynologySettings,
+    updateSynologySettingsAsync: synology.updateSynologySettings,
+    getSynologyStatusAsync: synology.getSynologyStatus,
+    testSynologyConnectionAsync: synology.testSynologyConnection,
+    listSynologyAlbumsAsync: synology.listSynologyAlbums,
+    getSynologyAlbumPhotosAsync: synology.getSynologyAlbumPhotos,
+    syncSynologyAlbumLinkAsync: synology.syncSynologyAlbumLink,
+    searchSynologyPhotosAsync: synology.searchSynologyPhotos,
+    getSynologyAssetInfoAsync: synology.getSynologyAssetInfo,
+    streamSynologyAssetAsync: synology.streamSynologyAsset,
+  });
+  return { unified, immich, synology };
+});
 vi.mock('../../src/services/memories/unifiedService', () => unified);
 vi.mock('../../src/services/memories/immichService', () => immich);
 vi.mock('../../src/services/memories/synologyService', () => synology);
@@ -58,7 +94,7 @@ vi.mock('../../src/services/memories/helpersService', async () => {
   const actual = await vi.importActual<typeof import('../../src/services/memories/helpersService')>(
     '../../src/services/memories/helpersService',
   );
-  return { ...actual, canAccessUserPhoto };
+  return { ...actual, canAccessUserPhoto, canAccessUserPhotoAsync: canAccessUserPhoto };
 });
 
 import { MemoriesModule } from '../../src/nest/memories/memories.module';

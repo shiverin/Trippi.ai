@@ -1,3 +1,4 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { CollabNote, CollabPoll, CollabMessage, TripFile } from '../types';
 import { checkSsrf, createPinnedDispatcher } from '../utils/ssrfGuard';
@@ -70,6 +71,19 @@ export function loadReactions(messageId: number | string): ReactionRow[] {
     .all(messageId) as ReactionRow[];
 }
 
+export async function loadReactionsAsync(messageId: number | string): Promise<ReactionRow[]> {
+  return asyncDb
+    .prepare(
+      `
+    SELECT r.emoji, r.user_id, u.username
+    FROM collab_message_reactions r
+    JOIN users u ON r.user_id = u.id
+    WHERE r.message_id = ?
+  `,
+    )
+    .all<ReactionRow>(messageId);
+}
+
 export function groupReactions(reactions: ReactionRow[]): GroupedReaction[] {
   const map: Record<string, { user_id: number; username: string }[]> = {};
   for (const r of reactions) {
@@ -104,6 +118,31 @@ export function addOrRemoveReaction(
   return { found: true, reactions: groupReactions(loadReactions(messageId)) };
 }
 
+export async function addOrRemoveReactionAsync(
+  messageId: number | string,
+  tripId: number | string,
+  userId: number,
+  emoji: string,
+): Promise<{ found: boolean; reactions: GroupedReaction[] }> {
+  const msg = await asyncDb
+    .prepare('SELECT id FROM collab_messages WHERE id = ? AND trip_id = ?')
+    .get(messageId, tripId);
+  if (!msg) return { found: false, reactions: [] };
+
+  const existing = await asyncDb
+    .prepare('SELECT id FROM collab_message_reactions WHERE message_id = ? AND user_id = ? AND emoji = ?')
+    .get<{ id: number }>(messageId, userId, emoji);
+  if (existing) {
+    await asyncDb.prepare('DELETE FROM collab_message_reactions WHERE id = ?').run(existing.id);
+  } else {
+    await asyncDb
+      .prepare('INSERT INTO collab_message_reactions (message_id, user_id, emoji) VALUES (?, ?, ?)')
+      .run(messageId, userId, emoji);
+  }
+
+  return { found: true, reactions: groupReactions(await loadReactionsAsync(messageId)) };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Notes                                                              */
 /* ------------------------------------------------------------------ */
@@ -112,6 +151,17 @@ export function formatNote(note: CollabNote) {
   const attachments = db
     .prepare('SELECT id, filename, original_name, file_size, mime_type FROM trip_files WHERE note_id = ?')
     .all(note.id) as NoteFileRow[];
+  return {
+    ...note,
+    avatar_url: avatarUrl(note),
+    attachments: attachments.map((a) => ({ ...a, url: `/api/trips/${note.trip_id}/files/${a.id}/download` })),
+  };
+}
+
+export async function formatNoteAsync(note: CollabNote) {
+  const attachments = await asyncDb
+    .prepare('SELECT id, filename, original_name, file_size, mime_type FROM trip_files WHERE note_id = ?')
+    .all<NoteFileRow>(note.id);
   return {
     ...note,
     avatar_url: avatarUrl(note),
@@ -133,6 +183,22 @@ export function listNotes(tripId: string | number) {
     .all(tripId) as CollabNote[];
 
   return notes.map(formatNote);
+}
+
+export async function listNotesAsync(tripId: string | number) {
+  const notes = await asyncDb
+    .prepare(
+      `
+    SELECT n.*, u.username, u.avatar
+    FROM collab_notes n
+    JOIN users u ON n.user_id = u.id
+    WHERE n.trip_id = ?
+    ORDER BY n.pinned DESC, n.updated_at DESC
+  `,
+    )
+    .all<CollabNote>(tripId);
+
+  return Promise.all(notes.map(formatNoteAsync));
 }
 
 export function createNote(
@@ -168,6 +234,41 @@ export function createNote(
     .get(result.lastInsertRowid) as CollabNote;
 
   return formatNote(note);
+}
+
+export async function createNoteAsync(
+  tripId: string | number,
+  userId: number,
+  data: { title: string; content?: string; category?: string; color?: string; website?: string; pinned?: boolean },
+) {
+  const pinned = data.pinned ? 1 : 0;
+  const result = await asyncDb
+    .prepare(
+      `
+    INSERT INTO collab_notes (trip_id, user_id, title, content, category, color, website, pinned)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `,
+    )
+    .run(
+      tripId,
+      userId,
+      data.title,
+      data.content || null,
+      data.category || 'General',
+      data.color || '#6366f1',
+      data.website || null,
+      pinned,
+    );
+
+  const note = (await asyncDb
+    .prepare(
+      `
+    SELECT n.*, u.username, u.avatar FROM collab_notes n JOIN users u ON n.user_id = u.id WHERE n.id = ?
+  `,
+    )
+    .get<CollabNote>(result.lastInsertRowid))!;
+
+  return formatNoteAsync(note);
 }
 
 export function updateNote(
@@ -221,6 +322,59 @@ export function updateNote(
   return formatNote(note);
 }
 
+export async function updateNoteAsync(
+  tripId: string | number,
+  noteId: string | number,
+  data: {
+    title?: string;
+    content?: string;
+    category?: string;
+    color?: string;
+    pinned?: number | boolean;
+    website?: string;
+  },
+): Promise<Awaited<ReturnType<typeof formatNoteAsync>> | null> {
+  const existing = await asyncDb.prepare('SELECT * FROM collab_notes WHERE id = ? AND trip_id = ?').get(noteId, tripId);
+  if (!existing) return null;
+
+  await asyncDb
+    .prepare(
+      `
+    UPDATE collab_notes SET
+      title = COALESCE(?, title),
+      content = CASE WHEN ? THEN ? ELSE content END,
+      category = COALESCE(?, category),
+      color = COALESCE(?, color),
+      pinned = CASE WHEN ? IS NOT NULL THEN ? ELSE pinned END,
+      website = CASE WHEN ? THEN ? ELSE website END,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `,
+    )
+    .run(
+      data.title || null,
+      data.content !== undefined ? 1 : 0,
+      data.content !== undefined ? data.content : null,
+      data.category || null,
+      data.color || null,
+      data.pinned !== undefined ? 1 : null,
+      data.pinned ? 1 : 0,
+      data.website !== undefined ? 1 : 0,
+      data.website !== undefined ? data.website : null,
+      noteId,
+    );
+
+  const note = (await asyncDb
+    .prepare(
+      `
+    SELECT n.*, u.username, u.avatar FROM collab_notes n JOIN users u ON n.user_id = u.id WHERE n.id = ?
+  `,
+    )
+    .get<CollabNote>(noteId))!;
+
+  return formatNoteAsync(note);
+}
+
 export function deleteNote(tripId: string | number, noteId: string | number): boolean {
   const existing = db.prepare('SELECT id FROM collab_notes WHERE id = ? AND trip_id = ?').get(noteId, tripId);
   if (!existing) return false;
@@ -238,6 +392,30 @@ export function deleteNote(tripId: string | number, noteId: string | number): bo
   db.prepare('DELETE FROM trip_files WHERE note_id = ?').run(noteId);
 
   db.prepare('DELETE FROM collab_notes WHERE id = ?').run(noteId);
+  return true;
+}
+
+export async function deleteNoteAsync(tripId: string | number, noteId: string | number): Promise<boolean> {
+  const existing = await asyncDb
+    .prepare('SELECT id FROM collab_notes WHERE id = ? AND trip_id = ?')
+    .get(noteId, tripId);
+  if (!existing) return false;
+
+  const noteFiles = await asyncDb
+    .prepare('SELECT id, filename FROM trip_files WHERE note_id = ?')
+    .all<NoteFileRow>(noteId);
+  await Promise.all(
+    noteFiles.map(async (f) => {
+      const filePath = path.join(__dirname, '../../uploads', f.filename);
+      try {
+        await fs.promises.rm(filePath, { force: true });
+      } catch {
+        /* ignore */
+      }
+    }),
+  );
+  await asyncDb.prepare('DELETE FROM trip_files WHERE note_id = ?').run(noteId);
+  await asyncDb.prepare('DELETE FROM collab_notes WHERE id = ?').run(noteId);
   return true;
 }
 
@@ -263,11 +441,38 @@ export function addNoteFile(
   return { file: { ...saved, url: `/api/trips/${tripId}/files/${saved.id}/download` } };
 }
 
+export async function addNoteFileAsync(
+  tripId: string | number,
+  noteId: string | number,
+  file: { filename: string; originalname: string; size: number; mimetype: string },
+): Promise<{ file: TripFile & { url: string } } | null> {
+  const note = await asyncDb
+    .prepare('SELECT id FROM collab_notes WHERE id = ? AND trip_id = ?')
+    .get(noteId, tripId);
+  if (!note) return null;
+
+  const result = await asyncDb
+    .prepare(
+      'INSERT INTO trip_files (trip_id, note_id, filename, original_name, file_size, mime_type) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run(tripId, noteId, `files/${file.filename}`, file.originalname, file.size, file.mimetype);
+
+  const saved = (await asyncDb.prepare('SELECT * FROM trip_files WHERE id = ?').get<TripFile>(result.lastInsertRowid))!;
+  return { file: { ...saved, url: `/api/trips/${tripId}/files/${saved.id}/download` } };
+}
+
 export function getFormattedNoteById(noteId: string | number) {
   const note = db
     .prepare('SELECT n.*, u.username, u.avatar FROM collab_notes n JOIN users u ON n.user_id = u.id WHERE n.id = ?')
     .get(noteId) as CollabNote;
   return formatNote(note);
+}
+
+export async function getFormattedNoteByIdAsync(noteId: string | number) {
+  const note = await asyncDb
+    .prepare('SELECT n.*, u.username, u.avatar FROM collab_notes n JOIN users u ON n.user_id = u.id WHERE n.id = ?')
+    .get<CollabNote>(noteId);
+  return note ? formatNoteAsync(note) : null;
 }
 
 export function deleteNoteFile(noteId: string | number, fileId: string | number): boolean {
@@ -284,6 +489,23 @@ export function deleteNoteFile(noteId: string | number, fileId: string | number)
   }
 
   db.prepare('DELETE FROM trip_files WHERE id = ?').run(fileId);
+  return true;
+}
+
+export async function deleteNoteFileAsync(noteId: string | number, fileId: string | number): Promise<boolean> {
+  const file = await asyncDb
+    .prepare('SELECT * FROM trip_files WHERE id = ? AND note_id = ?')
+    .get<TripFile>(fileId, noteId);
+  if (!file) return false;
+
+  const filePath = path.join(__dirname, '../../uploads', file.filename);
+  try {
+    await fs.promises.rm(filePath, { force: true });
+  } catch {
+    /* ignore */
+  }
+
+  await asyncDb.prepare('DELETE FROM trip_files WHERE id = ?').run(fileId);
   return true;
 }
 
@@ -345,6 +567,59 @@ export function getPollWithVotes(pollId: number | bigint | string) {
   };
 }
 
+export async function getPollWithVotesAsync(pollId: number | bigint | string) {
+  const poll = await asyncDb
+    .prepare(
+      `
+    SELECT p.*, u.username, u.avatar
+    FROM collab_polls p
+    JOIN users u ON p.user_id = u.id
+    WHERE p.id = ?
+  `,
+    )
+    .get<CollabPoll>(pollId);
+
+  if (!poll) return null;
+
+  const options: (string | { label: string })[] = JSON.parse(poll.options);
+
+  const votes = await asyncDb
+    .prepare(
+      `
+    SELECT v.option_index, v.user_id, u.username, u.avatar
+    FROM collab_poll_votes v
+    JOIN users u ON v.user_id = u.id
+    WHERE v.poll_id = ?
+  `,
+    )
+    .all<PollVoteRow>(pollId);
+
+  const formattedOptions = options.map((label: string | { label: string }, idx: number) => {
+    const text = typeof label === 'string' ? label : label.label || label;
+    return {
+      text,
+      label: text,
+      voters: votes
+        .filter((v) => v.option_index === idx)
+        .map((v) => ({
+          id: v.user_id,
+          user_id: v.user_id,
+          username: v.username,
+          avatar: v.avatar,
+          avatar_url: avatarUrl(v),
+        })),
+    };
+  });
+
+  return {
+    ...poll,
+    avatar_url: avatarUrl(poll),
+    options: formattedOptions,
+    is_closed: !!poll.closed,
+    multiple_choice: !!poll.multiple,
+  };
+}
+
 export function listPolls(tripId: string | number) {
   const rows = db
     .prepare(
@@ -355,6 +630,19 @@ export function listPolls(tripId: string | number) {
     .all(tripId) as { id: number }[];
 
   return rows.map((row) => getPollWithVotes(row.id)).filter(Boolean);
+}
+
+export async function listPollsAsync(tripId: string | number) {
+  const rows = await asyncDb
+    .prepare(
+      `
+    SELECT id FROM collab_polls WHERE trip_id = ? ORDER BY created_at DESC
+  `,
+    )
+    .all<{ id: number }>(tripId);
+
+  const polls = await Promise.all(rows.map((row) => getPollWithVotesAsync(row.id)));
+  return polls.filter(Boolean);
 }
 
 export function createPoll(
@@ -374,6 +662,25 @@ export function createPoll(
     .run(tripId, userId, data.question, JSON.stringify(data.options), isMultiple ? 1 : 0, data.deadline || null);
 
   return getPollWithVotes(result.lastInsertRowid);
+}
+
+export async function createPollAsync(
+  tripId: string | number,
+  userId: number,
+  data: { question: string; options: unknown[]; multiple?: boolean; multiple_choice?: boolean; deadline?: string },
+) {
+  const isMultiple = data.multiple || data.multiple_choice;
+
+  const result = await asyncDb
+    .prepare(
+      `
+    INSERT INTO collab_polls (trip_id, user_id, question, options, multiple, deadline)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `,
+    )
+    .run(tripId, userId, data.question, JSON.stringify(data.options), isMultiple ? 1 : 0, data.deadline || null);
+
+  return getPollWithVotesAsync(result.lastInsertRowid);
 }
 
 export function votePoll(
@@ -413,6 +720,41 @@ export function votePoll(
   return { poll: getPollWithVotes(pollId) };
 }
 
+export async function votePollAsync(
+  tripId: string | number,
+  pollId: string | number,
+  userId: number,
+  optionIndex: number,
+): Promise<{ error?: string; poll?: Awaited<ReturnType<typeof getPollWithVotesAsync>> }> {
+  const poll = await asyncDb
+    .prepare('SELECT * FROM collab_polls WHERE id = ? AND trip_id = ?')
+    .get<CollabPoll>(pollId, tripId);
+  if (!poll) return { error: 'not_found' };
+  if (poll.closed) return { error: 'closed' };
+
+  const options = JSON.parse(poll.options);
+  if (optionIndex < 0 || optionIndex >= options.length) {
+    return { error: 'invalid_index' };
+  }
+
+  const existingVote = await asyncDb
+    .prepare('SELECT id FROM collab_poll_votes WHERE poll_id = ? AND user_id = ? AND option_index = ?')
+    .get<{ id: number }>(pollId, userId, optionIndex);
+
+  if (existingVote) {
+    await asyncDb.prepare('DELETE FROM collab_poll_votes WHERE id = ?').run(existingVote.id);
+  } else {
+    if (!poll.multiple) {
+      await asyncDb.prepare('DELETE FROM collab_poll_votes WHERE poll_id = ? AND user_id = ?').run(pollId, userId);
+    }
+    await asyncDb
+      .prepare('INSERT INTO collab_poll_votes (poll_id, user_id, option_index) VALUES (?, ?, ?)')
+      .run(pollId, userId, optionIndex);
+  }
+
+  return { poll: await getPollWithVotesAsync(pollId) };
+}
+
 export function closePoll(
   tripId: string | number,
   pollId: string | number,
@@ -424,11 +766,32 @@ export function closePoll(
   return getPollWithVotes(pollId);
 }
 
+export async function closePollAsync(
+  tripId: string | number,
+  pollId: string | number,
+): Promise<Awaited<ReturnType<typeof getPollWithVotesAsync>> | null> {
+  const poll = await asyncDb.prepare('SELECT * FROM collab_polls WHERE id = ? AND trip_id = ?').get(pollId, tripId);
+  if (!poll) return null;
+
+  await asyncDb.prepare('UPDATE collab_polls SET closed = 1 WHERE id = ?').run(pollId);
+  return getPollWithVotesAsync(pollId);
+}
+
 export function deletePoll(tripId: string | number, pollId: string | number): boolean {
   const poll = db.prepare('SELECT id FROM collab_polls WHERE id = ? AND trip_id = ?').get(pollId, tripId);
   if (!poll) return false;
 
   db.prepare('DELETE FROM collab_polls WHERE id = ?').run(pollId);
+  return true;
+}
+
+export async function deletePollAsync(tripId: string | number, pollId: string | number): Promise<boolean> {
+  const poll = await asyncDb
+    .prepare('SELECT id FROM collab_polls WHERE id = ? AND trip_id = ?')
+    .get(pollId, tripId);
+  if (!poll) return false;
+
+  await asyncDb.prepare('DELETE FROM collab_polls WHERE id = ?').run(pollId);
   return true;
 }
 
@@ -445,6 +808,13 @@ export function countMessages(tripId: string | number): number {
     cnt: number;
   };
   return row.cnt;
+}
+
+export async function countMessagesAsync(tripId: string | number): Promise<number> {
+  const row = await asyncDb
+    .prepare('SELECT COUNT(*) as cnt FROM collab_messages WHERE trip_id = ?')
+    .get<{ cnt: number }>(tripId);
+  return row?.cnt ?? 0;
 }
 
 export function listMessages(tripId: string | number, before?: string | number) {
@@ -479,6 +849,47 @@ export function listMessages(tripId: string | number, before?: string | number) 
     `,
       )
       .all(...msgIds) as (ReactionRow & { message_id: number })[];
+    for (const r of allReactions) {
+      if (!reactionsByMsg[r.message_id]) reactionsByMsg[r.message_id] = [];
+      reactionsByMsg[r.message_id].push(r);
+    }
+  }
+
+  return messages.map((m) => formatMessage(m, groupReactions(reactionsByMsg[m.id] || [])));
+}
+
+export async function listMessagesAsync(tripId: string | number, before?: string | number) {
+  const query = `
+    SELECT m.*, u.username, u.avatar,
+      rm.text AS reply_text, ru.username AS reply_username
+    FROM collab_messages m
+    JOIN users u ON m.user_id = u.id
+    LEFT JOIN collab_messages rm ON m.reply_to = rm.id
+    LEFT JOIN users ru ON rm.user_id = ru.id
+    WHERE m.trip_id = ?${before ? ' AND m.id < ?' : ''}
+    ORDER BY m.id DESC
+    LIMIT 100
+  `;
+
+  const messages = before
+    ? await asyncDb.prepare(query).all<CollabMessage>(tripId, before)
+    : await asyncDb.prepare(query).all<CollabMessage>(tripId);
+
+  messages.reverse();
+
+  const msgIds = messages.map((m) => m.id);
+  const reactionsByMsg: Record<number, ReactionRow[]> = {};
+  if (msgIds.length > 0) {
+    const allReactions = await asyncDb
+      .prepare(
+        `
+      SELECT r.message_id, r.emoji, r.user_id, u.username
+      FROM collab_message_reactions r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.message_id IN (${msgIds.map(() => '?').join(',')})
+    `,
+      )
+      .all<ReactionRow & { message_id: number }>(...msgIds);
     for (const r of allReactions) {
       if (!reactionsByMsg[r.message_id]) reactionsByMsg[r.message_id] = [];
       reactionsByMsg[r.message_id].push(r);
@@ -524,6 +935,44 @@ export function createMessage(
   return { message: formatMessage(message) };
 }
 
+export async function createMessageAsync(
+  tripId: string | number,
+  userId: number,
+  text: string,
+  replyTo?: number | null,
+): Promise<{ error?: string; message?: ReturnType<typeof formatMessage> }> {
+  if (replyTo) {
+    const replyMsg = await asyncDb
+      .prepare('SELECT id FROM collab_messages WHERE id = ? AND trip_id = ?')
+      .get(replyTo, tripId);
+    if (!replyMsg) return { error: 'reply_not_found' };
+  }
+
+  const result = await asyncDb
+    .prepare(
+      `
+    INSERT INTO collab_messages (trip_id, user_id, text, reply_to) VALUES (?, ?, ?, ?)
+  `,
+    )
+    .run(tripId, userId, text.trim(), replyTo || null);
+
+  const message = (await asyncDb
+    .prepare(
+      `
+    SELECT m.*, u.username, u.avatar,
+      rm.text AS reply_text, ru.username AS reply_username
+    FROM collab_messages m
+    JOIN users u ON m.user_id = u.id
+    LEFT JOIN collab_messages rm ON m.reply_to = rm.id
+    LEFT JOIN users ru ON rm.user_id = ru.id
+    WHERE m.id = ?
+  `,
+    )
+    .get<CollabMessage>(result.lastInsertRowid))!;
+
+  return { message: formatMessage(message) };
+}
+
 export function deleteMessage(
   tripId: string | number,
   messageId: string | number,
@@ -536,6 +985,21 @@ export function deleteMessage(
   if (Number(message.user_id) !== Number(userId)) return { error: 'not_owner' };
 
   db.prepare('UPDATE collab_messages SET deleted = 1 WHERE id = ?').run(messageId);
+  return { username: message.username };
+}
+
+export async function deleteMessageAsync(
+  tripId: string | number,
+  messageId: string | number,
+  userId: number,
+): Promise<{ error?: string; username?: string }> {
+  const message = await asyncDb
+    .prepare('SELECT * FROM collab_messages WHERE id = ? AND trip_id = ?')
+    .get<CollabMessage>(messageId, tripId);
+  if (!message) return { error: 'not_found' };
+  if (Number(message.user_id) !== Number(userId)) return { error: 'not_owner' };
+
+  await asyncDb.prepare('UPDATE collab_messages SET deleted = 1 WHERE id = ?').run(messageId);
   return { username: message.username };
 }
 

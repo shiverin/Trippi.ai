@@ -1,8 +1,9 @@
 import { JWT_SECRET, SESSION_DURATION_SECONDS } from '../config';
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { User } from '../types';
 import { decrypt_api_key } from './apiKeyCrypto';
-import { resolveAuthToggles } from './authService';
+import { resolveAuthToggles, resolveAuthTogglesAsync } from './authService';
 
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -141,6 +142,20 @@ export function getOidcConfig(): OidcConfig | null {
   return { issuer: issuer.replace(/\/+$/, ''), clientId, clientSecret, displayName, discoveryUrl };
 }
 
+export async function getOidcConfigAsync(): Promise<OidcConfig | null> {
+  const get = async (key: string) =>
+    (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value || null;
+
+  const issuer = process.env.OIDC_ISSUER || (await get('oidc_issuer'));
+  const clientId = process.env.OIDC_CLIENT_ID || (await get('oidc_client_id'));
+  const clientSecret = process.env.OIDC_CLIENT_SECRET || decrypt_api_key(await get('oidc_client_secret'));
+  const displayName = process.env.OIDC_DISPLAY_NAME || (await get('oidc_display_name')) || 'SSO';
+  const discoveryUrl = process.env.OIDC_DISCOVERY_URL || (await get('oidc_discovery_url')) || null;
+
+  if (!issuer || !clientId || !clientSecret) return null;
+  return { issuer: issuer.replace(/\/+$/, ''), clientId, clientSecret, displayName, discoveryUrl };
+}
+
 // ---------------------------------------------------------------------------
 // Discovery document (cached, 1 h TTL)
 // ---------------------------------------------------------------------------
@@ -215,6 +230,16 @@ export function generateToken(user: { id: number }): string {
       db.prepare('SELECT password_version FROM users WHERE id = ?').get(user.id) as
         | { password_version?: number }
         | undefined
+    )?.password_version ?? 0;
+  return jwt.sign({ id: user.id, pv }, JWT_SECRET, { expiresIn: SESSION_DURATION_SECONDS, algorithm: 'HS256' });
+}
+
+export async function generateTokenAsync(user: { id: number }): Promise<string> {
+  const pv =
+    (
+      await asyncDb
+        .prepare('SELECT password_version FROM users WHERE id = ?')
+        .get<{ password_version?: number }>(user.id)
     )?.password_version ?? 0;
   return jwt.sign({ id: user.id, pv }, JWT_SECRET, { expiresIn: SESSION_DURATION_SECONDS, algorithm: 'HS256' });
 }
@@ -491,10 +516,130 @@ export function findOrCreateUser(
   }
 }
 
+export async function findOrCreateUserAsync(
+  userInfo: OidcUserInfo,
+  config: OidcConfig,
+  inviteToken?: string,
+): Promise<{ user: User } | { error: string }> {
+  const email = userInfo.email!.trim().toLowerCase();
+  const name = userInfo.name || userInfo.preferred_username || email.split('@')[0];
+  const sub = userInfo.sub;
+
+  let user = await asyncDb
+    .prepare('SELECT * FROM users WHERE oidc_sub = ? AND oidc_issuer = ?')
+    .get<User>(sub, config.issuer);
+  if (!user) {
+    user = await asyncDb.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get<User>(email);
+  }
+
+  if (user) {
+    if (!user.oidc_sub) {
+      const emailVerified = userInfo.email_verified === true || userInfo.email_verified === 'true';
+      if (!emailVerified) {
+        return { error: 'email_not_verified' };
+      }
+      await asyncDb.prepare('UPDATE users SET oidc_sub = ?, oidc_issuer = ? WHERE id = ?').run(
+        sub,
+        config.issuer,
+        user.id,
+      );
+    }
+    if (process.env.OIDC_ADMIN_VALUE) {
+      const newRole = resolveOidcRole(userInfo, false);
+      if (user.role !== newRole) {
+        const adminCount =
+          (
+            await asyncDb
+              .prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'")
+              .get<{ count: number }>()
+          )?.count ?? 0;
+        const demotingLastAdmin = user.role === 'admin' && newRole !== 'admin' && adminCount <= 1;
+        if (demotingLastAdmin) {
+          console.warn(
+            `[OIDC] Kept admin role for user ${user.id}: their OIDC claims map to '${newRole}', but they are the only admin — demoting would lock the instance out.`,
+          );
+        } else {
+          await asyncDb.prepare('UPDATE users SET role = ? WHERE id = ?').run(newRole, user.id);
+          user = { ...user, role: newRole } as User;
+        }
+      }
+    }
+    return { user };
+  }
+
+  const userCount =
+    (await asyncDb.prepare('SELECT COUNT(*) as count FROM users').get<{ count: number }>())?.count ?? 0;
+  const isFirstUser = userCount === 0;
+
+  let validInvite:
+    | { id: number; max_uses: number; used_count: number; expires_at?: string | null }
+    | null
+    | undefined = null;
+  if (inviteToken) {
+    validInvite = await asyncDb
+      .prepare('SELECT * FROM invite_tokens WHERE token = ?')
+      .get<{ id: number; max_uses: number; used_count: number; expires_at?: string | null }>(inviteToken);
+    if (validInvite) {
+      if (validInvite.max_uses > 0 && validInvite.used_count >= validInvite.max_uses) validInvite = null;
+      if (validInvite?.expires_at && new Date(validInvite.expires_at) < new Date()) validInvite = null;
+    }
+  }
+
+  if (!isFirstUser && !validInvite) {
+    const { oidc_registration } = await resolveAuthTogglesAsync();
+    if (!oidc_registration) {
+      return { error: 'registration_disabled' };
+    }
+  }
+
+  const role = resolveOidcRole(userInfo, isFirstUser);
+  const randomPass = crypto.randomBytes(32).toString('hex');
+  const bcrypt = require('bcryptjs');
+  const hash = bcrypt.hashSync(randomPass, 10);
+
+  let username = name.replace(/[^a-zA-Z0-9_.-]/g, '').substring(0, 30) || 'user';
+  const existing = await asyncDb.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(username);
+  if (existing) username = `${username}_${Date.now() % 10000}`;
+
+  const inviteRaceError = new Error('invite_exhausted');
+  try {
+    return await asyncDb.transaction(async () => {
+      if (validInvite) {
+        const updated = await asyncDb
+          .prepare(
+            'UPDATE invite_tokens SET used_count = used_count + 1 WHERE id = ? AND (max_uses = 0 OR used_count < max_uses)',
+          )
+          .run(validInvite.id);
+        if (updated.changes === 0) throw inviteRaceError;
+      }
+      const result = await asyncDb
+        .prepare(
+          'INSERT INTO users (username, email, password_hash, role, oidc_sub, oidc_issuer, first_seen_version, login_count) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
+        )
+        .run(username, email, hash, role, sub, config.issuer, process.env.APP_VERSION || '0.0.0');
+      return { user: { id: Number(result.lastInsertRowid), username, email, role } as User };
+    })();
+  } catch (err) {
+    if (err === inviteRaceError) {
+      console.warn(
+        `[OIDC] Invite token ${inviteToken?.slice(0, 8)}... exhausted — concurrent callback won the last slot`,
+      );
+      return { error: 'registration_disabled' };
+    }
+    throw err;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Update last_login timestamp
 // ---------------------------------------------------------------------------
 
 export function touchLastLogin(userId: number): void {
   db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?').run(userId);
+}
+
+export async function touchLastLoginAsync(userId: number): Promise<void> {
+  await asyncDb
+    .prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?')
+    .run(userId);
 }

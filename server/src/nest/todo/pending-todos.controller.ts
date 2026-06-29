@@ -15,7 +15,7 @@ export class PendingTodosController {
   constructor(private readonly todo: TodoService) {}
 
   @Get('pending')
-  pending(@CurrentUser() user: User) {
-    return { todos: this.todo.listPending(user.id) };
+  async pending(@CurrentUser() user: User) {
+    return { todos: await this.todo.listPending(user.id) };
   }
 }

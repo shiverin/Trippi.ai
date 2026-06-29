@@ -20,12 +20,12 @@ import type { Response } from 'express';
 export class PhotosController {
   constructor(private readonly photos: PhotosService) {}
 
-  private requireAccess(user: User, rawId: string): number {
+  private async requireAccess(user: User, rawId: string): Promise<number> {
     const photoId = Number(rawId);
     if (!Number.isFinite(photoId)) {
       throw new HttpException({ error: 'Invalid photo ID' }, 400);
     }
-    if (!this.photos.canAccess(user.id, photoId)) {
+    if (!(await this.photos.canAccess(user.id, photoId))) {
       throw new HttpException({ error: 'Forbidden' }, 403);
     }
     return photoId;
@@ -33,19 +33,19 @@ export class PhotosController {
 
   @Get(':id/thumbnail')
   async thumbnail(@CurrentUser() user: User, @Param('id') id: string, @Res() res: Response): Promise<void> {
-    const photoId = this.requireAccess(user, id);
+    const photoId = await this.requireAccess(user, id);
     await this.photos.stream(res, user.id, photoId, 'thumbnail');
   }
 
   @Get(':id/original')
   async original(@CurrentUser() user: User, @Param('id') id: string, @Res() res: Response): Promise<void> {
-    const photoId = this.requireAccess(user, id);
+    const photoId = await this.requireAccess(user, id);
     await this.photos.stream(res, user.id, photoId, 'original');
   }
 
   @Get(':id/info')
   async info(@CurrentUser() user: User, @Param('id') id: string, @Res() res: Response): Promise<void> {
-    const photoId = this.requireAccess(user, id);
+    const photoId = await this.requireAccess(user, id);
     const result = await this.photos.info(user.id, photoId);
     if ('error' in result) {
       res.status(result.error.status).json({ error: result.error.message });

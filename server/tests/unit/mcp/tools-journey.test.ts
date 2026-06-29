@@ -36,7 +36,11 @@ vi.mock('../../../src/websocket', () => ({ broadcast: broadcastMock, broadcastTo
 
 vi.mock('../../../src/services/adminService', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
-  return { ...original, isAddonEnabled: vi.fn().mockReturnValue(true) };
+  return {
+    ...original,
+    isAddonEnabled: vi.fn().mockReturnValue(true),
+    isAddonEnabledAsync: vi.fn().mockResolvedValue(true),
+  };
 });
 
 import { createTables } from '../../../src/db/schema';

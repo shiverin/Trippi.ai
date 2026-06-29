@@ -1,3 +1,4 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { resolveDbProvider } from '../db/providerMode';
 
@@ -100,10 +101,30 @@ function resolveUserEmail(userId: number | null): string {
   }
 }
 
+async function resolveUserEmailAsync(userId: number | null): Promise<string> {
+  if (!userId) return 'anonymous';
+  try {
+    const row = await asyncDb.prepare('SELECT email FROM users WHERE id = ?').get<{ email: string }>(userId);
+    return row?.email || `uid:${userId}`;
+  } catch {
+    return `uid:${userId}`;
+  }
+}
+
 function resolveAuditUserId(userId: number | null): number | null {
   if (!userId) return null;
   try {
     const row = db.prepare('SELECT id FROM users WHERE id = ?').get(userId) as { id: number } | undefined;
+    return row ? userId : null;
+  } catch {
+    return userId;
+  }
+}
+
+async function resolveAuditUserIdAsync(userId: number | null): Promise<number | null> {
+  if (!userId) return null;
+  try {
+    const row = await asyncDb.prepare('SELECT id FROM users WHERE id = ?').get<{ id: number }>(userId);
     return row ? userId : null;
   } catch {
     return userId;
@@ -137,9 +158,7 @@ export function writeAudit(entry: {
   ip?: string | null;
 }): void {
   if (resolveDbProvider() === 'oracle-async') {
-    const label = ACTION_LABELS[entry.action] || entry.action;
-    const brief = buildInfoSummary(entry.action, entry.details);
-    logInfo(`uid:${entry.userId ?? 'anonymous'} ${label}${brief} ip=${entry.ip || '-'} audit_db=skipped_oracle_async`);
+    void writeAuditAsync(entry);
     return;
   }
   try {
@@ -154,6 +173,37 @@ export function writeAudit(entry: {
     );
 
     const email = resolveUserEmail(entry.userId);
+    const label = ACTION_LABELS[entry.action] || entry.action;
+    const brief = buildInfoSummary(entry.action, entry.details);
+    logInfo(`${email} ${label}${brief} ip=${entry.ip || '-'}`);
+
+    if (entry.debugDetails && Object.keys(entry.debugDetails).length > 0) {
+      logDebug(`AUDIT ${entry.action} userId=${auditUserId} ${JSON.stringify(entry.debugDetails)}`);
+    } else if (detailsJson) {
+      logDebug(`AUDIT ${entry.action} userId=${auditUserId} ${detailsJson}`);
+    }
+  } catch (e) {
+    logError(`Audit write failed: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+/** Best-effort async audit writer for request paths converted to `asyncDb`. */
+export async function writeAuditAsync(entry: {
+  userId: number | null;
+  action: string;
+  resource?: string | null;
+  details?: Record<string, unknown>;
+  debugDetails?: Record<string, unknown>;
+  ip?: string | null;
+}): Promise<void> {
+  try {
+    const auditUserId = await resolveAuditUserIdAsync(entry.userId);
+    const detailsJson = entry.details && Object.keys(entry.details).length > 0 ? JSON.stringify(entry.details) : null;
+    await asyncDb
+      .prepare(`INSERT INTO audit_log ("USER_ID", "ACTION", "RESOURCE", "DETAILS", "IP") VALUES (?, ?, ?, ?, ?)`)
+      .run(auditUserId, entry.action, entry.resource ?? null, detailsJson, entry.ip ?? null);
+
+    const email = await resolveUserEmailAsync(entry.userId);
     const label = ACTION_LABELS[entry.action] || entry.action;
     const brief = buildInfoSummary(entry.action, entry.details);
     logInfo(`${email} ${label}${brief} ip=${entry.ip || '-'}`);

@@ -1,4 +1,4 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { BudgetItem, BudgetItemMember, BudgetItemPayer } from '../types';
 import { avatarUrl } from './avatarUrl';
 
@@ -9,8 +9,8 @@ import { avatarUrl } from './avatarUrl';
 export { avatarUrl };
 export { verifyTripAccess } from './tripAccess';
 
-function loadItemMembers(itemId: number | string) {
-  const rows = db
+async function loadItemMembers(itemId: number | string) {
+  const rows = await asyncDb
     .prepare(
       `
     SELECT bm.user_id, bm.paid, u.username, u.avatar
@@ -19,12 +19,12 @@ function loadItemMembers(itemId: number | string) {
     WHERE bm.budget_item_id = ?
   `,
     )
-    .all(itemId) as BudgetItemMember[];
+    .all<BudgetItemMember>(itemId);
   return rows.map((m) => ({ ...m, avatar_url: avatarUrl(m) }));
 }
 
-function loadItemPayers(itemId: number | string) {
-  const rows = db
+async function loadItemPayers(itemId: number | string) {
+  const rows = await asyncDb
     .prepare(
       `
     SELECT bp.user_id, bp.amount, u.username, u.avatar
@@ -33,23 +33,23 @@ function loadItemPayers(itemId: number | string) {
     WHERE bp.budget_item_id = ?
   `,
     )
-    .all(itemId) as BudgetItemPayer[];
+    .all<BudgetItemPayer>(itemId);
   return rows.map((p) => ({ ...p, avatar_url: avatarUrl(p) }));
 }
 
 /** Replace the payer rows of an item and keep total_price = sum of payer amounts. */
-function writeItemPayers(itemId: number | string, payers: { user_id: number; amount: number }[]) {
-  db.prepare('DELETE FROM budget_item_payers WHERE budget_item_id = ?').run(itemId);
-  const insert = db.prepare(
+async function writeItemPayers(itemId: number | string, payers: { user_id: number; amount: number }[]) {
+  await asyncDb.prepare('DELETE FROM budget_item_payers WHERE budget_item_id = ?').run(itemId);
+  const insert = asyncDb.prepare(
     'INSERT OR IGNORE INTO budget_item_payers (budget_item_id, user_id, amount) VALUES (?, ?, ?)',
   );
   let total = 0;
   for (const p of payers) {
     if (!(p.amount > 0)) continue;
-    insert.run(itemId, p.user_id, p.amount);
+    await insert.run(itemId, p.user_id, p.amount);
     total += p.amount;
   }
-  db.prepare('UPDATE budget_items SET total_price = ? WHERE id = ?').run(total, itemId);
+  await asyncDb.prepare('UPDATE budget_items SET total_price = ? WHERE id = ?').run(total, itemId);
   return total;
 }
 
@@ -57,8 +57,8 @@ function writeItemPayers(itemId: number | string, payers: { user_id: number; amo
 // CRUD
 // ---------------------------------------------------------------------------
 
-export function listBudgetItems(tripId: string | number) {
-  const items = db
+export async function listBudgetItems(tripId: string | number) {
+  const items = await asyncDb
     .prepare(
       `
     SELECT bi.* FROM budget_items bi
@@ -67,13 +67,13 @@ export function listBudgetItems(tripId: string | number) {
     ORDER BY COALESCE(bco.sort_order, 999999) ASC, bi.sort_order ASC
   `,
     )
-    .all(tripId) as BudgetItem[];
+    .all<BudgetItem>(tripId);
 
   const itemIds = items.map((i) => i.id);
   const membersByItem: Record<number, (BudgetItemMember & { avatar_url: string | null })[]> = {};
 
   if (itemIds.length > 0) {
-    const allMembers = db
+    const allMembers = await asyncDb
       .prepare(
         `
       SELECT bm.budget_item_id, bm.user_id, bm.paid, u.username, u.avatar
@@ -82,7 +82,7 @@ export function listBudgetItems(tripId: string | number) {
       WHERE bm.budget_item_id IN (${itemIds.map(() => '?').join(',')})
     `,
       )
-      .all(...itemIds) as (BudgetItemMember & { budget_item_id: number })[];
+      .all<BudgetItemMember & { budget_item_id: number }>(...itemIds);
 
     for (const m of allMembers) {
       if (!membersByItem[m.budget_item_id]) membersByItem[m.budget_item_id] = [];
@@ -97,7 +97,7 @@ export function listBudgetItems(tripId: string | number) {
 
   const payersByItem: Record<number, (BudgetItemPayer & { avatar_url: string | null })[]> = {};
   if (itemIds.length > 0) {
-    const allPayers = db
+    const allPayers = await asyncDb
       .prepare(
         `
       SELECT bp.budget_item_id, bp.user_id, bp.amount, u.username, u.avatar
@@ -106,7 +106,7 @@ export function listBudgetItems(tripId: string | number) {
       WHERE bp.budget_item_id IN (${itemIds.map(() => '?').join(',')})
     `,
       )
-      .all(...itemIds) as (BudgetItemPayer & { budget_item_id: number })[];
+      .all<BudgetItemPayer & { budget_item_id: number }>(...itemIds);
 
     for (const p of allPayers) {
       if (!payersByItem[p.budget_item_id]) payersByItem[p.budget_item_id] = [];
@@ -126,7 +126,7 @@ export function listBudgetItems(tripId: string | number) {
   return items;
 }
 
-export function createBudgetItem(
+export async function createBudgetItem(
   tripId: string | number,
   data: {
     category?: string;
@@ -143,27 +143,25 @@ export function createBudgetItem(
     reservation_id?: number | null;
   },
 ) {
-  const maxOrder = db.prepare('SELECT MAX(sort_order) as max FROM budget_items WHERE trip_id = ?').get(tripId) as {
-    max: number | null;
-  };
-  const sortOrder = (maxOrder.max !== null ? maxOrder.max : -1) + 1;
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM budget_items WHERE trip_id = ?')
+    .get<{ max: number | null }>(tripId);
+  const sortOrder = (maxOrder?.max !== null && maxOrder?.max !== undefined ? maxOrder.max : -1) + 1;
 
   const cat = data.category || 'other';
 
   // Ensure category has a sort_order entry
-  const catExists = db
+  const catExists = await asyncDb
     .prepare('SELECT 1 FROM budget_category_order WHERE trip_id = ? AND category = ?')
     .get(tripId, cat);
   if (!catExists) {
-    const maxCatOrder = db
+    const maxCatOrder = await asyncDb
       .prepare('SELECT MAX(sort_order) as max FROM budget_category_order WHERE trip_id = ?')
-      .get(tripId) as { max: number | null };
+      .get<{ max: number | null }>(tripId);
     const catOrder = (maxCatOrder?.max !== null && maxCatOrder?.max !== undefined ? maxCatOrder.max : -1) + 1;
-    db.prepare('INSERT OR IGNORE INTO budget_category_order (trip_id, category, sort_order) VALUES (?, ?, ?)').run(
-      tripId,
-      cat,
-      catOrder,
-    );
+    await asyncDb
+      .prepare('INSERT OR IGNORE INTO budget_category_order (trip_id, category, sort_order) VALUES (?, ?, ?)')
+      .run(tripId, cat, catOrder);
   }
 
   // total_price is derived from explicit payers when given; otherwise the caller
@@ -171,7 +169,7 @@ export function createBudgetItem(
   const payerTotal = (data.payers || []).reduce((a, p) => a + (p.amount > 0 ? p.amount : 0), 0);
   const total = data.payers && data.payers.length > 0 ? payerTotal : data.total_price || 0;
 
-  const result = db
+  const result = await asyncDb
     .prepare(
       'INSERT INTO budget_items (trip_id, category, name, total_price, currency, exchange_rate, persons, days, note, sort_order, expense_date, reservation_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
@@ -191,43 +189,44 @@ export function createBudgetItem(
     );
 
   const itemId = result.lastInsertRowid as number;
-  if (data.payers && data.payers.length > 0) writeItemPayers(itemId, data.payers);
+  if (data.payers && data.payers.length > 0) await writeItemPayers(itemId, data.payers);
   if (data.member_ids && data.member_ids.length > 0) {
-    const insert = db.prepare(
+    const insert = asyncDb.prepare(
       'INSERT OR IGNORE INTO budget_item_members (budget_item_id, user_id, paid) VALUES (?, ?, 0)',
     );
-    for (const uid of data.member_ids) insert.run(itemId, uid);
+    for (const uid of data.member_ids) await insert.run(itemId, uid);
   }
 
-  const item = db.prepare('SELECT * FROM budget_items WHERE id = ?').get(itemId) as BudgetItem;
-  item.members = loadItemMembers(itemId);
-  item.payers = loadItemPayers(itemId);
+  const item = (await asyncDb.prepare('SELECT * FROM budget_items WHERE id = ?').get<BudgetItem>(itemId))!;
+  item.members = await loadItemMembers(itemId);
+  item.payers = await loadItemPayers(itemId);
   return item;
 }
 
 /** Fetch a single budget item hydrated with its members and payers, scoped to the trip. */
-export function getBudgetItem(id: string | number, tripId: string | number): BudgetItem | null {
-  const item = db.prepare('SELECT * FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId) as
-    | BudgetItem
-    | undefined;
+export async function getBudgetItem(id: string | number, tripId: string | number): Promise<BudgetItem | null> {
+  const item = await asyncDb.prepare('SELECT * FROM budget_items WHERE id = ? AND trip_id = ?').get<BudgetItem>(
+    id,
+    tripId,
+  );
   if (!item) return null;
-  item.members = loadItemMembers(id);
-  item.payers = loadItemPayers(id);
+  item.members = await loadItemMembers(id);
+  item.payers = await loadItemPayers(id);
   return item;
 }
 
-export function linkBudgetItemToReservation(
+export async function linkBudgetItemToReservation(
   tripId: string | number,
   reservationId: number,
   data: { name: string; category?: string; total_price: number },
 ) {
-  const item = createBudgetItem(tripId, data) as BudgetItem & { reservation_id?: number | null };
-  db.prepare('UPDATE budget_items SET reservation_id = ? WHERE id = ?').run(reservationId, item.id);
+  const item = (await createBudgetItem(tripId, data)) as BudgetItem & { reservation_id?: number | null };
+  await asyncDb.prepare('UPDATE budget_items SET reservation_id = ? WHERE id = ?').run(reservationId, item.id);
   item.reservation_id = reservationId;
   return item;
 }
 
-export function updateBudgetItem(
+export async function updateBudgetItem(
   id: string | number,
   tripId: string | number,
   data: {
@@ -245,12 +244,13 @@ export function updateBudgetItem(
     expense_date?: string | null;
   },
 ) {
-  const item = db.prepare('SELECT * FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId) as
-    | BudgetItem
-    | undefined;
+  const item = await asyncDb.prepare('SELECT * FROM budget_items WHERE id = ? AND trip_id = ?').get<BudgetItem>(
+    id,
+    tripId,
+  );
   if (!item) return null;
 
-  db.prepare(
+  await asyncDb.prepare(
     `
     UPDATE budget_items SET
       category = ?,
@@ -281,44 +281,42 @@ export function updateBudgetItem(
 
   // Optional inline payer/member replacement (the edit modal saves all at once).
   if (data.payers !== undefined) {
-    writeItemPayers(id, data.payers);
+    await writeItemPayers(id, data.payers);
     // writeItemPayers derives total_price from the payer sum (0 for no payers).
     // A "recorded total, nobody assigned" expense clears payers but still carries
     // an explicit total_price — re-apply it so it isn't clobbered to 0.
     if (data.payers.length === 0 && data.total_price !== undefined) {
-      db.prepare('UPDATE budget_items SET total_price = ? WHERE id = ?').run(data.total_price, id);
+      await asyncDb.prepare('UPDATE budget_items SET total_price = ? WHERE id = ?').run(data.total_price, id);
     }
   }
   if (data.member_ids !== undefined) {
-    db.prepare('DELETE FROM budget_item_members WHERE budget_item_id = ?').run(id);
-    const insert = db.prepare(
+    await asyncDb.prepare('DELETE FROM budget_item_members WHERE budget_item_id = ?').run(id);
+    const insert = asyncDb.prepare(
       'INSERT OR IGNORE INTO budget_item_members (budget_item_id, user_id, paid) VALUES (?, ?, 0)',
     );
-    for (const uid of data.member_ids) insert.run(id, uid);
-    db.prepare('UPDATE budget_items SET persons = ? WHERE id = ?').run(data.member_ids.length || null, id);
+    for (const uid of data.member_ids) await insert.run(id, uid);
+    await asyncDb.prepare('UPDATE budget_items SET persons = ? WHERE id = ?').run(data.member_ids.length || null, id);
   }
 
   // If category changed, update category order table
   if (data.category) {
-    const catExists = db
+    const catExists = await asyncDb
       .prepare('SELECT 1 FROM budget_category_order WHERE trip_id = ? AND category = ?')
       .get(tripId, data.category);
     if (!catExists) {
-      const maxCatOrder = db
+      const maxCatOrder = await asyncDb
         .prepare('SELECT MAX(sort_order) as max FROM budget_category_order WHERE trip_id = ?')
-        .get(tripId) as { max: number | null };
+        .get<{ max: number | null }>(tripId);
       const catOrder = (maxCatOrder?.max !== null && maxCatOrder?.max !== undefined ? maxCatOrder.max : -1) + 1;
-      db.prepare('INSERT OR IGNORE INTO budget_category_order (trip_id, category, sort_order) VALUES (?, ?, ?)').run(
-        tripId,
-        data.category,
-        catOrder,
-      );
+      await asyncDb
+        .prepare('INSERT OR IGNORE INTO budget_category_order (trip_id, category, sort_order) VALUES (?, ?, ?)')
+        .run(tripId, data.category, catOrder);
     }
   }
 
-  const updated = db.prepare('SELECT * FROM budget_items WHERE id = ?').get(id) as BudgetItem;
-  updated.members = loadItemMembers(id);
-  updated.payers = loadItemPayers(id);
+  const updated = (await asyncDb.prepare('SELECT * FROM budget_items WHERE id = ?').get<BudgetItem>(id))!;
+  updated.members = await loadItemMembers(id);
+  updated.payers = await loadItemPayers(id);
   return updated;
 }
 
@@ -326,24 +324,24 @@ export function updateBudgetItem(
 // Payers
 // ---------------------------------------------------------------------------
 
-export function setItemPayers(
+export async function setItemPayers(
   id: string | number,
   tripId: string | number,
   payers: { user_id: number; amount: number }[],
 ) {
-  const item = db.prepare('SELECT id FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+  const item = await asyncDb.prepare('SELECT id FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
   if (!item) return null;
-  writeItemPayers(id, payers);
-  const updated = db.prepare('SELECT * FROM budget_items WHERE id = ?').get(id) as BudgetItem;
-  updated.members = loadItemMembers(id);
-  updated.payers = loadItemPayers(id);
+  await writeItemPayers(id, payers);
+  const updated = (await asyncDb.prepare('SELECT * FROM budget_items WHERE id = ?').get<BudgetItem>(id))!;
+  updated.members = await loadItemMembers(id);
+  updated.payers = await loadItemPayers(id);
   return updated;
 }
 
-export function deleteBudgetItem(id: string | number, tripId: string | number): boolean {
-  const item = db.prepare('SELECT id FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+export async function deleteBudgetItem(id: string | number, tripId: string | number): Promise<boolean> {
+  const item = await asyncDb.prepare('SELECT id FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
   if (!item) return false;
-  db.prepare('DELETE FROM budget_items WHERE id = ?').run(id);
+  await asyncDb.prepare('DELETE FROM budget_items WHERE id = ?').run(id);
   return true;
 }
 
@@ -351,46 +349,51 @@ export function deleteBudgetItem(id: string | number, tripId: string | number): 
 // Members
 // ---------------------------------------------------------------------------
 
-export function updateMembers(id: string | number, tripId: string | number, userIds: number[]) {
-  const item = db.prepare('SELECT * FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+export async function updateMembers(id: string | number, tripId: string | number, userIds: number[]) {
+  const item = await asyncDb.prepare('SELECT * FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
   if (!item) return null;
 
   const existingPaid: Record<number, number> = {};
-  const existing = db.prepare('SELECT user_id, paid FROM budget_item_members WHERE budget_item_id = ?').all(id) as {
+  const existing = await asyncDb.prepare('SELECT user_id, paid FROM budget_item_members WHERE budget_item_id = ?').all<{
     user_id: number;
     paid: number;
-  }[];
+  }>(id);
   for (const e of existing) existingPaid[e.user_id] = e.paid;
 
-  db.prepare('DELETE FROM budget_item_members WHERE budget_item_id = ?').run(id);
+  await asyncDb.prepare('DELETE FROM budget_item_members WHERE budget_item_id = ?').run(id);
 
   if (userIds.length > 0) {
-    const insert = db.prepare(
+    const insert = asyncDb.prepare(
       'INSERT OR IGNORE INTO budget_item_members (budget_item_id, user_id, paid) VALUES (?, ?, ?)',
     );
-    for (const userId of userIds) insert.run(id, userId, existingPaid[userId] || 0);
-    db.prepare('UPDATE budget_items SET persons = ? WHERE id = ?').run(userIds.length, id);
+    for (const userId of userIds) await insert.run(id, userId, existingPaid[userId] || 0);
+    await asyncDb.prepare('UPDATE budget_items SET persons = ? WHERE id = ?').run(userIds.length, id);
   } else {
-    db.prepare('UPDATE budget_items SET persons = NULL WHERE id = ?').run(id);
+    await asyncDb.prepare('UPDATE budget_items SET persons = NULL WHERE id = ?').run(id);
   }
 
-  const members = loadItemMembers(id).map((m) => ({ ...m, avatar_url: avatarUrl(m) }));
-  const updated = db.prepare('SELECT * FROM budget_items WHERE id = ?').get(id) as BudgetItem;
+  const members = (await loadItemMembers(id)).map((m) => ({ ...m, avatar_url: avatarUrl(m) }));
+  const updated = await asyncDb.prepare('SELECT * FROM budget_items WHERE id = ?').get<BudgetItem>(id);
   return { members, item: updated };
 }
 
-export function toggleMemberPaid(id: string | number, tripId: string | number, userId: string | number, paid: boolean) {
+export async function toggleMemberPaid(
+  id: string | number,
+  tripId: string | number,
+  userId: string | number,
+  paid: boolean,
+) {
   // Resolve the item within the caller's trip before updating.
-  const item = db.prepare('SELECT id FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+  const item = await asyncDb.prepare('SELECT id FROM budget_items WHERE id = ? AND trip_id = ?').get(id, tripId);
   if (!item) return null;
 
-  db.prepare('UPDATE budget_item_members SET paid = ? WHERE budget_item_id = ? AND user_id = ?').run(
+  await asyncDb.prepare('UPDATE budget_item_members SET paid = ? WHERE budget_item_id = ? AND user_id = ?').run(
     paid ? 1 : 0,
     id,
     userId,
   );
 
-  const member = db
+  const member = await asyncDb
     .prepare(
       `
     SELECT bm.user_id, bm.paid, u.username, u.avatar
@@ -398,7 +401,7 @@ export function toggleMemberPaid(id: string | number, tripId: string | number, u
     WHERE bm.budget_item_id = ? AND bm.user_id = ?
   `,
     )
-    .get(id, userId) as BudgetItemMember | undefined;
+    .get<BudgetItemMember>(id, userId);
 
   return member ? { ...member, avatar_url: avatarUrl(member) } : null;
 }
@@ -407,8 +410,8 @@ export function toggleMemberPaid(id: string | number, tripId: string | number, u
 // Per-person summary
 // ---------------------------------------------------------------------------
 
-export function getPerPersonSummary(tripId: string | number) {
-  const summary = db
+export async function getPerPersonSummary(tripId: string | number) {
+  const summary = await asyncDb
     .prepare(
       `
     SELECT bm.user_id, u.username, u.avatar,
@@ -422,14 +425,14 @@ export function getPerPersonSummary(tripId: string | number) {
     GROUP BY bm.user_id, u.username, u.avatar
   `,
     )
-    .all(tripId) as {
+    .all<{
     user_id: number;
     username: string;
     avatar: string | null;
     total_assigned: number;
     total_paid: number;
     items_count: number;
-  }[];
+  }>(tripId);
 
   return summary.map((s) => ({ ...s, avatar_url: avatarUrl(s) }));
 }
@@ -438,7 +441,7 @@ export function getPerPersonSummary(tripId: string | number) {
 // Settlement calculation (greedy debt matching)
 // ---------------------------------------------------------------------------
 
-export function calculateSettlement(
+export async function calculateSettlement(
   tripId: string | number,
   opts: { base?: string; rates?: Record<string, number> | null; tripCurrency?: string } = {},
 ) {
@@ -462,8 +465,8 @@ export function calculateSettlement(
     return r && r > 0 ? amount / r : amount;
   };
 
-  const items = db.prepare('SELECT * FROM budget_items WHERE trip_id = ?').all(tripId) as BudgetItem[];
-  const allMembers = db
+  const items = await asyncDb.prepare('SELECT * FROM budget_items WHERE trip_id = ?').all<BudgetItem>(tripId);
+  const allMembers = await asyncDb
     .prepare(
       `
     SELECT bm.budget_item_id, bm.user_id, u.username, u.avatar
@@ -472,8 +475,8 @@ export function calculateSettlement(
     WHERE bm.budget_item_id IN (SELECT id FROM budget_items WHERE trip_id = ?)
   `,
     )
-    .all(tripId) as (BudgetItemMember & { budget_item_id: number })[];
-  const allPayers = db
+    .all<BudgetItemMember & { budget_item_id: number }>(tripId);
+  const allPayers = await asyncDb
     .prepare(
       `
     SELECT bp.budget_item_id, bp.user_id, bp.amount, u.username, u.avatar
@@ -482,7 +485,7 @@ export function calculateSettlement(
     WHERE bp.budget_item_id IN (SELECT id FROM budget_items WHERE trip_id = ?)
   `,
     )
-    .all(tripId) as (BudgetItemPayer & { budget_item_id: number })[];
+    .all<BudgetItemPayer & { budget_item_id: number }>(tripId);
 
   // Net balance per user, in the requested base currency: positive = is owed
   // money, negative = owes money. Each expense's amounts are converted from their
@@ -518,7 +521,7 @@ export function calculateSettlement(
   // counts even when neither user has an expense-derived balance yet — a manual
   // payment, or one left behind after its expense was deleted, then correctly
   // surfaces as an amount still to square up instead of silently vanishing.
-  const settlements = listSettlements(tripId);
+  const settlements = await listSettlements(tripId);
   const ensureSettled = (id: number, username: string | undefined, avatar_url: string | null | undefined) => {
     if (!balances[id])
       balances[id] = { user_id: id, username: username || '', avatar_url: avatar_url ?? null, balance: 0 };
@@ -572,8 +575,8 @@ export function calculateSettlement(
 // Settlements (persisted settle-up transfers — history + undo)
 // ---------------------------------------------------------------------------
 
-export function listSettlements(tripId: string | number) {
-  const rows = db
+export async function listSettlements(tripId: string | number) {
+  const rows = await asyncDb
     .prepare(
       `
     SELECT s.id, s.trip_id, s.from_user_id, s.to_user_id, s.amount, s.created_at, s.created_by_user_id,
@@ -586,7 +589,7 @@ export function listSettlements(tripId: string | number) {
     ORDER BY s.created_at DESC, s.id DESC
   `,
     )
-    .all(tripId) as any[];
+    .all<any>(tripId);
   return rows.map((r) => ({
     id: r.id,
     trip_id: r.trip_id,
@@ -602,39 +605,43 @@ export function listSettlements(tripId: string | number) {
   }));
 }
 
-export function createSettlement(
+export async function createSettlement(
   tripId: string | number,
   data: { from_user_id: number; to_user_id: number; amount: number },
   createdByUserId?: number,
 ) {
-  const result = db
+  const result = await asyncDb
     .prepare(
       'INSERT INTO budget_settlements (trip_id, from_user_id, to_user_id, amount, created_by_user_id) VALUES (?, ?, ?, ?, ?)',
     )
     .run(tripId, data.from_user_id, data.to_user_id, Math.round(data.amount * 100) / 100, createdByUserId ?? null);
-  return listSettlements(tripId).find((s) => s.id === Number(result.lastInsertRowid)) || null;
+  return (await listSettlements(tripId)).find((s) => s.id === Number(result.lastInsertRowid)) || null;
 }
 
-export function updateSettlement(
+export async function updateSettlement(
   id: string | number,
   tripId: string | number,
   data: { from_user_id: number; to_user_id: number; amount: number },
 ) {
-  const row = db.prepare('SELECT id FROM budget_settlements WHERE id = ? AND trip_id = ?').get(id, tripId);
+  const row = await asyncDb
+    .prepare('SELECT id FROM budget_settlements WHERE id = ? AND trip_id = ?')
+    .get(id, tripId);
   if (!row) return null;
-  db.prepare('UPDATE budget_settlements SET from_user_id = ?, to_user_id = ?, amount = ? WHERE id = ?').run(
+  await asyncDb.prepare('UPDATE budget_settlements SET from_user_id = ?, to_user_id = ?, amount = ? WHERE id = ?').run(
     data.from_user_id,
     data.to_user_id,
     Math.round(data.amount * 100) / 100,
     id,
   );
-  return listSettlements(tripId).find((s) => s.id === Number(id)) || null;
+  return (await listSettlements(tripId)).find((s) => s.id === Number(id)) || null;
 }
 
-export function deleteSettlement(id: string | number, tripId: string | number): boolean {
-  const row = db.prepare('SELECT id FROM budget_settlements WHERE id = ? AND trip_id = ?').get(id, tripId);
+export async function deleteSettlement(id: string | number, tripId: string | number): Promise<boolean> {
+  const row = await asyncDb
+    .prepare('SELECT id FROM budget_settlements WHERE id = ? AND trip_id = ?')
+    .get(id, tripId);
   if (!row) return false;
-  db.prepare('DELETE FROM budget_settlements WHERE id = ?').run(id);
+  await asyncDb.prepare('DELETE FROM budget_settlements WHERE id = ?').run(id);
   return true;
 }
 
@@ -642,22 +649,22 @@ export function deleteSettlement(id: string | number, tripId: string | number): 
 // Reorder
 // ---------------------------------------------------------------------------
 
-export function reorderBudgetItems(tripId: string | number, orderedIds: number[]) {
-  const update = db.prepare('UPDATE budget_items SET sort_order = ? WHERE id = ? AND trip_id = ?');
-  db.transaction(() => {
-    orderedIds.forEach((id, index) => update.run(index, id, tripId));
+export async function reorderBudgetItems(tripId: string | number, orderedIds: number[]) {
+  const update = asyncDb.prepare('UPDATE budget_items SET sort_order = ? WHERE id = ? AND trip_id = ?');
+  await asyncDb.transaction(async () => {
+    for (const [index, id] of orderedIds.entries()) await update.run(index, id, tripId);
   })();
 }
 
-export function reorderBudgetCategories(tripId: string | number, orderedCategories: string[]) {
-  const update = db.prepare('UPDATE budget_category_order SET sort_order = ? WHERE trip_id = ? AND category = ?');
-  const insert = db.prepare(
+export async function reorderBudgetCategories(tripId: string | number, orderedCategories: string[]) {
+  const update = asyncDb.prepare('UPDATE budget_category_order SET sort_order = ? WHERE trip_id = ? AND category = ?');
+  const insert = asyncDb.prepare(
     'INSERT OR IGNORE INTO budget_category_order (trip_id, category, sort_order) VALUES (?, ?, ?)',
   );
-  db.transaction((categories: string[]) => {
-    categories.forEach((cat, index) => {
-      const result = update.run(index, tripId, cat);
-      if (result.changes === 0) insert.run(tripId, cat, index);
-    });
+  await asyncDb.transaction(async (categories: string[]) => {
+    for (const [index, cat] of categories.entries()) {
+      const result = await update.run(index, tripId, cat);
+      if (result.changes === 0) await insert.run(tripId, cat, index);
+    }
   })(orderedCategories);
 }

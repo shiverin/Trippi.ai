@@ -1,4 +1,4 @@
-import { db } from '../../db/database';
+import { asyncDb } from '../../db/asyncDatabase';
 import * as svc from '../../services/collabService';
 import { checkPermission } from '../../services/permissions';
 import type { User } from '../../types';
@@ -31,54 +31,54 @@ export class CollabService {
   }
 
   listNotes(tripId: string) {
-    return svc.listNotes(tripId);
+    return svc.listNotesAsync(tripId);
   }
   createNote(tripId: string, userId: number, data: Parameters<typeof svc.createNote>[2]) {
-    return svc.createNote(tripId, userId, data);
+    return svc.createNoteAsync(tripId, userId, data);
   }
   updateNote(tripId: string, id: string, data: Parameters<typeof svc.updateNote>[2]) {
-    return svc.updateNote(tripId, id, data);
+    return svc.updateNoteAsync(tripId, id, data);
   }
-  deleteNote(tripId: string, id: string): boolean {
-    return svc.deleteNote(tripId, id);
+  deleteNote(tripId: string, id: string) {
+    return svc.deleteNoteAsync(tripId, id);
   }
   addNoteFile(tripId: string, id: string, file: Parameters<typeof svc.addNoteFile>[2]) {
-    return svc.addNoteFile(tripId, id, file);
+    return svc.addNoteFileAsync(tripId, id, file);
   }
   getFormattedNoteById(id: string) {
-    return svc.getFormattedNoteById(id);
+    return svc.getFormattedNoteByIdAsync(id);
   }
-  deleteNoteFile(id: string, fileId: string): boolean {
-    return svc.deleteNoteFile(id, fileId);
+  deleteNoteFile(id: string, fileId: string) {
+    return svc.deleteNoteFileAsync(id, fileId);
   }
 
   listPolls(tripId: string) {
-    return svc.listPolls(tripId);
+    return svc.listPollsAsync(tripId);
   }
   createPoll(tripId: string, userId: number, data: Parameters<typeof svc.createPoll>[2]) {
-    return svc.createPoll(tripId, userId, data);
+    return svc.createPollAsync(tripId, userId, data);
   }
   votePoll(tripId: string, id: string, userId: number, optionIndex: number) {
-    return svc.votePoll(tripId, id, userId, optionIndex);
+    return svc.votePollAsync(tripId, id, userId, optionIndex);
   }
   closePoll(tripId: string, id: string) {
-    return svc.closePoll(tripId, id);
+    return svc.closePollAsync(tripId, id);
   }
-  deletePoll(tripId: string, id: string): boolean {
-    return svc.deletePoll(tripId, id);
+  deletePoll(tripId: string, id: string) {
+    return svc.deletePollAsync(tripId, id);
   }
 
   listMessages(tripId: string, before?: string) {
-    return svc.listMessages(tripId, before);
+    return svc.listMessagesAsync(tripId, before);
   }
   createMessage(tripId: string, userId: number, text: string, replyTo?: number | null) {
-    return svc.createMessage(tripId, userId, text, replyTo);
+    return svc.createMessageAsync(tripId, userId, text, replyTo);
   }
   deleteMessage(tripId: string, id: string, userId: number) {
-    return svc.deleteMessage(tripId, id, userId);
+    return svc.deleteMessageAsync(tripId, id, userId);
   }
   reactMessage(id: string, tripId: string, userId: number, emoji: string) {
-    return svc.addOrRemoveReaction(id, tripId, userId, emoji);
+    return svc.addOrRemoveReactionAsync(id, tripId, userId, emoji);
   }
 
   linkPreview(url: string) {
@@ -87,8 +87,8 @@ export class CollabService {
 
   /** Fire-and-forget collab notification (mirrors the route's dynamic import). */
   notifyCollab(tripId: string, actor: User, preview?: string): void {
-    import('../../services/notificationService').then(({ send }) => {
-      const tripInfo = db.prepare('SELECT title FROM trips WHERE id = ?').get(tripId) as { title: string } | undefined;
+    import('../../services/notificationService').then(async ({ send }) => {
+      const tripInfo = await asyncDb.prepare('SELECT title FROM trips WHERE id = ?').get<{ title: string }>(tripId);
       const params: Record<string, string> = {
         trip: tripInfo?.title || 'Untitled',
         actor: actor.email,

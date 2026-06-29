@@ -87,35 +87,35 @@ function insertMember(planId: number, userId: number, status: 'pending' | 'accep
 }
 
 /** Fast helper: create a user and immediately materialise their own plan. */
-function setupUserWithPlan() {
+async function setupUserWithPlan() {
   const { user } = createUser(testDb);
-  const plan = getOwnPlan(user.id);
+  const plan = await getOwnPlan(user.id);
   return { user, plan };
 }
 
 // ── getOwnPlan ────────────────────────────────────────────────────────────────
 
 describe('getOwnPlan', () => {
-  it('VACAY-SVC-001: creates a new plan on first call for a fresh user', () => {
+  it('VACAY-SVC-001: creates a new plan on first call for a fresh user', async () => {
     const { user } = createUser(testDb);
-    const plan = getOwnPlan(user.id);
+    const plan = await getOwnPlan(user.id);
 
     expect(plan).toBeDefined();
     expect(plan.owner_id).toBe(user.id);
     expect(plan.id).toBeGreaterThan(0);
   });
 
-  it('VACAY-SVC-002: returns the same plan on a second call (idempotent)', () => {
+  it('VACAY-SVC-002: returns the same plan on a second call (idempotent)', async () => {
     const { user } = createUser(testDb);
-    const first = getOwnPlan(user.id);
-    const second = getOwnPlan(user.id);
+    const first = await getOwnPlan(user.id);
+    const second = await getOwnPlan(user.id);
 
     expect(second.id).toBe(first.id);
   });
 
-  it('VACAY-SVC-003: seeds the current year row in vacay_years after plan creation', () => {
+  it('VACAY-SVC-003: seeds the current year row in vacay_years after plan creation', async () => {
     const { user } = createUser(testDb);
-    const plan = getOwnPlan(user.id);
+    const plan = await getOwnPlan(user.id);
     const yr = new Date().getFullYear();
 
     const row = testDb
@@ -125,9 +125,9 @@ describe('getOwnPlan', () => {
     expect(row).toBeDefined();
   });
 
-  it('VACAY-SVC-004: seeds the current year user_year row with default 30 vacation_days', () => {
+  it('VACAY-SVC-004: seeds the current year user_year row with default 30 vacation_days', async () => {
     const { user } = createUser(testDb);
-    const plan = getOwnPlan(user.id);
+    const plan = await getOwnPlan(user.id);
     const yr = new Date().getFullYear();
 
     const row = testDb
@@ -142,34 +142,34 @@ describe('getOwnPlan', () => {
 // ── getActivePlan ─────────────────────────────────────────────────────────────
 
 describe('getActivePlan', () => {
-  it('VACAY-SVC-005: returns own plan when user has no accepted membership in another plan', () => {
-    const { user, plan } = setupUserWithPlan();
-    const active = getActivePlan(user.id);
+  it('VACAY-SVC-005: returns own plan when user has no accepted membership in another plan', async () => {
+    const { user, plan } = await setupUserWithPlan();
+    const active = await getActivePlan(user.id);
 
     expect(active.id).toBe(plan.id);
     expect(active.owner_id).toBe(user.id);
   });
 
-  it('VACAY-SVC-006: returns the shared plan when user has an accepted membership in another plan', () => {
-    const { user: owner, plan: ownerPlan } = setupUserWithPlan();
+  it('VACAY-SVC-006: returns the shared plan when user has an accepted membership in another plan', async () => {
+    const { user: owner, plan: ownerPlan } = await setupUserWithPlan();
     const { user: member } = createUser(testDb);
     // Make sure member also has their own plan materialised first
-    getOwnPlan(member.id);
+    await getOwnPlan(member.id);
 
     insertMember(ownerPlan.id, member.id, 'accepted');
 
-    const active = getActivePlan(member.id);
+    const active = await getActivePlan(member.id);
     expect(active.id).toBe(ownerPlan.id);
   });
 
-  it('VACAY-SVC-007: pending membership does NOT override own plan as active', () => {
-    const { user: owner, plan: ownerPlan } = setupUserWithPlan();
+  it('VACAY-SVC-007: pending membership does NOT override own plan as active', async () => {
+    const { user: owner, plan: ownerPlan } = await setupUserWithPlan();
     const { user: member } = createUser(testDb);
-    getOwnPlan(member.id);
+    await getOwnPlan(member.id);
 
     insertMember(ownerPlan.id, member.id, 'pending');
 
-    const active = getActivePlan(member.id);
+    const active = await getActivePlan(member.id);
     // Should still point to member's own plan
     expect(active.owner_id).toBe(member.id);
   });
@@ -178,37 +178,37 @@ describe('getActivePlan', () => {
 // ── getPlanUsers ──────────────────────────────────────────────────────────────
 
 describe('getPlanUsers', () => {
-  it('VACAY-SVC-008: returns [owner] for a solo plan', () => {
-    const { user, plan } = setupUserWithPlan();
-    const users = getPlanUsers(plan.id);
+  it('VACAY-SVC-008: returns [owner] for a solo plan', async () => {
+    const { user, plan } = await setupUserWithPlan();
+    const users = await getPlanUsers(plan.id);
 
     expect(users).toHaveLength(1);
     expect(users[0].id).toBe(user.id);
   });
 
-  it('VACAY-SVC-009: returns [owner, member] after an accepted membership is inserted', () => {
-    const { user: owner, plan } = setupUserWithPlan();
+  it('VACAY-SVC-009: returns [owner, member] after an accepted membership is inserted', async () => {
+    const { user: owner, plan } = await setupUserWithPlan();
     const { user: member } = createUser(testDb);
     insertMember(plan.id, member.id, 'accepted');
 
-    const users = getPlanUsers(plan.id);
+    const users = await getPlanUsers(plan.id);
 
     expect(users).toHaveLength(2);
     expect(users.map(u => u.id)).toContain(owner.id);
     expect(users.map(u => u.id)).toContain(member.id);
   });
 
-  it('VACAY-SVC-010: pending membership members are NOT included in plan users', () => {
-    const { plan } = setupUserWithPlan();
+  it('VACAY-SVC-010: pending membership members are NOT included in plan users', async () => {
+    const { plan } = await setupUserWithPlan();
     const { user: pendingUser } = createUser(testDb);
     insertMember(plan.id, pendingUser.id, 'pending');
 
-    const users = getPlanUsers(plan.id);
+    const users = await getPlanUsers(plan.id);
     expect(users.map(u => u.id)).not.toContain(pendingUser.id);
   });
 
-  it('VACAY-SVC-011: returns empty array for a non-existent plan id', () => {
-    const users = getPlanUsers(99999);
+  it('VACAY-SVC-011: returns empty array for a non-existent plan id', async () => {
+    const users = await getPlanUsers(99999);
     expect(users).toEqual([]);
   });
 });
@@ -217,7 +217,7 @@ describe('getPlanUsers', () => {
 
 describe('migrateHolidayCalendars', () => {
   it('VACAY-SVC-012: does nothing when holidays_enabled is falsy', async () => {
-    const { plan } = setupUserWithPlan();
+    const { plan } = await setupUserWithPlan();
     const planRow = { ...plan, holidays_enabled: 0, holidays_region: 'DE' };
 
     await migrateHolidayCalendars(plan.id, planRow);
@@ -229,7 +229,7 @@ describe('migrateHolidayCalendars', () => {
   });
 
   it('VACAY-SVC-013: inserts a calendar row when holidays_enabled=1 and holidays_region is set', async () => {
-    const { plan } = setupUserWithPlan();
+    const { plan } = await setupUserWithPlan();
     const planRow = { ...plan, holidays_enabled: 1, holidays_region: 'DE' };
 
     await migrateHolidayCalendars(plan.id, planRow);
@@ -242,7 +242,7 @@ describe('migrateHolidayCalendars', () => {
   });
 
   it('VACAY-SVC-014: does nothing if a calendar row already exists (no duplicate)', async () => {
-    const { plan } = setupUserWithPlan();
+    const { plan } = await setupUserWithPlan();
     const planRow = { ...plan, holidays_enabled: 1, holidays_region: 'FR' };
 
     await migrateHolidayCalendars(plan.id, planRow);
@@ -260,7 +260,7 @@ describe('migrateHolidayCalendars', () => {
 
 describe('updatePlan', () => {
   it('VACAY-SVC-015: updates block_weekends flag', async () => {
-    const { plan } = setupUserWithPlan();
+    const { plan } = await setupUserWithPlan();
 
     await updatePlan(plan.id, { block_weekends: true }, undefined);
 
@@ -271,7 +271,7 @@ describe('updatePlan', () => {
   });
 
   it('VACAY-SVC-016: updates holidays_enabled flag', async () => {
-    const { plan } = setupUserWithPlan();
+    const { plan } = await setupUserWithPlan();
 
     await updatePlan(plan.id, { holidays_enabled: true }, undefined);
 
@@ -282,7 +282,7 @@ describe('updatePlan', () => {
   });
 
   it('VACAY-SVC-017: returns the updated plan object with boolean-coerced flags', async () => {
-    const { plan } = setupUserWithPlan();
+    const { plan } = await setupUserWithPlan();
 
     const result = await updatePlan(plan.id, { block_weekends: false }, undefined);
 
@@ -291,7 +291,7 @@ describe('updatePlan', () => {
   });
 
   it('VACAY-SVC-018: resets carried_over to 0 for all user_years when carry_over_enabled is set to false', async () => {
-    const { user, plan } = setupUserWithPlan();
+    const { user, plan } = await setupUserWithPlan();
     const yr = new Date().getFullYear();
 
     // Manually set a non-zero carried_over value
@@ -311,10 +311,10 @@ describe('updatePlan', () => {
 // ── addHolidayCalendar ────────────────────────────────────────────────────────
 
 describe('addHolidayCalendar', () => {
-  it('VACAY-SVC-019: inserts a new calendar row and returns the calendar object', () => {
-    const { plan } = setupUserWithPlan();
+  it('VACAY-SVC-019: inserts a new calendar row and returns the calendar object', async () => {
+    const { plan } = await setupUserWithPlan();
 
-    const cal = addHolidayCalendar(plan.id, 'GB', 'UK Holidays', '#ff0000', 0, undefined);
+    const cal = await addHolidayCalendar(plan.id, 'GB', 'UK Holidays', '#ff0000', 0, undefined);
 
     expect(cal).toBeDefined();
     expect(cal.id).toBeGreaterThan(0);
@@ -323,10 +323,10 @@ describe('addHolidayCalendar', () => {
     expect(cal.color).toBe('#ff0000');
   });
 
-  it('VACAY-SVC-020: uses default color #fecaca when no color is provided', () => {
-    const { plan } = setupUserWithPlan();
+  it('VACAY-SVC-020: uses default color #fecaca when no color is provided', async () => {
+    const { plan } = await setupUserWithPlan();
 
-    const cal = addHolidayCalendar(plan.id, 'US', null, undefined, 0, undefined);
+    const cal = await addHolidayCalendar(plan.id, 'US', null, undefined, 0, undefined);
 
     expect(cal.color).toBe('#fecaca');
   });
@@ -335,21 +335,21 @@ describe('addHolidayCalendar', () => {
 // ── updateHolidayCalendar ─────────────────────────────────────────────────────
 
 describe('updateHolidayCalendar', () => {
-  it('VACAY-SVC-021: changes label and color on an existing calendar', () => {
-    const { plan } = setupUserWithPlan();
-    const cal = addHolidayCalendar(plan.id, 'DE', 'Germany', '#aabbcc', 0, undefined);
+  it('VACAY-SVC-021: changes label and color on an existing calendar', async () => {
+    const { plan } = await setupUserWithPlan();
+    const cal = await addHolidayCalendar(plan.id, 'DE', 'Germany', '#aabbcc', 0, undefined);
 
-    const updated = updateHolidayCalendar(cal.id, plan.id, { label: 'Deutschland', color: '#112233' }, undefined);
+    const updated = await updateHolidayCalendar(cal.id, plan.id, { label: 'Deutschland', color: '#112233' }, undefined);
 
     expect(updated).not.toBeNull();
     expect(updated!.label).toBe('Deutschland');
     expect(updated!.color).toBe('#112233');
   });
 
-  it('VACAY-SVC-022: returns null when the calendar id does not exist in the plan', () => {
-    const { plan } = setupUserWithPlan();
+  it('VACAY-SVC-022: returns null when the calendar id does not exist in the plan', async () => {
+    const { plan } = await setupUserWithPlan();
 
-    const result = updateHolidayCalendar(99999, plan.id, { label: 'Nope' }, undefined);
+    const result = await updateHolidayCalendar(99999, plan.id, { label: 'Nope' }, undefined);
 
     expect(result).toBeNull();
   });
@@ -358,21 +358,21 @@ describe('updateHolidayCalendar', () => {
 // ── deleteHolidayCalendar ─────────────────────────────────────────────────────
 
 describe('deleteHolidayCalendar', () => {
-  it('VACAY-SVC-023: removes the calendar row and returns true on success', () => {
-    const { plan } = setupUserWithPlan();
-    const cal = addHolidayCalendar(plan.id, 'FR', null, undefined, 0, undefined);
+  it('VACAY-SVC-023: removes the calendar row and returns true on success', async () => {
+    const { plan } = await setupUserWithPlan();
+    const cal = await addHolidayCalendar(plan.id, 'FR', null, undefined, 0, undefined);
 
-    const result = deleteHolidayCalendar(cal.id, plan.id, undefined);
+    const result = await deleteHolidayCalendar(cal.id, plan.id, undefined);
 
     expect(result).toBe(true);
     const row = testDb.prepare('SELECT id FROM vacay_holiday_calendars WHERE id = ?').get(cal.id);
     expect(row).toBeUndefined();
   });
 
-  it('VACAY-SVC-024: returns false when the calendar does not exist', () => {
-    const { plan } = setupUserWithPlan();
+  it('VACAY-SVC-024: returns false when the calendar does not exist', async () => {
+    const { plan } = await setupUserWithPlan();
 
-    const result = deleteHolidayCalendar(99999, plan.id, undefined);
+    const result = await deleteHolidayCalendar(99999, plan.id, undefined);
 
     expect(result).toBe(false);
   });
@@ -381,10 +381,10 @@ describe('deleteHolidayCalendar', () => {
 // ── setUserColor ──────────────────────────────────────────────────────────────
 
 describe('setUserColor', () => {
-  it('VACAY-SVC-025: inserts a color for a user in a plan', () => {
-    const { user, plan } = setupUserWithPlan();
+  it('VACAY-SVC-025: inserts a color for a user in a plan', async () => {
+    const { user, plan } = await setupUserWithPlan();
 
-    setUserColor(user.id, plan.id, '#123456', undefined);
+    await setUserColor(user.id, plan.id, '#123456', undefined);
 
     const row = testDb
       .prepare('SELECT color FROM vacay_user_colors WHERE user_id = ? AND plan_id = ?')
@@ -392,11 +392,11 @@ describe('setUserColor', () => {
     expect(row?.color).toBe('#123456');
   });
 
-  it('VACAY-SVC-026: updates the color when called a second time (upsert)', () => {
-    const { user, plan } = setupUserWithPlan();
-    setUserColor(user.id, plan.id, '#aaaaaa', undefined);
+  it('VACAY-SVC-026: updates the color when called a second time (upsert)', async () => {
+    const { user, plan } = await setupUserWithPlan();
+    await setUserColor(user.id, plan.id, '#aaaaaa', undefined);
 
-    setUserColor(user.id, plan.id, '#bbbbbb', undefined);
+    await setUserColor(user.id, plan.id, '#bbbbbb', undefined);
 
     const row = testDb
       .prepare('SELECT color FROM vacay_user_colors WHERE user_id = ? AND plan_id = ?')
@@ -408,24 +408,24 @@ describe('setUserColor', () => {
 // ── listYears / addYear / deleteYear ──────────────────────────────────────────
 
 describe('listYears', () => {
-  it('VACAY-SVC-027: returns the seeded current year for a freshly created plan', () => {
-    const { plan } = setupUserWithPlan();
+  it('VACAY-SVC-027: returns the seeded current year for a freshly created plan', async () => {
+    const { plan } = await setupUserWithPlan();
     const yr = new Date().getFullYear();
 
-    const years = listYears(plan.id);
+    const years = await listYears(plan.id);
 
     expect(years).toContain(yr);
   });
 });
 
 describe('addYear', () => {
-  it('VACAY-SVC-028: inserts a new year and creates a user_year record', () => {
-    const { user, plan } = setupUserWithPlan();
+  it('VACAY-SVC-028: inserts a new year and creates a user_year record', async () => {
+    const { user, plan } = await setupUserWithPlan();
     const newYear = new Date().getFullYear() + 2;
 
-    addYear(plan.id, newYear, undefined);
+    await addYear(plan.id, newYear, undefined);
 
-    const years = listYears(plan.id);
+    const years = await listYears(plan.id);
     expect(years).toContain(newYear);
 
     const userYear = testDb
@@ -435,8 +435,8 @@ describe('addYear', () => {
     expect(userYear!.vacation_days).toBe(30);
   });
 
-  it('VACAY-SVC-029: carries over remaining days to the new year when carry_over_enabled is true', () => {
-    const { user, plan } = setupUserWithPlan();
+  it('VACAY-SVC-029: carries over remaining days to the new year when carry_over_enabled is true', async () => {
+    const { user, plan } = await setupUserWithPlan();
     const currentYear = new Date().getFullYear();
     const nextYear = currentYear + 1;
 
@@ -453,7 +453,7 @@ describe('addYear', () => {
       testDb.prepare('INSERT OR IGNORE INTO vacay_entries (plan_id, user_id, date, note) VALUES (?, ?, ?, ?)').run(plan.id, user.id, dateStr, '');
     }
 
-    addYear(plan.id, nextYear, undefined);
+    await addYear(plan.id, nextYear, undefined);
 
     const userYear = testDb
       .prepare('SELECT carried_over FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?')
@@ -464,17 +464,17 @@ describe('addYear', () => {
 });
 
 describe('deleteYear', () => {
-  it('VACAY-SVC-030: removes the year row and its associated entries', () => {
-    const { user, plan } = setupUserWithPlan();
+  it('VACAY-SVC-030: removes the year row and its associated entries', async () => {
+    const { user, plan } = await setupUserWithPlan();
     const targetYear = new Date().getFullYear() + 3;
 
-    addYear(plan.id, targetYear, undefined);
+    await addYear(plan.id, targetYear, undefined);
     // Insert an entry for that year
     testDb
       .prepare('INSERT INTO vacay_entries (plan_id, user_id, date, note) VALUES (?, ?, ?, ?)')
       .run(plan.id, user.id, `${targetYear}-07-15`, '');
 
-    deleteYear(plan.id, targetYear, undefined);
+    await deleteYear(plan.id, targetYear, undefined);
 
     const yearRow = testDb
       .prepare('SELECT * FROM vacay_years WHERE plan_id = ? AND year = ?')
@@ -491,11 +491,11 @@ describe('deleteYear', () => {
 // ── getEntries / toggleEntry ──────────────────────────────────────────────────
 
 describe('getEntries', () => {
-  it('VACAY-SVC-031: returns empty entries and companyHolidays for a new plan+year', () => {
-    const { plan } = setupUserWithPlan();
+  it('VACAY-SVC-031: returns empty entries and companyHolidays for a new plan+year', async () => {
+    const { plan } = await setupUserWithPlan();
     const yr = new Date().getFullYear().toString();
 
-    const result = getEntries(plan.id, yr);
+    const result = await getEntries(plan.id, yr);
 
     expect(result.entries).toEqual([]);
     expect(result.companyHolidays).toEqual([]);
@@ -503,10 +503,10 @@ describe('getEntries', () => {
 });
 
 describe('toggleEntry', () => {
-  it('VACAY-SVC-032: adds an entry on first call (action: added)', () => {
-    const { user, plan } = setupUserWithPlan();
+  it('VACAY-SVC-032: adds an entry on first call (action: added)', async () => {
+    const { user, plan } = await setupUserWithPlan();
 
-    const result = toggleEntry(user.id, plan.id, '2025-08-01', undefined);
+    const result = await toggleEntry(user.id, plan.id, '2025-08-01', undefined);
 
     expect(result.action).toBe('added');
     const row = testDb
@@ -515,11 +515,11 @@ describe('toggleEntry', () => {
     expect(row).toBeDefined();
   });
 
-  it('VACAY-SVC-033: removes the entry on second call (action: removed)', () => {
-    const { user, plan } = setupUserWithPlan();
+  it('VACAY-SVC-033: removes the entry on second call (action: removed)', async () => {
+    const { user, plan } = await setupUserWithPlan();
 
-    toggleEntry(user.id, plan.id, '2025-08-02', undefined);
-    const result = toggleEntry(user.id, plan.id, '2025-08-02', undefined);
+    await toggleEntry(user.id, plan.id, '2025-08-02', undefined);
+    const result = await toggleEntry(user.id, plan.id, '2025-08-02', undefined);
 
     expect(result.action).toBe('removed');
     const row = testDb
@@ -532,10 +532,10 @@ describe('toggleEntry', () => {
 // ── toggleCompanyHoliday ──────────────────────────────────────────────────────
 
 describe('toggleCompanyHoliday', () => {
-  it('VACAY-SVC-034: adds a company holiday on first call (action: added)', () => {
-    const { plan } = setupUserWithPlan();
+  it('VACAY-SVC-034: adds a company holiday on first call (action: added)', async () => {
+    const { plan } = await setupUserWithPlan();
 
-    const result = toggleCompanyHoliday(plan.id, '2025-12-25', 'Christmas', undefined);
+    const result = await toggleCompanyHoliday(plan.id, '2025-12-25', 'Christmas', undefined);
 
     expect(result.action).toBe('added');
     const row = testDb
@@ -544,11 +544,11 @@ describe('toggleCompanyHoliday', () => {
     expect(row).toBeDefined();
   });
 
-  it('VACAY-SVC-035: removes the company holiday on second call (action: removed)', () => {
-    const { plan } = setupUserWithPlan();
+  it('VACAY-SVC-035: removes the company holiday on second call (action: removed)', async () => {
+    const { plan } = await setupUserWithPlan();
 
-    toggleCompanyHoliday(plan.id, '2025-12-26', 'Boxing Day', undefined);
-    const result = toggleCompanyHoliday(plan.id, '2025-12-26', undefined, undefined);
+    await toggleCompanyHoliday(plan.id, '2025-12-26', 'Boxing Day', undefined);
+    const result = await toggleCompanyHoliday(plan.id, '2025-12-26', undefined, undefined);
 
     expect(result.action).toBe('removed');
     const row = testDb
@@ -557,14 +557,14 @@ describe('toggleCompanyHoliday', () => {
     expect(row).toBeUndefined();
   });
 
-  it('VACAY-SVC-036: adding a company holiday removes any existing vacay_entry on that date', () => {
-    const { user, plan } = setupUserWithPlan();
+  it('VACAY-SVC-036: adding a company holiday removes any existing vacay_entry on that date', async () => {
+    const { user, plan } = await setupUserWithPlan();
 
     // First add a personal entry on that date
-    toggleEntry(user.id, plan.id, '2025-05-01', undefined);
+    await toggleEntry(user.id, plan.id, '2025-05-01', undefined);
 
     // Now declare it a company holiday — the personal entry should be wiped
-    toggleCompanyHoliday(plan.id, '2025-05-01', 'Labour Day', undefined);
+    await toggleCompanyHoliday(plan.id, '2025-05-01', 'Labour Day', undefined);
 
     const personalEntry = testDb
       .prepare('SELECT * FROM vacay_entries WHERE plan_id = ? AND date = ?')
@@ -576,13 +576,13 @@ describe('toggleCompanyHoliday', () => {
 // ── acceptInvite / declineInvite / cancelInvite ───────────────────────────────
 
 describe('acceptInvite', () => {
-  it('VACAY-SVC-037: changes membership status to accepted', () => {
-    const { user: owner, plan: ownerPlan } = setupUserWithPlan();
+  it('VACAY-SVC-037: changes membership status to accepted', async () => {
+    const { user: owner, plan: ownerPlan } = await setupUserWithPlan();
     const { user: invitee } = createUser(testDb);
-    getOwnPlan(invitee.id); // ensure own plan exists for data migration path
+    await getOwnPlan(invitee.id); // ensure own plan exists for data migration path
     insertMember(ownerPlan.id, invitee.id, 'pending');
 
-    const result = acceptInvite(invitee.id, ownerPlan.id, undefined);
+    const result = await acceptInvite(invitee.id, ownerPlan.id, undefined);
 
     expect(result.error).toBeUndefined();
     const row = testDb
@@ -591,35 +591,35 @@ describe('acceptInvite', () => {
     expect(row?.status).toBe('accepted');
   });
 
-  it('VACAY-SVC-038: returns 404 error when there is no pending invite', () => {
+  it('VACAY-SVC-038: returns 404 error when there is no pending invite', async () => {
     const { user } = createUser(testDb);
 
-    const result = acceptInvite(user.id, 99999, undefined);
+    const result = await acceptInvite(user.id, 99999, undefined);
 
     expect(result.status).toBe(404);
     expect(result.error).toBeDefined();
   });
 
-  it('VACAY-SVC-039: accepted member becomes visible via getActivePlan', () => {
-    const { user: owner, plan: ownerPlan } = setupUserWithPlan();
+  it('VACAY-SVC-039: accepted member becomes visible via getActivePlan', async () => {
+    const { user: owner, plan: ownerPlan } = await setupUserWithPlan();
     const { user: invitee } = createUser(testDb);
-    getOwnPlan(invitee.id);
+    await getOwnPlan(invitee.id);
     insertMember(ownerPlan.id, invitee.id, 'pending');
 
-    acceptInvite(invitee.id, ownerPlan.id, undefined);
+    await acceptInvite(invitee.id, ownerPlan.id, undefined);
 
-    const active = getActivePlan(invitee.id);
+    const active = await getActivePlan(invitee.id);
     expect(active.id).toBe(ownerPlan.id);
   });
 });
 
 describe('declineInvite', () => {
-  it('VACAY-SVC-040: removes the pending invite row', () => {
-    const { user: owner, plan: ownerPlan } = setupUserWithPlan();
+  it('VACAY-SVC-040: removes the pending invite row', async () => {
+    const { user: owner, plan: ownerPlan } = await setupUserWithPlan();
     const { user: invitee } = createUser(testDb);
     insertMember(ownerPlan.id, invitee.id, 'pending');
 
-    declineInvite(invitee.id, ownerPlan.id, undefined);
+    await declineInvite(invitee.id, ownerPlan.id, undefined);
 
     const row = testDb
       .prepare('SELECT * FROM vacay_plan_members WHERE plan_id = ? AND user_id = ?')
@@ -629,12 +629,12 @@ describe('declineInvite', () => {
 });
 
 describe('cancelInvite', () => {
-  it('VACAY-SVC-041: removes the pending invite when owner cancels it', () => {
-    const { user: owner, plan: ownerPlan } = setupUserWithPlan();
+  it('VACAY-SVC-041: removes the pending invite when owner cancels it', async () => {
+    const { user: owner, plan: ownerPlan } = await setupUserWithPlan();
     const { user: target } = createUser(testDb);
     insertMember(ownerPlan.id, target.id, 'pending');
 
-    cancelInvite(ownerPlan.id, target.id);
+    await cancelInvite(ownerPlan.id, target.id);
 
     const row = testDb
       .prepare('SELECT * FROM vacay_plan_members WHERE plan_id = ? AND user_id = ?')
@@ -646,25 +646,25 @@ describe('cancelInvite', () => {
 // ── getAvailableUsers ─────────────────────────────────────────────────────────
 
 describe('getAvailableUsers', () => {
-  it('VACAY-SVC-042: returns users not already in the plan and not fused elsewhere', () => {
-    const { user: owner, plan } = setupUserWithPlan();
+  it('VACAY-SVC-042: returns users not already in the plan and not fused elsewhere', async () => {
+    const { user: owner, plan } = await setupUserWithPlan();
     const { user: unrelated } = createUser(testDb);
-    getOwnPlan(unrelated.id);
+    await getOwnPlan(unrelated.id);
 
-    const available = getAvailableUsers(owner.id, plan.id) as { id: number }[];
+    const available = await getAvailableUsers(owner.id, plan.id) as { id: number }[];
 
     expect(available.map(u => u.id)).toContain(unrelated.id);
     // Owner themselves should NOT appear (excluded by u.id != ?)
     expect(available.map(u => u.id)).not.toContain(owner.id);
   });
 
-  it('VACAY-SVC-043: excludes users who already have an accepted membership in any plan', () => {
-    const { user: owner, plan } = setupUserWithPlan();
+  it('VACAY-SVC-043: excludes users who already have an accepted membership in any plan', async () => {
+    const { user: owner, plan } = await setupUserWithPlan();
     const { user: alreadyFused } = createUser(testDb);
-    const { plan: otherPlan } = setupUserWithPlan();
+    const { plan: otherPlan } = await setupUserWithPlan();
     insertMember(otherPlan.id, alreadyFused.id, 'accepted');
 
-    const available = getAvailableUsers(owner.id, plan.id) as { id: number }[];
+    const available = await getAvailableUsers(owner.id, plan.id) as { id: number }[];
 
     expect(available.map(u => u.id)).not.toContain(alreadyFused.id);
   });
@@ -673,11 +673,11 @@ describe('getAvailableUsers', () => {
 // ── getStats ──────────────────────────────────────────────────────────────────
 
 describe('getStats', () => {
-  it('VACAY-SVC-044: returns per-user stats with correct fields', () => {
-    const { user, plan } = setupUserWithPlan();
+  it('VACAY-SVC-044: returns per-user stats with correct fields', async () => {
+    const { user, plan } = await setupUserWithPlan();
     const yr = new Date().getFullYear();
 
-    const stats = getStats(plan.id, yr);
+    const stats = await getStats(plan.id, yr);
 
     expect(stats).toHaveLength(1);
     expect(stats[0]).toMatchObject({
@@ -689,14 +689,14 @@ describe('getStats', () => {
     });
   });
 
-  it('VACAY-SVC-045: used reflects the actual number of entries for that user and year', () => {
-    const { user, plan } = setupUserWithPlan();
+  it('VACAY-SVC-045: used reflects the actual number of entries for that user and year', async () => {
+    const { user, plan } = await setupUserWithPlan();
     const yr = new Date().getFullYear();
 
-    toggleEntry(user.id, plan.id, `${yr}-09-10`, undefined);
-    toggleEntry(user.id, plan.id, `${yr}-09-11`, undefined);
+    await toggleEntry(user.id, plan.id, `${yr}-09-10`, undefined);
+    await toggleEntry(user.id, plan.id, `${yr}-09-11`, undefined);
 
-    const stats = getStats(plan.id, yr);
+    const stats = await getStats(plan.id, yr);
 
     expect(stats[0].used).toBe(2);
     expect(stats[0].remaining).toBe(28);
@@ -707,7 +707,7 @@ describe('getStats', () => {
 
 describe('applyHolidayCalendars', () => {
   it('VACAY-SVC-046: does nothing when holidays_enabled is 0 (fetch is never called)', async () => {
-    const { plan } = setupUserWithPlan();
+    const { plan } = await setupUserWithPlan();
     // holidays_enabled defaults to 0
 
     await applyHolidayCalendars(plan.id);
@@ -716,12 +716,12 @@ describe('applyHolidayCalendars', () => {
   });
 
   it('VACAY-SVC-047: deletes matching vacay_entries for a global holiday date returned by the API', async () => {
-    const { user, plan } = setupUserWithPlan();
+    const { user, plan } = await setupUserWithPlan();
     const yr = new Date().getFullYear();
 
     // Enable holidays and add a calendar
     testDb.prepare('UPDATE vacay_plans SET holidays_enabled = 1 WHERE id = ?').run(plan.id);
-    addHolidayCalendar(plan.id, 'DE', null, undefined, 0, undefined);
+    await addHolidayCalendar(plan.id, 'DE', null, undefined, 0, undefined);
 
     // Add a vacay entry on the holiday date
     const holidayDate = `${yr}-01-01`;

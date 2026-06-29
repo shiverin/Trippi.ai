@@ -1,6 +1,10 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { AssignmentRow, Day, DayNote } from '../types';
-import { loadTagsByPlaceIds, loadParticipantsByAssignmentIds, formatAssignmentWithPlace } from './queryHelpers';
+import {
+  loadTagsByPlaceIdsAsync,
+  loadParticipantsByAssignmentIdsAsync,
+  formatAssignmentWithPlace,
+} from './queryHelpers';
 
 export { verifyTripAccess } from './tripAccess';
 
@@ -8,8 +12,8 @@ export { verifyTripAccess } from './tripAccess';
 // Day assignment helpers
 // ---------------------------------------------------------------------------
 
-export function getAssignmentsForDay(dayId: number | string) {
-  const assignments = db
+export async function getAssignmentsForDay(dayId: number | string) {
+  const assignments = await asyncDb
     .prepare(
       `
     SELECT da.*, p.id as place_id, p.name as place_name, p.description as place_description,
@@ -26,19 +30,11 @@ export function getAssignmentsForDay(dayId: number | string) {
     ORDER BY da.order_index ASC, da.created_at ASC
   `,
     )
-    .all(dayId) as AssignmentRow[];
+    .all<AssignmentRow>(dayId);
+
+  const tagsByPlaceId = await loadTagsByPlaceIdsAsync([...new Set(assignments.map((a) => a.place_id))]);
 
   return assignments.map((a) => {
-    const tags = db
-      .prepare(
-        `
-      SELECT t.* FROM tags t
-      JOIN place_tags pt ON t.id = pt.tag_id
-      WHERE pt.place_id = ?
-    `,
-      )
-      .all(a.place_id);
-
     return {
       id: a.id,
       day_id: a.day_id,
@@ -73,7 +69,7 @@ export function getAssignmentsForDay(dayId: number | string) {
               icon: a.category_icon,
             }
           : null,
-        tags,
+        tags: tagsByPlaceId[a.place_id] || [],
       },
     };
   });
@@ -83,8 +79,10 @@ export function getAssignmentsForDay(dayId: number | string) {
 // Day CRUD
 // ---------------------------------------------------------------------------
 
-export function listDays(tripId: string | number) {
-  const days = db.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number ASC').all(tripId) as Day[];
+export async function listDays(tripId: string | number) {
+  const days = await asyncDb
+    .prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number ASC')
+    .all<Day>(tripId);
 
   if (days.length === 0) {
     return { days: [] };
@@ -93,7 +91,7 @@ export function listDays(tripId: string | number) {
   const dayIds = days.map((d) => d.id);
   const dayPlaceholders = dayIds.map(() => '?').join(',');
 
-  const allAssignments = db
+  const allAssignments = await asyncDb
     .prepare(
       `
     SELECT da.*, p.id as place_id, p.name as place_name, p.description as place_description,
@@ -110,13 +108,13 @@ export function listDays(tripId: string | number) {
     ORDER BY da.order_index ASC, da.created_at ASC
   `,
     )
-    .all(...dayIds) as AssignmentRow[];
+    .all<AssignmentRow>(...dayIds);
 
   const placeIds = [...new Set(allAssignments.map((a) => a.place_id))];
-  const tagsByPlaceId = loadTagsByPlaceIds(placeIds, { compact: true });
+  const tagsByPlaceId = await loadTagsByPlaceIdsAsync(placeIds, { compact: true });
 
   const allAssignmentIds = allAssignments.map((a) => a.id);
-  const participantsByAssignment = loadParticipantsByAssignmentIds(allAssignmentIds);
+  const participantsByAssignment = await loadParticipantsByAssignmentIdsAsync(allAssignmentIds);
 
   const assignmentsByDayId: Record<number, ReturnType<typeof formatAssignmentWithPlace>[]> = {};
   for (const a of allAssignments) {
@@ -126,9 +124,9 @@ export function listDays(tripId: string | number) {
     );
   }
 
-  const allNotes = db
+  const allNotes = await asyncDb
     .prepare(`SELECT * FROM day_notes WHERE day_id IN (${dayPlaceholders}) ORDER BY sort_order ASC, created_at ASC`)
-    .all(...dayIds) as DayNote[];
+    .all<DayNote>(...dayIds);
   const notesByDayId: Record<number, DayNote[]> = {};
   for (const note of allNotes) {
     if (!notesByDayId[note.day_id]) notesByDayId[note.day_id] = [];
@@ -144,36 +142,36 @@ export function listDays(tripId: string | number) {
   return { days: daysWithAssignments };
 }
 
-export function createDay(tripId: string | number, date?: string, notes?: string) {
-  const maxDay = db.prepare('SELECT MAX(day_number) as max FROM days WHERE trip_id = ?').get(tripId) as {
-    max: number | null;
-  };
-  const dayNumber = (maxDay.max || 0) + 1;
+export async function createDay(tripId: string | number, date?: string, notes?: string) {
+  const maxDay = await asyncDb
+    .prepare('SELECT MAX(day_number) as max FROM days WHERE trip_id = ?')
+    .get<{ max: number | null }>(tripId);
+  const dayNumber = (maxDay?.max || 0) + 1;
 
-  const result = db
+  const result = await asyncDb
     .prepare('INSERT INTO days (trip_id, day_number, date, notes) VALUES (?, ?, ?, ?)')
     .run(tripId, dayNumber, date || null, notes || null);
 
-  const day = db.prepare('SELECT * FROM days WHERE id = ?').get(result.lastInsertRowid) as Day;
+  const day = await asyncDb.prepare('SELECT * FROM days WHERE id = ?').get<Day>(result.lastInsertRowid);
   return { ...day, assignments: [] };
 }
 
-export function getDay(id: string | number, tripId: string | number) {
-  return db.prepare('SELECT * FROM days WHERE id = ? AND trip_id = ?').get(id, tripId) as Day | undefined;
+export async function getDay(id: string | number, tripId: string | number) {
+  return asyncDb.prepare('SELECT * FROM days WHERE id = ? AND trip_id = ?').get<Day>(id, tripId);
 }
 
-export function updateDay(id: string | number, current: Day, fields: { notes?: string; title?: string | null }) {
-  db.prepare('UPDATE days SET notes = ?, title = ? WHERE id = ?').run(
+export async function updateDay(id: string | number, current: Day, fields: { notes?: string; title?: string | null }) {
+  await asyncDb.prepare('UPDATE days SET notes = ?, title = ? WHERE id = ?').run(
     fields.notes || null,
     'title' in fields ? (fields.title ?? null) : current.title,
     id,
   );
-  const updatedDay = db.prepare('SELECT * FROM days WHERE id = ?').get(id) as Day;
-  return { ...updatedDay, assignments: getAssignmentsForDay(id) };
+  const updatedDay = await asyncDb.prepare('SELECT * FROM days WHERE id = ?').get<Day>(id);
+  return { ...updatedDay, assignments: await getAssignmentsForDay(id) };
 }
 
-export function deleteDay(id: string | number) {
-  db.prepare('DELETE FROM days WHERE id = ?').run(id);
+export async function deleteDay(id: string | number) {
+  await asyncDb.prepare('DELETE FROM days WHERE id = ?').run(id);
 }
 
 // ---------------------------------------------------------------------------
@@ -218,39 +216,39 @@ function withDatePart(timestamp: string, date: string): string {
  * date (time-of-day preserved). Transport endpoints (flight legs) shift by the
  * same per-booking day delta so multi-leg timing stays internally consistent.
  */
-function restampReservationDates(
+async function restampReservationDates(
   tripId: string | number,
   oldDateById: Map<number, string | null>,
   newDateById: Map<number, string | null>,
-): void {
-  const reservations = db
+): Promise<void> {
+  const reservations = await asyncDb
     .prepare(
       'SELECT id, day_id, end_day_id, reservation_time, reservation_end_time FROM reservations WHERE trip_id = ?',
     )
-    .all(tripId) as {
+    .all<{
     id: number;
     day_id: number | null;
     end_day_id: number | null;
     reservation_time: string | null;
     reservation_end_time: string | null;
-  }[];
+  }>(tripId);
 
-  const setTime = db.prepare('UPDATE reservations SET reservation_time = ? WHERE id = ?');
-  const setEndTime = db.prepare('UPDATE reservations SET reservation_end_time = ? WHERE id = ?');
-  const endpoints = db.prepare('SELECT id, local_date FROM reservation_endpoints WHERE reservation_id = ?');
-  const setEndpointDate = db.prepare('UPDATE reservation_endpoints SET local_date = ? WHERE id = ?');
+  const setTime = asyncDb.prepare('UPDATE reservations SET reservation_time = ? WHERE id = ?');
+  const setEndTime = asyncDb.prepare('UPDATE reservations SET reservation_end_time = ? WHERE id = ?');
+  const endpoints = asyncDb.prepare('SELECT id, local_date FROM reservation_endpoints WHERE reservation_id = ?');
+  const setEndpointDate = asyncDb.prepare('UPDATE reservation_endpoints SET local_date = ? WHERE id = ?');
 
   for (const r of reservations) {
     if (r.day_id != null && r.reservation_time) {
       const oldDate = oldDateById.get(r.day_id);
       const newDate = newDateById.get(r.day_id);
       if (oldDate && newDate && oldDate !== newDate) {
-        setTime.run(withDatePart(r.reservation_time, newDate), r.id);
+        await setTime.run(withDatePart(r.reservation_time, newDate), r.id);
         // Shift each transport leg's local_date by the same number of days.
         const delta = dayDelta(oldDate, newDate);
         if (delta !== 0) {
-          for (const ep of endpoints.all(r.id) as { id: number; local_date: string | null }[]) {
-            if (ep.local_date) setEndpointDate.run(addDays(ep.local_date, delta), ep.id);
+          for (const ep of await endpoints.all<{ id: number; local_date: string | null }>(r.id)) {
+            if (ep.local_date) await setEndpointDate.run(addDays(ep.local_date, delta), ep.id);
           }
         }
       }
@@ -259,15 +257,15 @@ function restampReservationDates(
       const oldDate = oldDateById.get(r.end_day_id);
       const newDate = newDateById.get(r.end_day_id);
       if (oldDate && newDate && oldDate !== newDate) {
-        setEndTime.run(withDatePart(r.reservation_end_time, newDate), r.id);
+        await setEndTime.run(withDatePart(r.reservation_end_time, newDate), r.id);
       }
     }
   }
 }
 
 /** A stay must not end before it begins after a reorder/insert. */
-function assertNoInvertedAccommodation(tripId: string | number): void {
-  const spans = db
+async function assertNoInvertedAccommodation(tripId: string | number): Promise<void> {
+  const spans = await asyncDb
     .prepare(
       `
     SELECT a.id, s.day_number AS start_no, e.day_number AS end_no
@@ -277,7 +275,7 @@ function assertNoInvertedAccommodation(tripId: string | number): void {
     WHERE a.trip_id = ?
   `,
     )
-    .all(tripId) as { id: number; start_no: number; end_no: number }[];
+    .all<{ id: number; start_no: number; end_no: number }>(tripId);
   for (const span of spans) {
     if (span.start_no > span.end_no) {
       throw new DayReorderError('This move would make an accommodation end before it starts.');
@@ -292,10 +290,10 @@ export class DayReorderError extends Error {}
  * Reorder whole days. `orderedIds` is the desired full sequence of this trip's
  * day ids (a permutation of the current ids).
  */
-export function reorderDays(tripId: string | number, orderedIds: number[]) {
-  const rows = db
+export async function reorderDays(tripId: string | number, orderedIds: number[]) {
+  const rows = await asyncDb
     .prepare('SELECT id, day_number, date FROM days WHERE trip_id = ? ORDER BY day_number')
-    .all(tripId) as { id: number; day_number: number; date: string | null }[];
+    .all<{ id: number; day_number: number; date: string | null }>(tripId);
 
   const existingIds = new Set(rows.map((r) => r.id));
   if (orderedIds.length !== rows.length || !orderedIds.every((id) => existingIds.has(id))) {
@@ -310,28 +308,22 @@ export function reorderDays(tripId: string | number, orderedIds: number[]) {
     .sort();
   const isDated = sortedDates.length > 0;
 
-  const setDayNumber = db.prepare('UPDATE days SET day_number = ? WHERE id = ?');
-  const setDayNumberAndDate = db.prepare('UPDATE days SET day_number = ?, date = ? WHERE id = ?');
+  const setDayNumber = asyncDb.prepare('UPDATE days SET day_number = ? WHERE id = ?');
+  const setDayNumberAndDate = asyncDb.prepare('UPDATE days SET day_number = ?, date = ? WHERE id = ?');
 
-  db.exec('BEGIN');
-  try {
+  await asyncDb.transaction(async () => {
     // Two-phase renumber to dodge UNIQUE(trip_id, day_number) collisions.
-    orderedIds.forEach((id, i) => setDayNumber.run(-(i + 1), id));
+    for (const [i, id] of orderedIds.entries()) await setDayNumber.run(-(i + 1), id);
     const newDateById = new Map<number, string | null>();
-    orderedIds.forEach((id, i) => {
+    for (const [i, id] of orderedIds.entries()) {
       const date = isDated ? (sortedDates[i] ?? null) : null;
-      setDayNumberAndDate.run(i + 1, date, id);
+      await setDayNumberAndDate.run(i + 1, date, id);
       newDateById.set(id, date);
-    });
+    }
 
-    if (isDated) restampReservationDates(tripId, oldDateById, newDateById);
-    assertNoInvertedAccommodation(tripId);
-
-    db.exec('COMMIT');
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
-  }
+    if (isDated) await restampReservationDates(tripId, oldDateById, newDateById);
+    await assertNoInvertedAccommodation(tripId);
+  })();
 
   return listDays(tripId);
 }
@@ -342,43 +334,39 @@ export function reorderDays(tripId: string | number, orderedIds: number[]) {
  * stay contiguous, the trip's end_date extends by one day, and bookings on
  * shifted days have their dates re-stamped (same rules as reorderDays).
  */
-export function insertDay(tripId: string | number, position?: number) {
-  const rows = db
+export async function insertDay(tripId: string | number, position?: number) {
+  const rows = await asyncDb
     .prepare('SELECT id, day_number, date FROM days WHERE trip_id = ? ORDER BY day_number')
-    .all(tripId) as { id: number; day_number: number; date: string | null }[];
+    .all<{ id: number; day_number: number; date: string | null }>(tripId);
   const n = rows.length;
   const pos = Math.min(Math.max(position ?? n + 1, 1), n + 1);
   const datedRows = rows.filter((r) => r.date) as { id: number; day_number: number; date: string }[];
   const isDated = datedRows.length > 0;
 
-  const setDayNumber = db.prepare('UPDATE days SET day_number = ? WHERE id = ?');
+  const setDayNumber = asyncDb.prepare('UPDATE days SET day_number = ? WHERE id = ?');
 
   if (!isDated) {
-    db.exec('BEGIN');
-    try {
+    return asyncDb.transaction(async () => {
       const toShift = rows.filter((r) => r.day_number >= pos);
-      toShift.forEach((r) => setDayNumber.run(-r.day_number, r.id));
-      const result = db.prepare('INSERT INTO days (trip_id, day_number, date) VALUES (?, ?, NULL)').run(tripId, pos);
-      toShift.forEach((r) => setDayNumber.run(r.day_number + 1, r.id));
-      db.exec('COMMIT');
-      const day = db.prepare('SELECT * FROM days WHERE id = ?').get(result.lastInsertRowid) as Day;
+      for (const r of toShift) await setDayNumber.run(-r.day_number, r.id);
+      const result = await asyncDb
+        .prepare('INSERT INTO days (trip_id, day_number, date) VALUES (?, ?, NULL)')
+        .run(tripId, pos);
+      for (const r of toShift) await setDayNumber.run(r.day_number + 1, r.id);
+      const day = await asyncDb.prepare('SELECT * FROM days WHERE id = ?').get<Day>(result.lastInsertRowid);
       return { ...day, assignments: [], notes_items: [] };
-    } catch (e) {
-      db.exec('ROLLBACK');
-      throw e;
-    }
+    })();
   }
 
   // Dated trip: rebuild N+1 contiguous dates from the earliest date.
   const start = datedRows.map((r) => r.date).sort()[0];
   const dates = Array.from({ length: n + 1 }, (_, i) => addDays(start, i));
   const oldDateById = new Map(rows.map((r) => [r.id, r.date]));
-  const setDayNumberAndDate = db.prepare('UPDATE days SET day_number = ?, date = ? WHERE id = ?');
+  const setDayNumberAndDate = asyncDb.prepare('UPDATE days SET day_number = ?, date = ? WHERE id = ?');
 
-  db.exec('BEGIN');
-  try {
-    rows.forEach((r, i) => setDayNumber.run(-(i + 1), r.id));
-    const result = db
+  return asyncDb.transaction(async () => {
+    for (const [i, r] of rows.entries()) await setDayNumber.run(-(i + 1), r.id);
+    const result = await asyncDb
       .prepare('INSERT INTO days (trip_id, day_number, date) VALUES (?, ?, ?)')
       .run(tripId, pos, dates[pos - 1]);
     const newId = Number(result.lastInsertRowid);
@@ -386,22 +374,18 @@ export function insertDay(tripId: string | number, position?: number) {
     const orderedIds = rows.map((r) => r.id);
     orderedIds.splice(pos - 1, 0, newId);
     const newDateById = new Map<number, string | null>();
-    orderedIds.forEach((id, i) => {
-      setDayNumberAndDate.run(i + 1, dates[i], id);
+    for (const [i, id] of orderedIds.entries()) {
+      await setDayNumberAndDate.run(i + 1, dates[i], id);
       newDateById.set(id, dates[i]);
-    });
+    }
 
-    restampReservationDates(tripId, oldDateById, newDateById);
-    assertNoInvertedAccommodation(tripId);
-    db.prepare('UPDATE trips SET end_date = ? WHERE id = ?').run(dates[dates.length - 1], tripId);
+    await restampReservationDates(tripId, oldDateById, newDateById);
+    await assertNoInvertedAccommodation(tripId);
+    await asyncDb.prepare('UPDATE trips SET end_date = ? WHERE id = ?').run(dates[dates.length - 1], tripId);
 
-    db.exec('COMMIT');
-    const day = db.prepare('SELECT * FROM days WHERE id = ?').get(newId) as Day;
+    const day = await asyncDb.prepare('SELECT * FROM days WHERE id = ?').get<Day>(newId);
     return { ...day, assignments: [], notes_items: [] };
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
-  }
+  })();
 }
 
 // ---------------------------------------------------------------------------
@@ -422,8 +406,8 @@ export interface DayAccommodation {
   mcp_import_batch_id?: string | null;
 }
 
-function getAccommodationWithPlace(id: number | bigint) {
-  return db
+async function getAccommodationWithPlace(id: number | bigint | string) {
+  return asyncDb
     .prepare(
       `
     SELECT a.*, p.name as place_name, p.address as place_address, p.image_url as place_image, p.lat as place_lat, p.lng as place_lng
@@ -439,8 +423,8 @@ function getAccommodationWithPlace(id: number | bigint) {
 // Accommodation CRUD
 // ---------------------------------------------------------------------------
 
-export function listAccommodations(tripId: string | number) {
-  return db
+export async function listAccommodations(tripId: string | number) {
+  return asyncDb
     .prepare(
       `
     SELECT a.*, p.name as place_name, p.address as place_address, p.image_url as place_image, p.lat as place_lat, p.lng as place_lng,
@@ -455,7 +439,7 @@ export function listAccommodations(tripId: string | number) {
     .all(tripId);
 }
 
-export function validateAccommodationRefs(
+export async function validateAccommodationRefs(
   tripId: string | number,
   placeId?: number,
   startDayId?: number,
@@ -463,15 +447,17 @@ export function validateAccommodationRefs(
 ) {
   const errors: { field: string; message: string }[] = [];
   if (placeId !== undefined) {
-    const place = db.prepare('SELECT id FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId);
+    const place = await asyncDb.prepare('SELECT id FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId);
     if (!place) errors.push({ field: 'place_id', message: 'Place not found' });
   }
   if (startDayId !== undefined) {
-    const startDay = db.prepare('SELECT id FROM days WHERE id = ? AND trip_id = ?').get(startDayId, tripId);
+    const startDay = await asyncDb
+      .prepare('SELECT id FROM days WHERE id = ? AND trip_id = ?')
+      .get(startDayId, tripId);
     if (!startDay) errors.push({ field: 'start_day_id', message: 'Start day not found' });
   }
   if (endDayId !== undefined) {
-    const endDay = db.prepare('SELECT id FROM days WHERE id = ? AND trip_id = ?').get(endDayId, tripId);
+    const endDay = await asyncDb.prepare('SELECT id FROM days WHERE id = ? AND trip_id = ?').get(endDayId, tripId);
     if (!endDay) errors.push({ field: 'end_day_id', message: 'End day not found' });
   }
   return errors;
@@ -489,7 +475,7 @@ interface CreateAccommodationData {
   mcp_import_batch_id?: string;
 }
 
-export function createAccommodation(tripId: string | number, data: CreateAccommodationData) {
+export async function createAccommodation(tripId: string | number, data: CreateAccommodationData) {
   const {
     place_id,
     start_day_id,
@@ -502,7 +488,7 @@ export function createAccommodation(tripId: string | number, data: CreateAccommo
     mcp_import_batch_id,
   } = data;
 
-  const result = db
+  const result = await asyncDb
     .prepare(
       `INSERT INTO day_accommodations
         (trip_id, place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes, mcp_import_batch_id)
@@ -525,14 +511,14 @@ export function createAccommodation(tripId: string | number, data: CreateAccommo
 
   // Auto-create linked reservation for this accommodation
   const placeName =
-    (db.prepare('SELECT name FROM places WHERE id = ?').get(place_id) as { name: string } | undefined)?.name || 'Hotel';
+    (await asyncDb.prepare('SELECT name FROM places WHERE id = ?').get<{ name: string }>(place_id))?.name || 'Hotel';
   const startDayDate =
-    (db.prepare('SELECT date FROM days WHERE id = ?').get(start_day_id) as { date: string } | undefined)?.date || null;
+    (await asyncDb.prepare('SELECT date FROM days WHERE id = ?').get<{ date: string }>(start_day_id))?.date || null;
   const meta: Record<string, string> = {};
   if (check_in) meta.check_in_time = check_in;
   if (check_in_end) meta.check_in_end_time = check_in_end;
   if (check_out) meta.check_out_time = check_out;
-  db.prepare(
+  await asyncDb.prepare(
     `
     INSERT INTO reservations
       (trip_id, day_id, title, reservation_time, location, confirmation_number, notes, status, type, accommodation_id, metadata, mcp_import_batch_id)
@@ -554,13 +540,13 @@ export function createAccommodation(tripId: string | number, data: CreateAccommo
   return getAccommodationWithPlace(accommodationId);
 }
 
-export function getAccommodation(id: string | number, tripId: string | number) {
-  return db.prepare('SELECT * FROM day_accommodations WHERE id = ? AND trip_id = ?').get(id, tripId) as
-    | DayAccommodation
-    | undefined;
+export async function getAccommodation(id: string | number, tripId: string | number) {
+  return asyncDb
+    .prepare('SELECT * FROM day_accommodations WHERE id = ? AND trip_id = ?')
+    .get<DayAccommodation>(id, tripId);
 }
 
-export function updateAccommodation(
+export async function updateAccommodation(
   id: string | number,
   existing: DayAccommodation,
   fields: {
@@ -583,20 +569,20 @@ export function updateAccommodation(
   const newConfirmation = fields.confirmation !== undefined ? fields.confirmation : existing.confirmation;
   const newNotes = fields.notes !== undefined ? fields.notes : existing.notes;
 
-  db.prepare(
+  await asyncDb.prepare(
     'UPDATE day_accommodations SET place_id = ?, start_day_id = ?, end_day_id = ?, check_in = ?, check_in_end = ?, check_out = ?, confirmation = ?, notes = ? WHERE id = ?',
   ).run(newPlaceId, newStartDayId, newEndDayId, newCheckIn, newCheckInEnd, newCheckOut, newConfirmation, newNotes, id);
 
   // Sync check-in/out/confirmation to linked reservation
-  const linkedRes = db.prepare('SELECT id, metadata FROM reservations WHERE accommodation_id = ?').get(Number(id)) as
-    | { id: number; metadata: string | null }
-    | undefined;
+  const linkedRes = await asyncDb
+    .prepare('SELECT id, metadata FROM reservations WHERE accommodation_id = ?')
+    .get<{ id: number; metadata: string | null }>(Number(id));
   if (linkedRes) {
     const meta = linkedRes.metadata ? JSON.parse(linkedRes.metadata) : {};
     if (newCheckIn) meta.check_in_time = newCheckIn;
     if (newCheckInEnd) meta.check_in_end_time = newCheckInEnd;
     if (newCheckOut) meta.check_out_time = newCheckOut;
-    db.prepare(
+    await asyncDb.prepare(
       'UPDATE reservations SET metadata = ?, confirmation_number = COALESCE(?, confirmation_number) WHERE id = ?',
     ).run(JSON.stringify(meta), newConfirmation || null, linkedRes.id);
   }
@@ -605,25 +591,25 @@ export function updateAccommodation(
 }
 
 /** Delete accommodation and its linked reservation (and any linked budget item). */
-export function deleteAccommodation(id: string | number): {
+export async function deleteAccommodation(id: string | number): Promise<{
   linkedReservationId: number | null;
   deletedBudgetItemId: number | null;
-} {
-  const linkedRes = db.prepare('SELECT id FROM reservations WHERE accommodation_id = ?').get(Number(id)) as
-    | { id: number }
-    | undefined;
+}> {
+  const linkedRes = await asyncDb
+    .prepare('SELECT id FROM reservations WHERE accommodation_id = ?')
+    .get<{ id: number }>(Number(id));
   let deletedBudgetItemId: number | null = null;
   if (linkedRes) {
-    const linkedBudget = db.prepare('SELECT id FROM budget_items WHERE reservation_id = ?').get(linkedRes.id) as
-      | { id: number }
-      | undefined;
+    const linkedBudget = await asyncDb
+      .prepare('SELECT id FROM budget_items WHERE reservation_id = ?')
+      .get<{ id: number }>(linkedRes.id);
     if (linkedBudget) {
-      db.prepare('DELETE FROM budget_items WHERE id = ?').run(linkedBudget.id);
+      await asyncDb.prepare('DELETE FROM budget_items WHERE id = ?').run(linkedBudget.id);
       deletedBudgetItemId = linkedBudget.id;
     }
-    db.prepare('DELETE FROM reservations WHERE id = ?').run(linkedRes.id);
+    await asyncDb.prepare('DELETE FROM reservations WHERE id = ?').run(linkedRes.id);
   }
 
-  db.prepare('DELETE FROM day_accommodations WHERE id = ?').run(id);
+  await asyncDb.prepare('DELETE FROM day_accommodations WHERE id = ?').run(id);
   return { linkedReservationId: linkedRes ? linkedRes.id : null, deletedBudgetItemId };
 }

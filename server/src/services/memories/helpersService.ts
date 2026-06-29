@@ -1,4 +1,4 @@
-import { canAccessTripAsync } from '../../db/asyncDatabase';
+import { asyncDb, canAccessTripAsync } from '../../db/asyncDatabase';
 import { db } from '../../db/database';
 import { safeFetch, SsrfBlockedError } from '../../utils/ssrfGuard';
 import { decrypt_api_key } from '../apiKeyCrypto';
@@ -129,7 +129,7 @@ export async function canAccessUserPhoto(
 
   // Journey photos use tripId=0 — check journey_photos + journey_contributors
   if (tripId === '0') {
-    const journeyPhoto = db
+    const journeyPhoto = await asyncDb
       .prepare(
         `
             SELECT gp.journey_id
@@ -141,10 +141,10 @@ export async function canAccessUserPhoto(
             LIMIT 1
         `,
       )
-      .get(assetId, provider, ownerUserId) as { journey_id: number } | undefined;
+      .get<{ journey_id: number }>(assetId, provider, ownerUserId);
     if (!journeyPhoto) return false;
 
-    const access = db
+    const access = await asyncDb
       .prepare(
         `
             SELECT 1 FROM journeys WHERE id = ? AND user_id = ?
@@ -158,7 +158,7 @@ export async function canAccessUserPhoto(
   }
 
   // Regular trip photos — join through trippi_photos
-  const sharedAsset = db
+  const sharedAsset = await asyncDb
     .prepare(
       `
     SELECT 1
@@ -179,6 +179,8 @@ export async function canAccessUserPhoto(
   }
   return !!(await canAccessTripAsync(tripId, requestingUserId));
 }
+
+export const canAccessUserPhotoAsync = canAccessUserPhoto;
 
 // ── Unified photo access check (trippi_photos based) ──────────────────────
 
@@ -234,6 +236,58 @@ export function canAccessTrippiPhoto(requestingUserId: number, trippiPhotoId: nu
   return false;
 }
 
+export async function canAccessTrippiPhotoAsync(requestingUserId: number, trippiPhotoId: number): Promise<boolean> {
+  const photo = await asyncDb.prepare('SELECT * FROM trippi_photos WHERE id = ?').get<
+    { id: number; provider: string; owner_id: number | null } | undefined
+  >(trippiPhotoId);
+  if (!photo) return false;
+
+  // Owner always has access
+  if (photo.owner_id === requestingUserId) return true;
+
+  // Check trip_photos — is this photo shared in a trip the user has access to?
+  const tripAccess = await asyncDb
+    .prepare(
+      `
+        SELECT 1 FROM trip_photos tp
+        WHERE tp.photo_id = ?
+          AND tp.shared = 1
+          AND EXISTS (
+            SELECT 1 FROM trip_members tm WHERE tm.trip_id = tp.trip_id AND tm.user_id = ?
+            UNION ALL
+            SELECT 1 FROM trips t WHERE t.id = tp.trip_id AND t.user_id = ?
+          )
+        LIMIT 1
+    `,
+    )
+    .get(trippiPhotoId, requestingUserId, requestingUserId);
+  if (tripAccess) return true;
+
+  // Check journey_photos — is this photo in a journey the user can access?
+  const journeyAccess = await asyncDb
+    .prepare(
+      `
+        SELECT 1 FROM journey_photos gp
+        WHERE gp.photo_id = ?
+          AND EXISTS (
+            SELECT 1 FROM journeys j WHERE j.id = gp.journey_id AND j.user_id = ?
+            UNION ALL
+            SELECT 1 FROM journey_contributors jc WHERE jc.journey_id = gp.journey_id AND jc.user_id = ?
+          )
+        LIMIT 1
+    `,
+    )
+    .get(trippiPhotoId, requestingUserId, requestingUserId);
+  if (journeyAccess) return true;
+
+  // Local photos without owner (uploaded files) — check if user has journey access
+  if (photo.provider === 'local' && !photo.owner_id) {
+    return !!journeyAccess;
+  }
+
+  return false;
+}
+
 // ----------------------------------------------
 //helpers for album link syncing
 
@@ -246,9 +300,9 @@ export async function getAlbumIdFromLink(
   if (!access) return fail('Trip not found or access denied', 404);
 
   try {
-    const row = db
+    const row = await asyncDb
       .prepare('SELECT album_id FROM trip_album_links WHERE id = ? AND trip_id = ? AND user_id = ?')
-      .get(linkId, tripId, userId) as { album_id: string } | null;
+      .get<{ album_id: string }>(linkId, tripId, userId);
 
     return row ? success(row.album_id) : fail('Album link not found', 404);
   } catch {
@@ -265,9 +319,9 @@ export async function getAlbumLinkForSync(
   if (!access) return fail('Trip not found or access denied', 404);
 
   try {
-    const row = db
+    const row = await asyncDb
       .prepare('SELECT album_id, passphrase FROM trip_album_links WHERE id = ? AND trip_id = ? AND user_id = ?')
-      .get(linkId, tripId, userId) as { album_id: string; passphrase: string | null } | null;
+      .get<{ album_id: string; passphrase: string | null }>(linkId, tripId, userId);
 
     if (!row) return fail('Album link not found', 404);
 
@@ -280,6 +334,10 @@ export async function getAlbumLinkForSync(
 
 export function updateSyncTimeForAlbumLink(linkId: string): void {
   db.prepare('UPDATE trip_album_links SET last_synced_at = CURRENT_TIMESTAMP WHERE id = ?').run(linkId);
+}
+
+export async function updateSyncTimeForAlbumLinkAsync(linkId: string): Promise<void> {
+  await asyncDb.prepare('UPDATE trip_album_links SET last_synced_at = CURRENT_TIMESTAMP WHERE id = ?').run(linkId);
 }
 
 export async function pipeAsset(

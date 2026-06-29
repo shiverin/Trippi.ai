@@ -1,4 +1,4 @@
-import { pushReservationToAirtrail } from '../../services/airtrail/airtrailSync';
+import { resolveDbProvider } from '../../db/providerMode';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -33,11 +33,11 @@ export class ReservationsController {
     return trip;
   }
 
-  private requireEdit(
+  private async requireEdit(
     trip: NonNullable<Awaited<ReturnType<ReservationsService['verifyTripAccess']>>>,
     user: User,
-  ): void {
-    if (!this.reservations.canEdit(trip!, user)) {
+  ): Promise<void> {
+    if (!(await this.reservations.canEdit(trip!, user))) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
@@ -45,7 +45,7 @@ export class ReservationsController {
   @Get()
   async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { reservations: this.reservations.list(tripId) };
+    return { reservations: await this.reservations.list(tripId) };
   }
 
   @Post()
@@ -56,15 +56,15 @@ export class ReservationsController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
+    await this.requireEdit(trip, user);
     if (!body.title) {
       throw new HttpException({ error: 'Title is required' }, 400);
     }
-    const { reservation, accommodationCreated } = this.reservations.create(tripId, body as never);
+    const { reservation, accommodationCreated } = await this.reservations.create(tripId, body as never);
     if (accommodationCreated) {
       this.reservations.broadcast(tripId, 'accommodation:created', {}, socketId);
     }
-    this.reservations.syncBudgetOnCreate(
+    await this.reservations.syncBudgetOnCreate(
       tripId,
       reservation.id,
       body.title,
@@ -85,7 +85,7 @@ export class ReservationsController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
+    await this.requireEdit(trip, user);
     if (!Array.isArray(body.positions)) {
       throw new HttpException({ error: 'positions must be an array' }, 400);
     }
@@ -98,7 +98,7 @@ export class ReservationsController {
       }
       return { id, day_plan_position: dayPlanPosition };
     });
-    this.reservations.updatePositions(tripId, positions, body.day_id);
+    await this.reservations.updatePositions(tripId, positions, body.day_id);
     this.reservations.broadcast(tripId, 'reservation:positions', { positions, day_id: body.day_id }, socketId);
     return { success: true };
   }
@@ -112,17 +112,22 @@ export class ReservationsController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
-    const current = this.reservations.getReservation(id, tripId);
+    await this.requireEdit(trip, user);
+    const current = await this.reservations.getReservation(id, tripId);
     if (!current) {
       throw new HttpException({ error: 'Reservation not found' }, 404);
     }
-    const { reservation, accommodationChanged } = this.reservations.update(id, tripId, body as never, current as never);
+    const { reservation, accommodationChanged } = await this.reservations.update(
+      id,
+      tripId,
+      body as never,
+      current as never,
+    );
     if (accommodationChanged) {
       this.reservations.broadcast(tripId, 'accommodation:updated', {}, socketId);
     }
     const cur = current as { title: string; type?: string };
-    this.reservations.syncBudgetOnUpdate(
+    await this.reservations.syncBudgetOnUpdate(
       tripId,
       id,
       body.title ?? '',
@@ -136,7 +141,13 @@ export class ReservationsController {
     // Push a locally-edited AirTrail flight back to AirTrail (fire-and-forget,
     // under the importer's credentials — see airtrailSync). #214
     if ((reservation as any)?.external_source === 'airtrail' && (reservation as any)?.sync_enabled) {
-      void pushReservationToAirtrail(Number((reservation as any).id), Number(tripId)).catch(() => {});
+      if (resolveDbProvider() !== 'oracle-async') {
+        void import('../../services/airtrail/airtrailSync')
+          .then(({ pushReservationToAirtrail }) =>
+            pushReservationToAirtrail(Number((reservation as any).id), Number(tripId)),
+          )
+          .catch(() => {});
+      }
     }
     this.reservations.notifyBookingChange(tripId, user, body.title || cur.title, body.type || cur.type || '');
     return { reservation };
@@ -150,8 +161,8 @@ export class ReservationsController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
-    const { deleted, accommodationDeleted, deletedBudgetItemId } = this.reservations.remove(id, tripId);
+    await this.requireEdit(trip, user);
+    const { deleted, accommodationDeleted, deletedBudgetItemId } = await this.reservations.remove(id, tripId);
     if (!deleted) {
       throw new HttpException({ error: 'Reservation not found' }, 404);
     }

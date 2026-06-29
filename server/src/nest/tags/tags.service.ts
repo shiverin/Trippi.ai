@@ -1,4 +1,10 @@
-import { listTags, createTag, getTagByIdAndUser, updateTag, deleteTag } from '../../services/tagService';
+import {
+  listTagsAsync,
+  createTagAsync,
+  getTagByIdAndUserAsync,
+  updateTagAsync,
+  deleteTagAsync,
+} from '../../services/tagService';
 import { Injectable } from '@nestjs/common';
 import type { Tag } from '@trippi/shared';
 
@@ -8,23 +14,23 @@ import type { Tag } from '@trippi/shared';
  */
 @Injectable()
 export class TagsService {
-  list(userId: number): Tag[] {
-    return listTags(userId) as Tag[];
+  async list(userId: number): Promise<Tag[]> {
+    return (await listTagsAsync(userId)) as Tag[];
   }
 
-  getByIdAndUser(id: string | number, userId: number): Tag | undefined {
-    return getTagByIdAndUser(id, userId) as Tag | undefined;
+  async getByIdAndUser(id: string | number, userId: number): Promise<Tag | undefined> {
+    return (await getTagByIdAndUserAsync(id, userId)) as Tag | undefined;
   }
 
-  create(userId: number, name: string, color?: string): Tag {
-    return createTag(userId, name, color) as Tag;
+  async create(userId: number, name: string, color?: string): Promise<Tag> {
+    return (await createTagAsync(userId, name, color)) as Tag;
   }
 
-  update(id: string | number, name?: string, color?: string): Tag {
-    return updateTag(id, name, color) as Tag;
+  async update(id: string | number, name?: string, color?: string): Promise<Tag> {
+    return (await updateTagAsync(id, name, color)) as Tag;
   }
 
-  remove(id: string | number): void {
-    deleteTag(id);
+  async remove(id: string | number): Promise<void> {
+    await deleteTagAsync(id);
   }
 }

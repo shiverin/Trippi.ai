@@ -39,8 +39,8 @@ export async function createMcpHarness(options: McpHarnessOptions): Promise<McpH
 
   const server = new McpServer({ name: 'trippi-test', version: '1.0.0' });
 
-  if (withResources) registerResources(server, userId);
-  if (withTools) registerTools(server, userId, scopes ?? null, isStaticToken);
+  if (withResources) await registerResources(server, userId, scopes ?? null);
+  if (withTools) await registerTools(server, userId, scopes ?? null, isStaticToken);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 

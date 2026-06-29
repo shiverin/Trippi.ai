@@ -32,9 +32,9 @@ describe('AdminGuard', () => {
 });
 
 describe('DatabaseService (shared connection)', () => {
-  it('runs real queries against the existing SQLite connection', () => {
+  it('runs real queries against the existing SQLite connection', async () => {
     const svc = new DatabaseService();
-    expect(svc.get('SELECT 1 AS one')).toEqual({ one: 1 });
-    expect(svc.all('SELECT 1 AS one')).toEqual([{ one: 1 }]);
+    expect(await svc.get('SELECT 1 AS one')).toEqual({ one: 1 });
+    expect(await svc.all('SELECT 1 AS one')).toEqual([{ one: 1 }]);
   });
 });

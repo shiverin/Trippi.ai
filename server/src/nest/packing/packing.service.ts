@@ -1,4 +1,4 @@
-import { db } from '../../db/database';
+import { asyncDb } from '../../db/asyncDatabase';
 import * as svc from '../../services/packingService';
 import { checkPermission } from '../../services/permissions';
 import type { User } from '../../types';
@@ -39,7 +39,7 @@ export class PackingService {
     return svc.updateItem(tripId, id, data, changedKeys);
   }
 
-  deleteItem(tripId: string, id: string): boolean {
+  deleteItem(tripId: string, id: string) {
     return svc.deleteItem(tripId, id);
   }
 
@@ -47,8 +47,8 @@ export class PackingService {
     return svc.bulkImport(tripId, items);
   }
 
-  reorderItems(tripId: string, orderedIds: Parameters<typeof svc.reorderItems>[1]): void {
-    svc.reorderItems(tripId, orderedIds);
+  reorderItems(tripId: string, orderedIds: Parameters<typeof svc.reorderItems>[1]) {
+    return svc.reorderItems(tripId, orderedIds);
   }
 
   listBags(tripId: string) {
@@ -63,7 +63,7 @@ export class PackingService {
     return svc.updateBag(tripId, bagId, data, changedKeys);
   }
 
-  deleteBag(tripId: string, bagId: string): boolean {
+  deleteBag(tripId: string, bagId: string) {
     return svc.deleteBag(tripId, bagId);
   }
 
@@ -94,8 +94,8 @@ export class PackingService {
   /** Fire-and-forget tag notification, mirroring the legacy dynamic import. */
   notifyTagged(tripId: string, actor: User, category: string, userIds: unknown): void {
     if (!Array.isArray(userIds) || userIds.length === 0) return;
-    import('../../services/notificationService').then(({ send }) => {
-      const tripInfo = db.prepare('SELECT title FROM trips WHERE id = ?').get(tripId) as { title: string } | undefined;
+    import('../../services/notificationService').then(async ({ send }) => {
+      const tripInfo = await asyncDb.prepare('SELECT title FROM trips WHERE id = ?').get<{ title: string }>(tripId);
       send({
         event: 'packing_tagged',
         actorId: actor.id,

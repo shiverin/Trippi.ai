@@ -37,7 +37,7 @@ interface IdempotencyRow {
 export class IdempotencyInterceptor implements NestInterceptor {
   constructor(private readonly database: DatabaseService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     const req = context.switchToHttp().getRequest<Request & { user?: { id: number } }>();
     const res = context.switchToHttp().getResponse<Response>();
 
@@ -57,7 +57,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     // Scope the lookup by method + path as well as user, so the same key replayed
     // against a different endpoint can't return an unrelated cached body.
-    const existing = this.database.get<IdempotencyRow>(
+    const existing = await this.database.get<IdempotencyRow>(
       'SELECT status_code, response_body FROM idempotency_keys WHERE key = ? AND user_id = ? AND method = ? AND path = ?',
       key,
       userId,
@@ -76,17 +76,21 @@ export class IdempotencyInterceptor implements NestInterceptor {
         try {
           const serialized = JSON.stringify(body);
           if (serialized.length <= MAX_CACHED_BODY_BYTES) {
-            database.run(
-              `INSERT OR IGNORE INTO idempotency_keys (key, user_id, method, path, status_code, response_body, created_at)
+            void database
+              .run(
+                `INSERT OR IGNORE INTO idempotency_keys (key, user_id, method, path, status_code, response_body, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              key,
-              userId,
-              req.method,
-              req.path,
-              res.statusCode,
-              serialized,
-              Math.floor(Date.now() / 1000),
-            );
+                key,
+                userId,
+                req.method,
+                req.path,
+                res.statusCode,
+                serialized,
+                Math.floor(Date.now() / 1000),
+              )
+              .catch(() => {
+                /* Non-fatal: if storage fails, the request still succeeds. */
+              });
           }
         } catch {
           // Non-fatal: if storage fails, the request still succeeds.

@@ -32,13 +32,16 @@ vi.mock('../../../src/config', () => ({
 const { broadcastMock } = vi.hoisted(() => ({ broadcastMock: vi.fn() }));
 vi.mock('../../../src/websocket', () => ({ broadcast: broadcastMock }));
 
-const { isAddonEnabledMock } = vi.hoisted(() => {
+const { isAddonEnabledMock, collabFeatures } = vi.hoisted(() => {
   const isAddonEnabledMock = vi.fn().mockReturnValue(true);
-  return { isAddonEnabledMock };
+  const collabFeatures = { chat: true, notes: true, polls: true, whatsnext: true };
+  return { isAddonEnabledMock, collabFeatures };
 });
 vi.mock('../../../src/services/adminService', () => ({
   isAddonEnabled: isAddonEnabledMock,
-  getCollabFeatures: vi.fn().mockReturnValue({ chat: true, notes: true, polls: true, whatsnext: true }),
+  isAddonEnabledAsync: isAddonEnabledMock,
+  getCollabFeatures: vi.fn().mockReturnValue(collabFeatures),
+  getCollabFeaturesAsync: vi.fn().mockResolvedValue(collabFeatures),
 }));
 
 import { createTables } from '../../../src/db/schema';

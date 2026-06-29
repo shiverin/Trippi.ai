@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
-import { HttpException } from '@nestjs/common';
-import type { CallHandler, ExecutionContext } from '@nestjs/common';
-import { of, lastValueFrom } from 'rxjs';
 import { IdempotencyInterceptor } from '../../../src/nest/common/idempotency.interceptor';
 import type { DatabaseService } from '../../../src/nest/database/database.service';
+import { HttpException } from '@nestjs/common';
+import type { CallHandler, ExecutionContext } from '@nestjs/common';
+
+import { of, lastValueFrom } from 'rxjs';
+import { describe, it, expect, vi } from 'vitest';
 
 type ReqShape = {
   method: string;
@@ -35,7 +36,11 @@ function handler(result: unknown): CallHandler & { handle: ReturnType<typeof vi.
 }
 
 function makeDb(overrides: Partial<DatabaseService> = {}): DatabaseService {
-  return { get: vi.fn(), run: vi.fn(), ...overrides } as unknown as DatabaseService;
+  return {
+    get: vi.fn().mockResolvedValue(undefined),
+    run: vi.fn().mockResolvedValue({ changes: 1 }),
+    ...overrides,
+  } as unknown as DatabaseService;
 }
 
 describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middleware)', () => {
@@ -43,7 +48,7 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
     const db = makeDb();
     const h = handler('weather');
     const out = await lastValueFrom(
-      new IdempotencyInterceptor(db).intercept(ctx({ method: 'GET', headers: {} }, makeRes()), h),
+      await new IdempotencyInterceptor(db).intercept(ctx({ method: 'GET', headers: {} }, makeRes()), h),
     );
     expect(out).toBe('weather');
     expect(h.handle).toHaveBeenCalled();
@@ -54,7 +59,10 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
     const db = makeDb();
     const h = handler('done');
     await lastValueFrom(
-      new IdempotencyInterceptor(db).intercept(ctx({ method: 'POST', headers: {}, user: { id: 1 } }, makeRes()), h),
+      await new IdempotencyInterceptor(db).intercept(
+        ctx({ method: 'POST', headers: {}, user: { id: 1 } }, makeRes()),
+        h,
+      ),
     );
     expect(h.handle).toHaveBeenCalled();
     expect(db.get).not.toHaveBeenCalled();
@@ -64,13 +72,16 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
     const db = makeDb();
     const h = handler('done');
     await lastValueFrom(
-      new IdempotencyInterceptor(db).intercept(ctx({ method: 'POST', headers: { 'x-idempotency-key': 'k' } }, makeRes()), h),
+      await new IdempotencyInterceptor(db).intercept(
+        ctx({ method: 'POST', headers: { 'x-idempotency-key': 'k' } }, makeRes()),
+        h,
+      ),
     );
     expect(h.handle).toHaveBeenCalled();
     expect(db.get).not.toHaveBeenCalled();
   });
 
-  it('rejects an over-long key with the exact legacy 400 body', () => {
+  it('rejects an over-long key with the exact legacy 400 body', async () => {
     const db = makeDb();
     const h = handler('done');
     const run = () =>
@@ -78,9 +89,9 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
         ctx({ method: 'POST', headers: { 'x-idempotency-key': 'x'.repeat(129) }, user: { id: 1 } }, makeRes()),
         h,
       );
-    expect(run).toThrow(HttpException);
+    await expect(run()).rejects.toBeInstanceOf(HttpException);
     try {
-      run();
+      await run();
     } catch (err) {
       const e = err as HttpException;
       expect(e.getStatus()).toBe(400);
@@ -90,11 +101,11 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
   });
 
   it('replays a cached response and skips the handler', async () => {
-    const db = makeDb({ get: vi.fn().mockReturnValue({ status_code: 201, response_body: '{"id":5}' }) });
+    const db = makeDb({ get: vi.fn().mockResolvedValue({ status_code: 201, response_body: '{"id":5}' }) });
     const res = makeRes();
     const h = handler('should-not-run');
     const out = await lastValueFrom(
-      new IdempotencyInterceptor(db).intercept(
+      await new IdempotencyInterceptor(db).intercept(
         ctx({ method: 'POST', headers: { 'x-idempotency-key': 'k' }, path: '/api/categories', user: { id: 1 } }, res),
         h,
       ),
@@ -102,19 +113,16 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
     expect(res.status).toHaveBeenCalledWith(201);
     expect(out).toEqual({ id: 5 });
     expect(h.handle).not.toHaveBeenCalled();
-    expect(db.get).toHaveBeenCalledWith(
-      expect.stringContaining('idempotency_keys'),
-      'k', 1, 'POST', '/api/categories',
-    );
+    expect(db.get).toHaveBeenCalledWith(expect.stringContaining('idempotency_keys'), 'k', 1, 'POST', '/api/categories');
   });
 
   it('captures a successful JSON response under the key', async () => {
     const run = vi.fn();
-    const db = makeDb({ get: vi.fn().mockReturnValue(undefined), run });
+    const db = makeDb({ get: vi.fn().mockResolvedValue(undefined), run });
     const res = makeRes();
     const h = handler({ created: true });
     await lastValueFrom(
-      new IdempotencyInterceptor(db).intercept(
+      await new IdempotencyInterceptor(db).intercept(
         ctx({ method: 'POST', headers: { 'x-idempotency-key': 'k' }, path: '/api/categories', user: { id: 1 } }, res),
         h,
       ),
@@ -125,17 +133,23 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
     expect(run).toHaveBeenCalledTimes(1);
     expect(run).toHaveBeenCalledWith(
       expect.stringContaining('INSERT OR IGNORE INTO idempotency_keys'),
-      'k', 1, 'POST', '/api/categories', 201, '{"created":true}', expect.any(Number),
+      'k',
+      1,
+      'POST',
+      '/api/categories',
+      201,
+      '{"created":true}',
+      expect.any(Number),
     );
   });
 
   it('does not cache a non-2xx response', async () => {
     const run = vi.fn();
-    const db = makeDb({ get: vi.fn().mockReturnValue(undefined), run });
+    const db = makeDb({ get: vi.fn().mockResolvedValue(undefined), run });
     const res = makeRes();
     const h = handler({ error: 'bad' });
     await lastValueFrom(
-      new IdempotencyInterceptor(db).intercept(
+      await new IdempotencyInterceptor(db).intercept(
         ctx({ method: 'POST', headers: { 'x-idempotency-key': 'k' }, path: '/api/categories', user: { id: 1 } }, res),
         h,
       ),
@@ -147,12 +161,12 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
 
   it('does not cache a body that exceeds the 256 KiB cap', async () => {
     const run = vi.fn();
-    const db = makeDb({ get: vi.fn().mockReturnValue(undefined), run });
+    const db = makeDb({ get: vi.fn().mockResolvedValue(undefined), run });
     const res = makeRes();
     const big = { blob: 'x'.repeat(300 * 1024) };
     const h = handler(big);
     await lastValueFrom(
-      new IdempotencyInterceptor(db).intercept(
+      await new IdempotencyInterceptor(db).intercept(
         ctx({ method: 'POST', headers: { 'x-idempotency-key': 'k' }, path: '/api/categories', user: { id: 1 } }, res),
         h,
       ),
@@ -166,11 +180,11 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
     const run = vi.fn(() => {
       throw new Error('db is locked');
     });
-    const db = makeDb({ get: vi.fn().mockReturnValue(undefined), run });
+    const db = makeDb({ get: vi.fn().mockResolvedValue(undefined), run });
     const res = makeRes();
     const h = handler({ ok: true });
     await lastValueFrom(
-      new IdempotencyInterceptor(db).intercept(
+      await new IdempotencyInterceptor(db).intercept(
         ctx({ method: 'POST', headers: { 'x-idempotency-key': 'k' }, path: '/api/categories', user: { id: 1 } }, res),
         h,
       ),
@@ -182,12 +196,15 @@ describe('IdempotencyInterceptor (parity with the legacy applyIdempotency middle
   });
 
   it('treats a PATCH as a mutating method', async () => {
-    const db = makeDb({ get: vi.fn().mockReturnValue(undefined), run: vi.fn() });
+    const db = makeDb({ get: vi.fn().mockResolvedValue(undefined), run: vi.fn() });
     const res = makeRes();
     const h = handler('done');
     await lastValueFrom(
-      new IdempotencyInterceptor(db).intercept(
-        ctx({ method: 'PATCH', headers: { 'x-idempotency-key': 'k' }, path: '/api/categories/1', user: { id: 1 } }, res),
+      await new IdempotencyInterceptor(db).intercept(
+        ctx(
+          { method: 'PATCH', headers: { 'x-idempotency-key': 'k' }, path: '/api/categories/1', user: { id: 1 } },
+          res,
+        ),
         h,
       ),
     );

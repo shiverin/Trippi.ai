@@ -16,15 +16,15 @@ function svc(o: Partial<JourneyService> = {}): JourneyService {
   return { journeyAddonEnabled: vi.fn().mockReturnValue(true), ...o } as unknown as JourneyService;
 }
 
-function thrown(fn: () => unknown): { status: number; body: unknown } {
-  try { fn(); } catch (err) {
+async function thrown(fn: () => unknown | Promise<unknown>): Promise<{ status: number; body: unknown }> {
+  try { await fn(); } catch (err) {
     expect(err).toBeInstanceOf(HttpException);
     const e = err as HttpException;
     return { status: e.getStatus(), body: e.getResponse() };
   }
   throw new Error('expected throw');
 }
-async function thrownAsync(fn: () => Promise<unknown>): Promise<{ status: number; body: unknown }> {
+async function thrownAsync(fn: () => unknown | Promise<unknown>): Promise<{ status: number; body: unknown }> {
   try { await fn(); } catch (err) {
     expect(err).toBeInstanceOf(HttpException);
     const e = err as HttpException;
@@ -36,100 +36,100 @@ async function thrownAsync(fn: () => Promise<unknown>): Promise<{ status: number
 beforeEach(() => vi.clearAllMocks());
 
 describe('JourneyAddonGuard', () => {
-  it('404 when the addon is disabled, passes when enabled', () => {
-    expect(thrown(() => new JourneyAddonGuard(svc({ journeyAddonEnabled: vi.fn().mockReturnValue(false) })).canActivate())).toEqual({ status: 404, body: { error: 'Journey addon is not enabled' } });
-    expect(new JourneyAddonGuard(svc()).canActivate()).toBe(true);
+  it('404 when the addon is disabled, passes when enabled', async () => {
+    expect(await thrown(() => new JourneyAddonGuard(svc({ journeyAddonEnabled: vi.fn().mockReturnValue(false) })).canActivate())).toEqual({ status: 404, body: { error: 'Journey addon is not enabled' } });
+    expect(await new JourneyAddonGuard(svc()).canActivate()).toBe(true);
   });
 });
 
 describe('JourneyController', () => {
-  it('GET / lists; POST / 400 without title, else creates', () => {
-    expect(new JourneyController(svc({ listJourneys: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<JourneyService>)).list(user)).toEqual({ journeys: [{ id: 1 }] });
-    expect(thrown(() => new JourneyController(svc()).create(user, { title: '   ' }))).toEqual({ status: 400, body: { error: 'Title is required' } });
+  it('GET / lists; POST / 400 without title, else creates', async () => {
+    expect(await new JourneyController(svc({ listJourneys: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<JourneyService>)).list(user)).toEqual({ journeys: [{ id: 1 }] });
+    expect(await thrown(() => new JourneyController(svc()).create(user, { title: '   ' }))).toEqual({ status: 400, body: { error: 'Title is required' } });
     const createJourney = vi.fn().mockReturnValue({ id: 9 });
-    expect(new JourneyController(svc({ createJourney } as Partial<JourneyService>)).create(user, { title: ' Trip ', trip_ids: [1, '2'] })).toEqual({ id: 9 });
+    expect(await new JourneyController(svc({ createJourney } as Partial<JourneyService>)).create(user, { title: ' Trip ', trip_ids: [1, '2'] })).toEqual({ id: 9 });
     expect(createJourney).toHaveBeenCalledWith(1, { title: 'Trip', subtitle: undefined, trip_ids: [1, 2] });
   });
 
-  it('GET /suggestions + /available-trips', () => {
-    expect(new JourneyController(svc({ getSuggestions: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<JourneyService>)).suggestions(user)).toEqual({ trips: [{ id: 1 }] });
-    expect(new JourneyController(svc({ listUserTrips: vi.fn().mockReturnValue([{ id: 2 }]) } as Partial<JourneyService>)).availableTrips(user)).toEqual({ trips: [{ id: 2 }] });
+  it('GET /suggestions + /available-trips', async () => {
+    expect(await new JourneyController(svc({ getSuggestions: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<JourneyService>)).suggestions(user)).toEqual({ trips: [{ id: 1 }] });
+    expect(await new JourneyController(svc({ listUserTrips: vi.fn().mockReturnValue([{ id: 2 }]) } as Partial<JourneyService>)).availableTrips(user)).toEqual({ trips: [{ id: 2 }] });
   });
 
-  it('PATCH/DELETE entries map 404', () => {
-    expect(thrown(() => new JourneyController(svc({ updateEntry: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).updateEntry(user, '3', {}))).toEqual({ status: 404, body: { error: 'Entry not found' } });
-    expect(new JourneyController(svc({ updateEntry: vi.fn().mockReturnValue({ id: 3 }) } as Partial<JourneyService>)).updateEntry(user, '3', { title: 'x' })).toEqual({ id: 3 });
-    expect(thrown(() => new JourneyController(svc({ deleteEntry: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).deleteEntry(user, '3'))).toEqual({ status: 404, body: { error: 'Entry not found' } });
-    expect(new JourneyController(svc({ deleteEntry: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).deleteEntry(user, '3')).toEqual({ success: true });
+  it('PATCH/DELETE entries map 404', async () => {
+    expect(await thrown(() => new JourneyController(svc({ updateEntry: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).updateEntry(user, '3', {}))).toEqual({ status: 404, body: { error: 'Entry not found' } });
+    expect(await new JourneyController(svc({ updateEntry: vi.fn().mockReturnValue({ id: 3 }) } as Partial<JourneyService>)).updateEntry(user, '3', { title: 'x' })).toEqual({ id: 3 });
+    expect(await thrown(() => new JourneyController(svc({ deleteEntry: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).deleteEntry(user, '3'))).toEqual({ status: 404, body: { error: 'Entry not found' } });
+    expect(await new JourneyController(svc({ deleteEntry: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).deleteEntry(user, '3')).toEqual({ success: true });
   });
 
-  it('provider-photos: batch, single 400/403, success', () => {
+  it('provider-photos: batch, single 400/403, success', async () => {
     const batch = svc({ addProviderPhoto: vi.fn().mockReturnValue({ id: 1 }) } as Partial<JourneyService>);
-    expect(new JourneyController(batch).providerPhotos(user, '3', { provider: 'immich', asset_ids: ['a', 'b'] })).toEqual({ photos: [{ id: 1 }, { id: 1 }], added: 2 });
-    expect(thrown(() => new JourneyController(svc()).providerPhotos(user, '3', { provider: 'immich' }))).toEqual({ status: 400, body: { error: 'provider and asset_id required' } });
-    expect(thrown(() => new JourneyController(svc({ addProviderPhoto: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).providerPhotos(user, '3', { provider: 'immich', asset_id: 'a' }))).toEqual({ status: 403, body: { error: 'Not allowed or duplicate' } });
+    expect(await new JourneyController(batch).providerPhotos(user, '3', { provider: 'immich', asset_ids: ['a', 'b'] })).toEqual({ photos: [{ id: 1 }, { id: 1 }], added: 2 });
+    expect(await thrown(() => new JourneyController(svc()).providerPhotos(user, '3', { provider: 'immich' }))).toEqual({ status: 400, body: { error: 'provider and asset_id required' } });
+    expect(await thrown(() => new JourneyController(svc({ addProviderPhoto: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).providerPhotos(user, '3', { provider: 'immich', asset_id: 'a' }))).toEqual({ status: 403, body: { error: 'Not allowed or duplicate' } });
   });
 
-  it('link-photo: 400 without id (accepts legacy photo_id), 403, success', () => {
-    expect(thrown(() => new JourneyController(svc()).linkPhoto(user, '3', {}))).toEqual({ status: 400, body: { error: 'journey_photo_id required' } });
+  it('link-photo: 400 without id (accepts legacy photo_id), 403, success', async () => {
+    expect(await thrown(() => new JourneyController(svc()).linkPhoto(user, '3', {}))).toEqual({ status: 400, body: { error: 'journey_photo_id required' } });
     const linkPhotoToEntry = vi.fn().mockReturnValue({ id: 5 });
     const c = new JourneyController(svc({ linkPhotoToEntry } as Partial<JourneyService>));
-    expect(c.linkPhoto(user, '3', { photo_id: 5 })).toEqual({ id: 5 });
+    expect(await c.linkPhoto(user, '3', { photo_id: 5 })).toEqual({ id: 5 });
     expect(linkPhotoToEntry).toHaveBeenCalledWith(3, 5, 1);
     // accepts the canonical journey_photo_id, 403 when the service refuses
-    expect(thrown(() => new JourneyController(svc({ linkPhotoToEntry: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).linkPhoto(user, '3', { journey_photo_id: 9 }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+    expect(await thrown(() => new JourneyController(svc({ linkPhotoToEntry: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).linkPhoto(user, '3', { journey_photo_id: 9 }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
   });
 
-  it('unlink photo (204) maps 404; delete photo 404 then unlinks file', () => {
-    expect(thrown(() => new JourneyController(svc({ unlinkPhotoFromEntry: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).unlinkPhoto(user, '3', '7'))).toEqual({ status: 404, body: { error: 'Not found or not allowed' } });
-    expect(new JourneyController(svc({ unlinkPhotoFromEntry: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).unlinkPhoto(user, '3', '7')).toBeUndefined();
-    expect(thrown(() => new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).deletePhoto(user, '7'))).toEqual({ status: 404, body: { error: 'Photo not found' } });
-    expect(new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 7, file_path: null }) } as Partial<JourneyService>)).deletePhoto(user, '7')).toEqual({ success: true });
+  it('unlink photo (204) maps 404; delete photo 404 then unlinks file', async () => {
+    expect(await thrown(() => new JourneyController(svc({ unlinkPhotoFromEntry: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).unlinkPhoto(user, '3', '7'))).toEqual({ status: 404, body: { error: 'Not found or not allowed' } });
+    await expect(new JourneyController(svc({ unlinkPhotoFromEntry: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).unlinkPhoto(user, '3', '7')).resolves.toBeUndefined();
+    expect(await thrown(() => new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).deletePhoto(user, '7'))).toEqual({ status: 404, body: { error: 'Photo not found' } });
+    expect(await new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 7, file_path: null }) } as Partial<JourneyService>)).deletePhoto(user, '7')).toEqual({ success: true });
   });
 
-  it('gallery upload 400 no files / 403 not allowed, else returns photos', () => {
-    expect(thrown(() => new JourneyController(svc()).uploadGalleryPhotos(user, '3', undefined))).toEqual({ status: 400, body: { error: 'No files uploaded' } });
-    expect(thrown(() => new JourneyController(svc({ uploadGalleryPhotos: vi.fn().mockReturnValue([]) } as Partial<JourneyService>)).uploadGalleryPhotos(user, '3', [{ filename: 'a.jpg' } as Express.Multer.File]))).toEqual({ status: 403, body: { error: 'Not allowed' } });
-    expect(new JourneyController(svc({ uploadGalleryPhotos: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<JourneyService>)).uploadGalleryPhotos(user, '3', [{ filename: 'a.jpg' } as Express.Multer.File])).toEqual({ photos: [{ id: 1 }] });
+  it('gallery upload 400 no files / 403 not allowed, else returns photos', async () => {
+    expect(await thrown(() => new JourneyController(svc()).uploadGalleryPhotos(user, '3', undefined))).toEqual({ status: 400, body: { error: 'No files uploaded' } });
+    expect(await thrown(() => new JourneyController(svc({ uploadGalleryPhotos: vi.fn().mockReturnValue([]) } as Partial<JourneyService>)).uploadGalleryPhotos(user, '3', [{ filename: 'a.jpg' } as Express.Multer.File]))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+    expect(await new JourneyController(svc({ uploadGalleryPhotos: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<JourneyService>)).uploadGalleryPhotos(user, '3', [{ filename: 'a.jpg' } as Express.Multer.File])).toEqual({ photos: [{ id: 1 }] });
   });
 
-  it('GET/PATCH/DELETE /:id map 404', () => {
-    expect(thrown(() => new JourneyController(svc({ getJourneyFull: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).get(user, '9'))).toEqual({ status: 404, body: { error: 'Journey not found' } });
-    expect(new JourneyController(svc({ getJourneyFull: vi.fn().mockReturnValue({ id: 9 }) } as Partial<JourneyService>)).get(user, '9')).toEqual({ id: 9 });
-    expect(thrown(() => new JourneyController(svc({ updateJourney: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).update(user, '9', {}))).toEqual({ status: 404, body: { error: 'Journey not found' } });
-    expect(thrown(() => new JourneyController(svc({ deleteJourney: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).remove(user, '9'))).toEqual({ status: 404, body: { error: 'Journey not found' } });
+  it('GET/PATCH/DELETE /:id map 404', async () => {
+    expect(await thrown(() => new JourneyController(svc({ getJourneyFull: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).get(user, '9'))).toEqual({ status: 404, body: { error: 'Journey not found' } });
+    expect(await new JourneyController(svc({ getJourneyFull: vi.fn().mockReturnValue({ id: 9 }) } as Partial<JourneyService>)).get(user, '9')).toEqual({ id: 9 });
+    expect(await thrown(() => new JourneyController(svc({ updateJourney: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).update(user, '9', {}))).toEqual({ status: 404, body: { error: 'Journey not found' } });
+    expect(await thrown(() => new JourneyController(svc({ deleteJourney: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).remove(user, '9'))).toEqual({ status: 404, body: { error: 'Journey not found' } });
   });
 
-  it('trips: POST 400 without trip_id / 403, DELETE 403', () => {
-    expect(thrown(() => new JourneyController(svc()).addTrip(user, '9', {}))).toEqual({ status: 400, body: { error: 'trip_id required' } });
-    expect(thrown(() => new JourneyController(svc({ addTripToJourney: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).addTrip(user, '9', { trip_id: 2 }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
-    expect(new JourneyController(svc({ addTripToJourney: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).addTrip(user, '9', { trip_id: 2 })).toEqual({ success: true });
-    expect(thrown(() => new JourneyController(svc({ removeTripFromJourney: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).removeTrip(user, '9', '2'))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+  it('trips: POST 400 without trip_id / 403, DELETE 403', async () => {
+    expect(await thrown(() => new JourneyController(svc()).addTrip(user, '9', {}))).toEqual({ status: 400, body: { error: 'trip_id required' } });
+    expect(await thrown(() => new JourneyController(svc({ addTripToJourney: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).addTrip(user, '9', { trip_id: 2 }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+    expect(await new JourneyController(svc({ addTripToJourney: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).addTrip(user, '9', { trip_id: 2 })).toEqual({ success: true });
+    expect(await thrown(() => new JourneyController(svc({ removeTripFromJourney: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).removeTrip(user, '9', '2'))).toEqual({ status: 403, body: { error: 'Not allowed' } });
   });
 
-  it('entries under journey: list 404, create 400/404, reorder 400/403', () => {
-    expect(thrown(() => new JourneyController(svc({ listEntries: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).listEntries(user, '9'))).toEqual({ status: 404, body: { error: 'Journey not found' } });
-    expect(new JourneyController(svc({ listEntries: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<JourneyService>)).listEntries(user, '9')).toEqual({ entries: [{ id: 1 }] });
-    expect(thrown(() => new JourneyController(svc()).createEntry(user, '9', {}))).toEqual({ status: 400, body: { error: 'entry_date is required' } });
-    expect(thrown(() => new JourneyController(svc({ createEntry: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).createEntry(user, '9', { entry_date: '2026-01-01' }))).toEqual({ status: 404, body: { error: 'Journey not found' } });
-    expect(thrown(() => new JourneyController(svc()).reorderEntries(user, '9', { orderedIds: 'no' }))).toEqual({ status: 400, body: { error: 'orderedIds must be an array of numbers' } });
-    expect(thrown(() => new JourneyController(svc({ reorderEntries: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).reorderEntries(user, '9', { orderedIds: [1, 2] }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+  it('entries under journey: list 404, create 400/404, reorder 400/403', async () => {
+    expect(await thrown(() => new JourneyController(svc({ listEntries: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).listEntries(user, '9'))).toEqual({ status: 404, body: { error: 'Journey not found' } });
+    expect(await new JourneyController(svc({ listEntries: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<JourneyService>)).listEntries(user, '9')).toEqual({ entries: [{ id: 1 }] });
+    expect(await thrown(() => new JourneyController(svc()).createEntry(user, '9', {}))).toEqual({ status: 400, body: { error: 'entry_date is required' } });
+    expect(await thrown(() => new JourneyController(svc({ createEntry: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).createEntry(user, '9', { entry_date: '2026-01-01' }))).toEqual({ status: 404, body: { error: 'Journey not found' } });
+    expect(await thrown(() => new JourneyController(svc()).reorderEntries(user, '9', { orderedIds: 'no' }))).toEqual({ status: 400, body: { error: 'orderedIds must be an array of numbers' } });
+    expect(await thrown(() => new JourneyController(svc({ reorderEntries: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).reorderEntries(user, '9', { orderedIds: [1, 2] }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
   });
 
-  it('contributors: add 400/403, update 403, remove 403', () => {
-    expect(thrown(() => new JourneyController(svc()).addContributor(user, '9', {}))).toEqual({ status: 400, body: { error: 'user_id required' } });
-    expect(thrown(() => new JourneyController(svc({ addContributor: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).addContributor(user, '9', { user_id: 2 }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
-    expect(new JourneyController(svc({ addContributor: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).addContributor(user, '9', { user_id: 2 })).toEqual({ success: true });
-    expect(thrown(() => new JourneyController(svc({ updateContributorRole: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).updateContributor(user, '9', '2', { role: 'editor' }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
-    expect(thrown(() => new JourneyController(svc({ removeContributor: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).removeContributor(user, '9', '2'))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+  it('contributors: add 400/403, update 403, remove 403', async () => {
+    expect(await thrown(() => new JourneyController(svc()).addContributor(user, '9', {}))).toEqual({ status: 400, body: { error: 'user_id required' } });
+    expect(await thrown(() => new JourneyController(svc({ addContributor: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).addContributor(user, '9', { user_id: 2 }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+    expect(await new JourneyController(svc({ addContributor: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).addContributor(user, '9', { user_id: 2 })).toEqual({ success: true });
+    expect(await thrown(() => new JourneyController(svc({ updateContributorRole: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).updateContributor(user, '9', '2', { role: 'editor' }))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+    expect(await thrown(() => new JourneyController(svc({ removeContributor: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).removeContributor(user, '9', '2'))).toEqual({ status: 403, body: { error: 'Not allowed' } });
   });
 
-  it('preferences 403, share-link get/set/delete', () => {
-    expect(thrown(() => new JourneyController(svc({ updateJourneyPreferences: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).preferences(user, '9', {}))).toEqual({ status: 403, body: { error: 'Not allowed' } });
-    expect(new JourneyController(svc({ getJourneyShareLink: vi.fn().mockReturnValue({ token: 'abc' }) } as Partial<JourneyService>)).getShareLink(user, '9')).toEqual({ link: { token: 'abc' } });
-    expect(thrown(() => new JourneyController(svc({ createOrUpdateJourneyShareLink: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).setShareLink(user, '9', {}))).toEqual({ status: 403, body: { error: 'Not allowed' } });
-    expect(new JourneyController(svc({ createOrUpdateJourneyShareLink: vi.fn().mockReturnValue({ token: 'abc' }) } as Partial<JourneyService>)).setShareLink(user, '9', { share_timeline: true })).toEqual({ token: 'abc' });
-    expect(thrown(() => new JourneyController(svc({ deleteJourneyShareLink: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).deleteShareLink(user, '9'))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+  it('preferences 403, share-link get/set/delete', async () => {
+    expect(await thrown(() => new JourneyController(svc({ updateJourneyPreferences: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).preferences(user, '9', {}))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+    expect(await new JourneyController(svc({ getJourneyShareLink: vi.fn().mockReturnValue({ token: 'abc' }) } as Partial<JourneyService>)).getShareLink(user, '9')).toEqual({ link: { token: 'abc' } });
+    expect(await thrown(() => new JourneyController(svc({ createOrUpdateJourneyShareLink: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).setShareLink(user, '9', {}))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+    expect(await new JourneyController(svc({ createOrUpdateJourneyShareLink: vi.fn().mockReturnValue({ token: 'abc' }) } as Partial<JourneyService>)).setShareLink(user, '9', { share_timeline: true })).toEqual({ token: 'abc' });
+    expect(await thrown(() => new JourneyController(svc({ deleteJourneyShareLink: vi.fn().mockReturnValue(false) } as Partial<JourneyService>)).deleteShareLink(user, '9'))).toEqual({ status: 403, body: { error: 'Not allowed' } });
   });
 
   it('entry photo upload mirrors to Immich only when opted in', async () => {
@@ -161,103 +161,103 @@ describe('JourneyController', () => {
     expect(await new JourneyController(noId).uploadEntryPhotos(user, '3', [{ filename: 'a.jpg', originalname: 'a.jpg' } as Express.Multer.File], {})).toEqual({ photos: [{ id: 9 }] });
   });
 
-  it('provider-photos batch passes the passphrase through when present', () => {
+  it('provider-photos batch passes the passphrase through when present', async () => {
     const addProviderPhoto = vi.fn().mockReturnValue({ id: 1 });
-    new JourneyController(svc({ addProviderPhoto } as Partial<JourneyService>)).providerPhotos(user, '3', { provider: 'immich', asset_ids: ['a'], caption: 'cap', passphrase: 'secret' });
+    await new JourneyController(svc({ addProviderPhoto } as Partial<JourneyService>)).providerPhotos(user, '3', { provider: 'immich', asset_ids: ['a'], caption: 'cap', passphrase: 'secret' });
     expect(addProviderPhoto).toHaveBeenCalledWith(3, 1, 'immich', 'a', 'cap', 'secret');
     // single-photo success path
-    expect(new JourneyController(svc({ addProviderPhoto: vi.fn().mockReturnValue({ id: 2 }) } as Partial<JourneyService>)).providerPhotos(user, '3', { provider: 'immich', asset_id: 'a' })).toEqual({ id: 2 });
+    expect(await new JourneyController(svc({ addProviderPhoto: vi.fn().mockReturnValue({ id: 2 }) } as Partial<JourneyService>)).providerPhotos(user, '3', { provider: 'immich', asset_id: 'a' })).toEqual({ id: 2 });
   });
 
-  it('PATCH photos: 404 then returns the updated photo', () => {
-    expect(thrown(() => new JourneyController(svc({ updatePhoto: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).updatePhoto(user, '7', { caption: 'x' }))).toEqual({ status: 404, body: { error: 'Photo not found' } });
-    expect(new JourneyController(svc({ updatePhoto: vi.fn().mockReturnValue({ id: 7 }) } as Partial<JourneyService>)).updatePhoto(user, '7', { caption: 'x' })).toEqual({ id: 7 });
+  it('PATCH photos: 404 then returns the updated photo', async () => {
+    expect(await thrown(() => new JourneyController(svc({ updatePhoto: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).updatePhoto(user, '7', { caption: 'x' }))).toEqual({ status: 404, body: { error: 'Photo not found' } });
+    expect(await new JourneyController(svc({ updatePhoto: vi.fn().mockReturnValue({ id: 7 }) } as Partial<JourneyService>)).updatePhoto(user, '7', { caption: 'x' })).toEqual({ id: 7 });
   });
 
-  it('DELETE photo unlinks the file when a path exists', () => {
+  it('DELETE photo unlinks the file when a path exists', async () => {
     const unlinkSpy = vi.spyOn(fs, 'unlinkSync').mockImplementation(() => undefined);
     try {
-      expect(new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 7, file_path: 'journey/a.jpg' }) } as Partial<JourneyService>)).deletePhoto(user, '7')).toEqual({ success: true });
+      expect(await new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 7, file_path: 'journey/a.jpg' }) } as Partial<JourneyService>)).deletePhoto(user, '7')).toEqual({ success: true });
       expect(unlinkSpy).toHaveBeenCalledTimes(1);
       // a vanished file is swallowed
       unlinkSpy.mockImplementationOnce(() => { throw new Error('ENOENT'); });
-      expect(new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 8, file_path: 'journey/b.jpg' }) } as Partial<JourneyService>)).deletePhoto(user, '8')).toEqual({ success: true });
+      expect(await new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 8, file_path: 'journey/b.jpg' }) } as Partial<JourneyService>)).deletePhoto(user, '8')).toEqual({ success: true });
     } finally {
       unlinkSpy.mockRestore();
     }
   });
 
-  it('gallery provider-photos: batch (with passphrase), single 400/403, success', () => {
+  it('gallery provider-photos: batch (with passphrase), single 400/403, success', async () => {
     const addProviderPhotoToGallery = vi.fn().mockReturnValue({ id: 1 });
     const batch = new JourneyController(svc({ addProviderPhotoToGallery } as Partial<JourneyService>));
-    expect(batch.galleryProviderPhotos(user, '9', { provider: 'immich', asset_ids: ['a', 'b'], passphrase: 'pw' })).toEqual({ photos: [{ id: 1 }, { id: 1 }], added: 2 });
+    expect(await batch.galleryProviderPhotos(user, '9', { provider: 'immich', asset_ids: ['a', 'b'], passphrase: 'pw' })).toEqual({ photos: [{ id: 1 }, { id: 1 }], added: 2 });
     expect(addProviderPhotoToGallery).toHaveBeenCalledWith(9, 1, 'immich', 'a', undefined, 'pw');
-    expect(thrown(() => new JourneyController(svc()).galleryProviderPhotos(user, '9', { provider: 'immich' }))).toEqual({ status: 400, body: { error: 'provider and asset_id required' } });
-    expect(thrown(() => new JourneyController(svc({ addProviderPhotoToGallery: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).galleryProviderPhotos(user, '9', { provider: 'immich', asset_id: 'a' }))).toEqual({ status: 403, body: { error: 'Not allowed or duplicate' } });
-    expect(new JourneyController(svc({ addProviderPhotoToGallery: vi.fn().mockReturnValue({ id: 3 }) } as Partial<JourneyService>)).galleryProviderPhotos(user, '9', { provider: 'immich', asset_id: 'a' })).toEqual({ id: 3 });
+    expect(await thrown(() => new JourneyController(svc()).galleryProviderPhotos(user, '9', { provider: 'immich' }))).toEqual({ status: 400, body: { error: 'provider and asset_id required' } });
+    expect(await thrown(() => new JourneyController(svc({ addProviderPhotoToGallery: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).galleryProviderPhotos(user, '9', { provider: 'immich', asset_id: 'a' }))).toEqual({ status: 403, body: { error: 'Not allowed or duplicate' } });
+    expect(await new JourneyController(svc({ addProviderPhotoToGallery: vi.fn().mockReturnValue({ id: 3 }) } as Partial<JourneyService>)).galleryProviderPhotos(user, '9', { provider: 'immich', asset_id: 'a' })).toEqual({ id: 3 });
   });
 
-  it('DELETE gallery photo: 404, then unlinks the file when present', () => {
-    expect(thrown(() => new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '7'))).toEqual({ status: 404, body: { error: 'Photo not found or not allowed' } });
+  it('DELETE gallery photo: 404, then unlinks the file when present', async () => {
+    expect(await thrown(() => new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '7'))).toEqual({ status: 404, body: { error: 'Photo not found or not allowed' } });
     // no file_path → nothing to unlink, returns void
-    expect(new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 7, file_path: null }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '7')).toBeUndefined();
+    await expect(new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 7, file_path: null }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '7')).resolves.toBeUndefined();
     const unlinkSpy = vi.spyOn(fs, 'unlinkSync').mockImplementation(() => undefined);
     try {
-      new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 8, file_path: 'journey/g.jpg' }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '8');
+      await new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 8, file_path: 'journey/g.jpg' }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '8');
       expect(unlinkSpy).toHaveBeenCalledTimes(1);
       unlinkSpy.mockImplementationOnce(() => { throw new Error('ENOENT'); });
-      expect(new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 9, file_path: 'journey/h.jpg' }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '9')).toBeUndefined();
+      await expect(new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 9, file_path: 'journey/h.jpg' }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '9')).resolves.toBeUndefined();
     } finally {
       unlinkSpy.mockRestore();
     }
   });
 
-  it('PATCH /:id returns the updated journey on success', () => {
-    expect(new JourneyController(svc({ updateJourney: vi.fn().mockReturnValue({ id: 9 }) } as Partial<JourneyService>)).update(user, '9', { title: 'x' })).toEqual({ id: 9 });
+  it('PATCH /:id returns the updated journey on success', async () => {
+    expect(await new JourneyController(svc({ updateJourney: vi.fn().mockReturnValue({ id: 9 }) } as Partial<JourneyService>)).update(user, '9', { title: 'x' })).toEqual({ id: 9 });
   });
 
-  it('cover upload: 400 without file, 404 when the journey is gone, else returns the journey', () => {
-    expect(thrown(() => new JourneyController(svc()).cover(user, '9', undefined))).toEqual({ status: 400, body: { error: 'No file uploaded' } });
-    expect(thrown(() => new JourneyController(svc({ updateJourney: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).cover(user, '9', { filename: 'c.jpg' } as Express.Multer.File))).toEqual({ status: 404, body: { error: 'Journey not found' } });
+  it('cover upload: 400 without file, 404 when the journey is gone, else returns the journey', async () => {
+    expect(await thrown(() => new JourneyController(svc()).cover(user, '9', undefined))).toEqual({ status: 400, body: { error: 'No file uploaded' } });
+    expect(await thrown(() => new JourneyController(svc({ updateJourney: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).cover(user, '9', { filename: 'c.jpg' } as Express.Multer.File))).toEqual({ status: 404, body: { error: 'Journey not found' } });
     const updateJourney = vi.fn().mockReturnValue({ id: 9, cover_image: 'journey/c.jpg' });
-    expect(new JourneyController(svc({ updateJourney } as Partial<JourneyService>)).cover(user, '9', { filename: 'c.jpg' } as Express.Multer.File)).toEqual({ id: 9, cover_image: 'journey/c.jpg' });
+    expect(await new JourneyController(svc({ updateJourney } as Partial<JourneyService>)).cover(user, '9', { filename: 'c.jpg' } as Express.Multer.File)).toEqual({ id: 9, cover_image: 'journey/c.jpg' });
     expect(updateJourney).toHaveBeenCalledWith(9, 1, { cover_image: 'journey/c.jpg' });
   });
 
-  it('DELETE /:id and trips/contributors success paths', () => {
-    expect(new JourneyController(svc({ deleteJourney: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).remove(user, '9')).toEqual({ success: true });
-    expect(new JourneyController(svc({ removeTripFromJourney: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).removeTrip(user, '9', '2')).toEqual({ success: true });
-    expect(new JourneyController(svc({ updateContributorRole: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).updateContributor(user, '9', '2', { role: 'editor' })).toEqual({ success: true });
-    expect(new JourneyController(svc({ removeContributor: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).removeContributor(user, '9', '2')).toEqual({ success: true });
+  it('DELETE /:id and trips/contributors success paths', async () => {
+    expect(await new JourneyController(svc({ deleteJourney: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).remove(user, '9')).toEqual({ success: true });
+    expect(await new JourneyController(svc({ removeTripFromJourney: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).removeTrip(user, '9', '2')).toEqual({ success: true });
+    expect(await new JourneyController(svc({ updateContributorRole: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).updateContributor(user, '9', '2', { role: 'editor' })).toEqual({ success: true });
+    expect(await new JourneyController(svc({ removeContributor: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).removeContributor(user, '9', '2')).toEqual({ success: true });
   });
 
-  it('addContributor defaults the role to viewer when omitted', () => {
+  it('addContributor defaults the role to viewer when omitted', async () => {
     const addContributor = vi.fn().mockReturnValue(true);
-    new JourneyController(svc({ addContributor } as Partial<JourneyService>)).addContributor(user, '9', { user_id: 2 });
+    await new JourneyController(svc({ addContributor } as Partial<JourneyService>)).addContributor(user, '9', { user_id: 2 });
     expect(addContributor).toHaveBeenCalledWith(9, 1, 2, 'viewer');
   });
 
-  it('createEntry returns the entry when the journey exists', () => {
-    expect(new JourneyController(svc({ createEntry: vi.fn().mockReturnValue({ id: 4 }) } as Partial<JourneyService>)).createEntry(user, '9', { entry_date: '2026-01-01' })).toEqual({ id: 4 });
+  it('createEntry returns the entry when the journey exists', async () => {
+    expect(await new JourneyController(svc({ createEntry: vi.fn().mockReturnValue({ id: 4 }) } as Partial<JourneyService>)).createEntry(user, '9', { entry_date: '2026-01-01' })).toEqual({ id: 4 });
   });
 
-  it('reorderEntries succeeds for a numeric array', () => {
-    expect(new JourneyController(svc({ reorderEntries: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).reorderEntries(user, '9', { orderedIds: [3, 1, 2] })).toEqual({ success: true });
+  it('reorderEntries succeeds for a numeric array', async () => {
+    expect(await new JourneyController(svc({ reorderEntries: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).reorderEntries(user, '9', { orderedIds: [3, 1, 2] })).toEqual({ success: true });
   });
 
-  it('preferences returns the result on success', () => {
-    expect(new JourneyController(svc({ updateJourneyPreferences: vi.fn().mockReturnValue({ ok: true }) } as Partial<JourneyService>)).preferences(user, '9', { theme: 'dark' })).toEqual({ ok: true });
+  it('preferences returns the result on success', async () => {
+    expect(await new JourneyController(svc({ updateJourneyPreferences: vi.fn().mockReturnValue({ ok: true }) } as Partial<JourneyService>)).preferences(user, '9', { theme: 'dark' })).toEqual({ ok: true });
   });
 
-  it('deleteShareLink returns success when removed', () => {
-    expect(new JourneyController(svc({ deleteJourneyShareLink: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).deleteShareLink(user, '9')).toEqual({ success: true });
+  it('deleteShareLink returns success when removed', async () => {
+    expect(await new JourneyController(svc({ deleteJourneyShareLink: vi.fn().mockReturnValue(true) } as Partial<JourneyService>)).deleteShareLink(user, '9')).toEqual({ success: true });
   });
 });
 
 describe('JourneyPublicController', () => {
-  it('GET /:token 404 / json', () => {
-    expect(thrown(() => new JourneyPublicController(svc({ getPublicJourney: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).get('tok'))).toEqual({ status: 404, body: { error: 'Not found' } });
-    expect(new JourneyPublicController(svc({ getPublicJourney: vi.fn().mockReturnValue({ id: 1 }) } as Partial<JourneyService>)).get('tok')).toEqual({ id: 1 });
+  it('GET /:token 404 / json', async () => {
+    expect(await thrown(() => new JourneyPublicController(svc({ getPublicJourney: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).get('tok'))).toEqual({ status: 404, body: { error: 'Not found' } });
+    expect(await new JourneyPublicController(svc({ getPublicJourney: vi.fn().mockReturnValue({ id: 1 }) } as Partial<JourneyService>)).get('tok')).toEqual({ id: 1 });
   });
 
   it('photo proxy 404 on invalid token, else streams', async () => {

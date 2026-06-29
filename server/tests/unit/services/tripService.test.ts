@@ -69,7 +69,7 @@ function getNotes(dayId: number) {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('generateDays', () => {
-  it('TRIP-SVC-010: full range shift preserves day assignments and notes positionally', () => {
+  it('TRIP-SVC-010: full range shift preserves day assignments and notes positionally', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { start_date: '2025-06-01', end_date: '2025-06-05' });
     const daysBefore = getDays(trip.id);
@@ -97,7 +97,7 @@ describe('generateDays', () => {
     expect(getNotes(day2.id)[0].id).toBe(note.id);
   });
 
-  it('TRIP-SVC-011: shrinking range deletes overflow days and their assignments (issue #909)', () => {
+  it('TRIP-SVC-011: shrinking range deletes overflow days and their assignments (issue #909)', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { start_date: '2025-07-01', end_date: '2025-07-05' });
     const daysBefore = getDays(trip.id);
@@ -115,7 +115,7 @@ describe('generateDays', () => {
     expect(daysAfter.map(d => d.date)).toEqual(['2025-07-01', '2025-07-02', '2025-07-03']);
   });
 
-  it('TRIP-SVC-016: shrinking range deletes empty overflow days (issue #909)', () => {
+  it('TRIP-SVC-016: shrinking range deletes empty overflow days (issue #909)', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { start_date: '2025-07-01', end_date: '2025-07-07' });
     expect(getDays(trip.id)).toHaveLength(7);
@@ -130,7 +130,7 @@ describe('generateDays', () => {
     ]);
   });
 
-  it('TRIP-SVC-012: growing range keeps existing day content and appends new empty days', () => {
+  it('TRIP-SVC-012: growing range keeps existing day content and appends new empty days', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { start_date: '2025-08-01', end_date: '2025-08-03' });
     const daysBefore = getDays(trip.id);
@@ -157,7 +157,7 @@ describe('generateDays', () => {
     expect(getAssignments(daysAfter[4].id)).toHaveLength(0);
   });
 
-  it('TRIP-SVC-013: clearing dates converts all days to dateless without destroying assignments', () => {
+  it('TRIP-SVC-013: clearing dates converts all days to dateless without destroying assignments', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { start_date: '2025-09-01', end_date: '2025-09-04' });
     const daysBefore = getDays(trip.id);
@@ -180,7 +180,7 @@ describe('generateDays', () => {
     expect(getAssignments(formerDay2!.id)[0].id).toBe(assignment.id);
   });
 
-  it('TRIP-SVC-014: partial overlap shift remaps by position (day 1→3 kept, 4-5 overflow)', () => {
+  it('TRIP-SVC-014: partial overlap shift remaps by position (day 1→3 kept, 4-5 overflow)', async () => {
     // Original: Jun 1-5. New: Jun 3-7 (overlap on Jun 3-5, but we map by position)
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { start_date: '2025-10-01', end_date: '2025-10-05' });
@@ -204,7 +204,7 @@ describe('generateDays', () => {
     }
   });
 
-  it('TRIP-SVC-015: growing into dateless days reuses them; leftover dateless renumber without UNIQUE collision', () => {
+  it('TRIP-SVC-015: growing into dateless days reuses them; leftover dateless renumber without UNIQUE collision', async () => {
     // 3 dated days + 2 pre-existing dateless days. Resize to 4 dated days.
     // Main loop: dated[0..2] → positions 1-3, dateless[0] → position 4 (consumed).
     // Unused dateless: dateless[1] should land at position 5, NOT 4 (collision bug).
@@ -244,7 +244,7 @@ describe('generateDays', () => {
     expect(nums).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it('TRIP-SVC-017: switching a dateless trip to a shorter dated range drops empty leftover days but keeps ones with content (#1083)', () => {
+  it('TRIP-SVC-017: switching a dateless trip to a shorter dated range drops empty leftover days but keeps ones with content (#1083)', async () => {
     const { user } = createUser(testDb);
     // A 7-day trip, then cleared to dateless placeholders (day_count = 7).
     const trip = createTrip(testDb, user.id, { start_date: '2025-12-01', end_date: '2025-12-07' });
@@ -273,7 +273,7 @@ describe('generateDays', () => {
 });
 
 describe('exportICS', () => {
-  it('TRIP-SVC-001: returns VCALENDAR wrapper', () => {
+  it('TRIP-SVC-001: returns VCALENDAR wrapper', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, {
       title: 'My Vacation',
@@ -281,13 +281,13 @@ describe('exportICS', () => {
       end_date: '2025-06-07',
     });
 
-    const { ics } = exportICS(trip.id);
+    const { ics } = await exportICS(trip.id);
 
     expect(ics).toContain('BEGIN:VCALENDAR');
     expect(ics).toContain('END:VCALENDAR');
   });
 
-  it('TRIP-SVC-002: trip with start_date + end_date includes all-day VEVENT', () => {
+  it('TRIP-SVC-002: trip with start_date + end_date includes all-day VEVENT', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, {
       title: 'Summer Holiday',
@@ -295,13 +295,13 @@ describe('exportICS', () => {
       end_date: '2025-06-07',
     });
 
-    const { ics } = exportICS(trip.id);
+    const { ics } = await exportICS(trip.id);
 
     expect(ics).toContain('DTSTART;VALUE=DATE:20250601');
     expect(ics).toContain('SUMMARY:Summer Holiday');
   });
 
-  it('TRIP-SVC-003: reservation with full datetime (includes T) → DTSTART without VALUE=DATE', () => {
+  it('TRIP-SVC-003: reservation with full datetime (includes T) → DTSTART without VALUE=DATE', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Paris Trip' });
     const reservation = createReservation(testDb, trip.id, {
@@ -312,13 +312,13 @@ describe('exportICS', () => {
       .prepare('UPDATE reservations SET reservation_time=? WHERE id=?')
       .run('2025-06-02T09:00', reservation.id);
 
-    const { ics } = exportICS(trip.id);
+    const { ics } = await exportICS(trip.id);
 
     expect(ics).toContain('DTSTART:20250602T090000');
     expect(ics).not.toContain('DTSTART;VALUE=DATE');
   });
 
-  it('TRIP-SVC-004: reservation with date-only → DTSTART;VALUE=DATE', () => {
+  it('TRIP-SVC-004: reservation with date-only → DTSTART;VALUE=DATE', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Paris Trip' });
     const reservation = createReservation(testDb, trip.id, {
@@ -329,12 +329,12 @@ describe('exportICS', () => {
       .prepare('UPDATE reservations SET reservation_time=? WHERE id=?')
       .run('2025-06-02', reservation.id);
 
-    const { ics } = exportICS(trip.id);
+    const { ics } = await exportICS(trip.id);
 
     expect(ics).toContain('DTSTART;VALUE=DATE:20250602');
   });
 
-  it('TRIP-SVC-005: reservation metadata with flight info appears in DESCRIPTION', () => {
+  it('TRIP-SVC-005: reservation metadata with flight info appears in DESCRIPTION', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Paris Trip' });
     const reservation = createReservation(testDb, trip.id, {
@@ -354,35 +354,35 @@ describe('exportICS', () => {
         reservation.id
       );
 
-    const { ics } = exportICS(trip.id);
+    const { ics } = await exportICS(trip.id);
 
     expect(ics).toContain('Airline: Air Test');
     expect(ics).toContain('Flight: AT100');
   });
 
-  it('TRIP-SVC-006: special characters in title are escaped', () => {
+  it('TRIP-SVC-006: special characters in title are escaped', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Trip; First, Best' });
 
-    const { ics } = exportICS(trip.id);
+    const { ics } = await exportICS(trip.id);
 
     expect(ics).toContain('Trip\\; First\\, Best');
   });
 
-  it('TRIP-SVC-007: throws NotFoundError for non-existent trip', () => {
-    expect(() => exportICS(99999)).toThrow();
+  it('TRIP-SVC-007: throws NotFoundError for non-existent trip', async () => {
+    await expect(exportICS(99999)).rejects.toThrow();
   });
 
-  it('TRIP-SVC-008: returns a filename derived from trip title', () => {
+  it('TRIP-SVC-008: returns a filename derived from trip title', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'My Trip 2025' });
 
-    const { filename } = exportICS(trip.id);
+    const { filename } = await exportICS(trip.id);
 
     expect(filename).toMatch(/My.Trip.2025\.ics/);
   });
 
-  it('TRIP-SVC-009: reservation with end time includes DTEND', () => {
+  it('TRIP-SVC-009: reservation with end time includes DTEND', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Paris Trip' });
     const reservation = createReservation(testDb, trip.id, {
@@ -393,12 +393,12 @@ describe('exportICS', () => {
       .prepare('UPDATE reservations SET reservation_time=?, reservation_end_time=? WHERE id=?')
       .run('2025-06-02T14:00', '2025-06-02T16:00', reservation.id);
 
-    const { ics } = exportICS(trip.id);
+    const { ics } = await exportICS(trip.id);
 
     expect(ics).toContain('DTEND:20250602T160000');
   });
 
-  it('TRIP-SVC-010: flight with endpoint times but no reservation_time is included', () => {
+  it('TRIP-SVC-010: flight with endpoint times but no reservation_time is included', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Paris Trip' });
     const reservation = createReservation(testDb, trip.id, {
@@ -413,7 +413,7 @@ describe('exportICS', () => {
     insertEp.run(reservation.id, 'from', 0, 'Paris CDG', 'CDG', 49.0, 2.5, 'Europe/Paris', '09:00', '2025-06-02');
     insertEp.run(reservation.id, 'to', 1, 'New York JFK', 'JFK', 40.6, -73.8, 'America/New_York', '12:00', '2025-06-02');
 
-    const { ics } = exportICS(trip.id);
+    const { ics } = await exportICS(trip.id);
 
     expect(ics).toContain('SUMMARY:CDG → JFK');
     expect(ics).toContain('DTSTART:20250602T090000');
@@ -421,7 +421,7 @@ describe('exportICS', () => {
     expect(ics).toContain('Route: CDG → JFK');
   });
 
-  it('TRIP-SVC-011: flight endpoint with no local_date is skipped (relative Day-N trips)', () => {
+  it('TRIP-SVC-011: flight endpoint with no local_date is skipped (relative Day-N trips)', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Relative Trip' });
     const reservation = createReservation(testDb, trip.id, {
@@ -433,7 +433,7 @@ describe('exportICS', () => {
       'INSERT INTO reservation_endpoints (reservation_id, role, sequence, name, code, lat, lng, timezone, local_time, local_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(reservation.id, 'from', 0, 'Origin', 'AAA', 1.0, 1.0, null, '09:00', null);
 
-    const { ics } = exportICS(trip.id);
+    const { ics } = await exportICS(trip.id);
 
     expect(ics).not.toContain('SUMMARY:Timeless Flight');
   });
@@ -442,7 +442,7 @@ describe('exportICS', () => {
 // ── deleteOldCover — path containment ──────────────────────────────────────────
 
 describe('deleteOldCover', () => {
-  it('TRIP-SVC-COVER-001: never unlinks outside uploads/covers for a crafted cover_image', () => {
+  it('TRIP-SVC-COVER-001: never unlinks outside uploads/covers for a crafted cover_image', async () => {
     const existsSpy = vi.spyOn(fs, 'existsSync').mockReturnValue(true);
     const unlinkSpy = vi.spyOn(fs, 'unlinkSync').mockImplementation(() => {});
     try {
@@ -463,7 +463,7 @@ describe('deleteOldCover', () => {
     }
   });
 
-  it('TRIP-SVC-COVER-002: deletes a legitimate cover file', () => {
+  it('TRIP-SVC-COVER-002: deletes a legitimate cover file', async () => {
     const existsSpy = vi.spyOn(fs, 'existsSync').mockReturnValue(true);
     const unlinkSpy = vi.spyOn(fs, 'unlinkSync').mockImplementation(() => {});
     try {
@@ -485,25 +485,29 @@ describe('resyncReservationDays (#1288)', () => {
       "INSERT INTO reservations (trip_id, day_id, title, reservation_time, type, status) VALUES (?, ?, 'Dinner', ?, 'restaurant', 'pending')",
     ).run(tripId, dayId, time).lastInsertRowid);
 
-  it('TRIP-SVC-018: changing the start date re-anchors a dated reservation to the day matching its time', () => {
+  it('TRIP-SVC-018: changing the start date re-anchors a dated reservation to the day matching its time', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { start_date: '2025-06-01', end_date: '2025-06-05' });
     const resId = insertDatedReservation(trip.id, dayFor(trip.id, '2025-06-02'), '2025-06-02T19:00:00');
     // Shift the whole range one day forward (days become 2025-06-02..06).
     updateTrip(trip.id, user.id, { start_date: '2025-06-02', end_date: '2025-06-06' }, 'user');
-    const res = testDb.prepare('SELECT day_id FROM reservations WHERE id = ?').get(resId) as { day_id: number };
     // The booking stays on its absolute date (2025-06-02) instead of shifting with its old day row.
-    expect(res.day_id).toBe(dayFor(trip.id, '2025-06-02'));
+    await vi.waitFor(() => {
+      const res = testDb.prepare('SELECT day_id FROM reservations WHERE id = ?').get(resId) as { day_id: number };
+      expect(res.day_id).toBe(dayFor(trip.id, '2025-06-02'));
+    });
   });
 
-  it('TRIP-SVC-019: a reservation whose date falls outside the new range keeps its day_id (not nulled)', () => {
+  it('TRIP-SVC-019: a reservation whose date falls outside the new range keeps its day_id (not nulled)', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { start_date: '2025-06-01', end_date: '2025-06-05' });
     const origDayId = dayFor(trip.id, '2025-06-02');
     const resId = insertDatedReservation(trip.id, origDayId, '2025-06-02T19:00:00');
     // Shift far forward so 2025-06-02 is no longer covered by any day.
     updateTrip(trip.id, user.id, { start_date: '2025-06-10', end_date: '2025-06-14' }, 'user');
-    const res = testDb.prepare('SELECT day_id FROM reservations WHERE id = ?').get(resId) as { day_id: number };
-    expect(res.day_id).toBe(origDayId);
+    await vi.waitFor(() => {
+      const res = testDb.prepare('SELECT day_id FROM reservations WHERE id = ?').get(resId) as { day_id: number };
+      expect(res.day_id).toBe(origDayId);
+    });
   });
 });

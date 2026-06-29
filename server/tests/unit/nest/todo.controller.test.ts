@@ -124,11 +124,11 @@ describe('TodoController (parity with the legacy /api/trips/:tripId/todo route)'
 });
 
 describe('PendingTodosController', () => {
-  it('GET /api/todos/pending returns pending todos for the current user', () => {
+  it('GET /api/todos/pending returns pending todos for the current user', async () => {
     const listPending = vi.fn().mockReturnValue([{ id: 1, name: 'Buy flight' }]);
     const svc = makeService({ listPending } as Partial<TodoService>);
 
-    expect(new PendingTodosController(svc).pending(user)).toEqual({
+    expect(await new PendingTodosController(svc).pending(user)).toEqual({
       todos: [{ id: 1, name: 'Buy flight' }],
     });
     expect(listPending).toHaveBeenCalledWith(user.id);

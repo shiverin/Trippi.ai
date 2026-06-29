@@ -96,7 +96,7 @@ describe('SharedController', () => {
 
     it('404 without streaming when the photo is not cached for the token', async () => {
       const res = photoRes();
-      controller(null).placePhotoBytes('tok', 'p1', res);
+      await controller(null).placePhotoBytes('tok', 'p1', res);
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({ error: 'Photo not cached' });
       expect(createReadStream).not.toHaveBeenCalled();
@@ -106,7 +106,7 @@ describe('SharedController', () => {
       const stream = { on: vi.fn().mockReturnThis(), pipe: vi.fn() };
       createReadStream.mockReturnValue(stream);
       const res = photoRes();
-      controller('/cache/p1.jpg').placePhotoBytes('tok', 'p1', res);
+      await controller('/cache/p1.jpg').placePhotoBytes('tok', 'p1', res);
       expect(res.set).toHaveBeenCalledWith('Cache-Control', 'public, max-age=2592000, immutable');
       expect(res.type).toHaveBeenCalledWith('image/jpeg');
       expect(createReadStream).toHaveBeenCalledWith('/cache/p1.jpg');
@@ -118,7 +118,7 @@ describe('SharedController', () => {
       const stream = { on: vi.fn((ev: string, cb: () => void) => { if (ev === 'error') onError = cb; return stream; }), pipe: vi.fn() };
       createReadStream.mockReturnValue(stream);
       const res = photoRes();
-      controller('/cache/p1.jpg').placePhotoBytes('tok', 'p1', res);
+      await controller('/cache/p1.jpg').placePhotoBytes('tok', 'p1', res);
       onError();
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({ error: 'Photo not cached' });
@@ -130,7 +130,7 @@ describe('SharedController', () => {
       createReadStream.mockReturnValue(stream);
       const res = photoRes();
       (res as { headersSent: boolean }).headersSent = true;
-      controller('/cache/p1.jpg').placePhotoBytes('tok', 'p1', res);
+      await controller('/cache/p1.jpg').placePhotoBytes('tok', 'p1', res);
       onError();
       expect(res.status).not.toHaveBeenCalled();
       expect(res.json).not.toHaveBeenCalled();

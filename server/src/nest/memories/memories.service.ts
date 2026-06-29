@@ -1,40 +1,40 @@
-import { canAccessUserPhoto } from '../../services/memories/helpersService';
+import { canAccessUserPhotoAsync } from '../../services/memories/helpersService';
 import type { Selection } from '../../services/memories/helpersService';
 import {
-  getConnectionSettings,
-  saveImmichSettings,
-  setImmichAutoUpload,
-  testConnection,
-  getConnectionStatus,
-  browseTimeline,
-  searchPhotos,
-  streamImmichAsset,
-  listAlbums,
-  getAlbumPhotos,
-  syncAlbumAssets,
-  getAssetInfo,
+  getConnectionSettingsAsync,
+  saveImmichSettingsAsync,
+  setImmichAutoUploadAsync,
+  testConnectionAsync,
+  getConnectionStatusAsync,
+  browseTimelineAsync,
+  searchPhotosAsync,
+  streamImmichAssetAsync,
+  listAlbumsAsync,
+  getAlbumPhotosAsync,
+  syncAlbumAssetsAsync,
+  getAssetInfoAsync,
   isValidAssetId,
 } from '../../services/memories/immichService';
 import {
-  getSynologySettings,
-  updateSynologySettings,
-  getSynologyStatus,
-  testSynologyConnection,
-  listSynologyAlbums,
-  getSynologyAlbumPhotos,
-  syncSynologyAlbumLink,
-  searchSynologyPhotos,
-  getSynologyAssetInfo,
-  streamSynologyAsset,
+  getSynologySettingsAsync,
+  updateSynologySettingsAsync,
+  getSynologyStatusAsync,
+  testSynologyConnectionAsync,
+  listSynologyAlbumsAsync,
+  getSynologyAlbumPhotosAsync,
+  syncSynologyAlbumLinkAsync,
+  searchSynologyPhotosAsync,
+  getSynologyAssetInfoAsync,
+  streamSynologyAssetAsync,
 } from '../../services/memories/synologyService';
 import {
-  listTripPhotos,
-  listTripAlbumLinks,
-  createTripAlbumLink,
-  removeAlbumLink,
-  addTripPhotos,
-  removeTripPhoto,
-  setTripPhotoSharing,
+  listTripPhotosAsync,
+  listTripAlbumLinksAsync,
+  createTripAlbumLinkAsync,
+  removeAlbumLinkAsync,
+  addTripPhotosAsync,
+  removeTripPhotoAsync,
+  setTripPhotoSharingAsync,
 } from '../../services/memories/unifiedService';
 import { broadcast } from '../../websocket';
 import { Injectable } from '@nestjs/common';
@@ -43,10 +43,9 @@ import type { Response } from 'express';
 
 /**
  * Thin Nest wrapper around the existing memories (photo-providers) services.
- * Every method delegates to the legacy `services/memories/*` code unchanged so
- * the provider logic, the per-provider access checks and the streaming helpers
- * behave byte-identically to the legacy Express routers. No new business logic
- * lives here.
+ * Every method delegates to the `services/memories/*` async request-path
+ * variants so provider logic, per-provider access checks and streaming helpers
+ * stay centralized. No new business logic lives here.
  */
 @Injectable()
 export class MemoriesService {
@@ -58,7 +57,7 @@ export class MemoriesService {
     assetId: string,
     provider: string,
   ): Promise<boolean> {
-    return canAccessUserPhoto(requestingUserId, ownerUserId, tripId, assetId, provider);
+    return canAccessUserPhotoAsync(requestingUserId, ownerUserId, tripId, assetId, provider);
   }
 
   broadcast(tripId: string, event: string, payload: Record<string, unknown>, socketId?: string): void {
@@ -67,23 +66,23 @@ export class MemoriesService {
 
   // ── Unified ──────────────────────────────────────────────────────────────
   listTripPhotos(tripId: string, userId: number) {
-    return listTripPhotos(tripId, userId);
+    return listTripPhotosAsync(tripId, userId);
   }
 
   addTripPhotos(tripId: string, userId: number, shared: boolean, selections: Selection[], sid: string) {
-    return addTripPhotos(tripId, userId, shared, selections, sid);
+    return addTripPhotosAsync(tripId, userId, shared, selections, sid);
   }
 
   setTripPhotoSharing(tripId: string, userId: number, photoId: number, shared: boolean) {
-    return setTripPhotoSharing(tripId, userId, photoId, shared);
+    return setTripPhotoSharingAsync(tripId, userId, photoId, shared);
   }
 
   removeTripPhoto(tripId: string, userId: number, photoId: number) {
-    return removeTripPhoto(tripId, userId, photoId);
+    return removeTripPhotoAsync(tripId, userId, photoId);
   }
 
   listTripAlbumLinks(tripId: string, userId: number) {
-    return listTripAlbumLinks(tripId, userId);
+    return listTripAlbumLinksAsync(tripId, userId);
   }
 
   createTripAlbumLink(
@@ -94,16 +93,16 @@ export class MemoriesService {
     albumName: unknown,
     passphrase?: string,
   ) {
-    return createTripAlbumLink(tripId, userId, provider, albumId, albumName, passphrase);
+    return createTripAlbumLinkAsync(tripId, userId, provider, albumId, albumName, passphrase);
   }
 
   removeAlbumLink(tripId: string, linkId: string, userId: number) {
-    return removeAlbumLink(tripId, linkId, userId);
+    return removeAlbumLinkAsync(tripId, linkId, userId);
   }
 
   // ── Immich ─────────────────────────────────────────────────────────────────
   immichGetConnectionSettings(userId: number) {
-    return getConnectionSettings(userId);
+    return getConnectionSettingsAsync(userId);
   }
 
   immichSaveSettings(
@@ -112,27 +111,27 @@ export class MemoriesService {
     immichApiKey: string | undefined,
     clientIp: string | null,
   ) {
-    return saveImmichSettings(userId, immichUrl, immichApiKey, clientIp);
+    return saveImmichSettingsAsync(userId, immichUrl, immichApiKey, clientIp);
   }
 
-  immichSetAutoUpload(userId: number, enabled: boolean): void {
-    setImmichAutoUpload(userId, enabled);
+  immichSetAutoUpload(userId: number, enabled: boolean): Promise<void> {
+    return setImmichAutoUploadAsync(userId, enabled);
   }
 
   immichGetConnectionStatus(userId: number) {
-    return getConnectionStatus(userId);
+    return getConnectionStatusAsync(userId);
   }
 
   immichTestConnection(immichUrl: string, immichApiKey: string) {
-    return testConnection(immichUrl, immichApiKey);
+    return testConnectionAsync(immichUrl, immichApiKey);
   }
 
   immichBrowseTimeline(userId: number) {
-    return browseTimeline(userId);
+    return browseTimelineAsync(userId);
   }
 
   immichSearchPhotos(userId: number, from: string | undefined, to: string | undefined, page: number, size: number) {
-    return searchPhotos(userId, from, to, page, size);
+    return searchPhotosAsync(userId, from, to, page, size);
   }
 
   immichIsValidAssetId(assetId: string): boolean {
@@ -140,36 +139,36 @@ export class MemoriesService {
   }
 
   immichGetAssetInfo(userId: number, assetId: string, ownerId: number) {
-    return getAssetInfo(userId, assetId, ownerId);
+    return getAssetInfoAsync(userId, assetId, ownerId);
   }
 
   immichStreamAsset(res: Response, userId: number, assetId: string, kind: 'thumbnail' | 'original', ownerId: number) {
-    return streamImmichAsset(res, userId, assetId, kind, ownerId);
+    return streamImmichAssetAsync(res, userId, assetId, kind, ownerId);
   }
 
   immichListAlbums(userId: number) {
-    return listAlbums(userId);
+    return listAlbumsAsync(userId);
   }
 
   immichGetAlbumPhotos(userId: number, albumId: string) {
-    return getAlbumPhotos(userId, albumId);
+    return getAlbumPhotosAsync(userId, albumId);
   }
 
   immichSyncAlbumAssets(tripId: string, linkId: string, userId: number, sid: string) {
-    return syncAlbumAssets(tripId, linkId, userId, sid);
+    return syncAlbumAssetsAsync(tripId, linkId, userId, sid);
   }
 
   // ── Synology ────────────────────────────────────────────────────────────────
   synologyGetSettings(userId: number) {
-    return getSynologySettings(userId);
+    return getSynologySettingsAsync(userId);
   }
 
   synologyUpdateSettings(userId: number, url: string, username: string, password: string, skipSsl: boolean) {
-    return updateSynologySettings(userId, url, username, password, skipSsl);
+    return updateSynologySettingsAsync(userId, url, username, password, skipSsl);
   }
 
   synologyGetStatus(userId: number) {
-    return getSynologyStatus(userId);
+    return getSynologyStatusAsync(userId);
   }
 
   synologyTestConnection(
@@ -180,19 +179,19 @@ export class MemoriesService {
     otp: string,
     skipSsl: boolean,
   ) {
-    return testSynologyConnection(userId, url, username, password, otp, skipSsl);
+    return testSynologyConnectionAsync(userId, url, username, password, otp, skipSsl);
   }
 
   synologyListAlbums(userId: number) {
-    return listSynologyAlbums(userId);
+    return listSynologyAlbumsAsync(userId);
   }
 
   synologyGetAlbumPhotos(userId: number, albumId: string, passphrase?: string) {
-    return getSynologyAlbumPhotos(userId, albumId, passphrase);
+    return getSynologyAlbumPhotosAsync(userId, albumId, passphrase);
   }
 
   synologySyncAlbumLink(userId: number, tripId: string, linkId: string, sid: string) {
-    return syncSynologyAlbumLink(userId, tripId, linkId, sid);
+    return syncSynologyAlbumLinkAsync(userId, tripId, linkId, sid);
   }
 
   synologySearchPhotos(
@@ -202,11 +201,11 @@ export class MemoriesService {
     offset: number,
     limit: number,
   ) {
-    return searchSynologyPhotos(userId, from, to, offset, limit);
+    return searchSynologyPhotosAsync(userId, from, to, offset, limit);
   }
 
   synologyGetAssetInfo(userId: number, photoId: string, ownerId: number, passphrase?: string) {
-    return getSynologyAssetInfo(userId, photoId, ownerId, passphrase);
+    return getSynologyAssetInfoAsync(userId, photoId, ownerId, passphrase);
   }
 
   synologyStreamAsset(
@@ -218,6 +217,6 @@ export class MemoriesService {
     size: string,
     passphrase?: string,
   ) {
-    return streamSynologyAsset(res, userId, ownerId, photoId, kind, size, passphrase);
+    return streamSynologyAssetAsync(res, userId, ownerId, photoId, kind, size, passphrase);
   }
 }

@@ -1,5 +1,5 @@
 import { ADDON_IDS } from '../../addons';
-import { isAddonEnabled } from '../../services/adminService';
+import { isAddonEnabledAsync } from '../../services/adminService';
 import { getMcpSafeUrl } from '../../services/notifications';
 import * as oauth from '../../services/oauthService';
 import { Injectable } from '@nestjs/common';
@@ -11,8 +11,8 @@ import { Injectable } from '@nestjs/common';
  */
 @Injectable()
 export class OauthService {
-  mcpEnabled(): boolean {
-    return isAddonEnabled(ADDON_IDS.MCP);
+  mcpEnabled(): Promise<boolean> {
+    return isAddonEnabledAsync(ADDON_IDS.MCP);
   }
   mcpSafeUrl(): string {
     return getMcpSafeUrl();
@@ -22,53 +22,53 @@ export class OauthService {
     return oauth.consumeAuthCode(code);
   }
   authenticateClient(clientId: string, clientSecret?: string) {
-    return oauth.authenticateClient(clientId, clientSecret);
+    return oauth.authenticateClientAsync(clientId, clientSecret);
   }
   verifyPKCE(verifier: string, challenge: string) {
     return oauth.verifyPKCE(verifier, challenge);
   }
   issueTokens(...args: Parameters<typeof oauth.issueTokens>) {
-    return oauth.issueTokens(...args);
+    return oauth.issueTokensAsync(...args);
   }
   issueClientCredentialsToken(...args: Parameters<typeof oauth.issueClientCredentialsToken>) {
-    return oauth.issueClientCredentialsToken(...args);
+    return oauth.issueClientCredentialsTokenAsync(...args);
   }
   refreshTokens(...args: Parameters<typeof oauth.refreshTokens>) {
-    return oauth.refreshTokens(...args);
+    return oauth.refreshTokensAsync(...args);
   }
   revokeToken(...args: Parameters<typeof oauth.revokeToken>) {
-    return oauth.revokeToken(...args);
+    return oauth.revokeTokenAsync(...args);
   }
   getUserByAccessToken(token: string) {
-    return oauth.getUserByAccessToken(token);
+    return oauth.getUserByAccessTokenAsync(token);
   }
 
   validateAuthorizeRequest(params: oauth.AuthorizeParams, userId: number | null) {
-    return oauth.validateAuthorizeRequest(params, userId);
+    return oauth.validateAuthorizeRequestAsync(params, userId);
   }
   saveConsent(...args: Parameters<typeof oauth.saveConsent>) {
-    return oauth.saveConsent(...args);
+    return oauth.saveConsentAsync(...args);
   }
   createAuthCode(...args: Parameters<typeof oauth.createAuthCode>) {
     return oauth.createAuthCode(...args);
   }
 
   listOAuthClients(userId: number) {
-    return oauth.listOAuthClients(userId);
+    return oauth.listOAuthClientsAsync(userId);
   }
   createOAuthClient(...args: Parameters<typeof oauth.createOAuthClient>) {
-    return oauth.createOAuthClient(...args);
+    return oauth.createOAuthClientAsync(...args);
   }
   rotateOAuthClientSecret(userId: number, id: string, ip: string | undefined) {
-    return oauth.rotateOAuthClientSecret(userId, id, ip);
+    return oauth.rotateOAuthClientSecretAsync(userId, id, ip);
   }
   deleteOAuthClient(userId: number, id: string, ip: string | undefined) {
-    return oauth.deleteOAuthClient(userId, id, ip);
+    return oauth.deleteOAuthClientAsync(userId, id, ip);
   }
   listOAuthSessions(userId: number) {
-    return oauth.listOAuthSessions(userId);
+    return oauth.listOAuthSessionsAsync(userId);
   }
   revokeSession(userId: number, id: number, ip: string | undefined) {
-    return oauth.revokeSession(userId, id, ip);
+    return oauth.revokeSessionAsync(userId, id, ip);
   }
 }

@@ -4,49 +4,116 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // helpers. Mock each legacy module so we can assert the wrapper forwards every
 // argument unchanged (and exercise the optional-param call sites).
 
-const unified = vi.hoisted(() => ({
-  listTripPhotos: vi.fn(() => ({ data: [] })),
-  listTripAlbumLinks: vi.fn(() => ({ data: [] })),
-  createTripAlbumLink: vi.fn(() => ({ data: {} })),
-  removeAlbumLink: vi.fn(() => ({ data: {} })),
-  addTripPhotos: vi.fn(async () => ({ data: { added: 0 } })),
-  removeTripPhoto: vi.fn(() => ({ data: {} })),
-  setTripPhotoSharing: vi.fn(async () => ({ data: {} })),
-}));
+const unified = vi.hoisted(() => {
+  const listTripPhotos = vi.fn(() => ({ data: [] }));
+  const listTripAlbumLinks = vi.fn(() => ({ data: [] }));
+  const createTripAlbumLink = vi.fn(() => ({ data: {} }));
+  const removeAlbumLink = vi.fn(() => ({ data: {} }));
+  const addTripPhotos = vi.fn(async () => ({ data: { added: 0 } }));
+  const removeTripPhoto = vi.fn(() => ({ data: {} }));
+  const setTripPhotoSharing = vi.fn(async () => ({ data: {} }));
+  return {
+    listTripPhotos,
+    listTripPhotosAsync: listTripPhotos,
+    listTripAlbumLinks,
+    listTripAlbumLinksAsync: listTripAlbumLinks,
+    createTripAlbumLink,
+    createTripAlbumLinkAsync: createTripAlbumLink,
+    removeAlbumLink,
+    removeAlbumLinkAsync: removeAlbumLink,
+    addTripPhotos,
+    addTripPhotosAsync: addTripPhotos,
+    removeTripPhoto,
+    removeTripPhotoAsync: removeTripPhoto,
+    setTripPhotoSharing,
+    setTripPhotoSharingAsync: setTripPhotoSharing,
+  };
+});
 vi.mock('../../../src/services/memories/unifiedService', () => unified);
 
-const immich = vi.hoisted(() => ({
-  getConnectionSettings: vi.fn(() => ({})),
-  saveImmichSettings: vi.fn(async () => ({ success: true })),
-  setImmichAutoUpload: vi.fn(),
-  testConnection: vi.fn(async () => ({ connected: true })),
-  getConnectionStatus: vi.fn(async () => ({ connected: true })),
-  browseTimeline: vi.fn(async () => ({ buckets: [] })),
-  searchPhotos: vi.fn(async () => ({ assets: [] })),
-  streamImmichAsset: vi.fn(async () => undefined),
-  listAlbums: vi.fn(async () => ({ albums: [] })),
-  getAlbumPhotos: vi.fn(async () => ({ assets: [] })),
-  syncAlbumAssets: vi.fn(async () => ({ added: 0, total: 0 })),
-  getAssetInfo: vi.fn(async () => ({ data: {} })),
-  isValidAssetId: vi.fn(() => true),
-}));
+const immich = vi.hoisted(() => {
+  const getConnectionSettings = vi.fn(() => ({}));
+  const saveImmichSettings = vi.fn(async () => ({ success: true }));
+  const setImmichAutoUpload = vi.fn(async () => undefined);
+  const testConnection = vi.fn(async () => ({ connected: true }));
+  const getConnectionStatus = vi.fn(async () => ({ connected: true }));
+  const browseTimeline = vi.fn(async () => ({ buckets: [] }));
+  const searchPhotos = vi.fn(async () => ({ assets: [] }));
+  const streamImmichAsset = vi.fn(async () => undefined);
+  const listAlbums = vi.fn(async () => ({ albums: [] }));
+  const getAlbumPhotos = vi.fn(async () => ({ assets: [] }));
+  const syncAlbumAssets = vi.fn(async () => ({ added: 0, total: 0 }));
+  const getAssetInfo = vi.fn(async () => ({ data: {} }));
+  return {
+    getConnectionSettings,
+    getConnectionSettingsAsync: getConnectionSettings,
+    saveImmichSettings,
+    saveImmichSettingsAsync: saveImmichSettings,
+    setImmichAutoUpload,
+    setImmichAutoUploadAsync: setImmichAutoUpload,
+    testConnection,
+    testConnectionAsync: testConnection,
+    getConnectionStatus,
+    getConnectionStatusAsync: getConnectionStatus,
+    browseTimeline,
+    browseTimelineAsync: browseTimeline,
+    searchPhotos,
+    searchPhotosAsync: searchPhotos,
+    streamImmichAsset,
+    streamImmichAssetAsync: streamImmichAsset,
+    listAlbums,
+    listAlbumsAsync: listAlbums,
+    getAlbumPhotos,
+    getAlbumPhotosAsync: getAlbumPhotos,
+    syncAlbumAssets,
+    syncAlbumAssetsAsync: syncAlbumAssets,
+    getAssetInfo,
+    getAssetInfoAsync: getAssetInfo,
+    isValidAssetId: vi.fn(() => true),
+  };
+});
 vi.mock('../../../src/services/memories/immichService', () => immich);
 
-const synology = vi.hoisted(() => ({
-  getSynologySettings: vi.fn(async () => ({ success: true, data: {} })),
-  updateSynologySettings: vi.fn(async () => ({ success: true, data: {} })),
-  getSynologyStatus: vi.fn(async () => ({ success: true, data: {} })),
-  testSynologyConnection: vi.fn(async () => ({ success: true, data: {} })),
-  listSynologyAlbums: vi.fn(async () => ({ success: true, data: {} })),
-  getSynologyAlbumPhotos: vi.fn(async () => ({ success: true, data: {} })),
-  syncSynologyAlbumLink: vi.fn(async () => ({ success: true, data: {} })),
-  searchSynologyPhotos: vi.fn(async () => ({ success: true, data: {} })),
-  getSynologyAssetInfo: vi.fn(async () => ({ success: true, data: {} })),
-  streamSynologyAsset: vi.fn(async () => undefined),
-}));
+const synology = vi.hoisted(() => {
+  const getSynologySettings = vi.fn(async () => ({ success: true, data: {} }));
+  const updateSynologySettings = vi.fn(async () => ({ success: true, data: {} }));
+  const getSynologyStatus = vi.fn(async () => ({ success: true, data: {} }));
+  const testSynologyConnection = vi.fn(async () => ({ success: true, data: {} }));
+  const listSynologyAlbums = vi.fn(async () => ({ success: true, data: {} }));
+  const getSynologyAlbumPhotos = vi.fn(async () => ({ success: true, data: {} }));
+  const syncSynologyAlbumLink = vi.fn(async () => ({ success: true, data: {} }));
+  const searchSynologyPhotos = vi.fn(async () => ({ success: true, data: {} }));
+  const getSynologyAssetInfo = vi.fn(async () => ({ success: true, data: {} }));
+  const streamSynologyAsset = vi.fn(async () => undefined);
+  return {
+    getSynologySettings,
+    getSynologySettingsAsync: getSynologySettings,
+    updateSynologySettings,
+    updateSynologySettingsAsync: updateSynologySettings,
+    getSynologyStatus,
+    getSynologyStatusAsync: getSynologyStatus,
+    testSynologyConnection,
+    testSynologyConnectionAsync: testSynologyConnection,
+    listSynologyAlbums,
+    listSynologyAlbumsAsync: listSynologyAlbums,
+    getSynologyAlbumPhotos,
+    getSynologyAlbumPhotosAsync: getSynologyAlbumPhotos,
+    syncSynologyAlbumLink,
+    syncSynologyAlbumLinkAsync: syncSynologyAlbumLink,
+    searchSynologyPhotos,
+    searchSynologyPhotosAsync: searchSynologyPhotos,
+    getSynologyAssetInfo,
+    getSynologyAssetInfoAsync: getSynologyAssetInfo,
+    streamSynologyAsset,
+    streamSynologyAssetAsync: streamSynologyAsset,
+  };
+});
 vi.mock('../../../src/services/memories/synologyService', () => synology);
 
-const helpers = vi.hoisted(() => ({ canAccessUserPhoto: vi.fn(() => true) }));
+const helpers = vi.hoisted(() => {
+  const canAccessUserPhoto = vi.fn(async () => true);
+  return { canAccessUserPhoto, canAccessUserPhotoAsync: canAccessUserPhoto };
+});
 vi.mock('../../../src/services/memories/helpersService', () => helpers);
 
 const ws = vi.hoisted(() => ({ broadcast: vi.fn() }));
@@ -64,9 +131,9 @@ describe('MemoriesService (delegation wrapper over services/memories/*)', () => 
     svc = new MemoriesService();
   });
 
-  it('access check + broadcast forward verbatim', () => {
-    helpers.canAccessUserPhoto.mockReturnValue(false);
-    expect(svc.canAccessUserPhoto(1, 2, '5', 'a', 'immich')).toBe(false);
+  it('access check + broadcast forward verbatim', async () => {
+    helpers.canAccessUserPhoto.mockResolvedValue(false);
+    await expect(svc.canAccessUserPhoto(1, 2, '5', 'a', 'immich')).resolves.toBe(false);
     expect(helpers.canAccessUserPhoto).toHaveBeenCalledWith(1, 2, '5', 'a', 'immich');
 
     svc.broadcast('5', 'memories:updated', { userId: 1 }, 'sock');

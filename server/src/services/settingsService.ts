@@ -1,3 +1,4 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { decrypt_api_key, maybe_encrypt_api_key } from './apiKeyCrypto';
 
@@ -46,6 +47,21 @@ function parseValue(raw: string): unknown {
   }
 }
 
+type SettingRow = {
+  key: string;
+  value: string;
+};
+
+function parseSettingRow(row: SettingRow, { maskSecrets = false }: { maskSecrets?: boolean } = {}): unknown {
+  if (maskSecrets && MASKED_SETTING_KEYS.has(row.key)) {
+    return row.value ? '••••••••' : '';
+  }
+  if (ENCRYPTED_SETTING_KEYS.has(row.key)) {
+    return row.value ? (decrypt_api_key(row.value) ?? '') : '';
+  }
+  return parseValue(row.value);
+}
+
 export function getAdminUserDefaults(): Record<string, unknown> {
   const rows = db.prepare("SELECT key, value FROM app_settings WHERE key LIKE 'default_user_setting_%'").all() as {
     key: string;
@@ -59,6 +75,18 @@ export function getAdminUserDefaults(): Record<string, unknown> {
     } else {
       defaults[settingKey] = parseValue(row.value);
     }
+  }
+  return defaults;
+}
+
+export async function getAdminUserDefaultsAsync(): Promise<Record<string, unknown>> {
+  const rows = await asyncDb
+    .prepare("SELECT key, value FROM app_settings WHERE key LIKE 'default_user_setting_%'")
+    .all<SettingRow>();
+  const defaults: Record<string, unknown> = {};
+  for (const row of rows) {
+    const settingKey = row.key.slice('default_user_setting_'.length);
+    defaults[settingKey] = parseSettingRow({ key: settingKey, value: row.value });
   }
   return defaults;
 }
@@ -107,6 +135,42 @@ export function setAdminUserDefaults(partial: Record<string, unknown>): void {
   }
 }
 
+export async function setAdminUserDefaultsAsync(partial: Record<string, unknown>): Promise<void> {
+  await asyncDb.transaction(async () => {
+    const upsert = asyncDb.prepare(
+      `INSERT INTO app_settings (key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    );
+    const del = asyncDb.prepare('DELETE FROM app_settings WHERE key = ?');
+
+    for (const [key, value] of Object.entries(partial)) {
+      if (!(DEFAULTABLE_USER_SETTING_KEYS as readonly string[]).includes(key)) {
+        throw new Error(`Invalid setting key: ${key}`);
+      }
+      const typedKey = key as DefaultableKey;
+      const appKey = `default_user_setting_${key}`;
+
+      if (value === null || value === undefined) {
+        await del.run(appKey);
+        continue;
+      }
+
+      if (BOOLEAN_KEYS.has(typedKey) && typeof value !== 'boolean') {
+        throw new Error(`Setting ${key} must be a boolean`);
+      }
+      const allowed = VALID_VALUES[typedKey];
+      if (allowed && !allowed.includes(value)) {
+        throw new Error(`Invalid value for ${key}: ${value}`);
+      }
+
+      const stored = ENCRYPTED_SETTING_KEYS.has(key)
+        ? (maybe_encrypt_api_key(String(value)) ?? String(value))
+        : JSON.stringify(value);
+      await upsert.run(appKey, stored);
+    }
+  })();
+}
+
 export function getUserSettings(userId: number): Record<string, unknown> {
   const adminDefaults = getAdminUserDefaults();
 
@@ -135,6 +199,16 @@ export function getUserSettings(userId: number): Record<string, unknown> {
   return { ...adminDefaults, ...userSettings };
 }
 
+export async function getUserSettingsAsync(userId: number): Promise<Record<string, unknown>> {
+  const adminDefaults = await getAdminUserDefaultsAsync();
+  const rows = await asyncDb.prepare('SELECT key, value FROM settings WHERE user_id = ?').all<SettingRow>(userId);
+  const userSettings: Record<string, unknown> = {};
+  for (const row of rows) {
+    userSettings[row.key] = parseSettingRow(row, { maskSecrets: true });
+  }
+  return { ...adminDefaults, ...userSettings };
+}
+
 function serializeValue(key: string, value: unknown): string {
   const raw = typeof value === 'object' ? JSON.stringify(value) : String(value !== undefined ? value : '');
   if (ENCRYPTED_SETTING_KEYS.has(key)) return maybe_encrypt_api_key(raw) ?? raw;
@@ -148,6 +222,17 @@ export function upsertSetting(userId: number, key: string, value: unknown) {
     ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
   `,
   ).run(userId, key, serializeValue(key, value));
+}
+
+export async function upsertSettingAsync(userId: number, key: string, value: unknown): Promise<void> {
+  await asyncDb
+    .prepare(
+      `
+    INSERT INTO settings (user_id, key, value) VALUES (?, ?, ?)
+    ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
+  `,
+    )
+    .run(userId, key, serializeValue(key, value));
 }
 
 export function bulkUpsertSettings(userId: number, settings: Record<string, unknown>) {
@@ -166,4 +251,18 @@ export function bulkUpsertSettings(userId: number, settings: Record<string, unkn
     throw err;
   }
   return Object.keys(settings).length;
+}
+
+export async function bulkUpsertSettingsAsync(userId: number, settings: Record<string, unknown>): Promise<number> {
+  const keys = Object.keys(settings);
+  await asyncDb.transaction(async () => {
+    const upsert = asyncDb.prepare(`
+      INSERT INTO settings (user_id, key, value) VALUES (?, ?, ?)
+      ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
+    `);
+    for (const [key, value] of Object.entries(settings)) {
+      await upsert.run(userId, key, serializeValue(key, value));
+    }
+  })();
+  return keys.length;
 }

@@ -1,4 +1,4 @@
-import { db } from '../../db/database';
+import { asyncDb } from '../../db/asyncDatabase';
 import { searchNominatim } from '../../services/mapsService';
 import { checkPermission } from '../../services/permissions';
 import { createPlace } from '../../services/placeService';
@@ -17,13 +17,13 @@ import type {
   Reservation,
 } from '@trippi/shared';
 
-function resolveDayId(tripId: string, iso: string | null | undefined): number | null {
+async function resolveDayId(tripId: string, iso: string | null | undefined): Promise<number | null> {
   if (!iso) return null;
   const date = iso.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-  const row = db.prepare('SELECT id FROM days WHERE trip_id = ? AND date = ? LIMIT 1').get(tripId, date) as
-    | { id: number }
-    | undefined;
+  const row = await asyncDb
+    .prepare('SELECT id FROM days WHERE trip_id = ? AND date = ? LIMIT 1')
+    .get<{ id: number }>(tripId, date);
   return row?.id ?? null;
 }
 
@@ -149,8 +149,8 @@ export class BookingImportService {
             }
           | undefined;
         if (item.type === 'hotel' && _accommodation) {
-          const startDayId = resolveDayId(tripId, _accommodation.check_in);
-          const endDayId = resolveDayId(tripId, _accommodation.check_out);
+          const startDayId = await resolveDayId(tripId, _accommodation.check_in);
+          const endDayId = await resolveDayId(tripId, _accommodation.check_out);
           createAccommodation = {
             place_id: placeId,
             start_day_id: startDayId ?? undefined,
@@ -161,7 +161,7 @@ export class BookingImportService {
           };
         }
 
-        const { reservation, accommodationCreated } = createReservation(tripId, {
+        const { reservation, accommodationCreated } = await createReservation(tripId, {
           ...reservationData,
           place_id: placeId,
           create_accommodation: createAccommodation,

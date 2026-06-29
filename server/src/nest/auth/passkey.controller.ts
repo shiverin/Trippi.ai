@@ -1,7 +1,7 @@
 import { writeAudit, getClientIp } from '../../services/auditLog';
 import { setAuthCookie } from '../../services/cookie';
-import * as passkey from '../../services/passkeyService';
 import type { User } from '../../types';
+import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasskeyEnabledGuard } from './passkey-enabled.guard';
@@ -41,7 +41,10 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
  */
 @Controller('api/auth/passkey')
 export class PasskeyController {
-  constructor(private readonly rl: RateLimitService) {}
+  constructor(
+    private readonly rl: RateLimitService,
+    private readonly auth: AuthService = new AuthService(),
+  ) {}
 
   private limit(bucket: string, req: Request, max: number): void {
     if (!this.rl.check(bucket, req.ip || 'unknown', max, WINDOW, Date.now())) {
@@ -55,7 +58,7 @@ export class PasskeyController {
   @UseGuards(PasskeyEnabledGuard, JwtAuthGuard)
   async registerOptions(@CurrentUser() user: User, @Body() body: { password?: string }, @Req() req: Request) {
     this.limit('mfa', req, 5);
-    const result = await passkey.passkeyRegisterOptions(user.id, body?.password);
+    const result = await this.auth.passkeyRegisterOptions(user.id, body?.password);
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
     return result.options;
   }
@@ -64,10 +67,7 @@ export class PasskeyController {
   @HttpCode(200)
   @UseGuards(PasskeyEnabledGuard, JwtAuthGuard)
   async registerVerify(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
-    const result = await passkey.passkeyRegisterVerify(
-      user.id,
-      body as Parameters<typeof passkey.passkeyRegisterVerify>[1],
-    );
+    const result = await this.auth.passkeyRegisterVerify(user.id, body);
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
     writeAudit({ userId: user.id, action: 'user.passkey_register', ip: getClientIp(req) });
     return { success: true, credential: result.credential };
@@ -79,7 +79,7 @@ export class PasskeyController {
   @UseGuards(PasskeyEnabledGuard)
   async loginOptions(@Req() req: Request) {
     this.limit('login', req, 10);
-    const result = await passkey.passkeyLoginOptions();
+    const result = await this.auth.passkeyLoginOptions();
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
     return result.options;
   }
@@ -90,7 +90,7 @@ export class PasskeyController {
   async loginVerify(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.limit('login', req, 10);
     const started = Date.now();
-    const result = await passkey.passkeyLoginVerify(body as Parameters<typeof passkey.passkeyLoginVerify>[0]);
+    const result = await this.auth.passkeyLoginVerify(body);
     if (result.auditAction) {
       writeAudit({ userId: result.auditUserId ?? null, action: result.auditAction, ip: getClientIp(req) });
     }
@@ -112,23 +112,28 @@ export class PasskeyController {
   // ── Management (authenticated, owner-scoped — NOT toggle-gated) ──
   @Get('credentials')
   @UseGuards(JwtAuthGuard)
-  list(@CurrentUser() user: User) {
-    return { credentials: passkey.listPasskeys(user.id) };
+  async list(@CurrentUser() user: User) {
+    return { credentials: await this.auth.listPasskeys(user.id) };
   }
 
   @Patch('credentials/:id')
   @UseGuards(JwtAuthGuard)
-  rename(@CurrentUser() user: User, @Param('id') id: string, @Body() body: { name?: unknown }) {
-    const result = passkey.renamePasskey(user.id, id, body?.name);
+  async rename(@CurrentUser() user: User, @Param('id') id: string, @Body() body: { name?: unknown }) {
+    const result = await this.auth.renamePasskey(user.id, id, body?.name);
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
     return { success: true };
   }
 
   @Delete('credentials/:id')
   @UseGuards(JwtAuthGuard)
-  remove(@CurrentUser() user: User, @Param('id') id: string, @Body() body: { password?: string }, @Req() req: Request) {
+  async remove(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() body: { password?: string },
+    @Req() req: Request,
+  ) {
     this.limit('login', req, 5);
-    const result = passkey.deletePasskey(user.id, id, body?.password);
+    const result = await this.auth.deletePasskey(user.id, id, body?.password);
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
     writeAudit({ userId: user.id, action: 'user.passkey_delete', resource: String(id), ip: getClientIp(req) });
     return { success: true };

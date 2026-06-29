@@ -1,3 +1,4 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { checkSsrf, createPinnedDispatcher } from '../utils/ssrfGuard';
 import { decrypt_api_key } from './apiKeyCrypto';
@@ -49,12 +50,35 @@ function getAppSetting(key: string): string | null {
   );
 }
 
+async function getAppSettingAsync(key: string): Promise<string | null> {
+  return (
+    (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value || null
+  );
+}
+
 function getSmtpConfig(): SmtpConfig | null {
   const host = process.env.SMTP_HOST || getAppSetting('smtp_host');
   const port = process.env.SMTP_PORT || getAppSetting('smtp_port');
   const user = process.env.SMTP_USER || getAppSetting('smtp_user');
   const pass = process.env.SMTP_PASS || decrypt_api_key(getAppSetting('smtp_pass')) || '';
   const from = process.env.SMTP_FROM || getAppSetting('smtp_from');
+  if (!host || !port || !from) return null;
+  return {
+    host,
+    port: parseInt(port, 10),
+    user: user || '',
+    pass: pass || '',
+    from,
+    secure: parseInt(port, 10) === 465,
+  };
+}
+
+async function getSmtpConfigAsync(): Promise<SmtpConfig | null> {
+  const host = process.env.SMTP_HOST || (await getAppSettingAsync('smtp_host'));
+  const port = process.env.SMTP_PORT || (await getAppSettingAsync('smtp_port'));
+  const user = process.env.SMTP_USER || (await getAppSettingAsync('smtp_user'));
+  const pass = process.env.SMTP_PASS || decrypt_api_key(await getAppSettingAsync('smtp_pass')) || '';
+  const from = process.env.SMTP_FROM || (await getAppSettingAsync('smtp_from'));
   if (!host || !port || !from) return null;
   return {
     host,
@@ -111,12 +135,26 @@ export function getUserEmail(userId: number): string | null {
   );
 }
 
+export async function getUserEmailAsync(userId: number): Promise<string | null> {
+  return (await asyncDb.prepare('SELECT email FROM users WHERE id = ?').get<{ email: string }>(userId))?.email || null;
+}
+
 export function getUserLanguage(userId: number): string {
   return (
     (
       db.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'language'").get(userId) as
         | { value: string }
         | undefined
+    )?.value || 'en'
+  );
+}
+
+export async function getUserLanguageAsync(userId: number): Promise<string> {
+  return (
+    (
+      await asyncDb
+        .prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'language'")
+        .get<{ value: string }>(userId)
     )?.value || 'en'
   );
 }
@@ -131,8 +169,23 @@ export function getUserWebhookUrl(userId: number): string | null {
   return value ? decrypt_api_key(value) : null;
 }
 
+export async function getUserWebhookUrlAsync(userId: number): Promise<string | null> {
+  const value =
+    (
+      await asyncDb
+        .prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'webhook_url'")
+        .get<{ value: string }>(userId)
+    )?.value || null;
+  return value ? decrypt_api_key(value) : null;
+}
+
 export function getAdminWebhookUrl(): string | null {
   const value = getAppSetting('admin_webhook_url') || null;
+  return value ? decrypt_api_key(value) : null;
+}
+
+export async function getAdminWebhookUrlAsync(): Promise<string | null> {
+  const value = (await getAppSettingAsync('admin_webhook_url')) || null;
   return value ? decrypt_api_key(value) : null;
 }
 
@@ -244,9 +297,9 @@ export async function sendPasswordResetEmail(
   resetUrl: string,
   userId: number | null,
 ): Promise<{ delivered: 'email' | 'log' | 'failed' }> {
-  const lang = userId ? getUserLanguage(userId) : 'en';
+  const lang = userId ? await getUserLanguageAsync(userId) : 'en';
   const strings = PASSWORD_RESET_I18N[lang] || PASSWORD_RESET_I18N.en;
-  const smtpCfg = getSmtpConfig();
+  const smtpCfg = await getSmtpConfigAsync();
 
   if (!smtpCfg) {
     // No SMTP configured — log the link in a visually distinct block so
@@ -266,7 +319,8 @@ export async function sendPasswordResetEmail(
   }
 
   try {
-    const skipTls = process.env.SMTP_SKIP_TLS_VERIFY === 'true' || getAppSetting('smtp_skip_tls_verify') === 'true';
+    const skipTls =
+      process.env.SMTP_SKIP_TLS_VERIFY === 'true' || (await getAppSettingAsync('smtp_skip_tls_verify')) === 'true';
     const transporter = nodemailer.createTransport({
       host: smtpCfg.host,
       port: smtpCfg.port,
@@ -296,13 +350,14 @@ export async function sendEmail(
   userId?: number,
   navigateTarget?: string,
 ): Promise<boolean> {
-  const config = getSmtpConfig();
+  const config = await getSmtpConfigAsync();
   if (!config) return false;
 
-  const lang = userId ? getUserLanguage(userId) : 'en';
+  const lang = userId ? await getUserLanguageAsync(userId) : 'en';
 
   try {
-    const skipTls = process.env.SMTP_SKIP_TLS_VERIFY === 'true' || getAppSetting('smtp_skip_tls_verify') === 'true';
+    const skipTls =
+      process.env.SMTP_SKIP_TLS_VERIFY === 'true' || (await getAppSettingAsync('smtp_skip_tls_verify')) === 'true';
     const transporter = nodemailer.createTransport({
       host: config.host,
       port: config.port,
@@ -397,10 +452,11 @@ export async function sendWebhook(
 }
 
 export async function testSmtp(to: string): Promise<{ success: boolean; error?: string }> {
-  if (!getSmtpConfig()) return { success: false, error: 'SMTP not configured' };
+  const config = await getSmtpConfigAsync();
+  if (!config) return { success: false, error: 'SMTP not configured' };
   try {
-    const config = getSmtpConfig()!;
-    const skipTls = process.env.SMTP_SKIP_TLS_VERIFY === 'true' || getAppSetting('smtp_skip_tls_verify') === 'true';
+    const skipTls =
+      process.env.SMTP_SKIP_TLS_VERIFY === 'true' || (await getAppSettingAsync('smtp_skip_tls_verify')) === 'true';
     const transporter = nodemailer.createTransport({
       host: config.host,
       port: config.port,
@@ -469,10 +525,35 @@ export function getUserNtfyConfig(userId: number): NtfyConfig | null {
   };
 }
 
+export async function getUserNtfyConfigAsync(userId: number): Promise<NtfyConfig | null> {
+  const rows = await asyncDb
+    .prepare("SELECT key, value FROM settings WHERE user_id = ? AND key IN ('ntfy_topic', 'ntfy_server', 'ntfy_token')")
+    .all<{ key: string; value: string }>(userId);
+  if (rows.length === 0) return null;
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.key] = r.value;
+  return {
+    topic: map['ntfy_topic'] || null,
+    server: map['ntfy_server'] || null,
+    token: map['ntfy_token'] ? decrypt_api_key(map['ntfy_token']) : null,
+  };
+}
+
 export function getAdminNtfyConfig(): NtfyConfig {
   const topic = getAppSetting('admin_ntfy_topic') || null;
   const server = getAppSetting('admin_ntfy_server') || null;
   const rawToken = getAppSetting('admin_ntfy_token') || null;
+  return {
+    topic,
+    server,
+    token: rawToken ? decrypt_api_key(rawToken) : null,
+  };
+}
+
+export async function getAdminNtfyConfigAsync(): Promise<NtfyConfig> {
+  const topic = (await getAppSettingAsync('admin_ntfy_topic')) || null;
+  const server = (await getAppSettingAsync('admin_ntfy_server')) || null;
+  const rawToken = (await getAppSettingAsync('admin_ntfy_token')) || null;
   return {
     topic,
     server,
@@ -553,7 +634,7 @@ export async function testNtfy(cfg: {
   server?: string | null;
   token?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
-  const adminCfg = getAdminNtfyConfig();
+  const adminCfg = await getAdminNtfyConfigAsync();
   const url = resolveNtfyUrl(adminCfg, { topic: cfg.topic, server: cfg.server ?? null, token: cfg.token ?? null });
   if (!url) return { success: false, error: 'Could not resolve ntfy URL — missing topic' };
   try {

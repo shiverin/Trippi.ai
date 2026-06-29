@@ -48,13 +48,13 @@ export class BudgetController {
   @Get()
   async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { items: this.budget.list(tripId) };
+    return { items: await this.budget.list(tripId) };
   }
 
   @Get('summary/per-person')
   async perPerson(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { summary: this.budget.perPersonSummary(tripId) };
+    return { summary: await this.budget.perPersonSummary(tripId) };
   }
 
   @Get('settlement')
@@ -66,7 +66,7 @@ export class BudgetController {
   @Get('settlements')
   async listSettlements(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { settlements: this.budget.listSettlements(tripId) };
+    return { settlements: await this.budget.listSettlements(tripId) };
   }
 
   @Post('settlements')
@@ -81,7 +81,7 @@ export class BudgetController {
     if (body.from_user_id == null || body.to_user_id == null || body.amount == null) {
       throw new HttpException({ error: 'from_user_id, to_user_id and amount are required' }, 400);
     }
-    const settlement = this.budget.createSettlement(
+    const settlement = await this.budget.createSettlement(
       tripId,
       { from_user_id: body.from_user_id, to_user_id: body.to_user_id, amount: body.amount },
       user.id,
@@ -103,7 +103,7 @@ export class BudgetController {
     if (body.from_user_id == null || body.to_user_id == null || body.amount == null) {
       throw new HttpException({ error: 'from_user_id, to_user_id and amount are required' }, 400);
     }
-    const settlement = this.budget.updateSettlement(settlementId, tripId, {
+    const settlement = await this.budget.updateSettlement(settlementId, tripId, {
       from_user_id: body.from_user_id,
       to_user_id: body.to_user_id,
       amount: body.amount,
@@ -124,7 +124,7 @@ export class BudgetController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.budget.deleteSettlement(settlementId, tripId)) {
+    if (!(await this.budget.deleteSettlement(settlementId, tripId))) {
       throw new HttpException({ error: 'Settlement not found' }, 404);
     }
     this.budget.broadcast(tripId, 'budget:settlement-deleted', { settlementId: Number(settlementId) }, socketId);
@@ -167,7 +167,7 @@ export class BudgetController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    this.budget.reorderItems(tripId, orderedIds);
+    await this.budget.reorderItems(tripId, orderedIds);
     this.budget.broadcast(tripId, 'budget:reordered', { orderedIds }, socketId);
     return { success: true };
   }
@@ -185,7 +185,7 @@ export class BudgetController {
     if (!Array.isArray(orderedCategories) || orderedCategories.some((category) => typeof category !== 'string')) {
       throw new HttpException({ error: 'orderedCategories must be an array of strings' }, 400);
     }
-    this.budget.reorderCategories(tripId, orderedCategories);
+    await this.budget.reorderCategories(tripId, orderedCategories);
     this.budget.broadcast(tripId, 'budget:reordered', { orderedCategories }, socketId);
     return { success: true };
   }
@@ -205,7 +205,7 @@ export class BudgetController {
       throw new HttpException({ error: 'Budget item not found' }, 404);
     }
     if (updated.reservation_id && body.total_price !== undefined) {
-      this.budget.syncReservationPrice(tripId, updated.reservation_id, updated.total_price, socketId);
+      await this.budget.syncReservationPrice(tripId, updated.reservation_id, updated.total_price, socketId);
     }
     this.budget.broadcast(tripId, 'budget:updated', { item: updated }, socketId);
     return { item: updated };
@@ -224,7 +224,7 @@ export class BudgetController {
     if (!Array.isArray(userIds)) {
       throw new HttpException({ error: 'user_ids must be an array' }, 400);
     }
-    const result = this.budget.updateMembers(id, tripId, userIds);
+    const result = await this.budget.updateMembers(id, tripId, userIds);
     if (!result) {
       throw new HttpException({ error: 'Budget item not found' }, 404);
     }
@@ -250,7 +250,7 @@ export class BudgetController {
     if (!Array.isArray(payers)) {
       throw new HttpException({ error: 'payers must be an array' }, 400);
     }
-    const item = this.budget.setPayers(id, tripId, payers as { user_id: number; amount: number }[]);
+    const item = await this.budget.setPayers(id, tripId, payers as { user_id: number; amount: number }[]);
     if (!item) {
       throw new HttpException({ error: 'Budget item not found' }, 404);
     }
@@ -269,7 +269,7 @@ export class BudgetController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const member = this.budget.toggleMemberPaid(id, tripId, userId, paid);
+    const member = await this.budget.toggleMemberPaid(id, tripId, userId, paid);
     this.budget.broadcast(
       tripId,
       'budget:member-paid-updated',
@@ -288,7 +288,7 @@ export class BudgetController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.budget.remove(id, tripId)) {
+    if (!(await this.budget.remove(id, tripId))) {
       throw new HttpException({ error: 'Budget item not found' }, 404);
     }
     this.budget.broadcast(tripId, 'budget:deleted', { itemId: Number(id) }, socketId);

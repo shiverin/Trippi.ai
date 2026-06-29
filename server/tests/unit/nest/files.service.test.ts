@@ -14,18 +14,29 @@ const { svc } = vi.hoisted(() => ({
     authenticateDownload: vi.fn(),
     resolveFilePath: vi.fn(),
     listFiles: vi.fn(),
+    listFilesAsync: vi.fn(),
     getFileById: vi.fn(),
+    getFileByIdAsync: vi.fn(),
     getDeletedFile: vi.fn(),
+    getDeletedFileAsync: vi.fn(),
     createFile: vi.fn(),
+    createFileAsync: vi.fn(),
     updateFile: vi.fn(),
+    updateFileAsync: vi.fn(),
     toggleStarred: vi.fn(),
+    toggleStarredAsync: vi.fn(),
     softDeleteFile: vi.fn(),
+    softDeleteFileAsync: vi.fn(),
     restoreFile: vi.fn(),
+    restoreFileAsync: vi.fn(),
     permanentDeleteFile: vi.fn(),
     emptyTrash: vi.fn(),
     createFileLink: vi.fn(),
+    createFileLinkAsync: vi.fn(),
     deleteFileLink: vi.fn(),
+    deleteFileLinkAsync: vi.fn(),
     getFileLinks: vi.fn(),
+    getFileLinksAsync: vi.fn(),
   },
 }));
 vi.mock('../../../src/services/fileService', () => svc);
@@ -77,44 +88,44 @@ describe('FilesService (thin wrapper around the legacy fileService)', () => {
   });
 
   it('the read helpers delegate', () => {
-    svc.listFiles.mockReturnValue([{ id: 1 }]);
+    svc.listFilesAsync.mockReturnValue([{ id: 1 }]);
     expect(service().listFiles('5', true)).toEqual([{ id: 1 }]);
-    expect(svc.listFiles).toHaveBeenCalledWith('5', true);
+    expect(svc.listFilesAsync).toHaveBeenCalledWith('5', true);
 
-    svc.getFileById.mockReturnValue({ id: 9 });
+    svc.getFileByIdAsync.mockReturnValue({ id: 9 });
     expect(service().getFileById('9', '5')).toEqual({ id: 9 });
-    expect(svc.getFileById).toHaveBeenCalledWith('9', '5');
+    expect(svc.getFileByIdAsync).toHaveBeenCalledWith('9', '5');
 
-    svc.getDeletedFile.mockReturnValue({ id: 9 });
+    svc.getDeletedFileAsync.mockReturnValue({ id: 9 });
     expect(service().getDeletedFile('9', '5')).toEqual({ id: 9 });
-    expect(svc.getDeletedFile).toHaveBeenCalledWith('9', '5');
+    expect(svc.getDeletedFileAsync).toHaveBeenCalledWith('9', '5');
 
-    svc.getFileLinks.mockReturnValue([{ id: 1 }]);
+    svc.getFileLinksAsync.mockReturnValue([{ id: 1 }]);
     expect(service().getFileLinks('9')).toEqual([{ id: 1 }]);
-    expect(svc.getFileLinks).toHaveBeenCalledWith('9');
+    expect(svc.getFileLinksAsync).toHaveBeenCalledWith('9');
   });
 
   it('the mutating helpers delegate', () => {
     const file = { filename: 'a.pdf' } as Express.Multer.File;
-    svc.createFile.mockReturnValue({ id: 9 });
+    svc.createFileAsync.mockReturnValue({ id: 9 });
     expect(service().createFile('5', file, 1, { description: 'd' })).toEqual({ id: 9 });
-    expect(svc.createFile).toHaveBeenCalledWith('5', file, 1, { description: 'd' });
+    expect(svc.createFileAsync).toHaveBeenCalledWith('5', file, 1, { description: 'd' });
 
-    svc.updateFile.mockReturnValue({ id: 9 });
+    svc.updateFileAsync.mockReturnValue({ id: 9 });
     const current = { id: 9 } as never;
     expect(service().updateFile('9', current, { description: 'x' })).toEqual({ id: 9 });
-    expect(svc.updateFile).toHaveBeenCalledWith('9', current, { description: 'x' });
+    expect(svc.updateFileAsync).toHaveBeenCalledWith('9', current, { description: 'x' });
 
-    svc.toggleStarred.mockReturnValue({ id: 9, starred: 1 });
+    svc.toggleStarredAsync.mockReturnValue({ id: 9, starred: 1 });
     expect(service().toggleStarred('9', 0)).toEqual({ id: 9, starred: 1 });
-    expect(svc.toggleStarred).toHaveBeenCalledWith('9', 0);
+    expect(svc.toggleStarredAsync).toHaveBeenCalledWith('9', 0);
 
     service().softDeleteFile('9');
-    expect(svc.softDeleteFile).toHaveBeenCalledWith('9');
+    expect(svc.softDeleteFileAsync).toHaveBeenCalledWith('9');
 
-    svc.restoreFile.mockReturnValue({ id: 9 });
+    svc.restoreFileAsync.mockReturnValue({ id: 9 });
     expect(service().restoreFile('9')).toEqual({ id: 9 });
-    expect(svc.restoreFile).toHaveBeenCalledWith('9');
+    expect(svc.restoreFileAsync).toHaveBeenCalledWith('9');
 
     const trashed = { id: 9 } as never;
     service().permanentDeleteFile(trashed);
@@ -124,11 +135,11 @@ describe('FilesService (thin wrapper around the legacy fileService)', () => {
     expect(service().emptyTrash('5')).toBe(3);
     expect(svc.emptyTrash).toHaveBeenCalledWith('5');
 
-    svc.createFileLink.mockReturnValue([{ id: 1 }]);
+    svc.createFileLinkAsync.mockReturnValue([{ id: 1 }]);
     expect(service().createFileLink('9', { reservation_id: 2 })).toEqual([{ id: 1 }]);
-    expect(svc.createFileLink).toHaveBeenCalledWith('9', { reservation_id: 2 });
+    expect(svc.createFileLinkAsync).toHaveBeenCalledWith('9', { reservation_id: 2 });
 
     service().deleteFileLink('3', '9');
-    expect(svc.deleteFileLink).toHaveBeenCalledWith('3', '9');
+    expect(svc.deleteFileLinkAsync).toHaveBeenCalledWith('3', '9');
   });
 });

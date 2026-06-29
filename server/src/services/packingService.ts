@@ -1,4 +1,4 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { avatarUrl } from './authService';
 
 const BAG_COLORS = [
@@ -24,32 +24,32 @@ export { verifyTripAccess } from './tripAccess';
 
 // ── Items ──────────────────────────────────────────────────────────────────
 
-export function listItems(tripId: string | number) {
-  return db
+export async function listItems(tripId: string | number) {
+  return asyncDb
     .prepare('SELECT * FROM packing_items WHERE trip_id = ? ORDER BY sort_order ASC, created_at ASC')
     .all(tripId);
 }
 
-export function createItem(
+export async function createItem(
   tripId: string | number,
   data: { name: string; category?: string; checked?: boolean; quantity?: number },
 ) {
-  const maxOrder = db.prepare('SELECT MAX(sort_order) as max FROM packing_items WHERE trip_id = ?').get(tripId) as {
-    max: number | null;
-  };
-  const sortOrder = (maxOrder.max !== null ? maxOrder.max : -1) + 1;
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM packing_items WHERE trip_id = ?')
+    .get<{ max: number | null }>(tripId);
+  const sortOrder = (maxOrder?.max !== null && maxOrder?.max !== undefined ? maxOrder.max : -1) + 1;
   const qty = Math.max(1, Math.min(999, Number(data.quantity) || 1));
 
-  const result = db
+  const result = await asyncDb
     .prepare(
       'INSERT INTO packing_items (trip_id, name, checked, category, sort_order, quantity) VALUES (?, ?, ?, ?, ?, ?)',
     )
     .run(tripId, data.name, data.checked ? 1 : 0, data.category || 'Allgemein', sortOrder, qty);
 
-  return db.prepare('SELECT * FROM packing_items WHERE id = ?').get(result.lastInsertRowid);
+  return asyncDb.prepare('SELECT * FROM packing_items WHERE id = ?').get(result.lastInsertRowid);
 }
 
-export function updateItem(
+export async function updateItem(
   tripId: string | number,
   id: string | number,
   data: {
@@ -62,10 +62,10 @@ export function updateItem(
   },
   bodyKeys: string[],
 ) {
-  const item = db.prepare('SELECT * FROM packing_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+  const item = await asyncDb.prepare('SELECT * FROM packing_items WHERE id = ? AND trip_id = ?').get(id, tripId);
   if (!item) return null;
 
-  db.prepare(
+  await asyncDb.prepare(
     `
     UPDATE packing_items SET
       name = COALESCE(?, name),
@@ -90,14 +90,14 @@ export function updateItem(
     id,
   );
 
-  return db.prepare('SELECT * FROM packing_items WHERE id = ?').get(id);
+  return asyncDb.prepare('SELECT * FROM packing_items WHERE id = ?').get(id);
 }
 
-export function deleteItem(tripId: string | number, id: string | number) {
-  const item = db.prepare('SELECT id FROM packing_items WHERE id = ? AND trip_id = ?').get(id, tripId);
+export async function deleteItem(tripId: string | number, id: string | number) {
+  const item = await asyncDb.prepare('SELECT id FROM packing_items WHERE id = ? AND trip_id = ?').get(id, tripId);
   if (!item) return false;
 
-  db.prepare('DELETE FROM packing_items WHERE id = ?').run(id);
+  await asyncDb.prepare('DELETE FROM packing_items WHERE id = ?').run(id);
   return true;
 }
 
@@ -112,18 +112,18 @@ interface ImportItem {
   quantity?: number;
 }
 
-export function bulkImport(tripId: string | number, items: ImportItem[]) {
-  const maxOrder = db.prepare('SELECT MAX(sort_order) as max FROM packing_items WHERE trip_id = ?').get(tripId) as {
-    max: number | null;
-  };
-  let sortOrder = (maxOrder.max !== null ? maxOrder.max : -1) + 1;
+export async function bulkImport(tripId: string | number, items: ImportItem[]) {
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM packing_items WHERE trip_id = ?')
+    .get<{ max: number | null }>(tripId);
+  let sortOrder = (maxOrder?.max !== null && maxOrder?.max !== undefined ? maxOrder.max : -1) + 1;
 
-  const stmt = db.prepare(
+  const stmt = asyncDb.prepare(
     'INSERT INTO packing_items (trip_id, name, checked, category, weight_grams, bag_id, sort_order, quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
   );
   const created: any[] = [];
 
-  const insertAll = db.transaction(() => {
+  const insertAll = asyncDb.transaction(async () => {
     for (const item of items) {
       if (!item.name?.trim()) continue;
       const checked = item.checked ? 1 : 0;
@@ -133,24 +133,26 @@ export function bulkImport(tripId: string | number, items: ImportItem[]) {
       let bagId = null;
       if (item.bag?.trim()) {
         const bagName = item.bag.trim();
-        const existing = db
+        const existing = await asyncDb
           .prepare('SELECT id FROM packing_bags WHERE trip_id = ? AND name = ?')
-          .get(tripId, bagName) as { id: number } | undefined;
+          .get<{ id: number }>(tripId, bagName);
         if (existing) {
           bagId = existing.id;
         } else {
           const bagCount = (
-            db.prepare('SELECT COUNT(*) as c FROM packing_bags WHERE trip_id = ?').get(tripId) as { c: number }
-          ).c;
-          const newBag = db
+            await asyncDb.prepare('SELECT COUNT(*) as c FROM packing_bags WHERE trip_id = ?').get<{ c: number }>(
+              tripId,
+            )
+          )?.c;
+          const newBag = await asyncDb
             .prepare('INSERT INTO packing_bags (trip_id, name, color) VALUES (?, ?, ?)')
-            .run(tripId, bagName, BAG_COLORS[bagCount % BAG_COLORS.length]);
+            .run(tripId, bagName, BAG_COLORS[(bagCount ?? 0) % BAG_COLORS.length]);
           bagId = newBag.lastInsertRowid;
         }
       }
 
       const qty = Math.max(1, Math.min(999, Number(item.quantity) || 1));
-      const result = stmt.run(
+      const result = await stmt.run(
         tripId,
         item.name.trim(),
         checked,
@@ -160,19 +162,21 @@ export function bulkImport(tripId: string | number, items: ImportItem[]) {
         sortOrder++,
         qty,
       );
-      created.push(db.prepare('SELECT * FROM packing_items WHERE id = ?').get(result.lastInsertRowid));
+      created.push(await asyncDb.prepare('SELECT * FROM packing_items WHERE id = ?').get(result.lastInsertRowid));
     }
   });
 
-  insertAll();
+  await insertAll();
   return created;
 }
 
 // ── Bags ───────────────────────────────────────────────────────────────────
 
-export function listBags(tripId: string | number) {
-  const bags = db.prepare('SELECT * FROM packing_bags WHERE trip_id = ? ORDER BY sort_order, id').all(tripId) as any[];
-  const members = db
+export async function listBags(tripId: string | number) {
+  const bags = await asyncDb.prepare('SELECT * FROM packing_bags WHERE trip_id = ? ORDER BY sort_order, id').all<any>(
+    tripId,
+  );
+  const members = await asyncDb
     .prepare(
       `
     SELECT bm.bag_id, bm.user_id, u.username, u.avatar
@@ -182,7 +186,7 @@ export function listBags(tripId: string | number) {
     WHERE b.trip_id = ?
   `,
     )
-    .all(tripId) as { bag_id: number; user_id: number; username: string; avatar: string | null }[];
+    .all<{ bag_id: number; user_id: number; username: string; avatar: string | null }>(tripId);
   const membersByBag = new Map<number, typeof members>();
   for (const m of members) {
     if (!membersByBag.has(m.bag_id)) membersByBag.set(m.bag_id, []);
@@ -194,13 +198,13 @@ export function listBags(tripId: string | number) {
   }));
 }
 
-export function setBagMembers(tripId: string | number, bagId: string | number, userIds: number[]) {
-  const bag = db.prepare('SELECT * FROM packing_bags WHERE id = ? AND trip_id = ?').get(bagId, tripId);
+export async function setBagMembers(tripId: string | number, bagId: string | number, userIds: number[]) {
+  const bag = await asyncDb.prepare('SELECT * FROM packing_bags WHERE id = ? AND trip_id = ?').get(bagId, tripId);
   if (!bag) return null;
-  db.prepare('DELETE FROM packing_bag_members WHERE bag_id = ?').run(bagId);
-  const ins = db.prepare('INSERT OR IGNORE INTO packing_bag_members (bag_id, user_id) VALUES (?, ?)');
-  for (const uid of userIds) ins.run(bagId, uid);
-  const rows = db
+  await asyncDb.prepare('DELETE FROM packing_bag_members WHERE bag_id = ?').run(bagId);
+  const ins = asyncDb.prepare('INSERT OR IGNORE INTO packing_bag_members (bag_id, user_id) VALUES (?, ?)');
+  for (const uid of userIds) await ins.run(bagId, uid);
+  const rows = await asyncDb
     .prepare(
       `
     SELECT bm.user_id, u.username, u.avatar
@@ -208,30 +212,30 @@ export function setBagMembers(tripId: string | number, bagId: string | number, u
     WHERE bm.bag_id = ?
   `,
     )
-    .all(bagId) as { user_id: number; username: string; avatar: string | null }[];
+    .all<{ user_id: number; username: string; avatar: string | null }>(bagId);
   return rows.map((m) => ({ ...m, avatar: avatarUrl(m) }));
 }
 
-export function createBag(tripId: string | number, data: { name: string; color?: string }) {
-  const maxOrder = db.prepare('SELECT MAX(sort_order) as max FROM packing_bags WHERE trip_id = ?').get(tripId) as {
-    max: number | null;
-  };
-  const result = db
+export async function createBag(tripId: string | number, data: { name: string; color?: string }) {
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM packing_bags WHERE trip_id = ?')
+    .get<{ max: number | null }>(tripId);
+  const result = await asyncDb
     .prepare('INSERT INTO packing_bags (trip_id, name, color, sort_order) VALUES (?, ?, ?, ?)')
-    .run(tripId, data.name.trim(), data.color || '#6366f1', (maxOrder.max ?? -1) + 1);
-  return db.prepare('SELECT * FROM packing_bags WHERE id = ?').get(result.lastInsertRowid);
+    .run(tripId, data.name.trim(), data.color || '#6366f1', (maxOrder?.max ?? -1) + 1);
+  return asyncDb.prepare('SELECT * FROM packing_bags WHERE id = ?').get(result.lastInsertRowid);
 }
 
-export function updateBag(
+export async function updateBag(
   tripId: string | number,
   bagId: string | number,
   data: { name?: string; color?: string; weight_limit_grams?: number | null; user_id?: number | null },
   bodyKeys?: string[],
 ) {
-  const bag = db.prepare('SELECT * FROM packing_bags WHERE id = ? AND trip_id = ?').get(bagId, tripId);
+  const bag = await asyncDb.prepare('SELECT * FROM packing_bags WHERE id = ? AND trip_id = ?').get<any>(bagId, tripId);
   if (!bag) return null;
 
-  db.prepare(
+  await asyncDb.prepare(
     `UPDATE packing_bags SET
     name = COALESCE(?, name),
     color = COALESCE(?, color),
@@ -246,18 +250,18 @@ export function updateBag(
     data.user_id ?? null,
     bagId,
   );
-  return db
+  return asyncDb
     .prepare(
       'SELECT b.*, u.username as assigned_username FROM packing_bags b LEFT JOIN users u ON b.user_id = u.id WHERE b.id = ?',
     )
     .get(bagId);
 }
 
-export function deleteBag(tripId: string | number, bagId: string | number) {
-  const bag = db.prepare('SELECT * FROM packing_bags WHERE id = ? AND trip_id = ?').get(bagId, tripId);
+export async function deleteBag(tripId: string | number, bagId: string | number) {
+  const bag = await asyncDb.prepare('SELECT * FROM packing_bags WHERE id = ? AND trip_id = ?').get(bagId, tripId);
   if (!bag) return false;
 
-  db.prepare('DELETE FROM packing_bags WHERE id = ?').run(bagId);
+  await asyncDb.prepare('DELETE FROM packing_bags WHERE id = ?').run(bagId);
   return true;
 }
 
@@ -268,8 +272,8 @@ export function deleteBag(tripId: string | number, bagId: string | number) {
  * can pick a template to apply. Management (create/edit/delete) stays admin-only
  * under /api/admin/packing-templates.
  */
-export function listTemplates() {
-  return db
+export async function listTemplates() {
+  return asyncDb
     .prepare(
       `
     SELECT pt.id, pt.name,
@@ -278,13 +282,13 @@ export function listTemplates() {
     ORDER BY pt.created_at DESC
   `,
     )
-    .all() as { id: number; name: string; item_count: number }[];
+    .all<{ id: number; name: string; item_count: number }>();
 }
 
 // ── Apply Template ─────────────────────────────────────────────────────────
 
-export function applyTemplate(tripId: string | number, templateId: string | number) {
-  const templateItems = db
+export async function applyTemplate(tripId: string | number, templateId: string | number) {
+  const templateItems = await asyncDb
     .prepare(
       `
     SELECT ti.name, tc.name as category
@@ -294,22 +298,22 @@ export function applyTemplate(tripId: string | number, templateId: string | numb
     ORDER BY tc.sort_order, ti.sort_order
   `,
     )
-    .all(templateId) as { name: string; category: string }[];
+    .all<{ name: string; category: string }>(templateId);
 
   if (templateItems.length === 0) return null;
 
-  const maxOrder = db.prepare('SELECT MAX(sort_order) as max FROM packing_items WHERE trip_id = ?').get(tripId) as {
-    max: number | null;
-  };
-  let sortOrder = (maxOrder.max !== null ? maxOrder.max : -1) + 1;
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(sort_order) as max FROM packing_items WHERE trip_id = ?')
+    .get<{ max: number | null }>(tripId);
+  let sortOrder = (maxOrder?.max !== null && maxOrder?.max !== undefined ? maxOrder.max : -1) + 1;
 
-  const insert = db.prepare(
+  const insert = asyncDb.prepare(
     'INSERT INTO packing_items (trip_id, name, checked, category, sort_order) VALUES (?, ?, 0, ?, ?)',
   );
   const added: any[] = [];
   for (const ti of templateItems) {
-    const result = insert.run(tripId, ti.name, ti.category, sortOrder++);
-    const item = db.prepare('SELECT * FROM packing_items WHERE id = ?').get(result.lastInsertRowid);
+    const result = await insert.run(tripId, ti.name, ti.category, sortOrder++);
+    const item = await asyncDb.prepare('SELECT * FROM packing_items WHERE id = ?').get(result.lastInsertRowid);
     added.push(item);
   }
 
@@ -318,31 +322,33 @@ export function applyTemplate(tripId: string | number, templateId: string | numb
 
 // ── Save as Template ──────────────────────────────────────────────────────
 
-export function saveAsTemplate(tripId: string | number, userId: number, templateName: string) {
-  const items = db
+export async function saveAsTemplate(tripId: string | number, userId: number, templateName: string) {
+  const items = await asyncDb
     .prepare('SELECT name, category FROM packing_items WHERE trip_id = ? ORDER BY sort_order ASC')
-    .all(tripId) as { name: string; category: string }[];
+    .all<{ name: string; category: string }>(tripId);
 
   if (items.length === 0) return null;
 
-  const result = db.prepare('INSERT INTO packing_templates (name, created_by) VALUES (?, ?)').run(templateName, userId);
-  const templateId = result.lastInsertRowid;
+  const result = await asyncDb
+    .prepare('INSERT INTO packing_templates (name, created_by) VALUES (?, ?)')
+    .run(templateName, userId);
+  const templateId = Number(result.lastInsertRowid);
 
   const categories = [...new Set(items.map((i) => i.category || 'Other'))];
-  const catIdMap = new Map<string, number | bigint>();
+  const catIdMap = new Map<string, number>();
 
   for (let i = 0; i < categories.length; i++) {
-    const catResult = db
+    const catResult = await asyncDb
       .prepare('INSERT INTO packing_template_categories (template_id, name, sort_order) VALUES (?, ?, ?)')
       .run(templateId, categories[i], i);
-    catIdMap.set(categories[i], catResult.lastInsertRowid);
+    catIdMap.set(categories[i], Number(catResult.lastInsertRowid));
   }
 
   const itemsByCategory = new Map<string, number>();
   for (const item of items) {
     const catId = catIdMap.get(item.category || 'Other')!;
     const order = itemsByCategory.get(item.category || 'Other') || 0;
-    db.prepare('INSERT INTO packing_template_items (category_id, name, sort_order) VALUES (?, ?, ?)').run(
+    await asyncDb.prepare('INSERT INTO packing_template_items (category_id, name, sort_order) VALUES (?, ?, ?)').run(
       catId,
       item.name,
       order,
@@ -355,8 +361,8 @@ export function saveAsTemplate(tripId: string | number, userId: number, template
 
 // ── Category Assignees ─────────────────────────────────────────────────────
 
-export function getCategoryAssignees(tripId: string | number) {
-  const rows = db
+export async function getCategoryAssignees(tripId: string | number) {
+  const rows = await asyncDb
     .prepare(
       `
     SELECT pca.category_name, pca.user_id, u.username, u.avatar
@@ -377,20 +383,23 @@ export function getCategoryAssignees(tripId: string | number) {
   return assignees;
 }
 
-export function updateCategoryAssignees(tripId: string | number, categoryName: string, userIds: number[] | undefined) {
-  db.prepare('DELETE FROM packing_category_assignees WHERE trip_id = ? AND category_name = ?').run(
-    tripId,
-    categoryName,
-  );
+export async function updateCategoryAssignees(
+  tripId: string | number,
+  categoryName: string,
+  userIds: number[] | undefined,
+) {
+  await asyncDb
+    .prepare('DELETE FROM packing_category_assignees WHERE trip_id = ? AND category_name = ?')
+    .run(tripId, categoryName);
 
   if (Array.isArray(userIds) && userIds.length > 0) {
-    const insert = db.prepare(
+    const insert = asyncDb.prepare(
       'INSERT OR IGNORE INTO packing_category_assignees (trip_id, category_name, user_id) VALUES (?, ?, ?)',
     );
-    for (const uid of userIds) insert.run(tripId, categoryName, uid);
+    for (const uid of userIds) await insert.run(tripId, categoryName, uid);
   }
 
-  const updated = db
+  const updated = await asyncDb
     .prepare(
       `
     SELECT pca.user_id, u.username, u.avatar
@@ -399,18 +408,18 @@ export function updateCategoryAssignees(tripId: string | number, categoryName: s
     WHERE pca.trip_id = ? AND pca.category_name = ?
   `,
     )
-    .all(tripId, categoryName) as { user_id: number; username: string; avatar: string | null }[];
+    .all<{ user_id: number; username: string; avatar: string | null }>(tripId, categoryName);
   return updated.map((m) => ({ ...m, avatar: avatarUrl(m) }));
 }
 
 // ── Reorder ────────────────────────────────────────────────────────────────
 
-export function reorderItems(tripId: string | number, orderedIds: number[]) {
-  const update = db.prepare('UPDATE packing_items SET sort_order = ? WHERE id = ? AND trip_id = ?');
-  const updateMany = db.transaction((ids: number[]) => {
-    ids.forEach((id, index) => {
-      update.run(index, id, tripId);
-    });
+export async function reorderItems(tripId: string | number, orderedIds: number[]) {
+  const update = asyncDb.prepare('UPDATE packing_items SET sort_order = ? WHERE id = ? AND trip_id = ?');
+  const updateMany = asyncDb.transaction(async (ids: number[]) => {
+    for (const [index, id] of ids.entries()) {
+      await update.run(index, id, tripId);
+    }
   });
-  updateMany(orderedIds);
+  await updateMany(orderedIds);
 }

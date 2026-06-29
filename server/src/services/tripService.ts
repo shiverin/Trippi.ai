@@ -1,8 +1,9 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db, isOwner } from '../db/database';
 import { Trip, User } from '../types';
 import { logWarn } from './auditLog';
 import { listBudgetItems } from './budgetService';
-import { listNotes as listCollabNotes } from './collabService';
+import { listNotesAsync as listCollabNotes } from './collabService';
 import { listDays, listAccommodations } from './dayService';
 import { listItems as listPackingItems } from './packingService';
 import { listReservations, loadEndpointsByTrip, resyncReservationDays } from './reservationService';
@@ -170,6 +171,135 @@ export function generateDays(
   renumber(remaining);
 }
 
+export async function generateDaysAsync(
+  tripId: number | bigint | string,
+  startDate: string | null,
+  endDate: string | null,
+  maxDays?: number,
+  dayCount?: number,
+): Promise<void> {
+  const existing = await asyncDb.prepare('SELECT id, day_number, date FROM days WHERE trip_id = ?').all<{
+    id: number;
+    day_number: number;
+    date: string | null;
+  }>(tripId);
+  const setDayNumber = asyncDb.prepare('UPDATE days SET day_number = ? WHERE id = ?');
+
+  async function renumber(days: { id: number }[]) {
+    for (let i = 0; i < days.length; i++) await setDayNumber.run(-(i + 1), days[i].id);
+    for (let i = 0; i < days.length; i++) await setDayNumber.run(i + 1, days[i].id);
+  }
+
+  if (!startDate || !endDate) {
+    const withDates = existing.filter((d) => d.date);
+    if (withDates.length > 0) {
+      const nullify = asyncDb.prepare('UPDATE days SET date = NULL WHERE id = ?');
+      for (const day of withDates) await nullify.run(day.id);
+    }
+
+    const allDays = await asyncDb.prepare('SELECT id FROM days WHERE trip_id = ? ORDER BY day_number').all<{
+      id: number;
+    }>(tripId);
+    const targetCount = Math.min(Math.max(dayCount ?? (allDays.length || 7), 1), MAX_TRIP_DAYS);
+    const needed = targetCount - allDays.length;
+    if (needed > 0) {
+      const insert = asyncDb.prepare('INSERT INTO days (trip_id, day_number, date) VALUES (?, ?, NULL)');
+      for (let i = 0; i < needed; i++) await insert.run(tripId, allDays.length + i + 1);
+    } else if (needed < 0) {
+      const candidates = await asyncDb
+        .prepare(
+          `SELECT d.id FROM days d
+         WHERE d.trip_id = ?
+           AND NOT EXISTS (SELECT 1 FROM day_assignments da WHERE da.day_id = d.id)
+           AND NOT EXISTS (SELECT 1 FROM day_notes dn WHERE dn.day_id = d.id)
+           AND NOT EXISTS (SELECT 1 FROM day_accommodations dac WHERE dac.start_day_id = d.id OR dac.end_day_id = d.id)
+         ORDER BY d.day_number DESC
+         LIMIT ?`,
+        )
+        .all<{ id: number }>(tripId, -needed);
+      const del = asyncDb.prepare('DELETE FROM days WHERE id = ?');
+      for (const day of candidates) await del.run(day.id);
+    }
+
+    const remaining = await asyncDb.prepare('SELECT id FROM days WHERE trip_id = ? ORDER BY day_number').all<{
+      id: number;
+    }>(tripId);
+    await renumber(remaining);
+    return;
+  }
+
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const [ey, em, ed] = endDate.split('-').map(Number);
+  const startMs = Date.UTC(sy, sm - 1, sd);
+  const endMs = Date.UTC(ey, em - 1, ed);
+  const numDays = Math.min(Math.floor((endMs - startMs) / MS_PER_DAY) + 1, maxDays ?? MAX_TRIP_DAYS);
+
+  const targetDates: string[] = [];
+  for (let i = 0; i < numDays; i++) {
+    const d = new Date(startMs + i * MS_PER_DAY);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    targetDates.push(`${yyyy}-${mm}-${dd}`);
+  }
+
+  const dated = existing.filter((d) => d.date).sort((a, b) => a.day_number - b.day_number);
+  const dateless = existing.filter((d) => !d.date).sort((a, b) => a.day_number - b.day_number);
+
+  const allExisting = [...dated, ...dateless];
+  for (let i = 0; i < allExisting.length; i++) await setDayNumber.run(-(i + 1), allExisting[i].id);
+
+  const assignDay = asyncDb.prepare('UPDATE days SET date = ?, day_number = ? WHERE id = ?');
+  const insert = asyncDb.prepare('INSERT INTO days (trip_id, day_number, date) VALUES (?, ?, ?)');
+
+  let datelessIdx = 0;
+  for (let i = 0; i < targetDates.length; i++) {
+    const date = targetDates[i];
+    if (i < dated.length) {
+      await assignDay.run(date, i + 1, dated[i].id);
+    } else if (datelessIdx < dateless.length) {
+      await assignDay.run(date, i + 1, dateless[datelessIdx].id);
+      datelessIdx++;
+    } else {
+      await insert.run(tripId, i + 1, date);
+    }
+  }
+
+  const del = asyncDb.prepare('DELETE FROM days WHERE id = ?');
+  for (let i = targetDates.length; i < dated.length; i++) await del.run(dated[i].id);
+
+  const hasContent = async (dayId: number): Promise<boolean> => {
+    const assignments = await asyncDb
+      .prepare('SELECT COUNT(*) AS count FROM day_assignments WHERE day_id = ?')
+      .get<{ count: number }>(dayId);
+    if (Number(assignments?.count ?? 0) > 0) return true;
+    const notes = await asyncDb
+      .prepare('SELECT COUNT(*) AS count FROM day_notes WHERE day_id = ?')
+      .get<{ count: number }>(dayId);
+    if (Number(notes?.count ?? 0) > 0) return true;
+    const accommodations = await asyncDb
+      .prepare('SELECT COUNT(*) AS count FROM day_accommodations WHERE start_day_id = ? OR end_day_id = ?')
+      .get<{ count: number }>(dayId, dayId);
+    return Number(accommodations?.count ?? 0) > 0;
+  };
+
+  const maxAssigned = Math.max(targetDates.length, dated.length);
+  let keptDateless = 0;
+  for (let i = datelessIdx; i < dateless.length; i++) {
+    if (await hasContent(dateless[i].id)) {
+      await setDayNumber.run(maxAssigned + keptDateless + 1, dateless[i].id);
+      keptDateless++;
+    } else {
+      await del.run(dateless[i].id);
+    }
+  }
+
+  const remaining = await asyncDb.prepare('SELECT id FROM days WHERE trip_id = ? ORDER BY day_number').all<{
+    id: number;
+  }>(tripId);
+  await renumber(remaining);
+}
+
 // ── Trip CRUD ─────────────────────────────────────────────────────────────
 
 export function listTrips(userId: number, archived: number | null) {
@@ -320,8 +450,9 @@ export function updateTrip(
   `,
   ).run(newTitle, newDesc, newStart || null, newEnd || null, newCurrency, newArchived, newCover, newReminder, tripId);
 
-  if (trip.start_date && trip.end_date && newStart && newStart !== trip.start_date)
-    shiftOwnerEntriesForTripWindow(trip.user_id, trip.start_date, trip.end_date, newStart);
+  if (trip.start_date && trip.end_date && newStart && newStart !== trip.start_date) {
+    void shiftOwnerEntriesForTripWindow(trip.user_id, trip.start_date, trip.end_date, newStart).catch(() => {});
+  }
 
   const dayCount = data.day_count ? Math.min(Math.max(Number(data.day_count) || 7, 1), MAX_TRIP_DAYS) : undefined;
   if (newStart !== trip.start_date || newEnd !== trip.end_date || dayCount) {
@@ -511,11 +642,11 @@ export function removeMember(tripId: string | number, targetUserId: number) {
 
 // ── ICS export ────────────────────────────────────────────────────────────
 
-export function exportICS(tripId: string | number): { ics: string; filename: string } {
-  const trip = db.prepare('SELECT * FROM trips WHERE id = ?').get(tripId) as any;
+export async function exportICS(tripId: string | number): Promise<{ ics: string; filename: string }> {
+  const trip = await asyncDb.prepare('SELECT * FROM trips WHERE id = ?').get<any>(tripId);
   if (!trip) throw new NotFoundError('Trip not found');
 
-  const reservations = db.prepare('SELECT * FROM reservations WHERE trip_id = ?').all(tripId) as any[];
+  const reservations = await asyncDb.prepare('SELECT * FROM reservations WHERE trip_id = ?').all<any>(tripId);
 
   const esc = (s: string) =>
     s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n').replace(/\r/g, '');
@@ -554,11 +685,11 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
   }
 
   // Days with assignments and notes
-  const days = db.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number ASC').all(tripId) as any[];
+  const days = await asyncDb.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number ASC').all<any>(tripId);
   for (const day of days) {
     if (!day.date) continue;
 
-    const assignments = db
+    const assignments = await asyncDb
       .prepare(
         `
       SELECT da.*, p.name as place_name, p.address as place_address,
@@ -570,11 +701,11 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
       ORDER BY da.order_index ASC, da.created_at ASC
     `,
       )
-      .all(day.id) as any[];
+      .all<any>(day.id);
 
-    const notes = db
+    const notes = await asyncDb
       .prepare('SELECT * FROM day_notes WHERE day_id = ? ORDER BY sort_order ASC, created_at ASC')
-      .all(day.id) as any[];
+      .all<any>(day.id);
 
     const timed = assignments.filter((a) => a.effective_time);
     const untimed = assignments.filter((a) => !a.effective_time);
@@ -635,7 +766,7 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
 
   // Transport/flight reservations carry no top-level reservation_time; their
   // times live per endpoint (local_date + local_time) in reservation_endpoints.
-  const endpointsMap = loadEndpointsByTrip(tripId);
+  const endpointsMap = await loadEndpointsByTrip(tripId);
   const isDate = (s: string | null | undefined) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
   const isTime = (s: string | null | undefined) => !!s && /^\d{2}:\d{2}/.test(s);
 
@@ -984,23 +1115,57 @@ const DEFAULT_TRIP_SUMMARY_OPTIONS: Required<TripSummaryOptions> = {
   includeCollabNotes: true,
 };
 
-export function getTripSummary(tripId: number, options: TripSummaryOptions = {}) {
+export async function getTripSummary(tripId: number, options: TripSummaryOptions = {}) {
   const summaryOptions = { ...DEFAULT_TRIP_SUMMARY_OPTIONS, ...options };
-  const trip = db.prepare('SELECT * FROM trips WHERE id = ?').get(tripId) as Record<string, unknown> | undefined;
+  const trip = await asyncDb.prepare('SELECT * FROM trips WHERE id = ?').get<Record<string, unknown>>(tripId);
   if (!trip) return null;
 
-  const ownerRow = getTripOwner(tripId);
+  const ownerRow = await asyncDb.prepare('SELECT user_id FROM trips WHERE id = ?').get<{ user_id: number }>(tripId);
   if (!ownerRow) return null;
-  const { owner, members } = listMembers(tripId, ownerRow.user_id);
+  const members = await asyncDb
+    .prepare(
+      `
+    SELECT u.id, u.username, u.email, u.avatar,
+      CASE WHEN u.id = ? THEN 'owner' ELSE 'member' END as role,
+      m.added_at,
+      ib.username as invited_by_username
+    FROM trip_members m
+    JOIN users u ON u.id = m.user_id
+    LEFT JOIN users ib ON ib.id = m.invited_by
+    WHERE m.trip_id = ?
+    ORDER BY m.added_at ASC
+  `,
+    )
+    .all<{
+      id: number;
+      username: string;
+      email: string;
+      avatar: string | null;
+      role: string;
+      added_at: string;
+      invited_by_username: string | null;
+    }>(ownerRow.user_id, tripId);
 
-  const { days: rawDays } = listDays(tripId);
+  const owner = await asyncDb
+    .prepare('SELECT id, username, email, avatar FROM users WHERE id = ?')
+    .get<Pick<User, 'id' | 'username' | 'email' | 'avatar'>>(ownerRow.user_id);
+
+  if (!owner) return null;
+  const hydratedOwner = {
+    ...owner,
+    role: 'owner',
+    avatar_url: owner.avatar ? `/uploads/avatars/${owner.avatar}` : null,
+  };
+  const hydratedMembers = members.map((m) => ({ ...m, avatar_url: m.avatar ? `/uploads/avatars/${m.avatar}` : null }));
+
+  const { days: rawDays } = await listDays(tripId);
   const days = rawDays.map(({ notes_items, ...day }) => ({ ...day, notes: notes_items }));
 
-  const accommodations = listAccommodations(tripId);
+  const accommodations = await listAccommodations(tripId);
 
   const budget = summaryOptions.includeBudget
-    ? (() => {
-        const budgetItems = listBudgetItems(tripId);
+    ? await (async () => {
+        const budgetItems = await listBudgetItems(tripId);
         return {
           items: budgetItems,
           item_count: budgetItems.length,
@@ -1011,8 +1176,8 @@ export function getTripSummary(tripId: number, options: TripSummaryOptions = {})
     : undefined;
 
   const packing = summaryOptions.includePacking
-    ? (() => {
-        const packingItems = listPackingItems(tripId);
+    ? await (async () => {
+        const packingItems = await listPackingItems(tripId);
         return {
           items: packingItems,
           total: packingItems.length,
@@ -1021,12 +1186,12 @@ export function getTripSummary(tripId: number, options: TripSummaryOptions = {})
       })()
     : undefined;
 
-  const reservations = summaryOptions.includeReservations ? listReservations(tripId) : undefined;
-  const collab_notes = summaryOptions.includeCollabNotes ? listCollabNotes(tripId) : undefined;
+  const reservations = summaryOptions.includeReservations ? await listReservations(tripId) : undefined;
+  const collab_notes = summaryOptions.includeCollabNotes ? await listCollabNotes(tripId) : undefined;
 
   return {
     trip,
-    members: { owner, collaborators: members },
+    members: { owner: hydratedOwner, collaborators: hydratedMembers },
     days,
     accommodations,
     budget,

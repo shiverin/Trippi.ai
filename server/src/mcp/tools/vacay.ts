@@ -1,6 +1,6 @@
 import { ADDON_IDS } from '../../addons';
-import { isAddonEnabled } from '../../services/adminService';
-import { isDemoUser, getCurrentUser } from '../../services/authService';
+import { isAddonEnabledAsync } from '../../services/adminService';
+import { isDemoUser, getCurrentUserAsync } from '../../services/authService';
 import {
   getOwnPlan,
   getActivePlan,
@@ -41,11 +41,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export function registerVacayTools(server: McpServer, userId: number, scopes: string[] | null): void {
+export async function registerVacayTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
   const R = canRead(scopes, 'vacay');
   const W = canWrite(scopes, 'vacay');
 
-  if (isAddonEnabled(ADDON_IDS.VACAY)) {
+  if (await isAddonEnabledAsync(ADDON_IDS.VACAY)) {
     if (R)
       server.registerTool(
         'get_vacay_plan',
@@ -55,7 +55,7 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
           annotations: TOOL_ANNOTATIONS_READONLY,
         },
         async () => {
-          const plan = getPlanData(userId);
+          const plan = await getPlanData(userId);
           return ok({ plan });
         },
       );
@@ -76,7 +76,7 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ block_weekends, holidays_enabled, holidays_region, company_holidays_enabled, carry_over_enabled }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
+          const planId = await getActivePlanId(userId);
           // updatePlan already returns the fully-hydrated { plan }; surface it so the
           // AI consumer sees the updated plan, matching get_vacay_plan.
           const result = await updatePlan(
@@ -100,8 +100,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ color }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          setUserColor(userId, planId, color, undefined);
+          const planId = await getActivePlanId(userId);
+          await setUserColor(userId, planId, color, undefined);
           // Echo the persisted color (mirrors the service default) so the AI consumer sees what was set.
           return ok({ success: true, color: color || '#6366f1' });
         },
@@ -116,8 +116,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
           annotations: TOOL_ANNOTATIONS_READONLY,
         },
         async () => {
-          const planId = getActivePlanId(userId);
-          const users = getAvailableUsers(userId, planId);
+          const planId = await getActivePlanId(userId);
+          const users = await getAvailableUsers(userId, planId);
           return ok({ users });
         },
       );
@@ -134,10 +134,10 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ targetUserId }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          const me = getCurrentUser(userId);
+          const planId = await getActivePlanId(userId);
+          const me = await getCurrentUserAsync(userId);
           if (!me) return { content: [{ type: 'text' as const, text: 'User not found.' }], isError: true };
-          const result = sendVacayInvite(planId, userId, me.username, me.email, targetUserId);
+          const result = await sendVacayInvite(planId, userId, me.username, me.email, targetUserId);
           if (result.error) return { content: [{ type: 'text' as const, text: result.error }], isError: true };
           return ok({ success: true });
         },
@@ -155,7 +155,7 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ planId }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const result = acceptInvite(userId, planId, undefined);
+          const result = await acceptInvite(userId, planId, undefined);
           if (result.error) return { content: [{ type: 'text' as const, text: result.error }], isError: true };
           return ok({ success: true });
         },
@@ -172,7 +172,7 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
           annotations: TOOL_ANNOTATIONS_WRITE,
         },
         async ({ planId }) => {
-          declineInvite(userId, planId, undefined);
+          await declineInvite(userId, planId, undefined);
           return ok({ success: true });
         },
       );
@@ -189,8 +189,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ targetUserId }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          cancelInvite(planId, targetUserId);
+          const planId = await getActivePlanId(userId);
+          await cancelInvite(planId, targetUserId);
           return ok({ success: true });
         },
       );
@@ -206,7 +206,7 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async () => {
           if (isDemoUser(userId)) return demoDenied();
-          dissolvePlan(userId, undefined);
+          await dissolvePlan(userId, undefined);
           return ok({ success: true });
         },
       );
@@ -220,8 +220,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
           annotations: TOOL_ANNOTATIONS_READONLY,
         },
         async () => {
-          const planId = getActivePlanId(userId);
-          const years = listYears(planId);
+          const planId = await getActivePlanId(userId);
+          const years = await listYears(planId);
           return ok({ years });
         },
       );
@@ -238,8 +238,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ year }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          const years = addYear(planId, year, undefined);
+          const planId = await getActivePlanId(userId);
+          const years = await addYear(planId, year, undefined);
           return ok({ years });
         },
       );
@@ -256,8 +256,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ year }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          const years = deleteYear(planId, year, undefined);
+          const planId = await getActivePlanId(userId);
+          const years = await deleteYear(planId, year, undefined);
           return ok({ years });
         },
       );
@@ -273,8 +273,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
           annotations: TOOL_ANNOTATIONS_READONLY,
         },
         async ({ year }) => {
-          const planId = getActivePlanId(userId);
-          const entries = getVacayEntries(planId, String(year));
+          const planId = await getActivePlanId(userId);
+          const entries = await getVacayEntries(planId, String(year));
           return ok({ entries });
         },
       );
@@ -291,8 +291,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ date }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          const result = toggleEntry(userId, planId, date, undefined);
+          const planId = await getActivePlanId(userId);
+          const result = await toggleEntry(userId, planId, date, undefined);
           return ok(result);
         },
       );
@@ -310,8 +310,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ date, note }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          const result = toggleCompanyHoliday(planId, date, note, undefined);
+          const planId = await getActivePlanId(userId);
+          const result = await toggleCompanyHoliday(planId, date, note, undefined);
           return ok(result);
         },
       );
@@ -327,8 +327,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
           annotations: TOOL_ANNOTATIONS_READONLY,
         },
         async ({ year }) => {
-          const planId = getActivePlanId(userId);
-          const stats = getVacayStats(planId, year);
+          const planId = await getActivePlanId(userId);
+          const stats = await getVacayStats(planId, year);
           return ok({ stats });
         },
       );
@@ -346,8 +346,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ year, vacationDays }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          updateVacayStats(userId, planId, year, vacationDays, undefined);
+          const planId = await getActivePlanId(userId);
+          await updateVacayStats(userId, planId, year, vacationDays, undefined);
           return ok({ success: true });
         },
       );
@@ -367,8 +367,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ region, label, color, sortOrder }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          const calendar = addHolidayCalendar(planId, region, label ?? null, color, sortOrder, undefined);
+          const planId = await getActivePlanId(userId);
+          const calendar = await addHolidayCalendar(planId, region, label ?? null, color, sortOrder, undefined);
           return ok({ calendar });
         },
       );
@@ -387,8 +387,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ calendarId, label, color }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          const cal = updateHolidayCalendar(calendarId, planId, { label, color }, undefined);
+          const planId = await getActivePlanId(userId);
+          const cal = await updateHolidayCalendar(calendarId, planId, { label, color }, undefined);
           if (!cal) return { content: [{ type: 'text' as const, text: 'Holiday calendar not found.' }], isError: true };
           return ok({ calendar: cal });
         },
@@ -406,8 +406,8 @@ export function registerVacayTools(server: McpServer, userId: number, scopes: st
         },
         async ({ calendarId }) => {
           if (isDemoUser(userId)) return demoDenied();
-          const planId = getActivePlanId(userId);
-          deleteHolidayCalendar(calendarId, planId, undefined);
+          const planId = await getActivePlanId(userId);
+          await deleteHolidayCalendar(calendarId, planId, undefined);
           return ok({ success: true });
         },
       );

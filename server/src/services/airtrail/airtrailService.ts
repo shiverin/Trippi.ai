@@ -1,7 +1,8 @@
+import { asyncDb } from '../../db/asyncDatabase';
 import { db } from '../../db/database';
 import { checkSsrf } from '../../utils/ssrfGuard';
 import { maybe_encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
-import { writeAudit } from '../auditLog';
+import { writeAuditAsync } from '../auditLog';
 import { AirtrailAuthError, AirtrailCreds, AirtrailRequestError, listFlights } from './airtrailClient';
 import { normalizeFlight } from './airtrailMapper';
 import type { AirtrailFlight } from '@trippi/shared';
@@ -23,11 +24,26 @@ function readRow(userId: number): UserConnRow | undefined {
     .get(userId) as UserConnRow | undefined;
 }
 
+async function readRowAsync(userId: number): Promise<UserConnRow | undefined> {
+  return asyncDb
+    .prepare(
+      'SELECT airtrail_url, airtrail_api_key, airtrail_allow_insecure_tls, airtrail_write_enabled FROM users WHERE id = ?',
+    )
+    .get<UserConnRow>(userId);
+}
+
 /** Has this user opted in to trippi.ai writing their flight edits back to AirTrail? (#1240) */
 export function isAirtrailWriteEnabled(userId: number): boolean {
   const row = db.prepare('SELECT airtrail_write_enabled FROM users WHERE id = ?').get(userId) as
     | { airtrail_write_enabled?: number | null }
     | undefined;
+  return !!row?.airtrail_write_enabled;
+}
+
+export async function isAirtrailWriteEnabledAsync(userId: number): Promise<boolean> {
+  const row = await asyncDb
+    .prepare('SELECT airtrail_write_enabled FROM users WHERE id = ?')
+    .get<{ airtrail_write_enabled?: number | null }>(userId);
   return !!row?.airtrail_write_enabled;
 }
 
@@ -44,9 +60,32 @@ export function getAirtrailCredentials(userId: number): AirtrailCreds | null {
   };
 }
 
+export async function getAirtrailCredentialsAsync(userId: number): Promise<AirtrailCreds | null> {
+  const row = await readRowAsync(userId);
+  if (!row?.airtrail_url || !row?.airtrail_api_key) return null;
+  const apiKey = decrypt_api_key(row.airtrail_api_key);
+  if (!apiKey) return null;
+  return {
+    baseUrl: row.airtrail_url,
+    apiKey,
+    allowInsecureTls: !!row.airtrail_allow_insecure_tls,
+  };
+}
+
 /** Settings as shown in the UI — the key is never echoed, only masked. */
 export function getConnectionSettings(userId: number) {
   const row = readRow(userId);
+  return {
+    url: row?.airtrail_url || '',
+    apiKeyMasked: row?.airtrail_api_key ? KEY_MASK : '',
+    allowInsecureTls: !!row?.airtrail_allow_insecure_tls,
+    writeEnabled: !!row?.airtrail_write_enabled,
+    connected: !!(row?.airtrail_url && row?.airtrail_api_key),
+  };
+}
+
+export async function getConnectionSettingsAsync(userId: number) {
+  const row = await readRowAsync(userId);
   return {
     url: row?.airtrail_url || '',
     apiKeyMasked: row?.airtrail_api_key ? KEY_MASK : '',
@@ -77,7 +116,7 @@ export async function saveSettings(
       return { success: false, error: ssrf.error ?? 'Invalid AirTrail URL' };
     }
     if (ssrf.isPrivate) {
-      writeAudit({
+      await writeAuditAsync({
         userId,
         action: 'airtrail.private_ip_configured',
         ip: clientIp,
@@ -93,16 +132,20 @@ export async function saveSettings(
   const newKey = provided && provided !== KEY_MASK ? maybe_encrypt_api_key(provided) : undefined;
 
   if (newKey !== undefined) {
-    db.prepare(
-      'UPDATE users SET airtrail_url = ?, airtrail_api_key = ?, airtrail_allow_insecure_tls = ?, airtrail_write_enabled = ? WHERE id = ?',
-    ).run(trimmedUrl || null, newKey, allowInsecureTls ? 1 : 0, writeEnabled ? 1 : 0, userId);
+    await asyncDb
+      .prepare(
+        'UPDATE users SET airtrail_url = ?, airtrail_api_key = ?, airtrail_allow_insecure_tls = ?, airtrail_write_enabled = ? WHERE id = ?',
+      )
+      .run(trimmedUrl || null, newKey, allowInsecureTls ? 1 : 0, writeEnabled ? 1 : 0, userId);
   } else {
-    db.prepare(
-      'UPDATE users SET airtrail_url = ?, airtrail_allow_insecure_tls = ?, airtrail_write_enabled = ? WHERE id = ?',
-    ).run(trimmedUrl || null, allowInsecureTls ? 1 : 0, writeEnabled ? 1 : 0, userId);
+    await asyncDb
+      .prepare(
+        'UPDATE users SET airtrail_url = ?, airtrail_allow_insecure_tls = ?, airtrail_write_enabled = ? WHERE id = ?',
+      )
+      .run(trimmedUrl || null, allowInsecureTls ? 1 : 0, writeEnabled ? 1 : 0, userId);
     // Clearing the URL with no key left makes the connection meaningless — drop the key too.
     if (!trimmedUrl) {
-      db.prepare('UPDATE users SET airtrail_api_key = NULL WHERE id = ?').run(userId);
+      await asyncDb.prepare('UPDATE users SET airtrail_api_key = NULL WHERE id = ?').run(userId);
     }
   }
 
@@ -123,7 +166,7 @@ async function probe(creds: AirtrailCreds): Promise<{ connected: boolean; flight
 export async function getConnectionStatus(
   userId: number,
 ): Promise<{ connected: boolean; flightCount?: number; error?: string }> {
-  const creds = getAirtrailCredentials(userId);
+  const creds = await getAirtrailCredentialsAsync(userId);
   if (!creds) return { connected: false, error: 'Not configured' };
   return probe(creds);
 }
@@ -141,7 +184,7 @@ export async function testConnection(
   const trimmedUrl = (url || '').trim();
   const provided = (apiKey || '').trim();
 
-  const stored = getAirtrailCredentials(userId);
+  const stored = await getAirtrailCredentialsAsync(userId);
   const effectiveUrl = trimmedUrl || stored?.baseUrl;
   const effectiveKey = provided && provided !== KEY_MASK ? provided : stored?.apiKey;
 
@@ -159,7 +202,7 @@ export async function testConnection(
 
 /** The user's AirTrail flights, normalized for the import picker. */
 export async function getFlightsForPicker(userId: number): Promise<AirtrailFlight[]> {
-  const creds = getAirtrailCredentials(userId);
+  const creds = await getAirtrailCredentialsAsync(userId);
   if (!creds) throw new AirtrailRequestError('AirTrail is not connected', 400);
   const raw = await listFlights(creds);
   return raw.map(normalizeFlight);

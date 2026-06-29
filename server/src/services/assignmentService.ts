@@ -1,9 +1,13 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { AssignmentRow, DayAssignment } from '../types';
-import { loadTagsByPlaceIds, loadParticipantsByAssignmentIds, formatAssignmentWithPlace } from './queryHelpers';
+import {
+  loadTagsByPlaceIdsAsync,
+  loadParticipantsByAssignmentIdsAsync,
+  formatAssignmentWithPlace,
+} from './queryHelpers';
 
-export function getAssignmentWithPlace(assignmentId: number | bigint) {
-  const a = db
+export async function getAssignmentWithPlace(assignmentId: number | bigint | string) {
+  const a = await asyncDb
     .prepare(
       `
     SELECT da.*, p.id as place_id, p.name as place_name, p.description as place_description,
@@ -19,11 +23,11 @@ export function getAssignmentWithPlace(assignmentId: number | bigint) {
     WHERE da.id = ?
   `,
     )
-    .get(assignmentId) as AssignmentRow | undefined;
+    .get<AssignmentRow>(assignmentId);
 
   if (!a) return null;
 
-  const tags = db
+  const tags = await asyncDb
     .prepare(
       `
     SELECT t.* FROM tags t
@@ -33,7 +37,7 @@ export function getAssignmentWithPlace(assignmentId: number | bigint) {
     )
     .all(a.place_id);
 
-  const participants = db
+  const participants = await asyncDb
     .prepare(
       `
     SELECT ap.user_id, u.username, u.avatar
@@ -87,8 +91,8 @@ export function getAssignmentWithPlace(assignmentId: number | bigint) {
   };
 }
 
-export function listDayAssignments(dayId: string | number) {
-  const assignments = db
+export async function listDayAssignments(dayId: string | number) {
+  const assignments = await asyncDb
     .prepare(
       `
     SELECT da.*, p.id as place_id, p.name as place_name, p.description as place_description,
@@ -105,28 +109,28 @@ export function listDayAssignments(dayId: string | number) {
     ORDER BY da.order_index ASC, da.created_at ASC
   `,
     )
-    .all(dayId) as AssignmentRow[];
+    .all<AssignmentRow>(dayId);
 
   const placeIds = [...new Set(assignments.map((a) => a.place_id))];
-  const tagsByPlaceId = loadTagsByPlaceIds(placeIds, { compact: true });
+  const tagsByPlaceId = await loadTagsByPlaceIdsAsync(placeIds, { compact: true });
 
   const assignmentIds = assignments.map((a) => a.id);
-  const participantsByAssignment = loadParticipantsByAssignmentIds(assignmentIds);
+  const participantsByAssignment = await loadParticipantsByAssignmentIdsAsync(assignmentIds);
 
   return assignments.map((a) => {
     return formatAssignmentWithPlace(a, tagsByPlaceId[a.place_id] || [], participantsByAssignment[a.id] || []);
   });
 }
 
-export function dayExists(dayId: string | number, tripId: string | number) {
-  return !!db.prepare('SELECT id FROM days WHERE id = ? AND trip_id = ?').get(dayId, tripId);
+export async function dayExists(dayId: string | number, tripId: string | number) {
+  return !!(await asyncDb.prepare('SELECT id FROM days WHERE id = ? AND trip_id = ?').get(dayId, tripId));
 }
 
-export function placeExists(placeId: string | number, tripId: string | number) {
-  return !!db.prepare('SELECT id FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId);
+export async function placeExists(placeId: string | number, tripId: string | number) {
+  return !!(await asyncDb.prepare('SELECT id FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId));
 }
 
-export function createAssignment(
+export async function createAssignment(
   dayId: string | number,
   placeId: string | number,
   notes: string | null,
@@ -136,12 +140,12 @@ export function createAssignment(
     mcp_import_batch_id?: string | null;
   } = {},
 ) {
-  const maxOrder = db.prepare('SELECT MAX(order_index) as max FROM day_assignments WHERE day_id = ?').get(dayId) as {
-    max: number | null;
-  };
-  const orderIndex = (maxOrder.max !== null ? maxOrder.max : -1) + 1;
+  const maxOrder = await asyncDb
+    .prepare('SELECT MAX(order_index) as max FROM day_assignments WHERE day_id = ?')
+    .get<{ max: number | null }>(dayId);
+  const orderIndex = (maxOrder?.max !== null && maxOrder?.max !== undefined ? maxOrder.max : -1) + 1;
 
-  const result = db
+  const result = await asyncDb
     .prepare(
       `INSERT INTO day_assignments
         (day_id, place_id, order_index, notes, assignment_time, assignment_end_time, mcp_import_batch_id)
@@ -160,34 +164,29 @@ export function createAssignment(
   return getAssignmentWithPlace(result.lastInsertRowid);
 }
 
-export function assignmentExistsInDay(id: string | number, dayId: string | number, tripId: string | number) {
-  return !!db
+export async function assignmentExistsInDay(id: string | number, dayId: string | number, tripId: string | number) {
+  return !!(await asyncDb
     .prepare(
       'SELECT da.id FROM day_assignments da JOIN days d ON da.day_id = d.id WHERE da.id = ? AND da.day_id = ? AND d.trip_id = ?',
     )
-    .get(id, dayId, tripId);
+    .get(id, dayId, tripId));
 }
 
-export function deleteAssignment(id: string | number) {
-  db.prepare('DELETE FROM day_assignments WHERE id = ?').run(id);
+export async function deleteAssignment(id: string | number) {
+  await asyncDb.prepare('DELETE FROM day_assignments WHERE id = ?').run(id);
 }
 
-export function reorderAssignments(dayId: string | number, orderedIds: number[]) {
-  const update = db.prepare('UPDATE day_assignments SET order_index = ? WHERE id = ? AND day_id = ?');
-  db.exec('BEGIN');
-  try {
-    orderedIds.forEach((id: number, index: number) => {
-      update.run(index, id, dayId);
-    });
-    db.exec('COMMIT');
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
-  }
+export async function reorderAssignments(dayId: string | number, orderedIds: number[]) {
+  const update = asyncDb.prepare('UPDATE day_assignments SET order_index = ? WHERE id = ? AND day_id = ?');
+  await asyncDb.transaction(async () => {
+    for (const [index, id] of orderedIds.entries()) {
+      await update.run(index, id, dayId);
+    }
+  })();
 }
 
-export function getAssignmentForTrip(id: string | number, tripId: string | number) {
-  return db
+export async function getAssignmentForTrip(id: string | number, tripId: string | number) {
+  return asyncDb
     .prepare(
       `
     SELECT da.* FROM day_assignments da
@@ -195,17 +194,19 @@ export function getAssignmentForTrip(id: string | number, tripId: string | numbe
     WHERE da.id = ? AND d.trip_id = ?
   `,
     )
-    .get(id, tripId) as DayAssignment | undefined;
+    .get<DayAssignment>(id, tripId);
 }
 
-export function moveAssignment(id: string | number, newDayId: string | number, orderIndex: number, oldDayId: number) {
-  db.prepare('UPDATE day_assignments SET day_id = ?, order_index = ? WHERE id = ?').run(newDayId, orderIndex || 0, id);
-  const updated = getAssignmentWithPlace(Number(id));
+export async function moveAssignment(id: string | number, newDayId: string | number, orderIndex: number, oldDayId: number) {
+  await asyncDb
+    .prepare('UPDATE day_assignments SET day_id = ?, order_index = ? WHERE id = ?')
+    .run(newDayId, orderIndex || 0, id);
+  const updated = await getAssignmentWithPlace(Number(id));
   return { assignment: updated, oldDayId };
 }
 
-export function getParticipants(assignmentId: string | number) {
-  return db
+export async function getParticipants(assignmentId: string | number) {
+  return asyncDb
     .prepare(
       `
     SELECT ap.user_id, u.username, u.avatar
@@ -217,8 +218,8 @@ export function getParticipants(assignmentId: string | number) {
     .all(assignmentId);
 }
 
-export function updateTime(id: string | number, placeTime: string | null, endTime: string | null) {
-  db.prepare('UPDATE day_assignments SET assignment_time = ?, assignment_end_time = ? WHERE id = ?').run(
+export async function updateTime(id: string | number, placeTime: string | null, endTime: string | null) {
+  await asyncDb.prepare('UPDATE day_assignments SET assignment_time = ?, assignment_end_time = ? WHERE id = ?').run(
     placeTime ?? null,
     endTime ?? null,
     id,
@@ -226,11 +227,11 @@ export function updateTime(id: string | number, placeTime: string | null, endTim
 
   // Auto-sort: reorder timed assignments chronologically within the day
   if (placeTime) {
-    const assignment = db.prepare('SELECT day_id FROM day_assignments WHERE id = ?').get(id) as
-      | { day_id: number }
-      | undefined;
+    const assignment = await asyncDb.prepare('SELECT day_id FROM day_assignments WHERE id = ?').get<{ day_id: number }>(
+      id,
+    );
     if (assignment) {
-      const dayAssignments = db
+      const dayAssignments = await asyncDb
         .prepare(
           `
         SELECT da.id, COALESCE(da.assignment_time, p.place_time) as effective_time
@@ -240,7 +241,7 @@ export function updateTime(id: string | number, placeTime: string | null, endTim
         ORDER BY da.order_index ASC
       `,
         )
-        .all(assignment.day_id) as { id: number; effective_time: string | null }[];
+        .all<{ id: number; effective_time: string | null }>(assignment.day_id);
 
       // Separate timed and untimed, sort timed by time
       const timed = dayAssignments
@@ -254,22 +255,22 @@ export function updateTime(id: string | number, placeTime: string | null, endTim
 
       // Interleave: timed in chronological order, untimed keep relative position
       const reordered = [...timed, ...untimed];
-      const update = db.prepare('UPDATE day_assignments SET order_index = ? WHERE id = ?');
-      reordered.forEach((a, i) => update.run(i, a.id));
+      const update = asyncDb.prepare('UPDATE day_assignments SET order_index = ? WHERE id = ?');
+      for (const [i, a] of reordered.entries()) await update.run(i, a.id);
     }
   }
 
   return getAssignmentWithPlace(Number(id));
 }
 
-export function setParticipants(assignmentId: string | number, userIds: number[]) {
-  db.prepare('DELETE FROM assignment_participants WHERE assignment_id = ?').run(assignmentId);
+export async function setParticipants(assignmentId: string | number, userIds: number[]) {
+  await asyncDb.prepare('DELETE FROM assignment_participants WHERE assignment_id = ?').run(assignmentId);
   if (userIds.length > 0) {
-    const insert = db.prepare('INSERT OR IGNORE INTO assignment_participants (assignment_id, user_id) VALUES (?, ?)');
-    for (const userId of userIds) insert.run(assignmentId, userId);
+    const insert = asyncDb.prepare('INSERT OR IGNORE INTO assignment_participants (assignment_id, user_id) VALUES (?, ?)');
+    for (const userId of userIds) await insert.run(assignmentId, userId);
   }
 
-  return db
+  return asyncDb
     .prepare(
       `
     SELECT ap.user_id, u.username, u.avatar

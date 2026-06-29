@@ -1,4 +1,5 @@
 import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { AssignmentRow, Tag, Participant } from '../types';
 
 interface TagRow extends Tag {
@@ -61,6 +62,55 @@ function loadParticipantsByAssignmentIds(assignmentIds: number[]): Record<number
   return participantsByAssignment;
 }
 
+/** Async batch-load tags for multiple places in a single query, indexed by place ID. */
+async function loadTagsByPlaceIdsAsync(
+  placeIds: number[],
+  { compact }: { compact?: boolean } = {},
+): Promise<Record<number, Partial<Tag>[]>> {
+  const tagsByPlaceId: Record<number, Partial<Tag>[]> = {};
+  if (placeIds.length > 0) {
+    const placeholders = placeIds.map(() => '?').join(',');
+    const allTags = await asyncDb
+      .prepare(
+        `
+      SELECT t.*, pt.place_id FROM tags t
+      JOIN place_tags pt ON t.id = pt.tag_id
+      WHERE pt.place_id IN (${placeholders})
+    `,
+      )
+      .all<TagRow>(...placeIds);
+
+    for (const tag of allTags) {
+      const pid = tag.place_id;
+      if (!tagsByPlaceId[pid]) tagsByPlaceId[pid] = [];
+      if (compact) {
+        tagsByPlaceId[pid].push({ id: tag.id, name: tag.name, color: tag.color, created_at: tag.created_at });
+      } else {
+        const { place_id, ...rest } = tag;
+        tagsByPlaceId[pid].push(rest);
+      }
+    }
+  }
+  return tagsByPlaceId;
+}
+
+/** Async batch-load participants for multiple day-assignments in a single query, indexed by assignment ID. */
+async function loadParticipantsByAssignmentIdsAsync(assignmentIds: number[]): Promise<Record<number, Participant[]>> {
+  const participantsByAssignment: Record<number, Participant[]> = {};
+  if (assignmentIds.length > 0) {
+    const allParticipants = await asyncDb
+      .prepare(
+        `SELECT ap.assignment_id, ap.user_id, u.username, u.avatar FROM assignment_participants ap JOIN users u ON ap.user_id = u.id WHERE ap.assignment_id IN (${assignmentIds.map(() => '?').join(',')})`,
+      )
+      .all<ParticipantRow>(...assignmentIds);
+    for (const p of allParticipants) {
+      if (!participantsByAssignment[p.assignment_id]) participantsByAssignment[p.assignment_id] = [];
+      participantsByAssignment[p.assignment_id].push({ user_id: p.user_id, username: p.username, avatar: p.avatar });
+    }
+  }
+  return participantsByAssignment;
+}
+
 /** Reshape a flat assignment+place DB row into the nested API response shape with embedded place, tags, and participants. */
 function formatAssignmentWithPlace(a: AssignmentRow, tags: Partial<Tag>[], participants: Participant[]) {
   return {
@@ -106,4 +156,10 @@ function formatAssignmentWithPlace(a: AssignmentRow, tags: Partial<Tag>[], parti
   };
 }
 
-export { loadTagsByPlaceIds, loadParticipantsByAssignmentIds, formatAssignmentWithPlace };
+export {
+  loadTagsByPlaceIds,
+  loadParticipantsByAssignmentIds,
+  loadTagsByPlaceIdsAsync,
+  loadParticipantsByAssignmentIdsAsync,
+  formatAssignmentWithPlace,
+};

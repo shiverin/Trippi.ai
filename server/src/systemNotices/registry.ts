@@ -1,5 +1,6 @@
+import { asyncDb } from '../db/asyncDatabase.js';
 import { db } from '../db/database.js';
-import { registerPredicate } from './conditions.js';
+import { registerPredicate, registerPredicateAsync } from './conditions.js';
 import type { SystemNotice } from './types.js';
 
 registerPredicate('whitespace-collision-detected', () => {
@@ -9,7 +10,15 @@ registerPredicate('whitespace-collision-detected', () => {
   return row?.value === 'true';
 });
 
+registerPredicateAsync('whitespace-collision-detected', async () => {
+  const row = await asyncDb
+    .prepare("SELECT value FROM app_settings WHERE key = 'whitespace_migration_collision'")
+    .get<{ value: string }>();
+  return row?.value === 'true';
+});
+
 registerPredicate('welcome-notice-enabled', () => process.env.WELCOME_NOTICE_ENABLED?.toLowerCase() === 'true');
+registerPredicateAsync('welcome-notice-enabled', () => process.env.WELCOME_NOTICE_ENABLED?.toLowerCase() === 'true');
 
 /**
  * SYSTEM NOTICE REGISTRY

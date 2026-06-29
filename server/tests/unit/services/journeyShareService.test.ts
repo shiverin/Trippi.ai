@@ -96,44 +96,44 @@ function insertJourneyPhoto(
 // -- Tests --------------------------------------------------------------------
 
 describe('createOrUpdateJourneyShareLink', () => {
-  it('JOURNEY-SHARE-001: creates a new share link with default permissions', () => {
+  it('JOURNEY-SHARE-001: creates a new share link with default permissions', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    const result = createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    const result = await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
     expect(result.created).toBe(true);
     expect(result.token).toBeTruthy();
     expect(result.token.length).toBeGreaterThan(10);
   });
 
-  it('JOURNEY-SHARE-002: creates a share link with custom permissions', () => {
+  it('JOURNEY-SHARE-002: creates a share link with custom permissions', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    createOrUpdateJourneyShareLink(journey.id, user.id, {
+    await createOrUpdateJourneyShareLink(journey.id, user.id, {
       share_timeline: true,
       share_gallery: false,
       share_map: false,
     });
 
-    const link = getJourneyShareLink(journey.id);
+    const link = await getJourneyShareLink(journey.id);
     expect(link).not.toBeNull();
     expect(link!.share_timeline).toBe(true);
     expect(link!.share_gallery).toBe(false);
     expect(link!.share_map).toBe(false);
   });
 
-  it('JOURNEY-SHARE-003: updates permissions on existing link without regenerating token', () => {
+  it('JOURNEY-SHARE-003: updates permissions on existing link without regenerating token', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    const first = createOrUpdateJourneyShareLink(journey.id, user.id, {
+    const first = await createOrUpdateJourneyShareLink(journey.id, user.id, {
       share_timeline: true,
       share_gallery: true,
       share_map: true,
     });
-    const second = createOrUpdateJourneyShareLink(journey.id, user.id, {
+    const second = await createOrUpdateJourneyShareLink(journey.id, user.id, {
       share_timeline: true,
       share_gallery: false,
       share_map: false,
@@ -142,43 +142,43 @@ describe('createOrUpdateJourneyShareLink', () => {
     expect(second.created).toBe(false);
     expect(second.token).toBe(first.token);
 
-    const link = getJourneyShareLink(journey.id);
+    const link = await getJourneyShareLink(journey.id);
     expect(link!.share_gallery).toBe(false);
     expect(link!.share_map).toBe(false);
   });
 
-  it('JOURNEY-SHARE-004: different journeys get different tokens', () => {
+  it('JOURNEY-SHARE-004: different journeys get different tokens', async () => {
     const { user } = createUser(testDb);
     const j1 = createJourney(testDb, user.id);
     const j2 = createJourney(testDb, user.id);
 
-    const r1 = createOrUpdateJourneyShareLink(j1.id, user.id, {});
-    const r2 = createOrUpdateJourneyShareLink(j2.id, user.id, {});
+    const r1 = await createOrUpdateJourneyShareLink(j1.id, user.id, {});
+    const r2 = await createOrUpdateJourneyShareLink(j2.id, user.id, {});
 
     expect(r1.token).not.toBe(r2.token);
   });
 });
 
 describe('getJourneyShareLink', () => {
-  it('JOURNEY-SHARE-005: returns null when no share link exists', () => {
+  it('JOURNEY-SHARE-005: returns null when no share link exists', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    const result = getJourneyShareLink(journey.id);
+    const result = await getJourneyShareLink(journey.id);
 
     expect(result).toBeNull();
   });
 
-  it('JOURNEY-SHARE-006: returns share link info when it exists', () => {
+  it('JOURNEY-SHARE-006: returns share link info when it exists', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
-    createOrUpdateJourneyShareLink(journey.id, user.id, {
+    await createOrUpdateJourneyShareLink(journey.id, user.id, {
       share_timeline: true,
       share_gallery: false,
       share_map: true,
     });
 
-    const result = getJourneyShareLink(journey.id);
+    const result = await getJourneyShareLink(journey.id);
 
     expect(result).not.toBeNull();
     expect(result!.token).toBeTruthy();
@@ -190,72 +190,72 @@ describe('getJourneyShareLink', () => {
 });
 
 describe('deleteJourneyShareLink', () => {
-  it('JOURNEY-SHARE-007: owner can remove an existing share link', () => {
+  it('JOURNEY-SHARE-007: owner can remove an existing share link', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
-    createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
-    const ok = deleteJourneyShareLink(journey.id, user.id);
+    const ok = await deleteJourneyShareLink(journey.id, user.id);
 
     expect(ok).toBe(true);
-    expect(getJourneyShareLink(journey.id)).toBeNull();
+    expect(await getJourneyShareLink(journey.id)).toBeNull();
   });
 
-  it('JOURNEY-SHARE-008: does not throw when deleting non-existent link', () => {
+  it('JOURNEY-SHARE-008: does not throw when deleting non-existent link', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
 
-    expect(() => deleteJourneyShareLink(journey.id, user.id)).not.toThrow();
+    await expect(deleteJourneyShareLink(journey.id, user.id)).resolves.toBe(true);
   });
 });
 
 describe('validateShareTokenForPhoto', () => {
-  it('JOURNEY-SHARE-009: returns journeyId and ownerId for valid token + photo', () => {
+  it('JOURNEY-SHARE-009: returns journeyId and ownerId for valid token + photo', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id);
     const photoId = insertJourneyPhoto(entry.id, { ownerId: user.id });
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
-    const result = validateShareTokenForPhoto(token, photoId);
+    const result = await validateShareTokenForPhoto(token, photoId);
 
     expect(result).not.toBeNull();
     expect(result!.journeyId).toBe(journey.id);
     expect(result!.ownerId).toBe(user.id);
   });
 
-  it('JOURNEY-SHARE-010: returns null for invalid token', () => {
-    const result = validateShareTokenForPhoto('nonexistent-token', 1);
+  it('JOURNEY-SHARE-010: returns null for invalid token', async () => {
+    const result = await validateShareTokenForPhoto('nonexistent-token', 1);
     expect(result).toBeNull();
   });
 
-  it('JOURNEY-SHARE-011: returns null when photo does not belong to shared journey', () => {
+  it('JOURNEY-SHARE-011: returns null when photo does not belong to shared journey', async () => {
     const { user } = createUser(testDb);
     const journey1 = createJourney(testDb, user.id);
     const journey2 = createJourney(testDb, user.id);
     const entry2 = createJourneyEntry(testDb, journey2.id, user.id);
     const photoId = insertJourneyPhoto(entry2.id);
-    const { token } = createOrUpdateJourneyShareLink(journey1.id, user.id, {});
+    const { token } = await createOrUpdateJourneyShareLink(journey1.id, user.id, {});
 
-    const result = validateShareTokenForPhoto(token, photoId);
+    const result = await validateShareTokenForPhoto(token, photoId);
 
     expect(result).toBeNull();
   });
 
-  it('JOURNEY-SHARE-012: falls back to journey owner_id when photo has no owner_id', () => {
+  it('JOURNEY-SHARE-012: falls back to journey owner_id when photo has no owner_id', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id);
     const photoId = insertJourneyPhoto(entry.id, { ownerId: undefined });
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
-    const result = validateShareTokenForPhoto(token, photoId);
+    const result = await validateShareTokenForPhoto(token, photoId);
 
     expect(result).not.toBeNull();
     expect(result!.ownerId).toBe(user.id);
   });
 
-  it('JOURNEY-SHARE-016: resolves correctly when trippi_photos.id differs from journey_photos.id (Immich bulk-sync scenario)', () => {
+  it('JOURNEY-SHARE-016: resolves correctly when trippi_photos.id differs from journey_photos.id (Immich bulk-sync scenario)', async () => {
     // Simulate a user who has many trippi_photos from Immich syncs before adding a journey photo.
     // trippi_photos.id will be higher than journey_photos.id — the previous bug matched on jp.id
     // instead of jp.photo_id, causing a 404 for Immich photos in public shares.
@@ -270,10 +270,10 @@ describe('validateShareTokenForPhoto', () => {
 
     // This trippi_photos row gets a high id (e.g. 6) while journey_photos id will be 1
     const trippiPhotoId = insertJourneyPhoto(entry.id, { assetId: 'journey-asset-xyz', ownerId: user.id });
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
     // photoId = trippi_photos.id (6), not journey_photos.id (1)
-    const result = validateShareTokenForPhoto(token, trippiPhotoId);
+    const result = await validateShareTokenForPhoto(token, trippiPhotoId);
 
     expect(result).not.toBeNull();
     expect(result!.ownerId).toBe(user.id);
@@ -282,45 +282,45 @@ describe('validateShareTokenForPhoto', () => {
 });
 
 describe('validateShareTokenForAsset', () => {
-  it('JOURNEY-SHARE-013: returns ownerId when asset belongs to shared journey', () => {
+  it('JOURNEY-SHARE-013: returns ownerId when asset belongs to shared journey', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id);
     insertJourneyPhoto(entry.id, { assetId: 'immich-asset-123', ownerId: user.id });
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
-    const result = validateShareTokenForAsset(token, 'immich-asset-123');
+    const result = await validateShareTokenForAsset(token, 'immich-asset-123');
 
     expect(result).not.toBeNull();
     expect(result!.ownerId).toBe(user.id);
   });
 
-  it('JOURNEY-SHARE-014: returns null for invalid token', () => {
-    const result = validateShareTokenForAsset('bad-token', 'some-asset');
+  it('JOURNEY-SHARE-014: returns null for invalid token', async () => {
+    const result = await validateShareTokenForAsset('bad-token', 'some-asset');
     expect(result).toBeNull();
   });
 
-  it('JOURNEY-SHARE-015: denies (returns null) when the asset is not part of the shared journey', () => {
+  it('JOURNEY-SHARE-015: denies (returns null) when the asset is not part of the shared journey', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
     // A valid share token must NOT resolve arbitrary asset IDs to the owner —
     // otherwise it could proxy any asset out of the owner's Immich/Synology
     // library (IDOR). Only assets actually in the journey may resolve.
-    const result = validateShareTokenForAsset(token, 'nonexistent-asset');
+    const result = await validateShareTokenForAsset(token, 'nonexistent-asset');
 
     expect(result).toBeNull();
   });
 });
 
 describe('getPublicJourney', () => {
-  it('JOURNEY-SHARE-016: returns null for invalid token', () => {
-    const result = getPublicJourney('invalid-token');
+  it('JOURNEY-SHARE-016: returns null for invalid token', async () => {
+    const result = await getPublicJourney('invalid-token');
     expect(result).toBeNull();
   });
 
-  it('JOURNEY-SHARE-017: returns journey data with entries, stats, and permissions', () => {
+  it('JOURNEY-SHARE-017: returns journey data with entries, stats, and permissions', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id, {
       title: 'Japan 2026',
@@ -339,13 +339,13 @@ describe('getPublicJourney', () => {
       location_name: 'Kyoto',
     });
     insertJourneyPhoto(entry1.id);
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {
       share_timeline: true,
       share_gallery: true,
       share_map: false,
     });
 
-    const result = getPublicJourney(token);
+    const result = await getPublicJourney(token);
 
     expect(result).not.toBeNull();
     expect(result!.journey.title).toBe('Japan 2026');
@@ -359,7 +359,7 @@ describe('getPublicJourney', () => {
     expect(result!.permissions.share_map).toBe(false);
   });
 
-  it('JOURNEY-SHARE-018: excludes skeleton entries from public view', () => {
+  it('JOURNEY-SHARE-018: excludes skeleton entries from public view', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     createJourneyEntry(testDb, journey.id, user.id, {
@@ -372,16 +372,16 @@ describe('getPublicJourney', () => {
       title: 'Skeleton Entry',
       entry_date: '2026-01-11',
     });
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
-    const result = getPublicJourney(token);
+    const result = await getPublicJourney(token);
 
     expect(result).not.toBeNull();
     expect(result!.entries).toHaveLength(1);
     expect(result!.entries[0].title).toBe('Visible Entry');
   });
 
-  it('JOURNEY-SHARE-019: enriches entries with parsed tags and photos', () => {
+  it('JOURNEY-SHARE-019: enriches entries with parsed tags and photos', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, {
@@ -393,9 +393,9 @@ describe('getPublicJourney', () => {
       .run(JSON.stringify(['food', 'culture']), entry.id);
     insertJourneyPhoto(entry.id, { filePath: '/photos/a.jpg' });
     insertJourneyPhoto(entry.id, { filePath: '/photos/b.jpg' });
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
-    const result = getPublicJourney(token);
+    const result = await getPublicJourney(token);
 
     expect(result).not.toBeNull();
     const enriched = result!.entries[0];
@@ -403,12 +403,12 @@ describe('getPublicJourney', () => {
     expect(enriched.photos).toHaveLength(2);
   });
 
-  it('JOURNEY-SHARE-020: returns empty entries array for journey with no entries', () => {
+  it('JOURNEY-SHARE-020: returns empty entries array for journey with no entries', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id, { title: 'Empty Journey' });
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {});
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {});
 
-    const result = getPublicJourney(token);
+    const result = await getPublicJourney(token);
 
     expect(result).not.toBeNull();
     expect(result!.entries).toEqual([]);
@@ -417,7 +417,7 @@ describe('getPublicJourney', () => {
     expect(result!.stats.places).toBe(0);
   });
 
-  it('JOURNEY-SHARE-021: withholds timeline, gallery and GPS when all flags are off', () => {
+  it('JOURNEY-SHARE-021: withholds timeline, gallery and GPS when all flags are off', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id, { title: 'Secret' });
     const entry = createJourneyEntry(testDb, journey.id, user.id, {
@@ -425,28 +425,28 @@ describe('getPublicJourney', () => {
     });
     testDb.prepare('UPDATE journey_entries SET location_lat = ?, location_lng = ? WHERE id = ?').run(48.8566, 2.3522, entry.id);
     insertJourneyPhoto(entry.id);
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {
       share_timeline: false, share_gallery: false, share_map: false,
     });
 
-    const result = getPublicJourney(token)!;
+    const result = await getPublicJourney(token)!;
     expect(result.entries).toEqual([]); // no timeline / story / GPS leaked
     expect(result.gallery).toEqual([]); // no gallery leaked
     expect(result.stats.entries).toBe(1); // counts stay accurate
   });
 
-  it('JOURNEY-SHARE-022: shares the timeline but strips GPS when the map flag is off', () => {
+  it('JOURNEY-SHARE-022: shares the timeline but strips GPS when the map flag is off', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, {
       type: 'entry', title: 'Day 1', story: 'notes', entry_date: '2026-05-01', location_name: 'Paris',
     });
     testDb.prepare('UPDATE journey_entries SET location_lat = ?, location_lng = ? WHERE id = ?').run(48.8566, 2.3522, entry.id);
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {
       share_timeline: true, share_gallery: true, share_map: false,
     });
 
-    const result = getPublicJourney(token)!;
+    const result = await getPublicJourney(token)!;
     expect(result.entries).toHaveLength(1);
     const e = result.entries[0] as Record<string, unknown>;
     expect(e.story).toBe('notes'); // narrative present
@@ -454,36 +454,36 @@ describe('getPublicJourney', () => {
     expect(e.location_lng).toBeNull();
   });
 
-  it('JOURNEY-SHARE-023: map-only share exposes coordinates but not the story', () => {
+  it('JOURNEY-SHARE-023: map-only share exposes coordinates but not the story', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, {
       type: 'entry', title: 'Day 1', story: 'private notes', entry_date: '2026-05-01', location_name: 'Paris',
     });
     testDb.prepare('UPDATE journey_entries SET location_lat = ?, location_lng = ? WHERE id = ?').run(48.8566, 2.3522, entry.id);
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {
       share_timeline: false, share_gallery: false, share_map: true,
     });
 
-    const result = getPublicJourney(token)!;
+    const result = await getPublicJourney(token)!;
     expect(result.entries).toHaveLength(1);
     const e = result.entries[0] as Record<string, unknown>;
     expect(e.location_lat).toBe(48.8566); // coords for the map
     expect(e.story).toBeUndefined(); // narrative withheld
   });
 
-  it('JOURNEY-SHARE-024: strips inline entry photos (and their asset metadata) when the gallery is off', () => {
+  it('JOURNEY-SHARE-024: strips inline entry photos (and their asset metadata) when the gallery is off', async () => {
     const { user } = createUser(testDb);
     const journey = createJourney(testDb, user.id);
     const entry = createJourneyEntry(testDb, journey.id, user.id, {
       type: 'entry', title: 'Day 1', story: 'notes', entry_date: '2026-05-01',
     });
     insertJourneyPhoto(entry.id, { ownerId: user.id });
-    const { token } = createOrUpdateJourneyShareLink(journey.id, user.id, {
+    const { token } = await createOrUpdateJourneyShareLink(journey.id, user.id, {
       share_timeline: true, share_gallery: false, share_map: true,
     });
 
-    const result = getPublicJourney(token)!;
+    const result = await getPublicJourney(token)!;
     expect(result.gallery).toEqual([]); // gallery array withheld
     expect(result.entries).toHaveLength(1);
     expect((result.entries[0] as Record<string, unknown>).photos).toEqual([]); // inline photos withheld too

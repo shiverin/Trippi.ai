@@ -40,8 +40,8 @@ export class AccommodationsController {
     return trip;
   }
 
-  private requireEdit(trip: Trip, user: User): void {
-    if (!this.accommodations.canEdit(trip, user)) {
+  private async requireEdit(trip: Trip, user: User): Promise<void> {
+    if (!(await this.accommodations.canEdit(trip, user))) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
@@ -49,7 +49,7 @@ export class AccommodationsController {
   @Get()
   async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireTrip(tripId, user);
-    return { accommodations: this.accommodations.list(tripId) };
+    return { accommodations: await this.accommodations.list(tripId) };
   }
 
   @Post()
@@ -60,16 +60,16 @@ export class AccommodationsController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
+    await this.requireEdit(trip, user);
     const { place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes } = body;
     if (!place_id || !start_day_id || !end_day_id) {
       throw new HttpException({ error: 'place_id, start_day_id, and end_day_id are required' }, 400);
     }
-    const errors = this.accommodations.validateRefs(tripId, place_id, start_day_id, end_day_id);
+    const errors = await this.accommodations.validateRefs(tripId, place_id, start_day_id, end_day_id);
     if (errors.length > 0) {
       throw new HttpException({ error: errors[0].message }, 404);
     }
-    const accommodation = this.accommodations.create(tripId, {
+    const accommodation = await this.accommodations.create(tripId, {
       place_id,
       start_day_id,
       end_day_id,
@@ -93,17 +93,17 @@ export class AccommodationsController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
-    const existing = this.accommodations.get(id, tripId);
+    await this.requireEdit(trip, user);
+    const existing = await this.accommodations.get(id, tripId);
     if (!existing) {
       throw new HttpException({ error: 'Accommodation not found' }, 404);
     }
     const { place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes } = body;
-    const errors = this.accommodations.validateRefs(tripId, place_id, start_day_id, end_day_id);
+    const errors = await this.accommodations.validateRefs(tripId, place_id, start_day_id, end_day_id);
     if (errors.length > 0) {
       throw new HttpException({ error: errors[0].message }, 404);
     }
-    const accommodation = this.accommodations.update(
+    const accommodation = await this.accommodations.update(
       id,
       existing as never,
       { place_id, start_day_id, end_day_id, check_in, check_in_end, check_out, confirmation, notes } as never,
@@ -120,11 +120,11 @@ export class AccommodationsController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     const trip = await this.requireTrip(tripId, user);
-    this.requireEdit(trip, user);
-    if (!this.accommodations.get(id, tripId)) {
+    await this.requireEdit(trip, user);
+    if (!(await this.accommodations.get(id, tripId))) {
       throw new HttpException({ error: 'Accommodation not found' }, 404);
     }
-    const { linkedReservationId, deletedBudgetItemId } = this.accommodations.remove(id);
+    const { linkedReservationId, deletedBudgetItemId } = await this.accommodations.remove(id);
     if (linkedReservationId) {
       this.accommodations.broadcast(tripId, 'reservation:deleted', { reservationId: linkedReservationId }, socketId);
     }

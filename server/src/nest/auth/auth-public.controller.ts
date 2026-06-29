@@ -42,8 +42,8 @@ export class AuthPublicController {
 
   @Post('demo-login')
   @HttpCode(200)
-  demoLogin(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const result = this.auth.demoLogin();
+  async demoLogin(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const result = await this.auth.demoLogin();
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -52,9 +52,9 @@ export class AuthPublicController {
   }
 
   @Get('invite/:token')
-  invite(@Param('token') token: string, @Req() req: Request) {
+  async invite(@Param('token') token: string, @Req() req: Request) {
     this.limit('login', req, 10);
-    const result = this.auth.validateInviteToken(token);
+    const result = await this.auth.validateInviteToken(token);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }
@@ -118,7 +118,7 @@ export class AuthPublicController {
     const rawEmail = typeof body?.email === 'string' ? body.email : '';
     const ip = getClientIp(req);
 
-    const outcome = this.auth.requestPasswordReset(rawEmail, ip);
+    const outcome = await this.auth.requestPasswordReset(rawEmail, ip);
     if (outcome.reason === 'issued' && outcome.tokenForDelivery && outcome.userEmail) {
       const origin = this.auth.getAppUrl();
       const url = `${origin.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(outcome.tokenForDelivery)}`;
@@ -159,12 +159,12 @@ export class AuthPublicController {
 
   @Post('reset-password')
   @HttpCode(200)
-  resetPassword(@Body() body: unknown, @Req() req: Request) {
+  async resetPassword(@Body() body: unknown, @Req() req: Request) {
     // Per-IP brute-force guard, parity with the legacy resetLimiter (5 / 15 min on
     // a dedicated bucket) — without it reset tokens could be guessed unthrottled.
     this.limit('reset', req, 5);
     const ip = getClientIp(req);
-    const result = this.auth.resetPassword(body);
+    const result = await this.auth.resetPassword(body);
     if (result.error) {
       writeAudit({ userId: null, action: 'user.password_reset_fail', ip, details: { reason: result.error } });
       throw new HttpException({ error: result.error }, result.status!);
@@ -178,9 +178,9 @@ export class AuthPublicController {
 
   @Post('mfa/verify-login')
   @HttpCode(200)
-  verifyMfaLogin(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async verifyMfaLogin(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.limit('mfa', req, 5);
-    const result = this.auth.verifyMfaLogin(body);
+    const result = await this.auth.verifyMfaLogin(body);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
     }

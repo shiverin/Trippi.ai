@@ -1,4 +1,4 @@
-import { db } from '../../db/database';
+import { asyncDb } from '../../db/asyncDatabase';
 import { checkPermission } from '../../services/permissions';
 import { broadcast } from '../../websocket';
 
@@ -61,17 +61,17 @@ export function permissionDenied() {
  * matching REST route uses. Returns true when the user may perform `action`
  * on `tripId`.
  */
-export function hasTripPermission(action: string, tripId: number | string, userId: number): boolean {
-  const trip = db.prepare('SELECT user_id FROM trips WHERE id = ?').get(tripId) as { user_id?: number } | undefined;
+export async function hasTripPermission(action: string, tripId: number | string, userId: number): Promise<boolean> {
+  const trip = await asyncDb.prepare('SELECT user_id FROM trips WHERE id = ?').get<{ user_id?: number }>(tripId);
   if (!trip) return false;
-  const userRow = db.prepare('SELECT role FROM users WHERE id = ?').get(userId) as { role?: string } | undefined;
+  const userRow = await asyncDb.prepare('SELECT role FROM users WHERE id = ?').get<{ role?: string }>(userId);
   const tripOwnerId = typeof trip.user_id === 'number' ? trip.user_id : null;
   return checkPermission(action, userRow?.role ?? 'user', tripOwnerId, userId, tripOwnerId !== userId);
 }
 
 /** True when the user has the global admin role (mirrors REST `user.role === 'admin'` gates). */
-export function isAdminUser(userId: number): boolean {
-  const userRow = db.prepare('SELECT role FROM users WHERE id = ?').get(userId) as { role?: string } | undefined;
+export async function isAdminUser(userId: number): Promise<boolean> {
+  const userRow = await asyncDb.prepare('SELECT role FROM users WHERE id = ?').get<{ role?: string }>(userId);
   return userRow?.role === 'admin';
 }
 

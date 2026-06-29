@@ -53,8 +53,8 @@ export class DaysController {
     // extends the trip and re-pins dates); without it, the legacy append.
     const day =
       body.position !== undefined
-        ? this.days.insert(tripId, body.position)
-        : this.days.create(tripId, body.date, body.notes);
+        ? await this.days.insert(tripId, body.position)
+        : await this.days.create(tripId, body.date, body.notes);
     // An insert can shuffle dates/positions of other days, so collaborators
     // refetch the whole list; a plain append only needs the new day.
     const event = body.position !== undefined ? 'day:reordered' : 'day:created';
@@ -75,7 +75,7 @@ export class DaysController {
       throw new HttpException({ error: 'orderedIds must be an array' }, 400);
     }
     try {
-      this.days.reorder(tripId, body.orderedIds);
+      await this.days.reorder(tripId, body.orderedIds);
     } catch (err) {
       if (err instanceof DayReorderError) {
         throw new HttpException({ error: err.message }, 400);
@@ -96,11 +96,11 @@ export class DaysController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const current = this.days.getDay(id, tripId);
+    const current = await this.days.getDay(id, tripId);
     if (!current) {
       throw new HttpException({ error: 'Day not found' }, 404);
     }
-    const day = this.days.update(id, current as never, { notes: body.notes, title: body.title });
+    const day = await this.days.update(id, current as never, { notes: body.notes, title: body.title });
     this.days.broadcast(tripId, 'day:updated', { day }, socketId);
     return { day };
   }
@@ -114,10 +114,10 @@ export class DaysController {
   ) {
     const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    if (!this.days.getDay(id, tripId)) {
+    if (!(await this.days.getDay(id, tripId))) {
       throw new HttpException({ error: 'Day not found' }, 404);
     }
-    this.days.remove(id);
+    await this.days.remove(id);
     this.days.broadcast(tripId, 'day:deleted', { dayId: Number(id) }, socketId);
     return { success: true };
   }

@@ -19,7 +19,10 @@ vi.mock('../../../src/db/asyncDatabase', () => ({ asyncDb: asyncDbMock, canAcces
 const { broadcast } = vi.hoisted(() => ({ broadcast: vi.fn() }));
 vi.mock('../../../src/websocket', () => ({ broadcast }));
 const { checkPermission } = vi.hoisted(() => ({ checkPermission: vi.fn(() => true) }));
-vi.mock('../../../src/services/permissions', () => ({ checkPermission }));
+vi.mock('../../../src/services/permissions', () => ({
+  checkPermission,
+  checkPermissionAsync: checkPermission,
+}));
 
 const { tripSvc } = vi.hoisted(() => ({
   tripSvc: {
@@ -44,12 +47,12 @@ const { tripSvc } = vi.hoisted(() => ({
 	}));
 vi.mock('../../../src/services/tripService', () => tripSvc);
 vi.mock('../../../src/services/dayService', () => ({ listDays: () => ({ days: [1] }), listAccommodations: () => [] }));
-vi.mock('../../../src/services/placeService', () => ({ listPlaces: () => [] }));
+vi.mock('../../../src/services/placeService', () => ({ listPlaces: () => [], listPlacesAsync: () => [] }));
 vi.mock('../../../src/services/packingService', () => ({ listItems: () => [] }));
 vi.mock('../../../src/services/todoService', () => ({ listItems: () => [] }));
 vi.mock('../../../src/services/budgetService', () => ({ listBudgetItems: () => [] }));
 vi.mock('../../../src/services/reservationService', () => ({ listReservations: () => [] }));
-vi.mock('../../../src/services/fileService', () => ({ listFiles: () => [] }));
+vi.mock('../../../src/services/fileService', () => ({ listFiles: () => [], listFilesAsync: () => [] }));
 
 function svc() {
   return new TripsService();
@@ -70,22 +73,22 @@ describe('TripsService (wrapper delegation + bundle/copy/notify helpers)', () =>
     expect(asyncStmt.run).toHaveBeenCalledWith(1, 'T', null, null, null, 'EUR', 3);
     await s.get('9', 1);
     expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('WHERE t.id = :tripId'));
-    s.getRaw('9');
-    expect(tripSvc.getTripRaw).toHaveBeenCalledWith('9');
-    s.getOwner('9');
-    expect(tripSvc.getTripOwner).toHaveBeenCalledWith('9');
-    s.update('9', 1, {} as never, 'user');
-    expect(tripSvc.updateTrip).toHaveBeenCalledWith('9', 1, {}, 'user');
-    s.remove('9', 1, 'user');
-    expect(tripSvc.deleteTrip).toHaveBeenCalledWith('9', 1, 'user');
+    await s.getRaw('9');
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith('SELECT * FROM trips WHERE id = ?');
+    await s.getOwner('9');
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith('SELECT user_id FROM trips WHERE id = ?');
+    await s.update('9', 1, { title: 'Updated' } as never, 'user');
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('UPDATE trips SET'));
+    await s.remove('9', 1, 'user');
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith('DELETE FROM trips WHERE id = ?');
     s.deleteOldCover('/old.jpg');
     expect(tripSvc.deleteOldCover).toHaveBeenCalledWith('/old.jpg');
-    s.updateCoverImage('9', '/n.jpg');
-    expect(tripSvc.updateCoverImage).toHaveBeenCalledWith('9', '/n.jpg');
+    await s.updateCoverImage('9', '/n.jpg');
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith('UPDATE trips SET cover_image=?, updated_at=CURRENT_TIMESTAMP WHERE id=?');
     s.copy('9', 1, 'C');
     expect(tripSvc.copyTripById).toHaveBeenCalledWith('9', 1, 'C');
-    s.listMembers('9', 1);
-    expect(tripSvc.listMembers).toHaveBeenCalledWith('9', 1);
+    await s.listMembers('9', 1);
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT u.id, u.username, u.email, u.avatar'));
     s.addMember('9', 'b@x.y', 1, 1);
     expect(tripSvc.addMember).toHaveBeenCalledWith('9', 'b@x.y', 1, 1);
     s.removeMember('9', 2);
@@ -112,15 +115,15 @@ describe('TripsService (wrapper delegation + bundle/copy/notify helpers)', () =>
     expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM trips t'));
   });
 
-  it('bundle aggregates every sub-collection + the member list', () => {
-    const result = svc().bundle('9', { user_id: 1 });
-    expect(result).toMatchObject({ trip: { user_id: 1 }, days: [1], places: [], members: [{ id: 1 }] });
+  it('bundle aggregates every sub-collection + the member list', async () => {
+    const result = await svc().bundle('9', { user_id: 1 });
+    expect(result).toMatchObject({ trip: { user_id: 1 }, days: [1], places: [], members: [{ id: 42 }] });
   });
 
-  it('bundle tolerates a null member list', () => {
-    tripSvc.listMembers.mockReturnValueOnce({ owner: { id: 1 }, members: null });
-    const result = svc().bundle('9', { user_id: 1 });
-    expect(result).toMatchObject({ members: [{ id: 1 }] });
+  it('bundle tolerates a null member list', async () => {
+    asyncStmt.get.mockResolvedValueOnce(null);
+    const result = await svc().bundle('9', { user_id: 1 });
+    expect(result).toMatchObject({ members: [] });
   });
 
   it('notifyInvite is fire-and-forget (no throw)', () => {

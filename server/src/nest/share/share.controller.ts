@@ -44,7 +44,7 @@ export class TripShareController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.requireManage(tripId, user);
-    const result = this.share.createOrUpdate(tripId, user.id, {
+    const result = await this.share.createOrUpdate(tripId, user.id, {
       share_map: body.share_map,
       share_bookings: body.share_bookings,
       share_packing: body.share_packing,
@@ -61,14 +61,14 @@ export class TripShareController {
     if (!(await this.share.verifyTripAccess(tripId, user.id))) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
-    const info = this.share.get(tripId);
+    const info = await this.share.get(tripId);
     return info ? info : { token: null };
   }
 
   @Delete()
   async remove(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     await this.requireManage(tripId, user);
-    this.share.remove(tripId);
+    await this.share.remove(tripId);
     return { success: true };
   }
 }
@@ -90,8 +90,12 @@ export class SharedController {
    * MapsController.placePhotoBytes (cached photos are always JPEG).
    */
   @Get(':token/place-photo/:placeId/bytes')
-  placePhotoBytes(@Param('token') token: string, @Param('placeId') placeId: string, @Res() res: Response): void {
-    const fp = this.share.getSharedPlacePhotoPath(token, placeId);
+  async placePhotoBytes(
+    @Param('token') token: string,
+    @Param('placeId') placeId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const fp = await this.share.getSharedPlacePhotoPath(token, placeId);
     if (!fp) {
       res.status(404).json({ error: 'Photo not cached' });
       return;
@@ -106,8 +110,8 @@ export class SharedController {
   }
 
   @Get(':token')
-  read(@Param('token') token: string) {
-    const data = this.share.getSharedTripData(token);
+  async read(@Param('token') token: string) {
+    const data = await this.share.getSharedTripData(token);
     if (!data) {
       throw new HttpException({ error: 'Invalid or expired link' }, 404);
     }

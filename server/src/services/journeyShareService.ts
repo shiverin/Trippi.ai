@@ -1,4 +1,4 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { isOwner } from './journeyService';
 
 import crypto from 'crypto';
@@ -17,36 +17,38 @@ interface JourneyShareTokenInfo {
   share_map: boolean;
 }
 
-export function createOrUpdateJourneyShareLink(
+export async function createOrUpdateJourneyShareLink(
   journeyId: number,
   createdBy: number,
   permissions: JourneySharePermissions,
-): { token: string; created: boolean } | null {
+): Promise<{ token: string; created: boolean } | null> {
   // Public sharing is an owner-only action — editors/viewers must not be
   // able to publish the journey or change which screens are shared.
-  if (!isOwner(journeyId, createdBy)) return null;
+  if (!(await isOwner(journeyId, createdBy))) return null;
 
   const { share_timeline = true, share_gallery = true, share_map = true } = permissions;
 
-  const existing = db.prepare('SELECT token FROM journey_share_tokens WHERE journey_id = ?').get(journeyId) as
-    | { token: string }
-    | undefined;
+  const existing = await asyncDb
+    .prepare('SELECT token FROM journey_share_tokens WHERE journey_id = ?')
+    .get<{ token: string }>(journeyId);
   if (existing) {
-    db.prepare(
-      'UPDATE journey_share_tokens SET share_timeline = ?, share_gallery = ?, share_map = ? WHERE journey_id = ?',
-    ).run(share_timeline ? 1 : 0, share_gallery ? 1 : 0, share_map ? 1 : 0, journeyId);
+    await asyncDb
+      .prepare('UPDATE journey_share_tokens SET share_timeline = ?, share_gallery = ?, share_map = ? WHERE journey_id = ?')
+      .run(share_timeline ? 1 : 0, share_gallery ? 1 : 0, share_map ? 1 : 0, journeyId);
     return { token: existing.token, created: false };
   }
 
   const token = crypto.randomBytes(24).toString('base64url');
-  db.prepare(
-    'INSERT INTO journey_share_tokens (journey_id, token, created_by, share_timeline, share_gallery, share_map) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(journeyId, token, createdBy, share_timeline ? 1 : 0, share_gallery ? 1 : 0, share_map ? 1 : 0);
+  await asyncDb
+    .prepare(
+      'INSERT INTO journey_share_tokens (journey_id, token, created_by, share_timeline, share_gallery, share_map) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .run(journeyId, token, createdBy, share_timeline ? 1 : 0, share_gallery ? 1 : 0, share_map ? 1 : 0);
   return { token, created: true };
 }
 
-export function getJourneyShareLink(journeyId: number): JourneyShareTokenInfo | null {
-  const row = db.prepare('SELECT * FROM journey_share_tokens WHERE journey_id = ?').get(journeyId) as any;
+export async function getJourneyShareLink(journeyId: number): Promise<JourneyShareTokenInfo | null> {
+  const row = await asyncDb.prepare('SELECT * FROM journey_share_tokens WHERE journey_id = ?').get<any>(journeyId);
   if (!row) return null;
   return {
     token: row.token,
@@ -57,19 +59,19 @@ export function getJourneyShareLink(journeyId: number): JourneyShareTokenInfo | 
   };
 }
 
-export function deleteJourneyShareLink(journeyId: number, userId: number): boolean {
-  if (!isOwner(journeyId, userId)) return false;
-  db.prepare('DELETE FROM journey_share_tokens WHERE journey_id = ?').run(journeyId);
+export async function deleteJourneyShareLink(journeyId: number, userId: number): Promise<boolean> {
+  if (!(await isOwner(journeyId, userId))) return false;
+  await asyncDb.prepare('DELETE FROM journey_share_tokens WHERE journey_id = ?').run(journeyId);
   return true;
 }
 
-export function validateShareTokenForPhoto(
+export async function validateShareTokenForPhoto(
   token: string,
   photoId: number,
-): { journeyId: number; ownerId: number } | null {
-  const row = db.prepare('SELECT journey_id FROM journey_share_tokens WHERE token = ?').get(token) as any;
+): Promise<{ journeyId: number; ownerId: number } | null> {
+  const row = await asyncDb.prepare('SELECT journey_id FROM journey_share_tokens WHERE token = ?').get<any>(token);
   if (!row) return null;
-  const photo = db
+  const photo = await asyncDb
     .prepare(
       `
     SELECT gp.photo_id, tkp.owner_id, gp.journey_id
@@ -78,16 +80,16 @@ export function validateShareTokenForPhoto(
     WHERE gp.photo_id = ? AND gp.journey_id = ?
   `,
     )
-    .get(photoId, row.journey_id) as any;
+    .get<any>(photoId, row.journey_id);
   if (!photo) return null;
-  const journey = db.prepare('SELECT user_id FROM journeys WHERE id = ?').get(row.journey_id) as any;
+  const journey = await asyncDb.prepare('SELECT user_id FROM journeys WHERE id = ?').get<any>(row.journey_id);
   return journey ? { journeyId: row.journey_id, ownerId: photo.owner_id || journey.user_id } : null;
 }
 
-export function validateShareTokenForAsset(token: string, assetId: string): { ownerId: number } | null {
-  const row = db.prepare('SELECT journey_id FROM journey_share_tokens WHERE token = ?').get(token) as any;
+export async function validateShareTokenForAsset(token: string, assetId: string): Promise<{ ownerId: number } | null> {
+  const row = await asyncDb.prepare('SELECT journey_id FROM journey_share_tokens WHERE token = ?').get<any>(token);
   if (!row) return null;
-  const photo = db
+  const photo = await asyncDb
     .prepare(
       `
     SELECT tkp.owner_id FROM journey_photos gp
@@ -95,21 +97,21 @@ export function validateShareTokenForAsset(token: string, assetId: string): { ow
     WHERE tkp.asset_id = ? AND gp.journey_id = ?
   `,
     )
-    .get(assetId, row.journey_id) as any;
+    .get<any>(assetId, row.journey_id);
   // Only resolve assets that actually belong to this shared journey.
   if (!photo) return null;
   return { ownerId: photo.owner_id };
 }
 
-export function getPublicJourney(token: string) {
-  const row = db.prepare('SELECT * FROM journey_share_tokens WHERE token = ?').get(token) as any;
+export async function getPublicJourney(token: string) {
+  const row = await asyncDb.prepare('SELECT * FROM journey_share_tokens WHERE token = ?').get<any>(token);
   if (!row) return null;
 
-  const journey = db.prepare('SELECT * FROM journeys WHERE id = ?').get(row.journey_id) as any;
+  const journey = await asyncDb.prepare('SELECT * FROM journeys WHERE id = ?').get<any>(row.journey_id);
   if (!journey) return null;
 
   // Entries with photos
-  const entries = db
+  const entries = await asyncDb
     .prepare(
       `
     SELECT je.* FROM journey_entries je
@@ -117,9 +119,9 @@ export function getPublicJourney(token: string) {
     ORDER BY je.entry_date, je.sort_order
   `,
     )
-    .all(row.journey_id) as any[];
+    .all<any>(row.journey_id);
 
-  const photos = db
+  const photos = await asyncDb
     .prepare(
       `
     SELECT gp.id, jep.entry_id, gp.photo_id, gp.caption, jep.sort_order, gp.shared, gp.created_at,
@@ -131,14 +133,14 @@ export function getPublicJourney(token: string) {
     ORDER BY jep.sort_order
   `,
     )
-    .all(row.journey_id) as any[];
+    .all<any>(row.journey_id);
 
   const photosByEntry: Record<number, any[]> = {};
   for (const p of photos) {
     (photosByEntry[p.entry_id] ||= []).push(p);
   }
 
-  const gallery = db
+  const gallery = await asyncDb
     .prepare(
       `
     SELECT gp.id, gp.journey_id, gp.photo_id, gp.caption, gp.shared, gp.sort_order, gp.created_at,
@@ -149,7 +151,7 @@ export function getPublicJourney(token: string) {
     ORDER BY gp.sort_order
   `,
     )
-    .all(row.journey_id) as any[];
+    .all<any>(row.journey_id);
 
   const enrichedEntries = entries.map((e) => ({
     ...e,

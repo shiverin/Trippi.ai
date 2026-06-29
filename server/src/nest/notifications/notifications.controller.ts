@@ -38,13 +38,13 @@ export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
   @Get('preferences')
-  getPreferences(@CurrentUser() user: User) {
+  async getPreferences(@CurrentUser() user: User) {
     return this.notifications.getPreferences(user.id, user.role);
   }
 
   @Put('preferences')
-  setPreferences(@CurrentUser() user: User, @Body() body: Record<string, Record<string, boolean>>) {
-    this.notifications.setPreferences(user.id, body);
+  async setPreferences(@CurrentUser() user: User, @Body() body: Record<string, Record<string, boolean>>) {
+    await this.notifications.setPreferences(user.id, body);
     return this.notifications.getPreferences(user.id, user.role);
   }
 
@@ -62,8 +62,8 @@ export class NotificationsController {
   async testWebhook(@CurrentUser() user: User, @Body('url') urlInput?: unknown): Promise<ChannelTestResult> {
     let url = urlInput;
     if (!url || url === MASKED) {
-      url = this.notifications.userWebhookUrl(user.id);
-      if (!url && user.role === 'admin') url = this.notifications.adminWebhookUrl();
+      url = await this.notifications.userWebhookUrl(user.id);
+      if (!url && user.role === 'admin') url = await this.notifications.adminWebhookUrl();
       if (!url) {
         throw new HttpException({ error: 'No webhook URL configured' }, 400);
       }
@@ -87,8 +87,8 @@ export class NotificationsController {
     @Body('server') server?: string,
     @Body('token') token?: string,
   ): Promise<ChannelTestResult> {
-    const userCfg = this.notifications.userNtfyConfig(user.id);
-    const adminCfg = this.notifications.adminNtfyConfig();
+    const userCfg = await this.notifications.userNtfyConfig(user.id);
+    const adminCfg = await this.notifications.adminNtfyConfig();
 
     const resolvedTopic = topic || userCfg?.topic || undefined;
     const resolvedServer = server || userCfg?.server || adminCfg.server || undefined;
@@ -102,7 +102,7 @@ export class NotificationsController {
   }
 
   @Get('in-app')
-  listInApp(
+  async listInApp(
     @CurrentUser() user: User,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
@@ -116,42 +116,42 @@ export class NotificationsController {
   }
 
   @Get('in-app/unread-count')
-  unreadCount(@CurrentUser() user: User): UnreadCountResult {
-    return { count: this.notifications.unreadCount(user.id) };
+  async unreadCount(@CurrentUser() user: User): Promise<UnreadCountResult> {
+    return { count: await this.notifications.unreadCount(user.id) };
   }
 
   @Put('in-app/read-all')
-  readAll(@CurrentUser() user: User): { success: boolean; count: number } {
-    return { success: true, count: this.notifications.markAllRead(user.id) };
+  async readAll(@CurrentUser() user: User): Promise<{ success: boolean; count: number }> {
+    return { success: true, count: await this.notifications.markAllRead(user.id) };
   }
 
   @Delete('in-app/all')
-  deleteAll(@CurrentUser() user: User): { success: boolean; count: number } {
-    return { success: true, count: this.notifications.deleteAll(user.id) };
+  async deleteAll(@CurrentUser() user: User): Promise<{ success: boolean; count: number }> {
+    return { success: true, count: await this.notifications.deleteAll(user.id) };
   }
 
   @Put('in-app/:id/read')
-  markRead(@CurrentUser() user: User, @Param('id') idParam: string): { success: boolean } {
+  async markRead(@CurrentUser() user: User, @Param('id') idParam: string): Promise<{ success: boolean }> {
     const id = this.parseId(idParam);
-    if (!this.notifications.markRead(id, user.id)) {
+    if (!(await this.notifications.markRead(id, user.id))) {
       throw new HttpException({ error: 'Not found' }, 404);
     }
     return { success: true };
   }
 
   @Put('in-app/:id/unread')
-  markUnread(@CurrentUser() user: User, @Param('id') idParam: string): { success: boolean } {
+  async markUnread(@CurrentUser() user: User, @Param('id') idParam: string): Promise<{ success: boolean }> {
     const id = this.parseId(idParam);
-    if (!this.notifications.markUnread(id, user.id)) {
+    if (!(await this.notifications.markUnread(id, user.id))) {
       throw new HttpException({ error: 'Not found' }, 404);
     }
     return { success: true };
   }
 
   @Delete('in-app/:id')
-  deleteOne(@CurrentUser() user: User, @Param('id') idParam: string): { success: boolean } {
+  async deleteOne(@CurrentUser() user: User, @Param('id') idParam: string): Promise<{ success: boolean }> {
     const id = this.parseId(idParam);
-    if (!this.notifications.deleteOne(id, user.id)) {
+    if (!(await this.notifications.deleteOne(id, user.id))) {
       throw new HttpException({ error: 'Not found' }, 404);
     }
     return { success: true };

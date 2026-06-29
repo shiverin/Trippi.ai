@@ -41,12 +41,12 @@ export class TodoService {
     return svc.updateItem(tripId, id, data, changedKeys);
   }
 
-  deleteItem(tripId: string, id: string): boolean {
+  deleteItem(tripId: string, id: string) {
     return svc.deleteItem(tripId, id);
   }
 
-  reorderItems(tripId: string, orderedIds: Parameters<typeof svc.reorderItems>[1]): void {
-    svc.reorderItems(tripId, orderedIds);
+  reorderItems(tripId: string, orderedIds: Parameters<typeof svc.reorderItems>[1]) {
+    return svc.reorderItems(tripId, orderedIds);
   }
 
   getCategoryAssignees(tripId: string) {

@@ -20,37 +20,41 @@ export class TagsController {
   constructor(private readonly tags: TagsService) {}
 
   @Get()
-  list(@CurrentUser() user: User): TagListResponse {
-    return { tags: this.tags.list(user.id) };
+  async list(@CurrentUser() user: User): Promise<TagListResponse> {
+    return { tags: await this.tags.list(user.id) };
   }
 
   @Post()
-  create(@CurrentUser() user: User, @Body('name') name?: string, @Body('color') color?: string): { tag: Tag } {
+  async create(
+    @CurrentUser() user: User,
+    @Body('name') name?: string,
+    @Body('color') color?: string,
+  ): Promise<{ tag: Tag }> {
     if (!name) {
       throw new HttpException({ error: 'Tag name is required' }, 400);
     }
-    return { tag: this.tags.create(user.id, name, color) };
+    return { tag: await this.tags.create(user.id, name, color) };
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('id') id: string,
     @Body('name') name?: string,
     @Body('color') color?: string,
-  ): { tag: Tag } {
-    if (!this.tags.getByIdAndUser(id, user.id)) {
+  ): Promise<{ tag: Tag }> {
+    if (!(await this.tags.getByIdAndUser(id, user.id))) {
       throw new HttpException({ error: 'Tag not found' }, 404);
     }
-    return { tag: this.tags.update(id, name, color) };
+    return { tag: await this.tags.update(id, name, color) };
   }
 
   @Delete(':id')
-  remove(@CurrentUser() user: User, @Param('id') id: string): { success: boolean } {
-    if (!this.tags.getByIdAndUser(id, user.id)) {
+  async remove(@CurrentUser() user: User, @Param('id') id: string): Promise<{ success: boolean }> {
+    if (!(await this.tags.getByIdAndUser(id, user.id))) {
       throw new HttpException({ error: 'Tag not found' }, 404);
     }
-    this.tags.remove(id);
+    await this.tags.remove(id);
     return { success: true };
   }
 }

@@ -1,4 +1,4 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -86,41 +86,41 @@ const COLORS = [
 // Plan management
 // ---------------------------------------------------------------------------
 
-export function getOwnPlan(userId: number): VacayPlan {
-  let plan = db.prepare('SELECT * FROM vacay_plans WHERE owner_id = ?').get(userId) as VacayPlan | undefined;
+export async function getOwnPlan(userId: number): Promise<VacayPlan> {
+  let plan = await asyncDb.prepare('SELECT * FROM vacay_plans WHERE owner_id = ?').get<VacayPlan>(userId);
   if (!plan) {
-    db.prepare('INSERT INTO vacay_plans (owner_id) VALUES (?)').run(userId);
-    plan = db.prepare('SELECT * FROM vacay_plans WHERE owner_id = ?').get(userId) as VacayPlan;
+    await asyncDb.prepare('INSERT INTO vacay_plans (owner_id) VALUES (?)').run(userId);
+    plan = (await asyncDb.prepare('SELECT * FROM vacay_plans WHERE owner_id = ?').get<VacayPlan>(userId))!;
     const yr = new Date().getFullYear();
-    db.prepare('INSERT OR IGNORE INTO vacay_years (plan_id, year) VALUES (?, ?)').run(plan.id, yr);
-    db.prepare(
-      'INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, 0)',
-    ).run(userId, plan.id, yr);
-    db.prepare('INSERT OR IGNORE INTO vacay_user_colors (user_id, plan_id, color) VALUES (?, ?, ?)').run(
-      userId,
-      plan.id,
-      '#6366f1',
-    );
+    await asyncDb.prepare('INSERT OR IGNORE INTO vacay_years (plan_id, year) VALUES (?, ?)').run(plan.id, yr);
+    await asyncDb
+      .prepare(
+        'INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, 0)',
+      )
+      .run(userId, plan.id, yr);
+    await asyncDb
+      .prepare('INSERT OR IGNORE INTO vacay_user_colors (user_id, plan_id, color) VALUES (?, ?, ?)')
+      .run(userId, plan.id, '#6366f1');
   }
   return plan;
 }
 
-export function getActivePlan(userId: number): VacayPlan {
-  const membership = db
+export async function getActivePlan(userId: number): Promise<VacayPlan> {
+  const membership = await asyncDb
     .prepare(
       `
     SELECT plan_id FROM vacay_plan_members WHERE user_id = ? AND status = 'accepted'
   `,
     )
-    .get(userId) as { plan_id: number } | undefined;
+    .get<{ plan_id: number }>(userId);
   if (membership) {
-    return db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(membership.plan_id) as VacayPlan;
+    return (await asyncDb.prepare('SELECT * FROM vacay_plans WHERE id = ?').get<VacayPlan>(membership.plan_id))!;
   }
   return getOwnPlan(userId);
 }
 
-export function getActivePlanId(userId: number): number {
-  return getActivePlan(userId).id;
+export async function getActivePlanId(userId: number): Promise<number> {
+  return (await getActivePlan(userId)).id;
 }
 
 function parseDateOnly(value: string): Date | null {
@@ -143,17 +143,17 @@ function addDays(value: string, offset: number): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-export function shiftOwnerEntriesForTripWindow(
+export async function shiftOwnerEntriesForTripWindow(
   ownerId: number,
   oldStart: string,
   oldEnd: string,
   newStart: string,
-): void {
+): Promise<void> {
   const offset = daysBetween(oldStart, newStart);
   if (offset === 0) return;
 
-  const plan = getOwnPlan(ownerId);
-  const entries = db
+  const plan = await getOwnPlan(ownerId);
+  const entries = await asyncDb
     .prepare(
       `
         SELECT id, date FROM vacay_entries
@@ -163,28 +163,28 @@ export function shiftOwnerEntriesForTripWindow(
         ORDER BY date ${offset > 0 ? 'DESC' : 'ASC'}
       `,
     )
-    .all(plan.id, ownerId, oldStart, oldEnd) as { id: number; date: string }[];
-  const update = db.prepare('UPDATE vacay_entries SET date = ? WHERE id = ?');
-  const move = db.transaction((rows: typeof entries) => {
+    .all<{ id: number; date: string }>(plan.id, ownerId, oldStart, oldEnd);
+  const update = asyncDb.prepare('UPDATE vacay_entries SET date = ? WHERE id = ?');
+  const move = asyncDb.transaction(async (rows: typeof entries) => {
     for (const entry of rows) {
       const shifted = addDays(entry.date, offset);
       if (!shifted) continue;
       try {
-        update.run(shifted, entry.id);
+        await update.run(shifted, entry.id);
       } catch {
         // Preserve SQLite UPDATE OR IGNORE behavior when the shifted date would
         // collide with an existing unique (user_id, plan_id, date) row.
       }
     }
   });
-  move(entries);
+  await move(entries);
 }
 
-export function getPlanUsers(planId: number): VacayUser[] {
-  const plan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan | undefined;
+export async function getPlanUsers(planId: number): Promise<VacayUser[]> {
+  const plan = await asyncDb.prepare('SELECT * FROM vacay_plans WHERE id = ?').get<VacayPlan>(planId);
   if (!plan) return [];
-  const owner = db.prepare('SELECT id, username, email FROM users WHERE id = ?').get(plan.owner_id) as VacayUser;
-  const members = db
+  const owner = (await asyncDb.prepare('SELECT id, username, email FROM users WHERE id = ?').get<VacayUser>(plan.owner_id))!;
+  const members = await asyncDb
     .prepare(
       `
     SELECT u.id, u.username, u.email FROM vacay_plan_members m
@@ -192,7 +192,7 @@ export function getPlanUsers(planId: number): VacayUser[] {
     WHERE m.plan_id = ? AND m.status = 'accepted'
   `,
     )
-    .all(planId) as VacayUser[];
+    .all<VacayUser>(planId);
   return [owner, ...members];
 }
 
@@ -200,17 +200,15 @@ export function getPlanUsers(planId: number): VacayUser[] {
 // WebSocket notifications
 // ---------------------------------------------------------------------------
 
-export function notifyPlanUsers(planId: number, excludeSid: string | undefined, event = 'vacay:update'): void {
+export async function notifyPlanUsers(planId: number, excludeSid: string | undefined, event = 'vacay:update'): Promise<void> {
   try {
     const { broadcastToUser } = require('../websocket');
-    const plan = db.prepare('SELECT owner_id FROM vacay_plans WHERE id = ?').get(planId) as
-      | { owner_id: number }
-      | undefined;
+    const plan = await asyncDb.prepare('SELECT owner_id FROM vacay_plans WHERE id = ?').get<{ owner_id: number }>(planId);
     if (!plan) return;
     const userIds = [plan.owner_id];
-    const members = db
+    const members = await asyncDb
       .prepare("SELECT user_id FROM vacay_plan_members WHERE plan_id = ? AND status = 'accepted'")
-      .all(planId) as { user_id: number }[];
+      .all<{ user_id: number }>(planId);
     members.forEach((m) => userIds.push(m.user_id));
     userIds.forEach((id) => broadcastToUser(id, { type: event }, excludeSid));
   } catch {
@@ -223,15 +221,15 @@ export function notifyPlanUsers(planId: number, excludeSid: string | undefined, 
 // ---------------------------------------------------------------------------
 
 export async function applyHolidayCalendars(planId: number): Promise<void> {
-  const plan = db.prepare('SELECT holidays_enabled FROM vacay_plans WHERE id = ?').get(planId) as
-    | { holidays_enabled: number }
-    | undefined;
+  const plan = await asyncDb
+    .prepare('SELECT holidays_enabled FROM vacay_plans WHERE id = ?')
+    .get<{ holidays_enabled: number }>(planId);
   if (!plan?.holidays_enabled) return;
-  const calendars = db
+  const calendars = await asyncDb
     .prepare('SELECT * FROM vacay_holiday_calendars WHERE plan_id = ? ORDER BY sort_order, id')
-    .all(planId) as VacayHolidayCalendar[];
+    .all<VacayHolidayCalendar>(planId);
   if (calendars.length === 0) return;
-  const years = db.prepare('SELECT year FROM vacay_years WHERE plan_id = ?').all(planId) as { year: number }[];
+  const years = await asyncDb.prepare('SELECT year FROM vacay_years WHERE plan_id = ?').all<{ year: number }>(planId);
   for (const cal of calendars) {
     const country = cal.region.split('-')[0];
     const region = cal.region.includes('-') ? cal.region : null;
@@ -248,8 +246,8 @@ export async function applyHolidayCalendars(planId: number): Promise<void> {
         if (hasRegions && !region) continue;
         for (const h of holidays) {
           if (h.global || !h.counties || (region && h.counties.includes(region))) {
-            db.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date = ?').run(planId, h.date);
-            db.prepare('DELETE FROM vacay_company_holidays WHERE plan_id = ? AND date = ?').run(planId, h.date);
+            await asyncDb.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date = ?').run(planId, h.date);
+            await asyncDb.prepare('DELETE FROM vacay_company_holidays WHERE plan_id = ? AND date = ?').run(planId, h.date);
           }
         }
       } catch {
@@ -260,12 +258,14 @@ export async function applyHolidayCalendars(planId: number): Promise<void> {
 }
 
 export async function migrateHolidayCalendars(planId: number, plan: VacayPlan): Promise<void> {
-  const existing = db.prepare('SELECT id FROM vacay_holiday_calendars WHERE plan_id = ?').get(planId);
+  const existing = await asyncDb.prepare('SELECT id FROM vacay_holiday_calendars WHERE plan_id = ?').get(planId);
   if (existing) return;
   if (plan.holidays_enabled && plan.holidays_region) {
-    db.prepare(
-      'INSERT INTO vacay_holiday_calendars (plan_id, region, label, color, sort_order) VALUES (?, ?, NULL, ?, 0)',
-    ).run(planId, plan.holidays_region, '#fecaca');
+    await asyncDb
+      .prepare(
+        'INSERT INTO vacay_holiday_calendars (plan_id, region, label, color, sort_order) VALUES (?, ?, NULL, ?, 0)',
+      )
+      .run(planId, plan.holidays_region, '#fecaca');
   }
 }
 
@@ -327,61 +327,64 @@ export async function updatePlan(planId: number, body: UpdatePlanBody, socketId:
 
   if (updates.length > 0) {
     params.push(planId);
-    db.prepare(`UPDATE vacay_plans SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    await asyncDb.prepare(`UPDATE vacay_plans SET ${updates.join(', ')} WHERE id = ?`).run(...params);
   }
 
   if (company_holidays_enabled === true) {
-    const companyDates = db.prepare('SELECT date FROM vacay_company_holidays WHERE plan_id = ?').all(planId) as {
-      date: string;
-    }[];
+    const companyDates = await asyncDb
+      .prepare('SELECT date FROM vacay_company_holidays WHERE plan_id = ?')
+      .all<{ date: string }>(planId);
     for (const { date } of companyDates) {
-      db.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date = ?').run(planId, date);
+      await asyncDb.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date = ?').run(planId, date);
     }
   }
 
-  const updatedPlan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan;
+  const updatedPlan = (await asyncDb.prepare('SELECT * FROM vacay_plans WHERE id = ?').get<VacayPlan>(planId))!;
   await migrateHolidayCalendars(planId, updatedPlan);
   await applyHolidayCalendars(planId);
 
   if (carry_over_enabled === false) {
-    db.prepare('UPDATE vacay_user_years SET carried_over = 0 WHERE plan_id = ?').run(planId);
+    await asyncDb.prepare('UPDATE vacay_user_years SET carried_over = 0 WHERE plan_id = ?').run(planId);
   }
 
   if (carry_over_enabled === true) {
-    const years = db.prepare('SELECT year FROM vacay_years WHERE plan_id = ? ORDER BY year').all(planId) as {
-      year: number;
-    }[];
-    const users = getPlanUsers(planId);
+    const years = await asyncDb
+      .prepare('SELECT year FROM vacay_years WHERE plan_id = ? ORDER BY year')
+      .all<{ year: number }>(planId);
+    const users = await getPlanUsers(planId);
     for (let i = 0; i < years.length - 1; i++) {
       const yr = years[i].year;
       const nextYr = years[i + 1].year;
       for (const u of users) {
-        const used = (
-          db
-            .prepare('SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
-            .get(u.id, planId, `${yr}-%`) as { count: number }
-        ).count;
-        const config = db
+        const used =
+          (
+            await asyncDb
+              .prepare('SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
+              .get<{ count: number }>(u.id, planId, `${yr}-%`)
+          )?.count ?? 0;
+        const config = await asyncDb
           .prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?')
-          .get(u.id, planId, yr) as VacayUserYear | undefined;
+          .get<VacayUserYear>(u.id, planId, yr);
         const total = (config ? config.vacation_days : 30) + (config ? config.carried_over : 0);
         const carry = Math.max(0, total - used);
-        db.prepare(
-          `
+        await asyncDb
+          .prepare(
+            `
           INSERT INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, ?)
           ON CONFLICT(user_id, plan_id, year) DO UPDATE SET carried_over = ?
         `,
-        ).run(u.id, planId, nextYr, carry, carry);
+          )
+          .run(u.id, planId, nextYr, carry, carry);
       }
     }
   }
 
-  notifyPlanUsers(planId, socketId, 'vacay:settings');
+  await notifyPlanUsers(planId, socketId, 'vacay:settings');
 
-  const updated = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan;
-  const updatedCalendars = db
+  const updated = (await asyncDb.prepare('SELECT * FROM vacay_plans WHERE id = ?').get<VacayPlan>(planId))!;
+  const updatedCalendars = await asyncDb
     .prepare('SELECT * FROM vacay_holiday_calendars WHERE plan_id = ? ORDER BY sort_order, id')
-    .all(planId) as VacayHolidayCalendar[];
+    .all<VacayHolidayCalendar>(planId);
   return {
     plan: {
       ...updated,
@@ -398,7 +401,7 @@ export async function updatePlan(planId: number, body: UpdatePlanBody, socketId:
 // Holiday calendars CRUD
 // ---------------------------------------------------------------------------
 
-export function addHolidayCalendar(
+export async function addHolidayCalendar(
   planId: number,
   region: string,
   label: string | null,
@@ -406,25 +409,25 @@ export function addHolidayCalendar(
   sortOrder: number | undefined,
   socketId: string | undefined,
 ) {
-  const result = db
+  const result = await asyncDb
     .prepare('INSERT INTO vacay_holiday_calendars (plan_id, region, label, color, sort_order) VALUES (?, ?, ?, ?, ?)')
     .run(planId, region, label || null, color || '#fecaca', sortOrder ?? 0);
-  const cal = db
+  const cal = (await asyncDb
     .prepare('SELECT * FROM vacay_holiday_calendars WHERE id = ?')
-    .get(result.lastInsertRowid) as VacayHolidayCalendar;
-  notifyPlanUsers(planId, socketId, 'vacay:settings');
+    .get<VacayHolidayCalendar>(result.lastInsertRowid))!;
+  await notifyPlanUsers(planId, socketId, 'vacay:settings');
   return cal;
 }
 
-export function updateHolidayCalendar(
+export async function updateHolidayCalendar(
   calId: number,
   planId: number,
   body: { region?: string; label?: string | null; color?: string; sort_order?: number },
   socketId: string | undefined,
-): VacayHolidayCalendar | null {
-  const cal = db.prepare('SELECT * FROM vacay_holiday_calendars WHERE id = ? AND plan_id = ?').get(calId, planId) as
-    | VacayHolidayCalendar
-    | undefined;
+): Promise<VacayHolidayCalendar | null> {
+  const cal = await asyncDb
+    .prepare('SELECT * FROM vacay_holiday_calendars WHERE id = ? AND plan_id = ?')
+    .get<VacayHolidayCalendar>(calId, planId);
   if (!cal) return null;
   const { region, label, color, sort_order } = body;
   const updates: string[] = [];
@@ -447,18 +450,26 @@ export function updateHolidayCalendar(
   }
   if (updates.length > 0) {
     params.push(calId);
-    db.prepare(`UPDATE vacay_holiday_calendars SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    await asyncDb.prepare(`UPDATE vacay_holiday_calendars SET ${updates.join(', ')} WHERE id = ?`).run(...params);
   }
-  const updated = db.prepare('SELECT * FROM vacay_holiday_calendars WHERE id = ?').get(calId) as VacayHolidayCalendar;
-  notifyPlanUsers(planId, socketId, 'vacay:settings');
+  const updated = (await asyncDb
+    .prepare('SELECT * FROM vacay_holiday_calendars WHERE id = ?')
+    .get<VacayHolidayCalendar>(calId))!;
+  await notifyPlanUsers(planId, socketId, 'vacay:settings');
   return updated;
 }
 
-export function deleteHolidayCalendar(calId: number, planId: number, socketId: string | undefined): boolean {
-  const cal = db.prepare('SELECT * FROM vacay_holiday_calendars WHERE id = ? AND plan_id = ?').get(calId, planId);
+export async function deleteHolidayCalendar(
+  calId: number,
+  planId: number,
+  socketId: string | undefined,
+): Promise<boolean> {
+  const cal = await asyncDb
+    .prepare('SELECT * FROM vacay_holiday_calendars WHERE id = ? AND plan_id = ?')
+    .get(calId, planId);
   if (!cal) return false;
-  db.prepare('DELETE FROM vacay_holiday_calendars WHERE id = ?').run(calId);
-  notifyPlanUsers(planId, socketId, 'vacay:settings');
+  await asyncDb.prepare('DELETE FROM vacay_holiday_calendars WHERE id = ?').run(calId);
+  await notifyPlanUsers(planId, socketId, 'vacay:settings');
   return true;
 }
 
@@ -466,55 +477,53 @@ export function deleteHolidayCalendar(calId: number, planId: number, socketId: s
 // User colors
 // ---------------------------------------------------------------------------
 
-export function setUserColor(
+export async function setUserColor(
   userId: number,
   planId: number,
   color: string | undefined,
   socketId: string | undefined,
-): void {
-  db.prepare(
+): Promise<void> {
+  await asyncDb.prepare(
     `
     INSERT INTO vacay_user_colors (user_id, plan_id, color) VALUES (?, ?, ?)
     ON CONFLICT(user_id, plan_id) DO UPDATE SET color = excluded.color
   `,
   ).run(userId, planId, color || '#6366f1');
-  notifyPlanUsers(planId, socketId, 'vacay:update');
+  await notifyPlanUsers(planId, socketId, 'vacay:update');
 }
 
 // ---------------------------------------------------------------------------
 // Invitations
 // ---------------------------------------------------------------------------
 
-export function sendInvite(
+export async function sendInvite(
   planId: number,
   inviterId: number,
   inviterUsername: string,
   inviterEmail: string,
   targetUserId: number,
-): { error?: string; status?: number } {
+): Promise<{ error?: string; status?: number }> {
   if (targetUserId === inviterId) return { error: 'Cannot invite yourself', status: 400 };
 
-  const targetUser = db.prepare('SELECT id, username FROM users WHERE id = ?').get(targetUserId);
+  const targetUser = await asyncDb.prepare('SELECT id, username FROM users WHERE id = ?').get(targetUserId);
   if (!targetUser) return { error: 'User not found', status: 404 };
 
-  const existing = db
+  const existing = await asyncDb
     .prepare('SELECT id, status FROM vacay_plan_members WHERE plan_id = ? AND user_id = ?')
-    .get(planId, targetUserId) as { id: number; status: string } | undefined;
+    .get<{ id: number; status: string }>(planId, targetUserId);
   if (existing) {
     if (existing.status === 'accepted') return { error: 'Already fused', status: 400 };
     if (existing.status === 'pending') return { error: 'Invite already pending', status: 400 };
   }
 
-  const targetFusion = db
+  const targetFusion = await asyncDb
     .prepare("SELECT id FROM vacay_plan_members WHERE user_id = ? AND status = 'accepted'")
     .get(targetUserId);
   if (targetFusion) return { error: 'User is already fused with another plan', status: 400 };
 
-  db.prepare('INSERT INTO vacay_plan_members (plan_id, user_id, status) VALUES (?, ?, ?)').run(
-    planId,
-    targetUserId,
-    'pending',
-  );
+  await asyncDb
+    .prepare('INSERT INTO vacay_plan_members (plan_id, user_id, status) VALUES (?, ?, ?)')
+    .run(planId, targetUserId, 'pending');
 
   try {
     const { broadcastToUser } = require('../websocket');
@@ -541,97 +550,97 @@ export function sendInvite(
   return {};
 }
 
-export function acceptInvite(
+export async function acceptInvite(
   userId: number,
   planId: number,
   socketId: string | undefined,
-): { error?: string; status?: number } {
-  const invite = db
+): Promise<{ error?: string; status?: number }> {
+  const invite = await asyncDb
     .prepare("SELECT * FROM vacay_plan_members WHERE plan_id = ? AND user_id = ? AND status = 'pending'")
-    .get(planId, userId) as VacayPlanMember | undefined;
+    .get<VacayPlanMember>(planId, userId);
   if (!invite) return { error: 'No pending invite', status: 404 };
 
-  db.prepare("UPDATE vacay_plan_members SET status = 'accepted' WHERE id = ?").run(invite.id);
+  await asyncDb.prepare("UPDATE vacay_plan_members SET status = 'accepted' WHERE id = ?").run(invite.id);
 
   // Migrate data from user's own plan
-  const ownPlan = db.prepare('SELECT id FROM vacay_plans WHERE owner_id = ?').get(userId) as { id: number } | undefined;
+  const ownPlan = await asyncDb.prepare('SELECT id FROM vacay_plans WHERE owner_id = ?').get<{ id: number }>(userId);
   if (ownPlan && ownPlan.id !== planId) {
-    db.prepare('UPDATE vacay_entries SET plan_id = ? WHERE plan_id = ? AND user_id = ?').run(
+    await asyncDb.prepare('UPDATE vacay_entries SET plan_id = ? WHERE plan_id = ? AND user_id = ?').run(
       planId,
       ownPlan.id,
       userId,
     );
-    const ownYears = db
+    const ownYears = await asyncDb
       .prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ?')
-      .all(userId, ownPlan.id) as VacayUserYear[];
+      .all<VacayUserYear>(userId, ownPlan.id);
     for (const y of ownYears) {
-      db.prepare(
-        'INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, ?, ?)',
-      ).run(userId, planId, y.year, y.vacation_days, y.carried_over);
+      await asyncDb
+        .prepare(
+          'INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run(userId, planId, y.year, y.vacation_days, y.carried_over);
     }
-    const colorRow = db
+    const colorRow = await asyncDb
       .prepare('SELECT color FROM vacay_user_colors WHERE user_id = ? AND plan_id = ?')
-      .get(userId, ownPlan.id) as { color: string } | undefined;
+      .get<{ color: string }>(userId, ownPlan.id);
     if (colorRow) {
-      db.prepare('INSERT OR IGNORE INTO vacay_user_colors (user_id, plan_id, color) VALUES (?, ?, ?)').run(
-        userId,
-        planId,
-        colorRow.color,
-      );
+      await asyncDb
+        .prepare('INSERT OR IGNORE INTO vacay_user_colors (user_id, plan_id, color) VALUES (?, ?, ?)')
+        .run(userId, planId, colorRow.color);
     }
   }
 
   // Auto-assign unique color
   const existingColors = (
-    db.prepare('SELECT color FROM vacay_user_colors WHERE plan_id = ? AND user_id != ?').all(planId, userId) as {
-      color: string;
-    }[]
+    await asyncDb
+      .prepare('SELECT color FROM vacay_user_colors WHERE plan_id = ? AND user_id != ?')
+      .all<{ color: string }>(planId, userId)
   ).map((r) => r.color);
-  const myColor = db
+  const myColor = await asyncDb
     .prepare('SELECT color FROM vacay_user_colors WHERE user_id = ? AND plan_id = ?')
-    .get(userId, planId) as { color: string } | undefined;
+    .get<{ color: string }>(userId, planId);
   const effectiveColor = myColor?.color || '#6366f1';
   if (existingColors.includes(effectiveColor)) {
     const available = COLORS.find((c) => !existingColors.includes(c));
     if (available) {
-      db.prepare(
-        `INSERT INTO vacay_user_colors (user_id, plan_id, color) VALUES (?, ?, ?)
+      await asyncDb
+        .prepare(
+          `INSERT INTO vacay_user_colors (user_id, plan_id, color) VALUES (?, ?, ?)
         ON CONFLICT(user_id, plan_id) DO UPDATE SET color = excluded.color`,
-      ).run(userId, planId, available);
+        )
+        .run(userId, planId, available);
     }
   } else if (!myColor) {
-    db.prepare('INSERT OR IGNORE INTO vacay_user_colors (user_id, plan_id, color) VALUES (?, ?, ?)').run(
-      userId,
-      planId,
-      effectiveColor,
-    );
+    await asyncDb
+      .prepare('INSERT OR IGNORE INTO vacay_user_colors (user_id, plan_id, color) VALUES (?, ?, ?)')
+      .run(userId, planId, effectiveColor);
   }
 
   // Ensure user has rows for all plan years
-  const targetYears = db.prepare('SELECT year FROM vacay_years WHERE plan_id = ?').all(planId) as { year: number }[];
+  const targetYears = await asyncDb.prepare('SELECT year FROM vacay_years WHERE plan_id = ?').all<{ year: number }>(planId);
   for (const y of targetYears) {
-    db.prepare(
-      'INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, 0)',
-    ).run(userId, planId, y.year);
+    await asyncDb
+      .prepare(
+        'INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, 0)',
+      )
+      .run(userId, planId, y.year);
   }
 
-  notifyPlanUsers(planId, socketId, 'vacay:accepted');
+  await notifyPlanUsers(planId, socketId, 'vacay:accepted');
   return {};
 }
 
-export function declineInvite(userId: number, planId: number, socketId: string | undefined): void {
-  db.prepare("DELETE FROM vacay_plan_members WHERE plan_id = ? AND user_id = ? AND status = 'pending'").run(
-    planId,
-    userId,
-  );
-  notifyPlanUsers(planId, socketId, 'vacay:declined');
+export async function declineInvite(userId: number, planId: number, socketId: string | undefined): Promise<void> {
+  await asyncDb
+    .prepare("DELETE FROM vacay_plan_members WHERE plan_id = ? AND user_id = ? AND status = 'pending'")
+    .run(planId, userId);
+  await notifyPlanUsers(planId, socketId, 'vacay:declined');
 }
 
-export function cancelInvite(planId: number, targetUserId: number): void {
-  db.prepare("DELETE FROM vacay_plan_members WHERE plan_id = ? AND user_id = ? AND status = 'pending'").run(
-    planId,
-    targetUserId,
-  );
+export async function cancelInvite(planId: number, targetUserId: number): Promise<void> {
+  await asyncDb
+    .prepare("DELETE FROM vacay_plan_members WHERE plan_id = ? AND user_id = ? AND status = 'pending'")
+    .run(planId, targetUserId);
 
   try {
     const { broadcastToUser } = require('../websocket');
@@ -645,50 +654,46 @@ export function cancelInvite(planId: number, targetUserId: number): void {
 // Plan dissolution
 // ---------------------------------------------------------------------------
 
-export function dissolvePlan(userId: number, socketId: string | undefined): void {
-  const plan = getActivePlan(userId);
+export async function dissolvePlan(userId: number, socketId: string | undefined): Promise<void> {
+  const plan = await getActivePlan(userId);
   const isOwnerFlag = plan.owner_id === userId;
 
-  const allUserIds = getPlanUsers(plan.id).map((u) => u.id);
-  const companyHolidays = db
+  const allUserIds = (await getPlanUsers(plan.id)).map((u) => u.id);
+  const companyHolidays = await asyncDb
     .prepare('SELECT date, note FROM vacay_company_holidays WHERE plan_id = ?')
-    .all(plan.id) as { date: string; note: string }[];
+    .all<{ date: string; note: string }>(plan.id);
 
   if (isOwnerFlag) {
-    const members = db
+    const members = await asyncDb
       .prepare("SELECT user_id FROM vacay_plan_members WHERE plan_id = ? AND status = 'accepted'")
-      .all(plan.id) as { user_id: number }[];
+      .all<{ user_id: number }>(plan.id);
     for (const m of members) {
-      const memberPlan = getOwnPlan(m.user_id);
-      db.prepare('UPDATE vacay_entries SET plan_id = ? WHERE plan_id = ? AND user_id = ?').run(
+      const memberPlan = await getOwnPlan(m.user_id);
+      await asyncDb.prepare('UPDATE vacay_entries SET plan_id = ? WHERE plan_id = ? AND user_id = ?').run(
         memberPlan.id,
         plan.id,
         m.user_id,
       );
       for (const ch of companyHolidays) {
-        db.prepare('INSERT OR IGNORE INTO vacay_company_holidays (plan_id, date, note) VALUES (?, ?, ?)').run(
-          memberPlan.id,
-          ch.date,
-          ch.note,
-        );
+        await asyncDb
+          .prepare('INSERT OR IGNORE INTO vacay_company_holidays (plan_id, date, note) VALUES (?, ?, ?)')
+          .run(memberPlan.id, ch.date, ch.note);
       }
     }
-    db.prepare('DELETE FROM vacay_plan_members WHERE plan_id = ?').run(plan.id);
+    await asyncDb.prepare('DELETE FROM vacay_plan_members WHERE plan_id = ?').run(plan.id);
   } else {
-    const ownPlan = getOwnPlan(userId);
-    db.prepare('UPDATE vacay_entries SET plan_id = ? WHERE plan_id = ? AND user_id = ?').run(
+    const ownPlan = await getOwnPlan(userId);
+    await asyncDb.prepare('UPDATE vacay_entries SET plan_id = ? WHERE plan_id = ? AND user_id = ?').run(
       ownPlan.id,
       plan.id,
       userId,
     );
     for (const ch of companyHolidays) {
-      db.prepare('INSERT OR IGNORE INTO vacay_company_holidays (plan_id, date, note) VALUES (?, ?, ?)').run(
-        ownPlan.id,
-        ch.date,
-        ch.note,
-      );
+      await asyncDb
+        .prepare('INSERT OR IGNORE INTO vacay_company_holidays (plan_id, date, note) VALUES (?, ?, ?)')
+        .run(ownPlan.id, ch.date, ch.note);
     }
-    db.prepare('DELETE FROM vacay_plan_members WHERE plan_id = ? AND user_id = ?').run(plan.id, userId);
+    await asyncDb.prepare('DELETE FROM vacay_plan_members WHERE plan_id = ? AND user_id = ?').run(plan.id, userId);
   }
 
   try {
@@ -703,8 +708,8 @@ export function dissolvePlan(userId: number, socketId: string | undefined): void
 // Available users
 // ---------------------------------------------------------------------------
 
-export function getAvailableUsers(userId: number, planId: number) {
-  return db
+export async function getAvailableUsers(userId: number, planId: number) {
+  return asyncDb
     .prepare(
       `
     SELECT u.id, u.username, u.email FROM users u
@@ -724,88 +729,91 @@ export function getAvailableUsers(userId: number, planId: number) {
 // Years
 // ---------------------------------------------------------------------------
 
-export function listYears(planId: number): number[] {
-  const rows = db.prepare('SELECT year FROM vacay_years WHERE plan_id = ? ORDER BY year').all(planId) as {
-    year: number;
-  }[];
+export async function listYears(planId: number): Promise<number[]> {
+  const rows = await asyncDb
+    .prepare('SELECT year FROM vacay_years WHERE plan_id = ? ORDER BY year')
+    .all<{ year: number }>(planId);
   return rows.map((y) => y.year);
 }
 
-export function addYear(planId: number, year: number, socketId: string | undefined): number[] {
+export async function addYear(planId: number, year: number, socketId: string | undefined): Promise<number[]> {
   try {
-    db.prepare('INSERT INTO vacay_years (plan_id, year) VALUES (?, ?)').run(planId, year);
-    const plan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan | undefined;
+    await asyncDb.prepare('INSERT INTO vacay_years (plan_id, year) VALUES (?, ?)').run(planId, year);
+    const plan = await asyncDb.prepare('SELECT * FROM vacay_plans WHERE id = ?').get<VacayPlan>(planId);
     const carryOverEnabled = plan ? !!plan.carry_over_enabled : true;
-    const users = getPlanUsers(planId);
+    const users = await getPlanUsers(planId);
     for (const u of users) {
       let carriedOver = 0;
       if (carryOverEnabled) {
-        const prevConfig = db
+        const prevConfig = await asyncDb
           .prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?')
-          .get(u.id, planId, year - 1) as VacayUserYear | undefined;
+          .get<VacayUserYear>(u.id, planId, year - 1);
         if (prevConfig) {
-          const used = (
-            db
-              .prepare('SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
-              .get(u.id, planId, `${year - 1}-%`) as { count: number }
-          ).count;
+          const used =
+            (
+              await asyncDb
+                .prepare('SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
+                .get<{ count: number }>(u.id, planId, `${year - 1}-%`)
+            )?.count ?? 0;
           const total = prevConfig.vacation_days + prevConfig.carried_over;
           carriedOver = Math.max(0, total - used);
         }
       }
-      db.prepare(
-        'INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, ?)',
-      ).run(u.id, planId, year, carriedOver);
+      await asyncDb
+        .prepare(
+          'INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, ?)',
+        )
+        .run(u.id, planId, year, carriedOver);
     }
   } catch {
     /* year already exists */
   }
-  notifyPlanUsers(planId, socketId, 'vacay:settings');
+  await notifyPlanUsers(planId, socketId, 'vacay:settings');
   return listYears(planId);
 }
 
-export function deleteYear(planId: number, year: number, socketId: string | undefined): number[] {
-  db.prepare('DELETE FROM vacay_years WHERE plan_id = ? AND year = ?').run(planId, year);
-  db.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date LIKE ?').run(planId, `${year}-%`);
-  db.prepare('DELETE FROM vacay_company_holidays WHERE plan_id = ? AND date LIKE ?').run(planId, `${year}-%`);
-  db.prepare('DELETE FROM vacay_user_years WHERE plan_id = ? AND year = ?').run(planId, year);
+export async function deleteYear(planId: number, year: number, socketId: string | undefined): Promise<number[]> {
+  await asyncDb.prepare('DELETE FROM vacay_years WHERE plan_id = ? AND year = ?').run(planId, year);
+  await asyncDb.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date LIKE ?').run(planId, `${year}-%`);
+  await asyncDb.prepare('DELETE FROM vacay_company_holidays WHERE plan_id = ? AND date LIKE ?').run(planId, `${year}-%`);
+  await asyncDb.prepare('DELETE FROM vacay_user_years WHERE plan_id = ? AND year = ?').run(planId, year);
 
   // Recalculate carry-over for year+1 if it exists, since its previous year has changed
-  const nextYearExists = db.prepare('SELECT id FROM vacay_years WHERE plan_id = ? AND year = ?').get(planId, year + 1);
+  const nextYearExists = await asyncDb
+    .prepare('SELECT id FROM vacay_years WHERE plan_id = ? AND year = ?')
+    .get(planId, year + 1);
   if (nextYearExists) {
-    const plan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan | undefined;
+    const plan = await asyncDb.prepare('SELECT * FROM vacay_plans WHERE id = ?').get<VacayPlan>(planId);
     const carryOverEnabled = plan ? !!plan.carry_over_enabled : true;
-    const users = getPlanUsers(planId);
-    const prevYear = db
+    const users = await getPlanUsers(planId);
+    const prevYear = await asyncDb
       .prepare('SELECT year FROM vacay_years WHERE plan_id = ? AND year < ? ORDER BY year DESC LIMIT 1')
-      .get(planId, year + 1) as { year: number } | undefined;
+      .get<{ year: number }>(planId, year + 1);
 
     for (const u of users) {
       let carry = 0;
       if (carryOverEnabled && prevYear) {
-        const prevConfig = db
+        const prevConfig = await asyncDb
           .prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?')
-          .get(u.id, planId, prevYear.year) as VacayUserYear | undefined;
+          .get<VacayUserYear>(u.id, planId, prevYear.year);
         if (prevConfig) {
-          const used = (
-            db
-              .prepare('SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
-              .get(u.id, planId, `${prevYear.year}-%`) as { count: number }
-          ).count;
+          const used =
+            (
+              await asyncDb
+                .prepare('SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
+                .get<{ count: number }>(u.id, planId, `${prevYear.year}-%`)
+            )?.count ?? 0;
           const total = prevConfig.vacation_days + prevConfig.carried_over;
           carry = Math.max(0, total - used);
         }
       }
-      db.prepare('UPDATE vacay_user_years SET carried_over = ? WHERE user_id = ? AND plan_id = ? AND year = ?').run(
-        carry,
-        u.id,
-        planId,
-        year + 1,
-      );
+      await asyncDb
+        .prepare('UPDATE vacay_user_years SET carried_over = ? WHERE user_id = ? AND plan_id = ? AND year = ?')
+        .run(carry, u.id, planId, year + 1);
     }
   }
 
-  notifyPlanUsers(planId, socketId, 'vacay:settings');
+  await notifyPlanUsers(planId, socketId, 'vacay:settings');
   return listYears(planId);
 }
 
@@ -813,8 +821,8 @@ export function deleteYear(planId: number, year: number, socketId: string | unde
 // Entries
 // ---------------------------------------------------------------------------
 
-export function getEntries(planId: number, year: string) {
-  const entries = db
+export async function getEntries(planId: number, year: string) {
+  const entries = await asyncDb
     .prepare(
       `
     SELECT e.*, u.username as person_name, COALESCE(c.color, '#6366f1') as person_color
@@ -825,58 +833,53 @@ export function getEntries(planId: number, year: string) {
   `,
     )
     .all(planId, `${year}-%`);
-  const companyHolidays = db
+  const companyHolidays = await asyncDb
     .prepare('SELECT * FROM vacay_company_holidays WHERE plan_id = ? AND date LIKE ?')
     .all(planId, `${year}-%`);
   return { entries, companyHolidays };
 }
 
-export function toggleEntry(
+export async function toggleEntry(
   userId: number,
   planId: number,
   date: string,
   socketId: string | undefined,
-): { action: string } {
-  const existing = db
+): Promise<{ action: string }> {
+  const existing = await asyncDb
     .prepare('SELECT id FROM vacay_entries WHERE user_id = ? AND date = ? AND plan_id = ?')
-    .get(userId, date, planId) as { id: number } | undefined;
+    .get<{ id: number }>(userId, date, planId);
   if (existing) {
-    db.prepare('DELETE FROM vacay_entries WHERE id = ?').run(existing.id);
-    notifyPlanUsers(planId, socketId);
+    await asyncDb.prepare('DELETE FROM vacay_entries WHERE id = ?').run(existing.id);
+    await notifyPlanUsers(planId, socketId);
     return { action: 'removed' };
   } else {
-    db.prepare('INSERT INTO vacay_entries (plan_id, user_id, date, note) VALUES (?, ?, ?, ?)').run(
-      planId,
-      userId,
-      date,
-      '',
-    );
-    notifyPlanUsers(planId, socketId);
+    await asyncDb
+      .prepare('INSERT INTO vacay_entries (plan_id, user_id, date, note) VALUES (?, ?, ?, ?)')
+      .run(planId, userId, date, '');
+    await notifyPlanUsers(planId, socketId);
     return { action: 'added' };
   }
 }
 
-export function toggleCompanyHoliday(
+export async function toggleCompanyHoliday(
   planId: number,
   date: string,
   note: string | undefined,
   socketId: string | undefined,
-): { action: string } {
-  const existing = db
+): Promise<{ action: string }> {
+  const existing = await asyncDb
     .prepare('SELECT id FROM vacay_company_holidays WHERE plan_id = ? AND date = ?')
-    .get(planId, date) as { id: number } | undefined;
+    .get<{ id: number }>(planId, date);
   if (existing) {
-    db.prepare('DELETE FROM vacay_company_holidays WHERE id = ?').run(existing.id);
-    notifyPlanUsers(planId, socketId);
+    await asyncDb.prepare('DELETE FROM vacay_company_holidays WHERE id = ?').run(existing.id);
+    await notifyPlanUsers(planId, socketId);
     return { action: 'removed' };
   } else {
-    db.prepare('INSERT INTO vacay_company_holidays (plan_id, date, note) VALUES (?, ?, ?)').run(
-      planId,
-      date,
-      note || '',
-    );
-    db.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date = ?').run(planId, date);
-    notifyPlanUsers(planId, socketId);
+    await asyncDb
+      .prepare('INSERT INTO vacay_company_holidays (plan_id, date, note) VALUES (?, ?, ?)')
+      .run(planId, date, note || '');
+    await asyncDb.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date = ?').run(planId, date);
+    await notifyPlanUsers(planId, socketId);
     return { action: 'added' };
   }
 }
@@ -885,42 +888,46 @@ export function toggleCompanyHoliday(
 // Stats
 // ---------------------------------------------------------------------------
 
-export function getStats(planId: number, year: number) {
-  const plan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan | undefined;
+export async function getStats(planId: number, year: number) {
+  const plan = await asyncDb.prepare('SELECT * FROM vacay_plans WHERE id = ?').get<VacayPlan>(planId);
   const carryOverEnabled = plan ? !!plan.carry_over_enabled : true;
-  const users = getPlanUsers(planId);
+  const users = await getPlanUsers(planId);
 
-  return users.map((u) => {
-    const used = (
-      db
-        .prepare('SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
-        .get(u.id, planId, `${year}-%`) as { count: number }
-    ).count;
-    const config = db
+  const stats = [];
+  for (const u of users) {
+    const used =
+      (
+        await asyncDb
+          .prepare('SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
+          .get<{ count: number }>(u.id, planId, `${year}-%`)
+      )?.count ?? 0;
+    const config = await asyncDb
       .prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?')
-      .get(u.id, planId, year) as VacayUserYear | undefined;
+      .get<VacayUserYear>(u.id, planId, year);
     const vacationDays = config ? config.vacation_days : 30;
     const carriedOver = carryOverEnabled ? (config ? config.carried_over : 0) : 0;
     const total = vacationDays + carriedOver;
     const remaining = total - used;
-    const colorRow = db
+    const colorRow = await asyncDb
       .prepare('SELECT color FROM vacay_user_colors WHERE user_id = ? AND plan_id = ?')
-      .get(u.id, planId) as { color: string } | undefined;
+      .get<{ color: string }>(u.id, planId);
 
-    const nextYearExists = db
+    const nextYearExists = await asyncDb
       .prepare('SELECT id FROM vacay_years WHERE plan_id = ? AND year = ?')
       .get(planId, year + 1);
     if (nextYearExists && carryOverEnabled) {
       const carry = Math.max(0, remaining);
-      db.prepare(
-        `
+      await asyncDb
+        .prepare(
+          `
         INSERT INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, ?)
         ON CONFLICT(user_id, plan_id, year) DO UPDATE SET carried_over = ?
       `,
-      ).run(u.id, planId, year + 1, carry, carry);
+        )
+        .run(u.id, planId, year + 1, carry, carry);
     }
 
-    return {
+    stats.push({
       user_id: u.id,
       person_name: u.username,
       person_color: colorRow?.color || '#6366f1',
@@ -930,42 +937,44 @@ export function getStats(planId: number, year: number) {
       total_available: total,
       used,
       remaining,
-    };
-  });
+    });
+  }
+  return stats;
 }
 
-export function updateStats(
+export async function updateStats(
   userId: number,
   planId: number,
   year: number,
   vacationDays: number,
   socketId: string | undefined,
-): void {
-  db.prepare(
+): Promise<void> {
+  await asyncDb.prepare(
     `
     INSERT INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, ?, 0)
     ON CONFLICT(user_id, plan_id, year) DO UPDATE SET vacation_days = excluded.vacation_days
   `,
   ).run(userId, planId, year, vacationDays);
-  notifyPlanUsers(planId, socketId);
+  await notifyPlanUsers(planId, socketId);
 }
 
 // ---------------------------------------------------------------------------
 // GET /plan composite
 // ---------------------------------------------------------------------------
 
-export function getPlanData(userId: number) {
-  const plan = getActivePlan(userId);
+export async function getPlanData(userId: number) {
+  const plan = await getActivePlan(userId);
   const activePlanId = plan.id;
 
-  const users = getPlanUsers(activePlanId).map((u) => {
-    const colorRow = db
+  const users = [];
+  for (const u of await getPlanUsers(activePlanId)) {
+    const colorRow = await asyncDb
       .prepare('SELECT color FROM vacay_user_colors WHERE user_id = ? AND plan_id = ?')
-      .get(u.id, activePlanId) as { color: string } | undefined;
-    return { ...u, color: colorRow?.color || '#6366f1' };
-  });
+      .get<{ color: string }>(u.id, activePlanId);
+    users.push({ ...u, color: colorRow?.color || '#6366f1' });
+  }
 
-  const pendingInvites = db
+  const pendingInvites = await asyncDb
     .prepare(
       `
     SELECT m.id, m.user_id, u.username, u.email, m.created_at
@@ -975,7 +984,7 @@ export function getPlanData(userId: number) {
     )
     .all(activePlanId);
 
-  const incomingInvites = db
+  const incomingInvites = await asyncDb
     .prepare(
       `
     SELECT m.id, m.plan_id, u.username, u.email, m.created_at
@@ -987,9 +996,9 @@ export function getPlanData(userId: number) {
     )
     .all(userId);
 
-  const holidayCalendars = db
+  const holidayCalendars = await asyncDb
     .prepare('SELECT * FROM vacay_holiday_calendars WHERE plan_id = ? ORDER BY sort_order, id')
-    .all(activePlanId) as VacayHolidayCalendar[];
+    .all<VacayHolidayCalendar>(activePlanId);
 
   return {
     plan: {

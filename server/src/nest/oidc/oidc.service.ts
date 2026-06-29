@@ -1,4 +1,4 @@
-import { resolveAuthToggles } from '../../services/authService';
+import { resolveAuthTogglesAsync } from '../../services/authService';
 import { setAuthCookie } from '../../services/cookie';
 import { getAppUrl } from '../../services/notifications';
 import * as oidc from '../../services/oidcService';
@@ -13,11 +13,11 @@ import type { Request, Response } from 'express';
  */
 @Injectable()
 export class OidcService {
-  oidcLoginEnabled(): boolean {
-    return resolveAuthToggles().oidc_login;
+  async oidcLoginEnabled(): Promise<boolean> {
+    return (await resolveAuthTogglesAsync()).oidc_login;
   }
   getOidcConfig() {
-    return oidc.getOidcConfig();
+    return oidc.getOidcConfigAsync();
   }
   getAppUrl() {
     return getAppUrl();
@@ -40,14 +40,14 @@ export class OidcService {
   getUserInfo(endpoint: string, accessToken: string) {
     return oidc.getUserInfo(endpoint, accessToken);
   }
-  findOrCreateUser(...args: Parameters<typeof oidc.findOrCreateUser>) {
-    return oidc.findOrCreateUser(...args);
+  findOrCreateUser(...args: Parameters<typeof oidc.findOrCreateUserAsync>) {
+    return oidc.findOrCreateUserAsync(...args);
   }
   touchLastLogin(userId: number) {
-    return oidc.touchLastLogin(userId);
+    return oidc.touchLastLoginAsync(userId);
   }
   generateToken(user: { id: number }) {
-    return oidc.generateToken(user);
+    return oidc.generateTokenAsync(user);
   }
   createAuthCode(token: string) {
     return oidc.createAuthCode(token);

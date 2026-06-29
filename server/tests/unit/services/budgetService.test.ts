@@ -64,37 +64,37 @@ beforeEach(() => {
 // ── calculateSettlement ──────────────────────────────────────────────────────
 
 describe('calculateSettlement', () => {
-  it('returns empty balances and flows when trip has no items', () => {
+  it('returns empty balances and flows when trip has no items', async () => {
     setupDb([], [], []);
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     expect(result.balances).toEqual([]);
     expect(result.flows).toEqual([]);
   });
 
-  it('returns no flows when there are items but no members', () => {
+  it('returns no flows when there are items but no members', async () => {
     setupDb([makeItem(1, 100)], [], [makePayer(1, 1, 100, 'alice')]);
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     expect(result.flows).toEqual([]);
   });
 
-  it('returns no flows when no one has paid', () => {
+  it('returns no flows when no one has paid', async () => {
     setupDb(
       [makeItem(1, 100)],
       [makeMember(1, 1, 'alice'), makeMember(1, 2, 'bob')],
       [],
     );
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     expect(result.flows).toEqual([]);
   });
 
-  it('2 members, 1 payer: payer is owed half, non-payer owes half', () => {
+  it('2 members, 1 payer: payer is owed half, non-payer owes half', async () => {
     // Item: $100. Alice paid all, [Alice, Bob] split. Each owes $50. Alice net: +$50. Bob: -$50.
     setupDb(
       [makeItem(1, 100)],
       [makeMember(1, 1, 'alice'), makeMember(1, 2, 'bob')],
       [makePayer(1, 1, 100, 'alice')],
     );
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     const alice = result.balances.find(b => b.user_id === 1)!;
     const bob = result.balances.find(b => b.user_id === 2)!;
     expect(alice.balance).toBe(50);
@@ -105,14 +105,14 @@ describe('calculateSettlement', () => {
     expect(result.flows[0].amount).toBe(50);
   });
 
-  it('3 members, 1 payer: correct 3-way split', () => {
+  it('3 members, 1 payer: correct 3-way split', async () => {
     // Item: $90. Alice paid. Each of 3 owes $30. Alice net: +$60. Bob: -$30. Carol: -$30.
     setupDb(
       [makeItem(1, 90)],
       [makeMember(1, 1, 'alice'), makeMember(1, 2, 'bob'), makeMember(1, 3, 'carol')],
       [makePayer(1, 1, 90, 'alice')],
     );
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     const alice = result.balances.find(b => b.user_id === 1)!;
     const bob = result.balances.find(b => b.user_id === 2)!;
     const carol = result.balances.find(b => b.user_id === 3)!;
@@ -122,41 +122,41 @@ describe('calculateSettlement', () => {
     expect(result.flows).toHaveLength(2);
   });
 
-  it('all paid equally: all balances are zero, no flows', () => {
+  it('all paid equally: all balances are zero, no flows', async () => {
     // Item: $60. 3 members, each paid $20 and owes $20. Net: 0 for everyone.
     setupDb(
       [makeItem(1, 60)],
       [makeMember(1, 1, 'alice'), makeMember(1, 2, 'bob'), makeMember(1, 3, 'carol')],
       [makePayer(1, 1, 20, 'alice'), makePayer(1, 2, 20, 'bob'), makePayer(1, 3, 20, 'carol')],
     );
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     for (const b of result.balances) {
       expect(Math.abs(b.balance)).toBeLessThanOrEqual(0.01);
     }
     expect(result.flows).toHaveLength(0);
   });
 
-  it('flow direction: from is debtor (owes), to is creditor (is owed)', () => {
+  it('flow direction: from is debtor (owes), to is creditor (is owed)', async () => {
     // Alice paid $100 for 2 people. Bob owes Alice $50.
     setupDb(
       [makeItem(1, 100)],
       [makeMember(1, 1, 'alice'), makeMember(1, 2, 'bob')],
       [makePayer(1, 1, 100, 'alice')],
     );
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     const flow = result.flows[0];
     expect(flow.from.username).toBe('bob');   // debtor
     expect(flow.to.username).toBe('alice');   // creditor
   });
 
-  it('amounts are rounded to 2 decimal places', () => {
+  it('amounts are rounded to 2 decimal places', async () => {
     // Item: $10. 3 members, 1 payer. Share = 3.333... Each rounded to 3.33.
     setupDb(
       [makeItem(1, 10)],
       [makeMember(1, 1, 'alice'), makeMember(1, 2, 'bob'), makeMember(1, 3, 'carol')],
       [makePayer(1, 1, 10, 'alice')],
     );
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     for (const b of result.balances) {
       const str = b.balance.toString();
       const decimals = str.includes('.') ? str.split('.')[1].length : 0;
@@ -169,7 +169,7 @@ describe('calculateSettlement', () => {
     }
   });
 
-  it('2 items with different payers: aggregates balances correctly', () => {
+  it('2 items with different payers: aggregates balances correctly', async () => {
     // Item 1: $100, Alice paid, [Alice, Bob] (Alice net: +50, Bob: -50)
     // Item 2: $60, Bob paid, [Alice, Bob] (Bob net: +30, Alice: -30)
     // Final: Alice: +50 - 30 = +20, Bob: -50 + 30 = -20
@@ -181,7 +181,7 @@ describe('calculateSettlement', () => {
       ],
       [makePayer(1, 1, 100, 'alice'), makePayer(2, 2, 60, 'bob')],
     );
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     const alice = result.balances.find(b => b.user_id === 1)!;
     const bob = result.balances.find(b => b.user_id === 2)!;
     expect(alice.balance).toBe(20);
@@ -190,7 +190,7 @@ describe('calculateSettlement', () => {
     expect(result.flows[0].amount).toBe(20);
   });
 
-  it('counts a settlement with no matching expense as an amount still to square up', () => {
+  it('counts a settlement with no matching expense as an amount still to square up', async () => {
     // bob paid alice 30 but every expense behind it was deleted: alice now owes bob.
     mockDb.db.prepare.mockImplementation((sql: string) => {
       if (sql.includes('FROM budget_settlements')) {
@@ -200,7 +200,7 @@ describe('calculateSettlement', () => {
       }
       return { all: vi.fn(() => []), get: vi.fn(), run: vi.fn() };
     });
-    const result = calculateSettlement(1);
+    const result = await calculateSettlement(1);
     const alice = result.balances.find(b => b.user_id === 1)!;
     const bob = result.balances.find(b => b.user_id === 2)!;
     expect(bob.balance).toBe(30);
@@ -210,7 +210,7 @@ describe('calculateSettlement', () => {
     ]);
   });
 
-  it('#1335 converts a foreign expense with the frozen exchange_rate, not live rates', () => {
+  it('#1335 converts a foreign expense with the frozen exchange_rate, not live rates', async () => {
     // $110 booked at a frozen rate of 1.1 (USD per 1 EUR) = 100 EUR. Live rates have since
     // drifted to 1.2, but the converted amount must stay on the frozen rate so an already
     // settled position isn't re-opened with a residual.
@@ -219,19 +219,19 @@ describe('calculateSettlement', () => {
       [makeMember(1, 1, 'alice'), makeMember(1, 2, 'bob')],
       [makePayer(1, 1, 110, 'alice')],
     );
-    const result = calculateSettlement(1, { base: 'EUR', tripCurrency: 'EUR', rates: { EUR: 1, USD: 1.2 } });
+    const result = await calculateSettlement(1, { base: 'EUR', tripCurrency: 'EUR', rates: { EUR: 1, USD: 1.2 } });
     const bob = result.balances.find(b => b.user_id === 2)!;
     // 110 / 1.1 = 100 EUR; Bob owes half = 50 (frozen). With the live 1.2 it would be ~45.83.
     expect(bob.balance).toBeCloseTo(-50, 2);
   });
 
-  it('#1335 a legacy row (exchange_rate = 1) still converts with live rates', () => {
+  it('#1335 a legacy row (exchange_rate = 1) still converts with live rates', async () => {
     setupDb(
       [{ ...makeItem(1, 120), currency: 'USD', exchange_rate: 1 } as BudgetItem],
       [makeMember(1, 1, 'alice'), makeMember(1, 2, 'bob')],
       [makePayer(1, 1, 120, 'alice')],
     );
-    const result = calculateSettlement(1, { base: 'EUR', tripCurrency: 'EUR', rates: { EUR: 1, USD: 1.2 } });
+    const result = await calculateSettlement(1, { base: 'EUR', tripCurrency: 'EUR', rates: { EUR: 1, USD: 1.2 } });
     const bob = result.balances.find(b => b.user_id === 2)!;
     // 120 / 1.2 (live) = 100 EUR; Bob owes 50 — unchanged behaviour for pre-#1335 rows.
     expect(bob.balance).toBeCloseTo(-50, 2);
@@ -241,17 +241,17 @@ describe('calculateSettlement', () => {
 // ── updateSettlement ──────────────────────────────────────────────────────────
 
 describe('updateSettlement', () => {
-  it('returns null when the settlement is not in the trip', () => {
+  it('returns null when the settlement is not in the trip', async () => {
     mockDb.db.prepare.mockImplementation((sql: string) => {
       if (sql.includes('SELECT id FROM budget_settlements')) {
         return { get: vi.fn(() => undefined), all: vi.fn(), run: vi.fn() };
       }
       return { get: vi.fn(), all: vi.fn(() => []), run: vi.fn() };
     });
-    expect(updateSettlement(7, 1, { from_user_id: 2, to_user_id: 1, amount: 10 })).toBeNull();
+    expect(await updateSettlement(7, 1, { from_user_id: 2, to_user_id: 1, amount: 10 })).toBeNull();
   });
 
-  it('updates the row (rounded to cents) and returns the refreshed settlement', () => {
+  it('updates the row (rounded to cents) and returns the refreshed settlement', async () => {
     const run = vi.fn();
     mockDb.db.prepare.mockImplementation((sql: string) => {
       if (sql.includes('SELECT id FROM budget_settlements')) {
@@ -268,7 +268,7 @@ describe('updateSettlement', () => {
       return { get: vi.fn(), all: vi.fn(() => []), run: vi.fn() };
     });
 
-    const res = updateSettlement(7, 1, { from_user_id: 2, to_user_id: 1, amount: 10.126 });
+    const res = await updateSettlement(7, 1, { from_user_id: 2, to_user_id: 1, amount: 10.126 });
     expect(run).toHaveBeenCalledWith(2, 1, 10.13, 7);
     expect(res).toMatchObject({ id: 7, from_user_id: 2, to_user_id: 1, amount: 10.13 });
   });

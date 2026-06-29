@@ -1,5 +1,9 @@
 import { writeAudit, getClientIp } from '../../services/auditLog';
-import { getUploadTmpDir, MAX_BACKUP_UPLOAD_SIZE } from '../../services/backupService';
+import {
+  getUploadTmpDir,
+  isBackupUnsupportedForProviderError,
+  MAX_BACKUP_UPLOAD_SIZE,
+} from '../../services/backupService';
 import type { User } from '../../types';
 import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -74,7 +78,10 @@ export class BackupController {
         details: { size: backup.size },
       });
       return { success: true, backup };
-    } catch {
+    } catch (err) {
+      if (isBackupUnsupportedForProviderError(err)) {
+        throw new HttpException({ error: err.message }, err.status);
+      }
       throw new HttpException({ error: 'Error creating backup' }, 500);
     }
   }
@@ -108,6 +115,9 @@ export class BackupController {
       return { success: true };
     } catch (err) {
       if (err instanceof HttpException) throw err;
+      if (isBackupUnsupportedForProviderError(err)) {
+        throw new HttpException({ error: err.message }, err.status);
+      }
       throw new HttpException({ error: 'Error restoring backup' }, 500);
     }
   }
@@ -134,6 +144,9 @@ export class BackupController {
       return { success: true };
     } catch (err) {
       if (err instanceof HttpException) throw err;
+      if (isBackupUnsupportedForProviderError(err)) {
+        throw new HttpException({ error: err.message }, err.status);
+      }
       throw new HttpException({ error: 'Error restoring backup' }, 500);
     } finally {
       if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);

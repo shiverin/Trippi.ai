@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
-import { HttpException } from '@nestjs/common';
 import { CategoriesController } from '../../../src/nest/categories/categories.controller';
 import type { CategoriesService } from '../../../src/nest/categories/categories.service';
 import type { User } from '../../../src/types';
+import { HttpException } from '@nestjs/common';
 import type { Category } from '@trippi/shared';
+
+import { describe, it, expect, vi } from 'vitest';
 
 const admin = { id: 1, role: 'admin' } as User;
 
@@ -13,9 +14,9 @@ function makeController(svc: Partial<CategoriesService>) {
 
 const cat: Category = { id: 1, name: 'Food', color: '#fff', icon: '🍔' };
 
-function thrown(fn: () => unknown): { status: number; body: unknown } {
+async function thrown(fn: () => Promise<unknown>): Promise<{ status: number; body: unknown }> {
   try {
-    fn();
+    await fn();
   } catch (err) {
     expect(err).toBeInstanceOf(HttpException);
     const e = err as HttpException;
@@ -25,59 +26,64 @@ function thrown(fn: () => unknown): { status: number; body: unknown } {
 }
 
 describe('CategoriesController (parity with the legacy /api/categories route)', () => {
-  it('GET / returns the category list wrapped in { categories }', () => {
-    const list = vi.fn().mockReturnValue([cat]);
-    expect(makeController({ list }).list()).toEqual({ categories: [cat] });
+  it('GET / returns the category list wrapped in { categories }', async () => {
+    const list = vi.fn().mockResolvedValue([cat]);
+    await expect(makeController({ list }).list()).resolves.toEqual({ categories: [cat] });
   });
 
   describe('POST /', () => {
-    it('400 when name is missing', () => {
+    it('400 when name is missing', async () => {
       const create = vi.fn();
-      expect(thrown(() => makeController({ create }).create(admin, undefined))).toEqual({
-        status: 400, body: { error: 'Category name is required' },
+      await expect(thrown(() => makeController({ create }).create(admin, undefined))).resolves.toEqual({
+        status: 400,
+        body: { error: 'Category name is required' },
       });
       expect(create).not.toHaveBeenCalled();
     });
 
-    it('creates and returns { category }', () => {
-      const create = vi.fn().mockReturnValue(cat);
-      expect(makeController({ create }).create(admin, 'Food', '#fff', '🍔')).toEqual({ category: cat });
+    it('creates and returns { category }', async () => {
+      const create = vi.fn().mockResolvedValue(cat);
+      await expect(makeController({ create }).create(admin, 'Food', '#fff', '🍔')).resolves.toEqual({ category: cat });
       expect(create).toHaveBeenCalledWith(1, 'Food', '#fff', '🍔');
     });
   });
 
   describe('PUT /:id', () => {
-    it('404 when the category does not exist', () => {
-      const getById = vi.fn().mockReturnValue(undefined);
+    it('404 when the category does not exist', async () => {
+      const getById = vi.fn().mockResolvedValue(undefined);
       const update = vi.fn();
-      expect(thrown(() => makeController({ getById, update }).update('9', 'X'))).toEqual({
-        status: 404, body: { error: 'Category not found' },
+      await expect(thrown(() => makeController({ getById, update }).update('9', 'X'))).resolves.toEqual({
+        status: 404,
+        body: { error: 'Category not found' },
       });
       expect(update).not.toHaveBeenCalled();
     });
 
-    it('updates and returns { category }', () => {
-      const getById = vi.fn().mockReturnValue(cat);
-      const update = vi.fn().mockReturnValue({ ...cat, name: 'Drinks' });
-      expect(makeController({ getById, update }).update('1', 'Drinks')).toEqual({ category: { ...cat, name: 'Drinks' } });
+    it('updates and returns { category }', async () => {
+      const getById = vi.fn().mockResolvedValue(cat);
+      const update = vi.fn().mockResolvedValue({ ...cat, name: 'Drinks' });
+      await expect(makeController({ getById, update }).update('1', 'Drinks')).resolves.toEqual({
+        category: { ...cat, name: 'Drinks' },
+      });
       expect(update).toHaveBeenCalledWith('1', 'Drinks', undefined, undefined);
     });
   });
 
   describe('DELETE /:id', () => {
-    it('404 when the category does not exist', () => {
-      const getById = vi.fn().mockReturnValue(undefined);
+    it('404 when the category does not exist', async () => {
+      const getById = vi.fn().mockResolvedValue(undefined);
       const remove = vi.fn();
-      expect(thrown(() => makeController({ getById, remove }).remove('9'))).toEqual({
-        status: 404, body: { error: 'Category not found' },
+      await expect(thrown(() => makeController({ getById, remove }).remove('9'))).resolves.toEqual({
+        status: 404,
+        body: { error: 'Category not found' },
       });
       expect(remove).not.toHaveBeenCalled();
     });
 
-    it('deletes and returns { success: true }', () => {
-      const getById = vi.fn().mockReturnValue(cat);
-      const remove = vi.fn();
-      expect(makeController({ getById, remove }).remove('1')).toEqual({ success: true });
+    it('deletes and returns { success: true }', async () => {
+      const getById = vi.fn().mockResolvedValue(cat);
+      const remove = vi.fn().mockResolvedValue(undefined);
+      await expect(makeController({ getById, remove }).remove('1')).resolves.toEqual({ success: true });
       expect(remove).toHaveBeenCalledWith('1');
     });
   });

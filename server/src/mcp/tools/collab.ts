@@ -1,20 +1,20 @@
 import { ADDON_IDS } from '../../addons';
 import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
-import { isAddonEnabled, getCollabFeatures } from '../../services/adminService';
+import { getCollabFeaturesAsync, isAddonEnabledAsync } from '../../services/adminService';
 import { isDemoUser } from '../../services/authService';
 import {
-  createNote as createCollabNote,
-  updateNote as updateCollabNote,
-  deleteNote as deleteCollabNote,
-  listPolls,
-  createPoll,
-  votePoll,
-  closePoll,
-  deletePoll,
-  listMessages,
-  createMessage,
-  deleteMessage,
-  addOrRemoveReaction,
+  addOrRemoveReactionAsync as addOrRemoveReaction,
+  closePollAsync as closePoll,
+  createMessageAsync as createMessage,
+  createNoteAsync as createCollabNote,
+  createPollAsync as createPoll,
+  deleteMessageAsync as deleteMessage,
+  deleteNoteAsync as deleteCollabNote,
+  deletePollAsync as deletePoll,
+  listMessagesAsync as listMessages,
+  listPollsAsync as listPolls,
+  updateNoteAsync as updateCollabNote,
+  votePollAsync as votePoll,
 } from '../../services/collabService';
 import { canRead, canWrite } from '../scopes';
 import {
@@ -33,13 +33,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export function registerCollabTools(server: McpServer, userId: number, scopes: string[] | null): void {
+export async function registerCollabTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
   const R = canRead(scopes, 'collab');
   const W = canWrite(scopes, 'collab');
 
-  if (!isAddonEnabled(ADDON_IDS.COLLAB)) return;
+  if (!(await isAddonEnabledAsync(ADDON_IDS.COLLAB))) return;
 
-  const features = getCollabFeatures();
+  const features = await getCollabFeaturesAsync();
 
   // --- COLLAB NOTES ---
 
@@ -65,8 +65,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       async ({ tripId, title, content, category, color, pinned }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const note = createCollabNote(tripId, userId, { title, content, category, color, pinned });
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const note = await createCollabNote(tripId, userId, { title, content, category, color, pinned });
         safeBroadcast(tripId, 'collab:note:created', { note });
         return ok({ note });
       },
@@ -95,8 +95,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       async ({ tripId, noteId, title, content, category, color, pinned }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const note = updateCollabNote(tripId, noteId, { title, content, category, color, pinned });
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const note = await updateCollabNote(tripId, noteId, { title, content, category, color, pinned });
         if (!note) return { content: [{ type: 'text' as const, text: 'Note not found.' }], isError: true };
         safeBroadcast(tripId, 'collab:note:updated', { note });
         return ok({ note });
@@ -117,8 +117,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       async ({ tripId, noteId }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const deleted = deleteCollabNote(tripId, noteId);
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const deleted = await deleteCollabNote(tripId, noteId);
         if (!deleted) return { content: [{ type: 'text' as const, text: 'Note not found.' }], isError: true };
         safeBroadcast(tripId, 'collab:note:deleted', { noteId });
         return ok({ success: true });
@@ -139,7 +139,7 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       },
       async ({ tripId }) => {
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        const polls = listPolls(tripId);
+        const polls = await listPolls(tripId);
         return ok({ polls });
       },
     );
@@ -161,8 +161,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       async ({ tripId, question, options, multiple, deadline }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const poll = createPoll(tripId, userId, { question, options, multiple, deadline });
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const poll = await createPoll(tripId, userId, { question, options, multiple, deadline });
         safeBroadcast(tripId, 'collab:poll:created', { poll });
         return ok({ poll });
       },
@@ -182,8 +182,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       },
       async ({ tripId, pollId, optionIndex }) => {
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const result = votePoll(tripId, pollId, userId, optionIndex);
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const result = await votePoll(tripId, pollId, userId, optionIndex);
         if (result.error) return { content: [{ type: 'text' as const, text: result.error }], isError: true };
         safeBroadcast(tripId, 'collab:poll:voted', { poll: result.poll });
         return ok({ poll: result.poll });
@@ -204,8 +204,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       async ({ tripId, pollId }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const poll = closePoll(tripId, pollId);
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const poll = await closePoll(tripId, pollId);
         if (!poll) return { content: [{ type: 'text' as const, text: 'Poll not found.' }], isError: true };
         safeBroadcast(tripId, 'collab:poll:closed', { poll });
         return ok({ poll });
@@ -226,8 +226,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       async ({ tripId, pollId }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const deleted = deletePoll(tripId, pollId);
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const deleted = await deletePoll(tripId, pollId);
         if (!deleted) return { content: [{ type: 'text' as const, text: 'Poll not found.' }], isError: true };
         safeBroadcast(tripId, 'collab:poll:deleted', { pollId });
         return ok({ success: true });
@@ -247,7 +247,7 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       },
       async ({ tripId, before }) => {
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        const messages = listMessages(tripId, before);
+        const messages = await listMessages(tripId, before);
         return ok({ messages });
       },
     );
@@ -267,8 +267,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       async ({ tripId, text, replyTo }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const result = createMessage(tripId, userId, text, replyTo ?? null);
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const result = await createMessage(tripId, userId, text, replyTo ?? null);
         if (result.error) return { content: [{ type: 'text' as const, text: result.error }], isError: true };
         safeBroadcast(tripId, 'collab:message:created', { message: result.message });
         return ok({ message: result.message });
@@ -289,8 +289,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       async ({ tripId, messageId }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const result = deleteMessage(tripId, messageId, userId);
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const result = await deleteMessage(tripId, messageId, userId);
         if (result.error) return { content: [{ type: 'text' as const, text: result.error }], isError: true };
         safeBroadcast(tripId, 'collab:message:deleted', { messageId, username: result.username });
         return ok({ success: true });
@@ -312,8 +312,8 @@ export function registerCollabTools(server: McpServer, userId: number, scopes: s
       async ({ tripId, messageId, emoji }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        if (!hasTripPermission('collab_edit', tripId, userId)) return permissionDenied();
-        const result = addOrRemoveReaction(messageId, tripId, userId, emoji);
+        if (!(await hasTripPermission('collab_edit', tripId, userId))) return permissionDenied();
+        const result = await addOrRemoveReaction(messageId, tripId, userId, emoji);
         if (!result.found) return { content: [{ type: 'text' as const, text: 'Message not found.' }], isError: true };
         safeBroadcast(tripId, 'collab:message:reacted', { messageId, reactions: result.reactions });
         return ok({ reactions: result.reactions });

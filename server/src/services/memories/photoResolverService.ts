@@ -1,3 +1,4 @@
+import { asyncDb } from '../../db/asyncDatabase';
 import { db } from '../../db/database';
 import type { TrippiPhoto } from '../../types';
 import { encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
@@ -36,6 +37,30 @@ export function getOrCreateTrippiPhoto(
   return Number(res.lastInsertRowid);
 }
 
+export async function getOrCreateTrippiPhotoAsync(
+  provider: string,
+  assetId: string,
+  ownerId: number,
+  passphrase?: string,
+): Promise<number> {
+  const existing = await asyncDb
+    .prepare('SELECT id FROM trippi_photos WHERE provider = ? AND asset_id = ? AND owner_id = ?')
+    .get<{ id: number }>(provider, assetId, ownerId);
+  if (existing) {
+    if (passphrase) {
+      await asyncDb
+        .prepare('UPDATE trippi_photos SET passphrase = ? WHERE id = ?')
+        .run(encrypt_api_key(passphrase), existing.id);
+    }
+    return existing.id;
+  }
+
+  const res = await asyncDb
+    .prepare('INSERT INTO trippi_photos (provider, asset_id, owner_id, passphrase) VALUES (?, ?, ?, ?)')
+    .run(provider, assetId, ownerId, passphrase ? encrypt_api_key(passphrase) : null);
+  return Number(res.lastInsertRowid);
+}
+
 export function getOrCreateLocalTrippiPhoto(
   filePath: string,
   thumbnailPath?: string | null,
@@ -53,8 +78,29 @@ export function getOrCreateLocalTrippiPhoto(
   return Number(res.lastInsertRowid);
 }
 
+export async function getOrCreateLocalTrippiPhotoAsync(
+  filePath: string,
+  thumbnailPath?: string | null,
+  width?: number | null,
+  height?: number | null,
+): Promise<number> {
+  const existing = await asyncDb
+    .prepare("SELECT id FROM trippi_photos WHERE provider = 'local' AND file_path = ?")
+    .get<{ id: number }>(filePath);
+  if (existing) return existing.id;
+
+  const res = await asyncDb
+    .prepare('INSERT INTO trippi_photos (provider, file_path, thumbnail_path, width, height) VALUES (?, ?, ?, ?, ?)')
+    .run('local', filePath, thumbnailPath || null, width || null, height || null);
+  return Number(res.lastInsertRowid);
+}
+
 export function resolveTrippiPhoto(photoId: number): TrippiPhoto | null {
   return (db.prepare('SELECT * FROM trippi_photos WHERE id = ?').get(photoId) as TrippiPhoto | undefined) || null;
+}
+
+export async function resolveTrippiPhotoAsync(photoId: number): Promise<TrippiPhoto | null> {
+  return (await asyncDb.prepare('SELECT * FROM trippi_photos WHERE id = ?').get<TrippiPhoto>(photoId)) || null;
 }
 
 // ── Streaming ────────────────────────────────────────────────────────────
@@ -67,12 +113,12 @@ async function streamCachedThumbnail(
 ): Promise<void> {
   const key = photoCache.cacheKey(photo.provider!, photo.asset_id!, 'thumbnail', photo.owner_id!);
 
-  if (photoCache.serveFresh(res, key)) return;
+  if (await photoCache.serveFreshAsync(res, key)) return;
 
   const existing = photoCache.getInFlight(key);
   if (existing) {
     const bytes = await existing;
-    if (bytes && photoCache.serveFresh(res, key)) return;
+    if (bytes && (await photoCache.serveFreshAsync(res, key))) return;
     await fallback();
     return;
   }
@@ -85,7 +131,7 @@ async function streamCachedThumbnail(
   photoCache.setInFlight(key, promise);
 
   const bytes = await promise;
-  if (bytes && photoCache.serveFresh(res, key)) return;
+  if (bytes && (await photoCache.serveFreshAsync(res, key))) return;
   await fallback();
 }
 
@@ -95,7 +141,7 @@ export async function streamPhoto(
   photoId: number,
   kind: 'thumbnail' | 'original',
 ): Promise<void> {
-  const photo = resolveTrippiPhoto(photoId);
+  const photo = await resolveTrippiPhotoAsync(photoId);
   if (!photo) {
     res.status(404).json({ error: 'Photo not found' });
     return;
@@ -110,7 +156,7 @@ export async function streamPhoto(
         const result = await ensureLocalThumbnail(uploadsRoot, photo.file_path);
         if (result) {
           thumbRel = result.thumbnailRelPath;
-          db.prepare(
+          await asyncDb.prepare(
             'UPDATE trippi_photos SET thumbnail_path = ?, width = COALESCE(width, ?), height = COALESCE(height, ?) WHERE id = ?',
           ).run(thumbRel, result.width, result.height, photo.id);
         }
@@ -174,7 +220,7 @@ export async function streamPhoto(
 // ── Asset Info ────────────────────────────────────────────────────────────
 
 export async function getPhotoInfo(userId: number, photoId: number): Promise<ServiceResult<AssetInfo>> {
-  const photo = resolveTrippiPhoto(photoId);
+  const photo = await resolveTrippiPhotoAsync(photoId);
   if (!photo) return fail('Photo not found', 404);
 
   switch (photo.provider) {
@@ -219,6 +265,17 @@ export function setTrippiPhotoProvider(
   );
 }
 
+export async function setTrippiPhotoProviderAsync(
+  trippiPhotoId: number,
+  provider: string,
+  assetId: string,
+  ownerId: number,
+): Promise<void> {
+  await asyncDb
+    .prepare('UPDATE trippi_photos SET provider = ?, asset_id = ?, owner_id = ? WHERE id = ?')
+    .run(provider, assetId, ownerId, trippiPhotoId);
+}
+
 // ── Orphan cleanup ───────────────────────────────────────────────────────
 
 export function deleteTrippiPhotoIfOrphan(photoId: number): void {
@@ -235,3 +292,20 @@ export function deleteTrippiPhotoIfOrphan(photoId: number): void {
   if (stillUsed) return;
   db.prepare("DELETE FROM trippi_photos WHERE id = ? AND provider != 'local'").run(photoId);
 }
+
+export async function deleteTrippiPhotoIfOrphanAsync(photoId: number): Promise<void> {
+  const stillUsed = await asyncDb
+    .prepare(
+      `
+    SELECT 1 FROM trip_photos WHERE photo_id = ?
+    UNION ALL
+    SELECT 1 FROM journey_photos WHERE photo_id = ?
+    LIMIT 1
+  `,
+    )
+    .get(photoId, photoId);
+  if (stillUsed) return;
+  await asyncDb.prepare("DELETE FROM trippi_photos WHERE id = ? AND provider != 'local'").run(photoId);
+}
+
+export { streamPhoto as streamPhotoAsync, getPhotoInfo as getPhotoInfoAsync };

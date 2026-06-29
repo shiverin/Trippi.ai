@@ -17,6 +17,7 @@ vi.mock('../../../src/services/backupService', () => ({
   updateAutoSettings: vi.fn().mockReturnValue({ enabled: true, interval: 'daily', keep_days: 7 }),
   deleteBackup: vi.fn(),
   isValidBackupFilename: vi.fn().mockReturnValue(true),
+  isBackupUnsupportedForProviderError: vi.fn().mockReturnValue(false),
   backupFilePath: vi.fn().mockReturnValue('/data/backups/svc.zip'),
   backupFileExists: vi.fn().mockReturnValue(true),
   checkRateLimit: vi.fn().mockReturnValue(true),

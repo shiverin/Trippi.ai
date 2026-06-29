@@ -11,8 +11,8 @@ import { CanActivate, HttpException, Injectable } from '@nestjs/common';
 export class JourneyAddonGuard implements CanActivate {
   constructor(private readonly journey: JourneyService) {}
 
-  canActivate(): boolean {
-    if (!this.journey.journeyAddonEnabled()) {
+  async canActivate(): Promise<boolean> {
+    if (!(await this.journey.journeyAddonEnabled())) {
       throw new HttpException({ error: 'Journey addon is not enabled' }, 404);
     }
     return true;

@@ -8,6 +8,43 @@ export function listItems(tripId: string | number) {
   return db.prepare('SELECT * FROM todo_items WHERE trip_id = ? ORDER BY sort_order ASC, created_at ASC').all(tripId);
 }
 
+/**
+ * Pending todos across all active trips the user can access. Used by the
+ * dashboard sidebar so it can show action items without opening a trip first.
+ */
+export function listPendingTodos(userId: number, limit = 6) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  return db
+    .prepare(
+      `
+    SELECT ti.id, ti.trip_id, ti.name, ti.category, ti.checked, ti.sort_order,
+           ti.due_date, ti.description, ti.assigned_user_id,
+           COALESCE(ti.priority, 0) as priority,
+           t.title as trip_title, t.start_date as trip_start_date, t.end_date as trip_end_date
+    FROM todo_items ti
+    JOIN trips t ON t.id = ti.trip_id
+    LEFT JOIN trip_members tm ON tm.trip_id = t.id AND tm.user_id = ?
+    WHERE (t.user_id = ? OR tm.user_id IS NOT NULL)
+      AND COALESCE(t.is_archived, 0) = 0
+      AND COALESCE(ti.checked, 0) = 0
+    ORDER BY
+      CASE
+        WHEN ti.due_date IS NOT NULL AND ti.due_date < ? THEN 0
+        WHEN ti.due_date IS NOT NULL THEN 1
+        ELSE 2
+      END ASC,
+      ti.due_date ASC,
+      CASE WHEN ti.priority IS NULL OR ti.priority = 0 THEN 99 ELSE ti.priority END ASC,
+      ti.sort_order ASC,
+      ti.created_at ASC,
+      ti.id ASC
+    LIMIT ?
+  `,
+    )
+    .all(userId, userId, today, limit);
+}
+
 export function createItem(
   tripId: string | number,
   data: {

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { HttpException } from '@nestjs/common';
+import { PendingTodosController } from '../../../src/nest/todo/pending-todos.controller';
 import { TodoController } from '../../../src/nest/todo/todo.controller';
 import type { TodoService } from '../../../src/nest/todo/todo.service';
 import type { User } from '../../../src/types';
@@ -119,5 +120,17 @@ describe('TodoController (parity with the legacy /api/trips/:tripId/todo route)'
       expect(updateCategoryAssignees).toHaveBeenCalledWith('5', 'To Buy', [2]);
       expect(broadcast).toHaveBeenCalledWith('5', 'todo:assignees', { category: 'To Buy', assignees: [{ user_id: 2 }] }, 'sock');
     });
+  });
+});
+
+describe('PendingTodosController', () => {
+  it('GET /api/todos/pending returns pending todos for the current user', () => {
+    const listPending = vi.fn().mockReturnValue([{ id: 1, name: 'Buy flight' }]);
+    const svc = makeService({ listPending } as Partial<TodoService>);
+
+    expect(new PendingTodosController(svc).pending(user)).toEqual({
+      todos: [{ id: 1, name: 'Buy flight' }],
+    });
+    expect(listPending).toHaveBeenCalledWith(user.id);
   });
 });

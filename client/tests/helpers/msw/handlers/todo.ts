@@ -2,6 +2,10 @@ import { http, HttpResponse } from 'msw';
 import { buildTodoItem } from '../../factories';
 
 export const todoHandlers = [
+  http.get('/api/todos/pending', () => {
+    return HttpResponse.json({ todos: [] });
+  }),
+
   http.get('/api/trips/:id/todo', ({ params }) => {
     return HttpResponse.json({
       items: [buildTodoItem({ trip_id: Number(params.id) })],

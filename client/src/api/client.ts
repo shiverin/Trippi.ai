@@ -408,6 +408,7 @@ export const packingApi = {
 }
 
 export const todoApi = {
+  pending: () => apiClient.get('/todos/pending').then(r => r.data),
   list: (tripId: number | string) => apiClient.get(`/trips/${tripId}/todo`).then(r => r.data),
   create: (tripId: number | string, data: TodoCreateItemRequest) => apiClient.post(`/trips/${tripId}/todo`, data).then(r => r.data),
   update: (tripId: number | string, id: number, data: TodoUpdateItemRequest) => apiClient.put(`/trips/${tripId}/todo/${id}`, data).then(r => r.data),

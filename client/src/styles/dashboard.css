@@ -139,6 +139,11 @@
 }
 .trek-dash .page-main {
   min-width: 0;
+  display: grid;
+  gap: 56px;
+}
+.trek-dash .spotlight-stack {
+  min-width: 0;
 }
 .trek-dash .page-sidebar {
   position: sticky;
@@ -271,7 +276,7 @@
   cursor: pointer;
   height: 520px;
   box-shadow: var(--sh-lg);
-  margin-bottom: 56px;
+  margin-bottom: 0;
   isolation: isolate;
   transition:
     transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
@@ -664,7 +669,7 @@
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr 1fr;
   gap: 16px;
-  margin-bottom: 56px;
+  margin-bottom: 0;
 }
 .trek-dash .atlas-card {
   background: var(--glass-bg);
@@ -794,7 +799,7 @@
   align-items: baseline;
   justify-content: space-between;
   margin-bottom: 22px;
-  margin-top: 8px;
+  margin-top: 0;
 }
 .trek-dash .sec-title {
   font-size: 28px;
@@ -852,7 +857,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 22px;
-  margin-bottom: 56px;
+  margin-bottom: 0;
   transition: all 0.3s ease;
 }
 .trek-dash .trips.list-view {
@@ -1475,12 +1480,184 @@
   height: 16px;
 }
 
+.trek-dash .todo-tool .tool-head {
+  margin-bottom: 14px;
+}
+.trek-dash .todo-count {
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+.trek-dash .todo-empty {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.trek-dash .todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.trek-dash .todo-item {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 30px 50px minmax(0, 1fr);
+  min-width: 0;
+  padding: 10px;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    transform 0.12s;
+}
+.trek-dash .todo-item:hover,
+.trek-dash .todo-item:focus-visible {
+  background: var(--surface-2);
+  border-color: var(--glass-border);
+  outline: none;
+}
+.trek-dash .todo-check {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  color: var(--ink-3);
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s,
+    transform 0.12s;
+  width: 28px;
+}
+.trek-dash .todo-check:hover,
+.trek-dash .todo-check:focus-visible {
+  background: oklch(0.9 0.08 150);
+  border-color: oklch(0.7 0.11 150);
+  color: oklch(0.42 0.12 150);
+  outline: none;
+  transform: scale(1.03);
+}
+.trek-dash .todo-date {
+  align-items: center;
+  background: var(--surface-2);
+  border-radius: 12px;
+  color: var(--ink);
+  display: grid;
+  min-height: 48px;
+  padding: 7px 4px;
+  place-items: center;
+  text-align: center;
+}
+.trek-dash .todo-date .d {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.trek-dash .todo-date .m {
+  color: var(--ink-3);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  margin-top: 4px;
+  max-width: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.trek-dash .todo-date.overdue {
+  background: oklch(0.94 0.05 28);
+  color: oklch(0.5 0.14 28);
+}
+.trek-dash .todo-date.today {
+  background: oklch(0.95 0.06 82);
+}
+.trek-dash .todo-info {
+  min-width: 0;
+}
+.trek-dash .todo-name {
+  color: var(--ink);
+  display: -webkit-box;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.25;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.trek-dash .todo-trip {
+  color: var(--ink-3);
+  font-size: 12px;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trek-dash .todo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  min-width: 0;
+}
+.trek-dash .todo-chip {
+  background: var(--surface-2);
+  border-radius: 999px;
+  color: var(--ink-3);
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.trek-dash .todo-chip.due.overdue {
+  background: oklch(0.94 0.05 28);
+  color: oklch(0.5 0.14 28);
+}
+.trek-dash .todo-chip.due.today {
+  background: oklch(0.95 0.06 82);
+  color: oklch(0.45 0.1 70);
+}
+.trek-dash .todo-chip.due.upcoming {
+  background: oklch(0.95 0.04 230);
+  color: oklch(0.45 0.13 230);
+}
+.trek-dash .todo-chip.priority {
+  background: oklch(0.96 0.035 300);
+  color: oklch(0.45 0.1 300);
+}
+.trek-dash .todo-chip.priority.p1 {
+  background: oklch(0.94 0.05 28);
+  color: oklch(0.5 0.14 28);
+}
+
 /* ----------------- responsive ----------------- */
 @media (max-width: 1280px) {
   .trek-dash .page {
     padding-left: 32px;
     padding-right: 32px;
     grid-template-columns: 1fr;
+    row-gap: 40px;
+  }
+  .trek-dash .page-main {
+    gap: 40px;
   }
   .trek-dash .page-sidebar {
     position: static;
@@ -1514,7 +1691,10 @@
   }
   .trek-dash .page {
     padding: 16px 16px 120px;
-    gap: 0;
+    gap: 24px;
+  }
+  .trek-dash .page-main {
+    gap: 24px;
   }
   .trek-dash .greeting {
     grid-template-columns: 1fr;
@@ -1559,7 +1739,7 @@
     border-radius: 20px;
     overflow: hidden;
     box-shadow: var(--glass-shadow), var(--glass-highlight);
-    margin-bottom: 22px;
+    margin-bottom: 0;
     cursor: pointer;
   }
   .trek-dash .pass-card .pass-cell {
@@ -1614,7 +1794,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin: 0 0 26px;
+    margin: 0;
   }
   .trek-dash .atlas-card.passport,
   .trek-dash .atlas-card:last-child {
@@ -1652,7 +1832,7 @@
   .trek-dash .trips {
     grid-template-columns: 1fr;
     gap: 16px;
-    margin-bottom: 28px;
+    margin-bottom: 0;
   }
   .trek-dash .add-trip-card {
     min-height: 180px;

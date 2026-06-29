@@ -1,4 +1,4 @@
-import { canAccessTrip } from '../../db/database';
+import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
 import { findByIata } from '../../services/airportService';
 import { isDemoUser } from '../../services/authService';
 import { linkBudgetItemToReservation } from '../../services/budgetService';
@@ -155,7 +155,7 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
       budget_category,
     }) => {
       if (isDemoUser(userId)) return demoDenied();
-      if (!canAccessTrip(tripId, userId)) return noAccess();
+      if (!(await canAccessTrip(tripId, userId))) return noAccess();
       if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
 
       if (start_day_id && !getDay(start_day_id, tripId))
@@ -250,7 +250,7 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
       needs_review,
     }) => {
       if (isDemoUser(userId)) return demoDenied();
-      if (!canAccessTrip(tripId, userId)) return noAccess();
+      if (!(await canAccessTrip(tripId, userId))) return noAccess();
       if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
 
       const existing = getReservation(reservationId, tripId);
@@ -320,7 +320,7 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
     },
     async ({ tripId, reservationId }) => {
       if (isDemoUser(userId)) return demoDenied();
-      if (!canAccessTrip(tripId, userId)) return noAccess();
+      if (!(await canAccessTrip(tripId, userId))) return noAccess();
       if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
       const { deleted } = deleteReservation(reservationId, tripId);
       if (!deleted) return { content: [{ type: 'text' as const, text: 'Transport not found.' }], isError: true };

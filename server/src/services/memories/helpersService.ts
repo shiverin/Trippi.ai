@@ -1,4 +1,5 @@
-import { canAccessTrip, db } from '../../db/database';
+import { canAccessTripAsync } from '../../db/asyncDatabase';
+import { db } from '../../db/database';
 import { safeFetch, SsrfBlockedError } from '../../utils/ssrfGuard';
 import { decrypt_api_key } from '../apiKeyCrypto';
 
@@ -115,13 +116,13 @@ export function getPhotoProviderConfig(providerId: string): PhotoProviderConfig 
 //-----------------------------------------------
 //access check helper
 
-export function canAccessUserPhoto(
+export async function canAccessUserPhoto(
   requestingUserId: number,
   ownerUserId: number,
   tripId: string,
   assetId: string,
   provider: string,
-): boolean {
+): Promise<boolean> {
   if (requestingUserId === ownerUserId) {
     return true;
   }
@@ -176,7 +177,7 @@ export function canAccessUserPhoto(
   if (!sharedAsset) {
     return false;
   }
-  return !!canAccessTrip(tripId, requestingUserId);
+  return !!(await canAccessTripAsync(tripId, requestingUserId));
 }
 
 // ── Unified photo access check (trippi_photos based) ──────────────────────
@@ -236,8 +237,12 @@ export function canAccessTrippiPhoto(requestingUserId: number, trippiPhotoId: nu
 // ----------------------------------------------
 //helpers for album link syncing
 
-export function getAlbumIdFromLink(tripId: string, linkId: string, userId: number): ServiceResult<string> {
-  const access = canAccessTrip(tripId, userId);
+export async function getAlbumIdFromLink(
+  tripId: string,
+  linkId: string,
+  userId: number,
+): Promise<ServiceResult<string>> {
+  const access = await canAccessTripAsync(tripId, userId);
   if (!access) return fail('Trip not found or access denied', 404);
 
   try {
@@ -251,12 +256,12 @@ export function getAlbumIdFromLink(tripId: string, linkId: string, userId: numbe
   }
 }
 
-export function getAlbumLinkForSync(
+export async function getAlbumLinkForSync(
   tripId: string,
   linkId: string,
   userId: number,
-): ServiceResult<{ albumId: string; passphrase?: string }> {
-  const access = canAccessTrip(tripId, userId);
+): Promise<ServiceResult<{ albumId: string; passphrase?: string }>> {
+  const access = await canAccessTripAsync(tripId, userId);
   if (!access) return fail('Trip not found or access denied', 404);
 
   try {

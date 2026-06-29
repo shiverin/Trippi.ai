@@ -1,5 +1,5 @@
 import { ADDON_IDS } from '../../addons';
-import { canAccessTrip } from '../../db/database';
+import { canAccessTripAsync as canAccessTrip, isOwnerAsync as isOwner } from '../../db/asyncDatabase';
 import { isAddonEnabled, getCollabFeatures } from '../../services/adminService';
 import { isDemoUser } from '../../services/authService';
 import { countMessages, listPolls } from '../../services/collabService';
@@ -18,7 +18,6 @@ import {
   updateTrip,
   deleteTrip,
   getTripSummary,
-  isOwner,
   listMembers as listTripMembers,
   getTripOwner,
   addMember as addTripMember,
@@ -221,7 +220,7 @@ export function registerTripTools(
       async ({ target, lang, exportPdf, days }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (target.kind === 'existing_trip') {
-          if (!canAccessTrip(target.tripId, userId)) return noAccess();
+          if (!(await canAccessTrip(target.tripId, userId))) return noAccess();
           if (!hasTripPermission('day_edit', target.tripId, userId)) return permissionDenied();
           if (!hasTripPermission('place_edit', target.tripId, userId)) return permissionDenied();
         }
@@ -288,7 +287,7 @@ export function registerTripTools(
       },
       async ({ tripId, title, description, start_date, end_date, currency, is_archived, cover_image }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('trip_edit', tripId, userId)) return permissionDenied();
         if (start_date) {
           const d = new Date(start_date + 'T00:00:00Z');
@@ -329,7 +328,7 @@ export function registerTripTools(
       },
       async ({ tripId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!isOwner(tripId, userId)) return noAccess();
+        if (!(await isOwner(tripId, userId))) return noAccess();
         deleteTrip(tripId, userId, 'user');
         return ok({ success: true, tripId });
       },
@@ -375,7 +374,7 @@ export function registerTripTools(
       annotations: TOOL_ANNOTATIONS_READONLY,
     },
     async ({ tripId }) => {
-      if (!canAccessTrip(tripId, userId)) return noAccess();
+      if (!(await canAccessTrip(tripId, userId))) return noAccess();
       // Addon availability gates
       const packingEnabled = isAddonEnabled(ADDON_IDS.PACKING);
       const budgetEnabled = isAddonEnabled(ADDON_IDS.BUDGET);
@@ -439,7 +438,7 @@ export function registerTripTools(
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ tripId }) => {
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         const ownerRow = getTripOwner(tripId);
         if (!ownerRow) return noAccess();
         const { owner, members } = listTripMembers(tripId, ownerRow.user_id);
@@ -460,7 +459,7 @@ export function registerTripTools(
       },
       async ({ tripId, identifier }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         const ownerRow = getTripOwner(tripId);
         if (!ownerRow || ownerRow.user_id !== userId)
           return { content: [{ type: 'text' as const, text: 'Only the trip owner can add members.' }], isError: true };
@@ -489,7 +488,7 @@ export function registerTripTools(
       },
       async ({ tripId, memberId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         const ownerRow = getTripOwner(tripId);
         if (!ownerRow || ownerRow.user_id !== userId)
           return {
@@ -516,10 +515,10 @@ export function registerTripTools(
       },
       async ({ tripId, title }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         try {
           const newTripId = copyTripById(tripId, userId, title);
-          const newTrip = canAccessTrip(newTripId, userId);
+          const newTrip = await canAccessTrip(newTripId, userId);
           return ok({ trip: { id: newTripId, ...newTrip } });
         } catch {
           return { content: [{ type: 'text' as const, text: 'Failed to copy trip.' }], isError: true };
@@ -539,7 +538,7 @@ export function registerTripTools(
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ tripId }) => {
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         try {
           const { ics, filename } = exportICS(tripId);
           return ok({ ics, filename });
@@ -561,7 +560,7 @@ export function registerTripTools(
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ tripId }) => {
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         try {
           const result = await exportTripPdf(tripId);
           return ok({ ...result, contentType: 'application/pdf' });
@@ -585,7 +584,7 @@ export function registerTripTools(
       async ({ tripId }) => {
         // Read parity with the REST route GET /api/trips/:tripId/share-link, which
         // only requires trip membership (share_manage gates create/delete, not read).
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         const link = getShareLink(String(tripId));
         return ok({ link });
       },
@@ -609,7 +608,7 @@ export function registerTripTools(
       },
       async ({ tripId, share_map, share_bookings, share_packing, share_budget, share_collab }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('share_manage', tripId, userId)) return permissionDenied();
         const { token, created } = createOrUpdateShareLink(String(tripId), userId, {
           share_map: share_map ?? true,
@@ -635,7 +634,7 @@ export function registerTripTools(
       },
       async ({ tripId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('share_manage', tripId, userId)) return permissionDenied();
         deleteShareLink(String(tripId));
         return ok({ success: true });

@@ -12,7 +12,7 @@ import { broadcast } from '../../websocket';
 import { Injectable } from '@nestjs/common';
 import { typeToCostCategory } from '@trippi/shared';
 
-type Trip = NonNullable<ReturnType<typeof svc.verifyTripAccess>>;
+type Trip = NonNullable<Awaited<ReturnType<typeof svc.verifyTripAccess>>>;
 type BudgetEntry = { total_price?: number; category?: string } | undefined;
 
 /**

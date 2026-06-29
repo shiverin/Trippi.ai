@@ -22,6 +22,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 
 import { memoryStorage } from 'multer';
 
+type Trip = NonNullable<Awaited<ReturnType<PlacesService['verifyTripAccess']>>>;
+
 const STRING_LIMITS: Record<string, number> = { name: 200, description: 2000, address: 500, notes: 2000 };
 const UPLOAD = { storage: memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } };
 
@@ -53,40 +55,40 @@ function parseBool(v: unknown, defaultVal: boolean): boolean {
 export class PlacesController {
   constructor(private readonly places: PlacesService) {}
 
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.places.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User): Promise<Trip> {
+    const trip = await this.places.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     return trip;
   }
 
-  private requireEdit(trip: NonNullable<ReturnType<PlacesService['verifyTripAccess']>>, user: User): void {
+  private requireEdit(trip: Trip, user: User): void {
     if (!this.places.canEdit(trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
 
   @Get()
-  list(
+  async list(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Query('search') search?: string,
     @Query('category') category?: string,
     @Query('tag') tag?: string,
   ) {
-    this.requireTrip(tripId, user);
+    await this.requireTrip(tripId, user);
     return { places: this.places.list(tripId, { search, category, tag }) };
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: Record<string, unknown> & { name?: string },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     validateLengths(body);
     this.requireEdit(trip, user);
     if (!body.name) {
@@ -100,14 +102,14 @@ export class PlacesController {
 
   @Post('import/gpx')
   @UseInterceptors(FileInterceptor('file', UPLOAD))
-  importGpx(
+  async importGpx(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() body: Record<string, unknown>,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
@@ -142,7 +144,7 @@ export class PlacesController {
     @Body() body: Record<string, unknown>,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
@@ -202,7 +204,7 @@ export class PlacesController {
     enrich: unknown,
     socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!url || typeof url !== 'string') {
       throw new HttpException({ error: 'URL is required' }, 400);
@@ -235,13 +237,13 @@ export class PlacesController {
 
   @Post('bulk-delete')
   @HttpCode(200) // Express answers bulk-delete with res.json (200), unlike the 201 imports.
-  bulkDelete(
+  async bulkDelete(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body('ids') ids: unknown,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!Array.isArray(ids) || ids.some((v) => typeof v !== 'number')) {
       throw new HttpException({ error: 'ids must be an array of numbers' }, 400);
@@ -258,8 +260,8 @@ export class PlacesController {
   }
 
   @Get(':id')
-  get(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
-    this.requireTrip(tripId, user);
+  async get(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
+    await this.requireTrip(tripId, user);
     const place = this.places.get(tripId, id);
     if (!place) {
       throw new HttpException({ error: 'Place not found' }, 404);
@@ -269,7 +271,7 @@ export class PlacesController {
 
   @Get(':id/image')
   async image(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
-    this.requireTrip(tripId, user);
+    await this.requireTrip(tripId, user);
     try {
       const result = await this.places.searchImage(tripId, id, user.id);
       if ('error' in result) {
@@ -284,14 +286,14 @@ export class PlacesController {
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     validateLengths(body);
     this.requireEdit(trip, user);
     const place = this.places.update(tripId, id, body as never);
@@ -304,13 +306,13 @@ export class PlacesController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     this.places.onDeleted(Number(id)); // sync before actual delete
     if (!this.places.remove(tripId, id)) {

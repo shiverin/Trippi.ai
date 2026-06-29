@@ -361,7 +361,7 @@ export async function syncAlbumAssets(
   userId: number,
   sid: string,
 ): Promise<{ success?: boolean; added?: number; total?: number; error?: string; status?: number }> {
-  const response = getAlbumIdFromLink(tripId, linkId, userId);
+  const response = await getAlbumIdFromLink(tripId, linkId, userId);
   if (!response.success) return { error: 'Album link not found', status: 404 };
 
   const creds = getImmichCredentials(userId);

@@ -39,7 +39,7 @@ export class BookingImportService {
     return verifyTripAccess(tripId, userId);
   }
 
-  canEdit(trip: NonNullable<ReturnType<typeof verifyTripAccess>>, user: User): boolean {
+  canEdit(trip: NonNullable<Awaited<ReturnType<typeof verifyTripAccess>>>, user: User): boolean {
     return checkPermission('reservation_edit', user.role, trip.user_id, user.id, trip.user_id !== user.id);
   }
 

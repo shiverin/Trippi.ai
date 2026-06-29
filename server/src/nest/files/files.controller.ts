@@ -71,8 +71,8 @@ const UPLOAD = {
 export class FilesController {
   constructor(private readonly files: FilesService) {}
 
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.files.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User) {
+    const trip = await this.files.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -80,21 +80,21 @@ export class FilesController {
   }
 
   @Get()
-  list(@CurrentUser() user: User, @Param('tripId') tripId: string, @Query('trash') trash?: string) {
-    this.requireTrip(tripId, user);
+  async list(@CurrentUser() user: User, @Param('tripId') tripId: string, @Query('trash') trash?: string) {
+    await this.requireTrip(tripId, user);
     return { files: this.files.listFiles(tripId, trash === 'true') };
   }
 
   @Post()
   @UseInterceptors(FileInterceptor('file', UPLOAD))
-  upload(
+  async upload(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() body: { place_id?: string; description?: string; reservation_id?: string },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(user.email)) {
       throw new HttpException(
         { error: 'Uploads are disabled in demo mode. Self-host trippi.ai for full functionality.' },
@@ -117,14 +117,14 @@ export class FilesController {
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: { description?: string; place_id?: string | null; reservation_id?: string | null },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission to edit files' }, 403);
     }
@@ -142,13 +142,13 @@ export class FilesController {
   }
 
   @Patch(':id/star')
-  star(
+  async star(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
@@ -163,7 +163,7 @@ export class FilesController {
 
   @Delete('trash/empty')
   async emptyTrash(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
@@ -178,7 +178,7 @@ export class FilesController {
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
@@ -192,13 +192,13 @@ export class FilesController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission to delete files' }, 403);
     }
@@ -213,13 +213,13 @@ export class FilesController {
 
   @Post(':id/restore')
   @HttpCode(200) // Express answers restore with res.json (200), not the POST-default 201.
-  restore(
+  async restore(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (!this.files.can('file_delete', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
@@ -234,13 +234,13 @@ export class FilesController {
 
   @Post(':id/link')
   @HttpCode(200) // Express answers link with res.json (200).
-  link(
+  async link(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: { reservation_id?: string | null; assignment_id?: string | null; place_id?: string | null },
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
@@ -257,13 +257,13 @@ export class FilesController {
   }
 
   @Delete(':id/link/:linkId')
-  unlink(
+  async unlink(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Param('linkId') linkId: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     if (!this.files.can('file_edit', trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
@@ -272,8 +272,8 @@ export class FilesController {
   }
 
   @Get(':id/links')
-  links(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
-    this.requireTrip(tripId, user);
+  async links(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string) {
+    await this.requireTrip(tripId, user);
     return { links: this.files.getFileLinks(id) };
   }
 }

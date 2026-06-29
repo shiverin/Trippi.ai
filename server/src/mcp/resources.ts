@@ -1,5 +1,5 @@
 import { ADDON_IDS } from '../addons';
-import { canAccessTrip } from '../db/database';
+import { canAccessTripAsync as canAccessTrip } from '../db/asyncDatabase';
 import { isAddonEnabled, getCollabFeatures } from '../services/adminService';
 import {
   listBucketList,
@@ -91,7 +91,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'A single trip with metadata and member count', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const trip = getTrip(id, userId);
         return jsonContent(uri.href, trip);
       },
@@ -105,7 +105,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'Days of a trip with their assigned places', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
 
         const { days } = listDays(id);
         return jsonContent(uri.href, days);
@@ -124,7 +124,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const assignment = uri.searchParams.get('assignment') as 'all' | 'unassigned' | 'assigned' | null;
         const places = listPlaces(String(id), { assignment: assignment ?? undefined });
         return jsonContent(uri.href, places);
@@ -139,7 +139,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'Budget and expense items for a trip', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const items = listBudgetItems(id);
         return jsonContent(uri.href, items);
       },
@@ -153,7 +153,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'Packing checklist for a trip', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const items = listPackingItems(id);
         return jsonContent(uri.href, items);
       },
@@ -167,7 +167,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'Reservations (flights, hotels, restaurants) for a trip', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const reservations = listReservations(id);
         return jsonContent(uri.href, reservations);
       },
@@ -182,7 +182,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       async (uri, { tripId, dayId }) => {
         const tId = parseId(tripId);
         const dId = parseId(dayId);
-        if (tId === null || dId === null || !canAccessTrip(tId, userId)) return accessDenied(uri.href);
+        if (tId === null || dId === null || !(await canAccessTrip(tId, userId))) return accessDenied(uri.href);
         const notes = listDayNotes(dId, tId);
         return jsonContent(uri.href, notes);
       },
@@ -199,7 +199,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const accommodations = listAccommodations(id);
         return jsonContent(uri.href, accommodations);
       },
@@ -213,7 +213,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'Owner and collaborators of a trip', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const ownerRow = getTripOwner(id);
         if (!ownerRow) return accessDenied(uri.href);
         const { owner, members } = listMembers(id, ownerRow.user_id);
@@ -230,7 +230,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'Shared collaborative notes for a trip', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const notes = listCollabNotes(id);
         return jsonContent(uri.href, notes);
       },
@@ -244,7 +244,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'To-do items for a trip, ordered by position', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const items = listTodoItems(id);
         return jsonContent(uri.href, items);
       },
@@ -299,7 +299,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const summary = getPerPersonSummary(id);
         return jsonContent(uri.href, summary);
       },
@@ -313,7 +313,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'Suggested settlement transactions to balance who owes whom', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const settlement = calculateSettlement(id);
         return jsonContent(uri.href, settlement);
       },
@@ -327,7 +327,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'All packing bags for a trip with their members', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const bags = listBags(id);
         return jsonContent(uri.href, bags);
       },
@@ -379,7 +379,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'All polls for a trip with vote counts per option', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const polls = listPolls(id);
         return jsonContent(uri.href, polls);
       },
@@ -394,7 +394,7 @@ export function registerResources(server: McpServer, userId: number, scopes: str
       { description: 'Most recent 100 chat messages for a trip', mimeType: 'application/json' },
       async (uri, { tripId }) => {
         const id = parseId(tripId);
-        if (id === null || !canAccessTrip(id, userId)) return accessDenied(uri.href);
+        if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
         const messages = listMessages(id);
         return jsonContent(uri.href, messages);
       },

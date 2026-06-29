@@ -5,6 +5,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DaysService } from './days.service';
 import { Body, Controller, Delete, Get, Headers, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
 
+type Trip = NonNullable<Awaited<ReturnType<DaysService['verifyTripAccess']>>>;
+
 /**
  * /api/trips/:tripId/days — trip itinerary days.
  *
@@ -18,34 +20,34 @@ import { Body, Controller, Delete, Get, Headers, HttpException, Param, Post, Put
 export class DaysController {
   constructor(private readonly days: DaysService) {}
 
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.days.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User): Promise<Trip> {
+    const trip = await this.days.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     return trip;
   }
 
-  private requireEdit(trip: NonNullable<ReturnType<DaysService['verifyTripAccess']>>, user: User): void {
+  private requireEdit(trip: Trip, user: User): void {
     if (!this.days.canEdit(trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
 
   @Get()
-  list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return this.days.list(tripId);
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: { date?: string; notes?: string; position?: number },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     // A `position` means "insert a new empty day here" (which on a dated trip
     // extends the trip and re-pins dates); without it, the legacy append.
@@ -61,13 +63,13 @@ export class DaysController {
   }
 
   @Put('reorder')
-  reorder(
+  async reorder(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: { orderedIds?: number[] },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!Array.isArray(body.orderedIds)) {
       throw new HttpException({ error: 'orderedIds must be an array' }, 400);
@@ -85,14 +87,14 @@ export class DaysController {
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: { notes?: string; title?: string | null },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const current = this.days.getDay(id, tripId);
     if (!current) {
@@ -104,13 +106,13 @@ export class DaysController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.days.getDay(id, tripId)) {
       throw new HttpException({ error: 'Day not found' }, 404);

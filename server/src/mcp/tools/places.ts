@@ -1,4 +1,5 @@
-import { canAccessTrip, db } from '../../db/database';
+import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
+import { db } from '../../db/database';
 import { createAssignment, dayExists } from '../../services/assignmentService';
 import { isDemoUser } from '../../services/authService';
 import { listCategories } from '../../services/categoryService';
@@ -97,7 +98,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
         currency,
       }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
         const place = createPlace(String(tripId), {
           name,
@@ -182,7 +183,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
         currency,
       }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
         if (!dayExists(dayId, tripId))
           return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
@@ -275,7 +276,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
         google_ftid,
       }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
         const place = updatePlace(String(tripId), String(placeId), {
           name,
@@ -316,7 +317,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       },
       async ({ tripId, placeId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
         const deleted = deletePlace(String(tripId), String(placeId));
         if (!deleted) return { content: [{ type: 'text' as const, text: 'Place not found.' }], isError: true };
@@ -347,7 +348,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ tripId, search, category, tag, assignment }) => {
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         const places = listPlaces(String(tripId), { search, category, tag, assignment });
         return ok({ places });
       },
@@ -413,7 +414,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       },
       async ({ tripId, url, source }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
 
         const result =
@@ -451,7 +452,7 @@ export function registerPlaceTools(server: McpServer, userId: number, scopes: st
       },
       async ({ tripId, placeIds }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('place_edit', tripId, userId)) return permissionDenied();
 
         const deleted = deletePlacesMany(String(tripId), placeIds);

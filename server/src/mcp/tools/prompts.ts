@@ -1,5 +1,5 @@
 import { ADDON_IDS } from '../../addons';
-import { canAccessTrip } from '../../db/database';
+import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
 import { isAddonEnabled } from '../../services/adminService';
 import { listItems as listPackingItems } from '../../services/packingService';
 import { getTripSummary } from '../../services/tripService';
@@ -42,7 +42,7 @@ export function registerMcpPrompts(server: McpServer, _userId: number, isStaticT
       },
     },
     async ({ tripId }) => {
-      if (!canAccessTrip(tripId, userId)) {
+      if (!(await canAccessTrip(tripId, userId))) {
         return { messages: [{ role: 'user', content: { type: 'text', text: 'Trip not found or access denied.' } }] };
       }
       const summary = getTripSummary(tripId);
@@ -78,7 +78,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
         },
       },
       async ({ tripId }) => {
-        if (!canAccessTrip(tripId, userId)) {
+        if (!(await canAccessTrip(tripId, userId))) {
           return { messages: [{ role: 'user', content: { type: 'text', text: 'Trip not found or access denied.' } }] };
         }
         const items = listPackingItems(tripId);
@@ -126,7 +126,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
         },
       },
       async ({ tripId }) => {
-        if (!canAccessTrip(tripId, userId)) {
+        if (!(await canAccessTrip(tripId, userId))) {
           return { messages: [{ role: 'user', content: { type: 'text', text: 'Trip not found or access denied.' } }] };
         }
         const summary = getTripSummary(tripId);

@@ -34,28 +34,28 @@ function validateLengths(body: Record<string, unknown>): void {
 export class DayNotesController {
   constructor(private readonly notes: DayNotesService) {}
 
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.notes.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User) {
+    const trip = await this.notes.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     return trip;
   }
 
-  private requireEdit(trip: NonNullable<ReturnType<DayNotesService['verifyTripAccess']>>, user: User): void {
+  private requireEdit(trip: NonNullable<Awaited<ReturnType<DayNotesService['verifyTripAccess']>>>, user: User): void {
     if (!this.notes.canEdit(trip, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
 
   @Get()
-  list(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('dayId') dayId: string) {
-    this.requireTrip(tripId, user);
+  async list(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('dayId') dayId: string) {
+    await this.requireTrip(tripId, user);
     return { notes: this.notes.list(dayId, tripId) };
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('dayId') dayId: string,
@@ -63,7 +63,7 @@ export class DayNotesController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     validateLengths(body);
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.notes.dayExists(dayId, tripId)) {
       throw new HttpException({ error: 'Day not found' }, 404);
@@ -77,7 +77,7 @@ export class DayNotesController {
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('dayId') dayId: string,
@@ -86,7 +86,7 @@ export class DayNotesController {
     @Headers('x-socket-id') socketId?: string,
   ) {
     validateLengths(body);
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const current = this.notes.getNote(id, dayId, tripId);
     if (!current) {
@@ -103,14 +103,14 @@ export class DayNotesController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('dayId') dayId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.notes.getNote(id, dayId, tripId)) {
       throw new HttpException({ error: 'Note not found' }, 404);

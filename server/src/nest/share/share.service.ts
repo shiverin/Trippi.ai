@@ -1,10 +1,10 @@
-import { canAccessTrip } from '../../db/database';
+import { canAccessTripAsync } from '../../db/asyncDatabase';
 import { checkPermission } from '../../services/permissions';
 import * as svc from '../../services/shareService';
 import type { User } from '../../types';
 import { Injectable } from '@nestjs/common';
 
-type Trip = NonNullable<ReturnType<typeof canAccessTrip>>;
+type Trip = NonNullable<Awaited<ReturnType<typeof canAccessTripAsync>>>;
 
 /**
  * Thin Nest wrapper around the existing share service. Trip access, the
@@ -12,8 +12,8 @@ type Trip = NonNullable<ReturnType<typeof canAccessTrip>>;
  */
 @Injectable()
 export class ShareService {
-  verifyTripAccess(tripId: string, userId: number) {
-    return canAccessTrip(tripId, userId);
+  async verifyTripAccess(tripId: string, userId: number): Promise<Trip | undefined> {
+    return canAccessTripAsync(tripId, userId);
   }
 
   canManage(trip: Trip, user: User): boolean {

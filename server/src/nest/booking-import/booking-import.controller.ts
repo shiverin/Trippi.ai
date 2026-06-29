@@ -36,13 +36,16 @@ const UPLOAD = {
 export class BookingImportController {
   constructor(private readonly bookingImport: BookingImportService) {}
 
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.bookingImport.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User) {
+    const trip = await this.bookingImport.verifyTripAccess(tripId, user.id);
     if (!trip) throw new HttpException({ error: 'Trip not found' }, 404);
     return trip;
   }
 
-  private requireEdit(trip: ReturnType<BookingImportService['verifyTripAccess']>, user: User): void {
+  private requireEdit(
+    trip: NonNullable<Awaited<ReturnType<BookingImportService['verifyTripAccess']>>>,
+    user: User,
+  ): void {
     if (!this.bookingImport.canEdit(trip!, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
@@ -60,7 +63,7 @@ export class BookingImportController {
     @Param('tripId') tripId: string,
     @UploadedFiles() files: Express.Multer.File[] | undefined,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
 
     if (!this.bookingImport.isAvailable()) {
@@ -97,7 +100,7 @@ export class BookingImportController {
     @Body() body: { items?: BookingImportPreviewItem[] },
     @Headers('x-socket-id') socketId?: string,
   ): Promise<BookingImportConfirmResponse> {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
 
     const items = body?.items;

@@ -19,8 +19,8 @@ import { createReadStream } from 'node:fs';
 export class TripShareController {
   constructor(private readonly share: ShareService) {}
 
-  private requireManage(tripId: string, user: User) {
-    const trip = this.share.verifyTripAccess(tripId, user.id);
+  private async requireManage(tripId: string, user: User): Promise<void> {
+    const trip = await this.share.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
@@ -30,7 +30,7 @@ export class TripShareController {
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body()
@@ -43,7 +43,7 @@ export class TripShareController {
     },
     @Res({ passthrough: true }) res: Response,
   ) {
-    this.requireManage(tripId, user);
+    await this.requireManage(tripId, user);
     const result = this.share.createOrUpdate(tripId, user.id, {
       share_map: body.share_map,
       share_bookings: body.share_bookings,
@@ -57,8 +57,8 @@ export class TripShareController {
   }
 
   @Get()
-  get(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    if (!this.share.verifyTripAccess(tripId, user.id)) {
+  async get(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    if (!(await this.share.verifyTripAccess(tripId, user.id))) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     const info = this.share.get(tripId);
@@ -66,8 +66,8 @@ export class TripShareController {
   }
 
   @Delete()
-  remove(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireManage(tripId, user);
+  async remove(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireManage(tripId, user);
     this.share.remove(tripId);
     return { success: true };
   }

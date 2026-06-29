@@ -581,7 +581,7 @@ export async function syncSynologyAlbumLink(
   linkId: string,
   sid: string,
 ): Promise<ServiceResult<SyncAlbumResult>> {
-  const response = getAlbumLinkForSync(tripId, linkId, userId);
+  const response = await getAlbumLinkForSync(tripId, linkId, userId);
   if (!response.success) return response as ServiceResult<SyncAlbumResult>;
 
   const { albumId, passphrase } = response.data;

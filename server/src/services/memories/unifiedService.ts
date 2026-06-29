@@ -1,4 +1,5 @@
-import { db, canAccessTrip } from '../../db/database';
+import { canAccessTripAsync } from '../../db/asyncDatabase';
+import { db } from '../../db/database';
 import { broadcast } from '../../websocket';
 import { encrypt_api_key } from '../apiKeyCrypto';
 import { send } from '../notificationService';
@@ -22,8 +23,8 @@ function _validProvider(provider: string): ServiceResult<string> {
   return success(provider);
 }
 
-export function listTripPhotos(tripId: string, userId: number): ServiceResult<any[]> {
-  const access = canAccessTrip(tripId, userId);
+export async function listTripPhotos(tripId: string, userId: number): Promise<ServiceResult<any[]>> {
+  const access = await canAccessTripAsync(tripId, userId);
   if (!access) {
     return fail('Trip not found or access denied', 404);
   }
@@ -59,8 +60,8 @@ export function listTripPhotos(tripId: string, userId: number): ServiceResult<an
   }
 }
 
-export function listTripAlbumLinks(tripId: string, userId: number): ServiceResult<any[]> {
-  const access = canAccessTrip(tripId, userId);
+export async function listTripAlbumLinks(tripId: string, userId: number): Promise<ServiceResult<any[]>> {
+  const access = await canAccessTripAsync(tripId, userId);
   if (!access) {
     return fail('Trip not found or access denied', 404);
   }
@@ -139,7 +140,7 @@ export async function addTripPhotos(
   sid: string,
   albumLinkId?: string,
 ): Promise<ServiceResult<{ added: number; shared: boolean }>> {
-  const access = canAccessTrip(tripId, userId);
+  const access = await canAccessTripAsync(tripId, userId);
   if (!access) {
     return fail('Trip not found or access denied', 404);
   }
@@ -187,7 +188,7 @@ export async function setTripPhotoSharing(
   shared: boolean,
   sid?: string,
 ): Promise<ServiceResult<true>> {
-  const access = canAccessTrip(tripId, userId);
+  const access = await canAccessTripAsync(tripId, userId);
   if (!access) {
     return fail('Trip not found or access denied', 404);
   }
@@ -211,8 +212,13 @@ export async function setTripPhotoSharing(
   }
 }
 
-export function removeTripPhoto(tripId: string, userId: number, photoId: number, sid?: string): ServiceResult<true> {
-  const access = canAccessTrip(tripId, userId);
+export async function removeTripPhoto(
+  tripId: string,
+  userId: number,
+  photoId: number,
+  sid?: string,
+): Promise<ServiceResult<true>> {
+  const access = await canAccessTripAsync(tripId, userId);
   if (!access) {
     return fail('Trip not found or access denied', 404);
   }
@@ -239,15 +245,15 @@ export function removeTripPhoto(tripId: string, userId: number, photoId: number,
 // ----------------------------------------------
 // managing album links in trip
 
-export function createTripAlbumLink(
+export async function createTripAlbumLink(
   tripId: string,
   userId: number,
   providerRaw: unknown,
   albumIdRaw: unknown,
   albumNameRaw: unknown,
   passphrase?: string,
-): ServiceResult<true> {
-  const access = canAccessTrip(tripId, userId);
+): Promise<ServiceResult<true>> {
+  const access = await canAccessTripAsync(tripId, userId);
   if (!access) {
     return fail('Trip not found or access denied', 404);
   }
@@ -286,8 +292,8 @@ export function createTripAlbumLink(
   }
 }
 
-export function removeAlbumLink(tripId: string, linkId: string, userId: number): ServiceResult<true> {
-  const access = canAccessTrip(tripId, userId);
+export async function removeAlbumLink(tripId: string, linkId: string, userId: number): Promise<ServiceResult<true>> {
+  const access = await canAccessTripAsync(tripId, userId);
   if (!access) {
     return fail('Trip not found or access denied', 404);
   }

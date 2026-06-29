@@ -4,7 +4,7 @@ import type { User } from '../../types';
 import { broadcast } from '../../websocket';
 import { Injectable } from '@nestjs/common';
 
-type Trip = NonNullable<ReturnType<typeof svc.verifyTripAccess>>;
+type Trip = NonNullable<Awaited<ReturnType<typeof svc.verifyTripAccess>>>;
 
 /**
  * Thin Nest wrapper around the existing todo service. Trip-access, the

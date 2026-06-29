@@ -33,34 +33,34 @@ export class PackingController {
   constructor(private readonly packing: PackingService) {}
 
   /** Loads the trip or throws the legacy 404; returns it for the permission check. */
-  private requireTrip(tripId: string, user: User) {
-    const trip = this.packing.verifyTripAccess(tripId, user.id);
+  private async requireTrip(tripId: string, user: User) {
+    const trip = await this.packing.verifyTripAccess(tripId, user.id);
     if (!trip) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
     return trip;
   }
 
-  private requireEdit(trip: ReturnType<PackingService['verifyTripAccess']>, user: User): void {
+  private requireEdit(trip: NonNullable<Awaited<ReturnType<PackingService['verifyTripAccess']>>>, user: User): void {
     if (!this.packing.canEdit(trip!, user)) {
       throw new HttpException({ error: 'No permission' }, 403);
     }
   }
 
   @Get()
-  list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { items: this.packing.listItems(tripId) };
   }
 
   @Post('import')
-  importItems(
+  async importItems(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body('items') items: unknown,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!Array.isArray(items) || items.length === 0) {
       throw new HttpException({ error: 'items must be a non-empty array' }, 400);
@@ -73,13 +73,13 @@ export class PackingController {
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: { name?: string; category?: string; checked?: boolean },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!body.name) {
       throw new HttpException({ error: 'Item name is required' }, 400);
@@ -90,27 +90,27 @@ export class PackingController {
   }
 
   @Put('reorder')
-  reorder(
+  async reorder(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body('orderedIds') orderedIds: number[],
     @Headers('x-socket-id') _socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     this.packing.reorderItems(tripId, orderedIds);
     return { success: true };
   }
 
   @Put(':id')
-  update(
+  async update(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const { name, checked, category, weight_grams, bag_id, quantity } = body as Record<string, never>;
     const updated = this.packing.updateItem(
@@ -127,13 +127,13 @@ export class PackingController {
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.packing.deleteItem(tripId, id)) {
       throw new HttpException({ error: 'Item not found' }, 404);
@@ -143,19 +143,19 @@ export class PackingController {
   }
 
   @Get('bags')
-  listBags(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async listBags(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { bags: this.packing.listBags(tripId) };
   }
 
   @Post('bags')
-  createBag(
+  async createBag(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: { name?: string; color?: string },
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!body.name?.trim()) {
       throw new HttpException({ error: 'Name is required' }, 400);
@@ -166,14 +166,14 @@ export class PackingController {
   }
 
   @Put('bags/:bagId')
-  updateBag(
+  async updateBag(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('bagId') bagId: string,
     @Body() body: Record<string, unknown>,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const { name, color, weight_limit_grams, user_id } = body as Record<string, never>;
     const updated = this.packing.updateBag(
@@ -190,13 +190,13 @@ export class PackingController {
   }
 
   @Delete('bags/:bagId')
-  deleteBag(
+  async deleteBag(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('bagId') bagId: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     if (!this.packing.deleteBag(tripId, bagId)) {
       throw new HttpException({ error: 'Bag not found' }, 404);
@@ -206,20 +206,20 @@ export class PackingController {
   }
 
   @Get('templates')
-  listTemplates(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async listTemplates(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { templates: this.packing.listTemplates() };
   }
 
   @Post('apply-template/:templateId')
   @HttpCode(200)
-  applyTemplate(
+  async applyTemplate(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('templateId') templateId: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const added = this.packing.applyTemplate(tripId, templateId);
     if (!added) {
@@ -230,14 +230,14 @@ export class PackingController {
   }
 
   @Put('bags/:bagId/members')
-  setBagMembers(
+  async setBagMembers(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('bagId') bagId: string,
     @Body('user_ids') userIds: unknown,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const members = this.packing.setBagMembers(tripId, bagId, Array.isArray(userIds) ? userIds : []);
     if (!members) {
@@ -248,8 +248,8 @@ export class PackingController {
   }
 
   @Post('save-as-template')
-  saveAsTemplate(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body('name') name?: string) {
-    this.requireTrip(tripId, user);
+  async saveAsTemplate(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body('name') name?: string) {
+    await this.requireTrip(tripId, user);
     if (user.role !== 'admin') {
       throw new HttpException({ error: 'Admin access required' }, 403);
     }
@@ -264,20 +264,20 @@ export class PackingController {
   }
 
   @Get('category-assignees')
-  categoryAssignees(@CurrentUser() user: User, @Param('tripId') tripId: string) {
-    this.requireTrip(tripId, user);
+  async categoryAssignees(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    await this.requireTrip(tripId, user);
     return { assignees: this.packing.getCategoryAssignees(tripId) };
   }
 
   @Put('category-assignees/:categoryName')
-  updateCategoryAssignees(
+  async updateCategoryAssignees(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Param('categoryName') categoryName: string,
     @Body('user_ids') userIds: number[],
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = this.requireTrip(tripId, user);
+    const trip = await this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
     const category = decodeURIComponent(categoryName);
     const rows = this.packing.updateCategoryAssignees(tripId, category, userIds);

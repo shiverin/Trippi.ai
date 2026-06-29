@@ -1,4 +1,4 @@
-import { canAccessTrip } from '../../db/database';
+import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
 import {
   dayExists,
   placeExists,
@@ -52,7 +52,7 @@ export function registerAssignmentTools(server: McpServer, userId: number, scope
       },
       async ({ tripId, dayId, placeId, notes }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
         if (!dayExists(dayId, tripId))
           return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
@@ -78,7 +78,7 @@ export function registerAssignmentTools(server: McpServer, userId: number, scope
       },
       async ({ tripId, dayId, assignmentId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
         if (!assignmentExistsInDay(assignmentId, dayId, tripId))
           return { content: [{ type: 'text' as const, text: 'Assignment not found.' }], isError: true };
@@ -104,7 +104,7 @@ export function registerAssignmentTools(server: McpServer, userId: number, scope
       },
       async ({ tripId, assignmentId, place_time, end_time }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
         const existing = getAssignmentForTrip(assignmentId, tripId);
         if (!existing) return { content: [{ type: 'text' as const, text: 'Assignment not found.' }], isError: true };
@@ -134,7 +134,7 @@ export function registerAssignmentTools(server: McpServer, userId: number, scope
       },
       async ({ tripId, assignmentId, newDayId, oldDayId, orderIndex }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
         if (!getAssignmentForTrip(assignmentId, tripId))
           return { content: [{ type: 'text' as const, text: 'Assignment not found.' }], isError: true };
@@ -158,7 +158,7 @@ export function registerAssignmentTools(server: McpServer, userId: number, scope
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ tripId, assignmentId }) => {
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!getAssignmentForTrip(assignmentId, tripId))
           return { content: [{ type: 'text' as const, text: 'Assignment not found.' }], isError: true };
         const participants = getAssignmentParticipants(assignmentId);
@@ -182,7 +182,7 @@ export function registerAssignmentTools(server: McpServer, userId: number, scope
       },
       async ({ tripId, assignmentId, userIds }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
         if (!getAssignmentForTrip(assignmentId, tripId))
           return { content: [{ type: 'text' as const, text: 'Assignment not found.' }], isError: true };
@@ -212,7 +212,7 @@ export function registerAssignmentTools(server: McpServer, userId: number, scope
       },
       async ({ tripId, dayId, assignmentIds }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
         if (!getDay(dayId, tripId))
           return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };

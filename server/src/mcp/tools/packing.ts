@@ -1,5 +1,5 @@
 import { ADDON_IDS } from '../../addons';
-import { canAccessTrip } from '../../db/database';
+import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
 import { isAddonEnabled, deletePackingTemplate } from '../../services/adminService';
 import { isDemoUser } from '../../services/authService';
 import {
@@ -60,7 +60,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, name, category }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         const item = createPackingItem(tripId, { name, category: category || 'General' });
         safeBroadcast(tripId, 'packing:created', { item });
@@ -82,7 +82,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, itemId, checked }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         const item = updatePackingItem(tripId, itemId, { checked: checked ? 1 : 0 }, ['checked']);
         if (!item) return { content: [{ type: 'text' as const, text: 'Packing item not found.' }], isError: true };
@@ -104,7 +104,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, itemId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         const deleted = deletePackingItem(tripId, itemId);
         if (!deleted) return { content: [{ type: 'text' as const, text: 'Packing item not found.' }], isError: true };
@@ -130,7 +130,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, itemId, name, category }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         const bodyKeys = ['name', 'category'].filter((k) =>
           k === 'name' ? name !== undefined : category !== undefined,
@@ -157,7 +157,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, orderedIds }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         reorderPackingItems(tripId, orderedIds);
         safeBroadcast(tripId, 'packing:reordered', { orderedIds });
@@ -176,7 +176,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ tripId }) => {
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         const bags = listBags(tripId);
         return ok({ bags });
       },
@@ -196,7 +196,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, name, color }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         // createBag returns a bare row; hydrate with the empty members array that
         // listBags and the schema always carry, so the client/AI consumer matches.
@@ -221,7 +221,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, bagId, name, color }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         const fields: Record<string, unknown> = {};
         const bodyKeys: string[] = [];
@@ -258,7 +258,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, bagId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         deleteBag(tripId, bagId);
         safeBroadcast(tripId, 'packing:bag-deleted', { id: bagId });
@@ -280,7 +280,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, bagId, userIds }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         const members = setBagMembers(tripId, bagId, userIds);
         if (!members) return { content: [{ type: 'text' as const, text: 'Bag not found.' }], isError: true };
@@ -300,7 +300,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ tripId }) => {
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         const assignees = getPackingCategoryAssignees(tripId);
         return ok({ assignees });
       },
@@ -320,7 +320,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, categoryName, userIds }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         const assignees = updatePackingCategoryAssignees(tripId, categoryName, userIds);
         safeBroadcast(tripId, 'packing:assignees', { category: categoryName, assignees });
@@ -341,7 +341,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, templateId }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         const items = applyTemplate(tripId, templateId);
         if (items === null) return { content: [{ type: 'text' as const, text: 'Template not found.' }], isError: true };
@@ -362,7 +362,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
         annotations: TOOL_ANNOTATIONS_READONLY,
       },
       async ({ tripId }) => {
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         return ok({ templates: listTemplates() });
       },
     );
@@ -381,7 +381,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, templateName }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         // Templates are global; the REST route restricts saving to admins. Match it.
         if (!isAdminUser(userId)) return adminRequired();
@@ -444,7 +444,7 @@ export function registerPackingTools(server: McpServer, userId: number, scopes: 
       },
       async ({ tripId, items }) => {
         if (isDemoUser(userId)) return demoDenied();
-        if (!canAccessTrip(tripId, userId)) return noAccess();
+        if (!(await canAccessTrip(tripId, userId))) return noAccess();
         if (!hasTripPermission('packing_edit', tripId, userId)) return permissionDenied();
         const created = bulkImport(tripId, items);
         for (const item of created) safeBroadcast(tripId, 'packing:created', { item });

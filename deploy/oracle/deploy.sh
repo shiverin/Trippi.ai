@@ -34,8 +34,14 @@ mkdir -p \
 
 cd "${APP_DIR}"
 
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" build app
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d
+if [[ -n "${TRIPPI_IMAGE:-}" ]]; then
+  echo "Using prebuilt image: ${TRIPPI_IMAGE}"
+  docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" pull app
+  docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d --no-build
+else
+  docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" build app
+  docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d
+fi
 
 echo "Waiting for app health..."
 for _ in $(seq 1 60); do

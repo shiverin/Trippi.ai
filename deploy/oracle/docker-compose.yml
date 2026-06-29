@@ -3,7 +3,7 @@ services:
     build:
       context: ../..
       dockerfile: Dockerfile
-    image: trippi-ai:oracle
+    image: ${TRIPPI_IMAGE:-trippi-ai:oracle}
     container_name: trippi-ai
     restart: unless-stopped
     read_only: true

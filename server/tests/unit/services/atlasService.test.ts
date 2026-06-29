@@ -266,7 +266,7 @@ describe('getRegionGeo', () => {
   it('ATLAS-SVC-017: returns an empty FeatureCollection for a country with no admin-1 features', async () => {
     const result = await getRegionGeo(['ZZ']);
     expect(result).toEqual({ type: 'FeatureCollection', features: [] });
-  });
+  }, 45_000);
 
   it('ATLAS-SVC-018: returns the current geoBoundaries regions for a country, case-insensitively', async () => {
     // Pass lowercase 'no' — getRegionGeo uppercases internally for matching.

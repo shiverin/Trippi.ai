@@ -159,6 +159,48 @@ describe('DCR scope optional — ChatGPT compatibility (issue #959 bug 2)', () =
         expect(res.status).toBe(201);
         expect(res.body.scope).toBe('trips:read');
     });
+
+    it('OAUTH-959D — DCR approval is not cached for a later ChatGPT reconnect', async () => {
+        const { user } = createUser(testDb);
+        const redirectUri = 'https://chatgpt.example.com/cb';
+        const registered = await request(app)
+            .post('/oauth/register')
+            .set('Content-Type', 'application/json')
+            .send({ redirect_uris: [redirectUri], token_endpoint_auth_method: 'none', scope: 'trips:read' });
+        expect(registered.status).toBe(201);
+
+        const firstPkce = makePkce();
+        const approve = await request(app)
+            .post('/api/oauth/authorize')
+            .set('Cookie', authCookie(user.id))
+            .send({
+                approved: true,
+                client_id: registered.body.client_id,
+                redirect_uri: redirectUri,
+                scope: 'trips:read',
+                code_challenge: firstPkce.challenge,
+                code_challenge_method: 'S256',
+            });
+        expect(approve.status).toBe(200);
+        expect(approve.body.redirect).toContain('code=');
+
+        const secondPkce = makePkce();
+        const validate = await request(app)
+            .get('/api/oauth/authorize/validate')
+            .set('Cookie', authCookie(user.id))
+            .query({
+                response_type: 'code',
+                client_id: registered.body.client_id,
+                redirect_uri: redirectUri,
+                scope: 'trips:read',
+                code_challenge: secondPkce.challenge,
+                code_challenge_method: 'S256',
+            });
+        expect(validate.status).toBe(200);
+        expect(validate.body.valid).toBe(true);
+        expect(validate.body.consentRequired).toBe(true);
+        expect(validate.body.scopeSelectable).toBe(true);
+    });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

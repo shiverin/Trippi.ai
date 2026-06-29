@@ -60,7 +60,7 @@ interface OAuthClientRow {
   allowed_scopes: string; // JSON array
   created_at: string;
   is_public: number; // 0 | 1 (SQLite boolean)
-  created_via: string; // 'settings_ui' | 'browser-registration'
+  created_via: string; // 'settings_ui' | 'dcr' | other registration surfaces
   allows_client_credentials: number; // 0 | 1
 }
 
@@ -309,7 +309,41 @@ export function getConsent(clientId: string, userId: number): string[] | null {
   return row ? JSON.parse(row.scopes) : null;
 }
 
+function usesEphemeralConsent(clientId: string): boolean {
+  const row = db
+    .prepare('SELECT created_via FROM oauth_clients WHERE client_id = ?')
+    .get(clientId) as Pick<OAuthClientRow, 'created_via'> | undefined;
+  return row?.created_via === 'dcr';
+}
+
+export function revokeConsent(
+  clientId: string,
+  userId: number,
+  ip?: string | null,
+  reason?: string,
+): void {
+  const result = db.prepare('DELETE FROM oauth_consents WHERE client_id = ? AND user_id = ?').run(clientId, userId);
+  if (result.changes > 0) {
+    writeAudit({
+      userId,
+      action: 'oauth.consent.revoke',
+      details: { client_id: clientId, reason },
+      ip,
+    });
+  }
+}
+
 export function saveConsent(clientId: string, userId: number, scopes: string[], ip?: string | null): void {
+  if (usesEphemeralConsent(clientId)) {
+    writeAudit({
+      userId,
+      action: 'oauth.consent.grant',
+      details: { client_id: clientId, scopes, persisted: false, reason: 'dcr_ephemeral' },
+      ip,
+    });
+    return;
+  }
+
   // Union existing consent with newly approved scopes (M5: never narrow stored consent)
   const existing = getConsent(clientId, userId) ?? [];
   const merged = Array.from(new Set([...existing, ...scopes]));
@@ -481,19 +515,20 @@ function findChainRoot(tokenId: number): number {
 
 /** Revoke all tokens in the rotation chain rooted at rootId. Returns affected ids. */
 function revokeChain(rootId: number): number[] {
-  const rows = db
-    .prepare(
-      `
-    WITH RECURSIVE chain(id) AS (
-      SELECT id FROM oauth_tokens WHERE id = ?
-      UNION ALL
-      SELECT t.id FROM oauth_tokens t JOIN chain c ON t.parent_token_id = c.id
-    )
-    SELECT id FROM chain
-  `,
-    )
-    .all(rootId) as { id: number }[];
-  const ids = rows.map((r) => r.id);
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  const queue = [rootId];
+  const findChildren = db.prepare('SELECT id FROM oauth_tokens WHERE parent_token_id = ?');
+
+  while (queue.length > 0 && seen.size < 1000) {
+    const id = queue.shift()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+    const children = findChildren.all(id) as { id: number }[];
+    for (const child of children) queue.push(child.id);
+  }
+
   if (ids.length > 0) {
     db.prepare(
       `UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id IN (${ids.map(() => '?').join(',')}) AND revoked_at IS NULL`,
@@ -589,6 +624,7 @@ export function revokeToken(rawToken: string, clientId: string, userId?: number,
 
   const affectedUserId = row?.user_id ?? userId;
   if (affectedUserId) {
+    revokeConsent(clientId, affectedUserId, ip, 'token_revoke');
     revokeUserSessionsForClient(affectedUserId, clientId);
     writeAudit({
       userId: affectedUserId,
@@ -633,6 +669,7 @@ export function revokeSession(
 
   db.prepare('UPDATE oauth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = ?').run(sessionId);
 
+  revokeConsent(row.client_id, userId, ip, 'session_revoke');
   revokeUserSessionsForClient(userId, row.client_id);
 
   writeAudit({ userId, action: 'oauth.token.revoke', details: { client_id: row.client_id, method: 'session' }, ip });
@@ -758,8 +795,9 @@ export function validateAuthorizeRequest(params: AuthorizeParams, userId: number
     return { valid: true, loginRequired: true };
   }
 
-  const existingConsent = getConsent(params.client_id, userId);
-  const consentRequired = !existingConsent || !isConsentSufficient(existingConsent, grantedScopes);
+  const ephemeralConsent = client.created_via === 'dcr';
+  const existingConsent = ephemeralConsent ? null : getConsent(params.client_id, userId);
+  const consentRequired = ephemeralConsent || !existingConsent || !isConsentSufficient(existingConsent, grantedScopes);
 
   return {
     valid: true,

@@ -108,6 +108,19 @@ function makeClient(
   );
 }
 
+function makeDcrClient(
+  overrides: Partial<{ name: string; redirectUris: string[]; scopes: string[] }> = {}
+) {
+  return createOAuthClient(
+    null,
+    overrides.name ?? 'ChatGPT',
+    overrides.redirectUris ?? ['https://chatgpt.example.com/callback'],
+    overrides.scopes ?? ['trips:read'],
+    undefined,
+    { isPublic: true, createdVia: 'dcr' },
+  );
+}
+
 // ---------------------------------------------------------------------------
 // createOAuthClient
 // ---------------------------------------------------------------------------
@@ -473,6 +486,19 @@ describe('revokeToken', () => {
     revokeToken(access_token, clientId);
     expect(getUserByAccessToken(access_token)).toBeNull();
   });
+
+  it('clears cached consent so reconnect requires a fresh approval', () => {
+    const { user } = createUser(testDb);
+    const created = makeClient(user.id);
+    const clientId = created.client!.client_id as string;
+
+    saveConsent(clientId, user.id, ['trips:read']);
+    const { access_token } = issueTokens(clientId, user.id, ['trips:read']);
+    expect(getConsent(clientId, user.id)).toEqual(['trips:read']);
+
+    revokeToken(access_token, clientId);
+    expect(getConsent(clientId, user.id)).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -520,6 +546,20 @@ describe('listOAuthSessions + revokeSession', () => {
     const result = revokeSession(user.id, sessionId);
     expect(result.success).toBe(true);
     expect(listOAuthSessions(user.id)).toHaveLength(0);
+  });
+
+  it('revokeSession clears cached consent for the client', () => {
+    const { user } = createUser(testDb);
+    const created = makeClient(user.id);
+    const clientId = created.client!.client_id as string;
+
+    saveConsent(clientId, user.id, ['trips:read']);
+    issueTokens(clientId, user.id, ['trips:read']);
+    const sessionId = listOAuthSessions(user.id)[0].id as number;
+
+    const result = revokeSession(user.id, sessionId);
+    expect(result.success).toBe(true);
+    expect(getConsent(clientId, user.id)).toBeNull();
   });
 });
 
@@ -634,6 +674,24 @@ describe('validateAuthorizeRequest', () => {
     expect(result.valid).toBe(true);
     expect(result.consentRequired).toBe(false);
   });
+
+  it('always requires consent for DCR clients even if a stale consent row exists', () => {
+    const { user } = createUser(testDb);
+    const created = makeDcrClient();
+    const clientId = created.client!.client_id as string;
+
+    testDb
+      .prepare('INSERT INTO oauth_consents (client_id, user_id, scopes) VALUES (?, ?, ?)')
+      .run(clientId, user.id, JSON.stringify(['trips:read']));
+
+    const result = validateAuthorizeRequest(
+      makeParams({ client_id: clientId, redirect_uri: 'https://chatgpt.example.com/callback' }),
+      user.id,
+    );
+    expect(result.valid).toBe(true);
+    expect(result.consentRequired).toBe(true);
+    expect(result.scopeSelectable).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -698,6 +756,16 @@ describe('saveConsent + getConsent + isConsentSufficient', () => {
     expect(consent).not.toBeNull();
     expect(consent).toContain('trips:read');
     expect(consent).toContain('budget:write');
+  });
+
+  it('does not persist consent for DCR clients such as ChatGPT', () => {
+    const { user } = createUser(testDb);
+    const created = makeDcrClient();
+    const clientId = created.client!.client_id as string;
+
+    saveConsent(clientId, user.id, ['trips:read']);
+
+    expect(getConsent(clientId, user.id)).toBeNull();
   });
 
   it('isConsentSufficient returns true when all requested scopes are in existing', () => {

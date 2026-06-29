@@ -1,5 +1,6 @@
 import { Place, Tag } from '../types';
 import { runMigrations } from './migrations';
+import { OracleNativeAdapter } from './oracleNativeAdapter';
 import { createTables } from './schema';
 import { runSeeds } from './seeds';
 
@@ -10,6 +11,8 @@ import path from 'path';
 // In test mode each vitest worker gets an isolated in-memory DB so that
 // parallel forks can't race on the same file or share migration state.
 const isTest = process.env.NODE_ENV === 'test';
+const isOracleNative =
+  (process.env.TRIPPI_DB_PROVIDER || process.env.TRIPPI_DB_MODE || '').trim().toLowerCase() === 'oracle-native';
 
 let dbPath: string;
 if (isTest) {
@@ -29,17 +32,31 @@ if (isTest) {
   dbPath = path.join(dataDir, 'travel.db');
 }
 
-let _db: Database.Database | null = null;
+type DbConnection = Database.Database | OracleNativeAdapter;
+
+let _db: DbConnection | null = null;
 
 function initDb(): void {
   if (_db) {
-    try {
-      _db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
-    } catch (e) {}
+    if (!isOracleNativeConnection(_db)) {
+      try {
+        _db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+      } catch (e) {}
+    }
     try {
       _db.close();
     } catch (e) {}
     _db = null;
+  }
+
+  if (isOracleNative) {
+    _db = new OracleNativeAdapter({
+      env: process.env,
+      syncTimeoutMs: Number(process.env.ORACLE_NATIVE_SYNC_TIMEOUT_MS || 60000),
+      startupTimeoutMs: Number(process.env.ORACLE_NATIVE_STARTUP_TIMEOUT_MS || 60000),
+    });
+    console.log('[DB] Native Oracle provider enabled');
+    return;
   }
 
   _db = new Database(dbPath);
@@ -68,25 +85,35 @@ const db = new Proxy({} as Database.Database, {
 });
 
 if (process.env.DEMO_MODE?.toLowerCase() === 'true') {
-  try {
-    const { seedDemoData } = require('../demo/demo-seed');
-    seedDemoData(_db);
-  } catch (err: unknown) {
-    console.error('[Demo] Seed error:', err instanceof Error ? err.message : err);
+  if (isOracleNative) {
+    console.warn('[Demo] DEMO_MODE seed is skipped for native Oracle provider');
+  } else {
+    try {
+      const { seedDemoData } = require('../demo/demo-seed');
+      seedDemoData(_db);
+    } catch (err: unknown) {
+      console.error('[Demo] Seed error:', err instanceof Error ? err.message : err);
+    }
   }
 }
 
 function closeDb(): void {
   if (_db) {
-    try {
-      _db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
-    } catch (e) {}
+    if (!isOracleNativeConnection(_db)) {
+      try {
+        _db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+      } catch (e) {}
+    }
     try {
       _db.close();
     } catch (e) {}
     _db = null;
     console.log('[DB] Database connection closed');
   }
+}
+
+function isOracleNativeConnection(connection: DbConnection): connection is OracleNativeAdapter {
+  return connection instanceof OracleNativeAdapter;
 }
 
 function reinitialize(): void {

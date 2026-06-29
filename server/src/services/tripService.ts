@@ -14,7 +14,8 @@ export const MS_PER_DAY = 86400000;
 export const MAX_TRIP_DAYS = 365;
 
 export const TRIP_SELECT = `
-  SELECT t.*,
+  SELECT t.id, t.user_id, t.title, t.description, t.start_date, t.end_date, t.currency, t.cover_image,
+    t.is_archived, t.reminder_days, t.created_at, t.updated_at,
     (SELECT COUNT(*) FROM days d WHERE d.trip_id = t.id) as day_count,
     (SELECT COUNT(*) FROM places p WHERE p.trip_id = t.id) as place_count,
     CASE WHEN t.user_id = :userId THEN 1 ELSE 0 END as is_owner,

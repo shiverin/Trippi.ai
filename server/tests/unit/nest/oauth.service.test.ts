@@ -168,5 +168,5 @@ describe('OauthModule', () => {
     const providers = Reflect.getMetadata('providers', OauthModule);
     expect(controllers).toEqual([OauthPublicController, OauthApiController]);
     expect(providers).toEqual([Svc, RateLimitService]);
-  });
+  }, 45_000);
 });

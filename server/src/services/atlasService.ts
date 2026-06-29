@@ -645,7 +645,7 @@ function getUserTrips(userId: number): Trip[] {
   return db
     .prepare(
       `
-    SELECT DISTINCT t.* FROM trips t
+    SELECT t.* FROM trips t
     LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = ?
     WHERE t.user_id = ? OR m.user_id = ?
     ORDER BY t.start_date DESC

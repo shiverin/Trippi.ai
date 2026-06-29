@@ -99,6 +99,16 @@ function resolveUserEmail(userId: number | null): string {
   }
 }
 
+function resolveAuditUserId(userId: number | null): number | null {
+  if (!userId) return null;
+  try {
+    const row = db.prepare('SELECT id FROM users WHERE id = ?').get(userId) as { id: number } | undefined;
+    return row ? userId : null;
+  } catch {
+    return userId;
+  }
+}
+
 const ACTION_LABELS: Record<string, string> = {
   'user.register': 'registered',
   'user.login': 'logged in',
@@ -126,9 +136,10 @@ export function writeAudit(entry: {
   ip?: string | null;
 }): void {
   try {
+    const auditUserId = resolveAuditUserId(entry.userId);
     const detailsJson = entry.details && Object.keys(entry.details).length > 0 ? JSON.stringify(entry.details) : null;
-    db.prepare(`INSERT INTO audit_log (user_id, action, resource, details, ip) VALUES (?, ?, ?, ?, ?)`).run(
-      entry.userId,
+    db.prepare(`INSERT INTO audit_log ("USER_ID", "ACTION", "RESOURCE", "DETAILS", "IP") VALUES (?, ?, ?, ?, ?)`).run(
+      auditUserId,
       entry.action,
       entry.resource ?? null,
       detailsJson,
@@ -141,9 +152,9 @@ export function writeAudit(entry: {
     logInfo(`${email} ${label}${brief} ip=${entry.ip || '-'}`);
 
     if (entry.debugDetails && Object.keys(entry.debugDetails).length > 0) {
-      logDebug(`AUDIT ${entry.action} userId=${entry.userId} ${JSON.stringify(entry.debugDetails)}`);
+      logDebug(`AUDIT ${entry.action} userId=${auditUserId} ${JSON.stringify(entry.debugDetails)}`);
     } else if (detailsJson) {
-      logDebug(`AUDIT ${entry.action} userId=${entry.userId} ${detailsJson}`);
+      logDebug(`AUDIT ${entry.action} userId=${auditUserId} ${detailsJson}`);
     }
   } catch (e) {
     logError(`Audit write failed: ${e instanceof Error ? e.message : e}`);

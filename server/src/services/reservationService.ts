@@ -557,7 +557,7 @@ export function updateReservation(
   db.prepare(
     `
     UPDATE reservations SET
-      title = COALESCE(?, title),
+      title = ?,
       reservation_time = ?,
       reservation_end_time = ?,
       location = ?,
@@ -567,15 +567,15 @@ export function updateReservation(
       end_day_id = ?,
       place_id = ?,
       assignment_id = ?,
-      status = COALESCE(?, status),
-      type = COALESCE(?, type),
+      status = ?,
+      type = ?,
       accommodation_id = ?,
       metadata = ?,
-      needs_review = COALESCE(?, needs_review)
+      needs_review = ?
     WHERE id = ?
   `,
   ).run(
-    title || null,
+    title || current.title,
     nextReservationTime,
     nextReservationEndTime,
     location !== undefined ? location || null : current.location,
@@ -585,11 +585,11 @@ export function updateReservation(
     nextEndDayId,
     place_id !== undefined ? place_id || null : current.place_id,
     assignment_id !== undefined ? assignment_id || null : current.assignment_id,
-    status || null,
-    type || null,
+    status || current.status,
+    type || current.type,
     resolvedAccId,
     metadata !== undefined ? (metadata ? JSON.stringify(metadata) : null) : current.metadata,
-    needs_review === undefined ? null : needs_review ? 1 : 0,
+    needs_review === undefined ? (current as any).needs_review : needs_review ? 1 : 0,
     id,
   );
 

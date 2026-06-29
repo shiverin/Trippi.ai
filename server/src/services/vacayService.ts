@@ -123,27 +123,61 @@ export function getActivePlanId(userId: number): number {
   return getActivePlan(userId).id;
 }
 
+function parseDateOnly(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+}
+
+function daysBetween(start: string, end: string): number {
+  const startDate = parseDateOnly(start);
+  const endDate = parseDateOnly(end);
+  if (!startDate || !endDate) return 0;
+  return Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000);
+}
+
+function addDays(value: string, offset: number): string | null {
+  const date = parseDateOnly(value);
+  if (!date) return null;
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
 export function shiftOwnerEntriesForTripWindow(
   ownerId: number,
   oldStart: string,
   oldEnd: string,
   newStart: string,
 ): void {
-  const row = db.prepare('SELECT CAST(julianday(?) - julianday(?) AS INTEGER) AS days').get(newStart, oldStart) as
-    | { days: number }
-    | undefined;
-  const offset = row?.days ?? 0;
+  const offset = daysBetween(oldStart, newStart);
   if (offset === 0) return;
 
   const plan = getOwnPlan(ownerId);
-
-  db.prepare(
-    `UPDATE OR IGNORE vacay_entries
-        SET date = date(date, ? || ' days')
-      WHERE plan_id = ?
-        AND user_id = ?
-        AND date BETWEEN ? AND ?`,
-  ).run(`${offset >= 0 ? '+' : ''}${offset}`, plan.id, ownerId, oldStart, oldEnd);
+  const entries = db
+    .prepare(
+      `
+        SELECT id, date FROM vacay_entries
+        WHERE plan_id = ?
+          AND user_id = ?
+          AND date BETWEEN ? AND ?
+        ORDER BY date ${offset > 0 ? 'DESC' : 'ASC'}
+      `,
+    )
+    .all(plan.id, ownerId, oldStart, oldEnd) as { id: number; date: string }[];
+  const update = db.prepare('UPDATE vacay_entries SET date = ? WHERE id = ?');
+  const move = db.transaction((rows: typeof entries) => {
+    for (const entry of rows) {
+      const shifted = addDays(entry.date, offset);
+      if (!shifted) continue;
+      try {
+        update.run(shifted, entry.id);
+      } catch {
+        // Preserve SQLite UPDATE OR IGNORE behavior when the shifted date would
+        // collide with an existing unique (user_id, plan_id, date) row.
+      }
+    }
+  });
+  move(entries);
 }
 
 export function getPlanUsers(planId: number): VacayUser[] {

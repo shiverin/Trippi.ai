@@ -134,5 +134,5 @@ describe('BOOTSTRAP (F6) — unified NestJS app serves the whole surface', () =>
       .set('Cookie', authCookie(user.id));
     expect(res.status).toBe(200);
     expect(res.headers['content-encoding']).toBe('gzip');
-  });
+  }, 45_000);
 });

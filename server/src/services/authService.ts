@@ -674,10 +674,10 @@ export function registerUser(body: { username?: string; email?: string; password
     if (validInvite) {
       const updated = db
         .prepare(
-          'UPDATE invite_tokens SET used_count = used_count + 1 WHERE id = ? AND (max_uses = 0 OR used_count < max_uses) RETURNING used_count',
+          'UPDATE invite_tokens SET used_count = used_count + 1 WHERE id = ? AND (max_uses = 0 OR used_count < max_uses)',
         )
-        .get(validInvite.id);
-      if (!updated) {
+        .run(validInvite.id);
+      if (updated.changes === 0) {
         console.warn(`[Auth] Invite token ${validInvite.token.slice(0, 8)}... exceeded max_uses due to race condition`);
       }
     }

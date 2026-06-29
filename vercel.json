@@ -5,43 +5,43 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/api/:path*"
+      "destination": "https://34.55.197.101.sslip.io/api/:path*"
     },
     {
       "source": "/mcp",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/mcp"
+      "destination": "https://34.55.197.101.sslip.io/mcp"
     },
     {
       "source": "/oauth/authorize",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/oauth/authorize"
+      "destination": "https://34.55.197.101.sslip.io/oauth/authorize"
     },
     {
       "source": "/oauth/register",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/oauth/register"
+      "destination": "https://34.55.197.101.sslip.io/oauth/register"
     },
     {
       "source": "/oauth/token",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/oauth/token"
+      "destination": "https://34.55.197.101.sslip.io/oauth/token"
     },
     {
       "source": "/oauth/revoke",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/oauth/revoke"
+      "destination": "https://34.55.197.101.sslip.io/oauth/revoke"
     },
     {
       "source": "/oauth/userinfo",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/oauth/userinfo"
+      "destination": "https://34.55.197.101.sslip.io/oauth/userinfo"
     },
     {
       "source": "/.well-known/:path*",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/.well-known/:path*"
+      "destination": "https://34.55.197.101.sslip.io/.well-known/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/uploads/:path*"
+      "destination": "https://34.55.197.101.sslip.io/uploads/:path*"
     },
     {
       "source": "/ws",
-      "destination": "https://discounted-extremely-officer-reprint.trycloudflare.com/ws"
+      "destination": "https://34.55.197.101.sslip.io/ws"
     },
     {
       "source": "/:path*",

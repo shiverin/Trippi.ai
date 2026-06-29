@@ -319,7 +319,7 @@ describe('Batch update positions', () => {
     const res = await request(app)
       .put(`/api/trips/${trip.id}/reservations/positions`)
       .set('Cookie', authCookie(user.id))
-      .send({ positions: [{ id: r2.id, position: 0 }, { id: r1.id, position: 1 }] });
+      .send({ positions: [{ id: r2.id, day_plan_position: 0 }, { id: r1.id, day_plan_position: 1 }] });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });

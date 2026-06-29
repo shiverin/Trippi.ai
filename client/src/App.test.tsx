@@ -11,6 +11,7 @@ import { useSettingsStore } from './store/settingsStore';
 
 // ── Mock page components ───────────────────────────────────────────────────────
 vi.mock('./pages/LoginPage', () => ({ default: () => <div>Login</div> }));
+vi.mock('./pages/LandingPage', () => ({ default: () => <div>Landing</div> }));
 vi.mock('./pages/DashboardPage', () => ({ default: () => <div>Dashboard</div> }));
 vi.mock('./pages/TripPlannerPage', () => ({ default: () => <div>TripPlanner</div> }));
 vi.mock('./pages/FilesPage', () => ({ default: () => <div>Files</div> }));
@@ -57,13 +58,13 @@ beforeEach(() => {
   document.documentElement.classList.remove('dark');
 });
 
-// ── RootRedirect ───────────────────────────────────────────────────────────────
+// ── RootRoute ─────────────────────────────────────────────────────────────────
 
-describe('RootRedirect', () => {
-  it('FE-COMP-APP-001: / redirects to /login when not authenticated', async () => {
+describe('RootRoute', () => {
+  it('FE-COMP-APP-001: / renders the landing page when not authenticated', async () => {
     seedAuth({ isAuthenticated: false });
     renderApp('/');
-    await waitFor(() => expect(screen.getByText('Login')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Landing')).toBeInTheDocument());
   });
 
   it('FE-COMP-APP-002: / redirects to /dashboard when authenticated', async () => {
@@ -76,7 +77,7 @@ describe('RootRedirect', () => {
     seedAuth({ isLoading: true, isAuthenticated: false });
     renderApp('/');
     expect(document.querySelector('.animate-spin')).toBeInTheDocument();
-    expect(screen.queryByText('Login')).not.toBeInTheDocument();
+    expect(screen.queryByText('Landing')).not.toBeInTheDocument();
   });
 });
 
@@ -180,10 +181,10 @@ describe('Public routes', () => {
     expect(screen.getByText('SharedTrip')).toBeInTheDocument();
   });
 
-  it('FE-COMP-APP-014: unknown routes redirect to / which then redirects to /login', async () => {
+  it('FE-COMP-APP-014: unknown routes redirect to / which renders the landing page', async () => {
     seedAuth({ isAuthenticated: false });
     renderApp('/does-not-exist');
-    await waitFor(() => expect(screen.getByText('Login')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Landing')).toBeInTheDocument());
   });
 });
 

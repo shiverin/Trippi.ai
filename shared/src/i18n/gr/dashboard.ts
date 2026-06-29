@@ -156,6 +156,18 @@ const dashboard: TranslationStrings = {
   'dashboard.tz.empty': 'No other timezones yet — add one with +', // en-fallback
   'dashboard.upcoming.title': 'Upcoming reservations', // en-fallback
   'dashboard.upcoming.empty': 'Nothing booked yet.', // en-fallback
+  'dashboard.todos.title': 'To-do list', // en-fallback
+  'dashboard.todos.empty': 'All caught up.', // en-fallback
+  'dashboard.todos.count': '{count} open', // en-fallback
+  'dashboard.todos.noDate': 'No date', // en-fallback
+  'dashboard.todos.noDateShort': 'No', // en-fallback
+  'dashboard.todos.overdue': 'Overdue', // en-fallback
+  'dashboard.todos.today': 'Today', // en-fallback
+  'dashboard.todos.due': 'Due {date}', // en-fallback
+  'dashboard.todos.priority': 'P{priority}', // en-fallback
+  'dashboard.todos.untitledTrip': 'Untitled trip', // en-fallback
+  'dashboard.todos.completeAria': 'Mark {task} complete', // en-fallback
+  'dashboard.todos.completeError': 'Could not complete task', // en-fallback
   'dashboard.aria.toggleView': 'Toggle view', // en-fallback
   'dashboard.aria.filter': 'Filter', // en-fallback
   'dashboard.aria.duplicate': 'Duplicate', // en-fallback

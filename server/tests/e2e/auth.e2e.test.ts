@@ -30,6 +30,7 @@ vi.mock('../../src/services/notifications', () => ({ getAppUrl: () => 'https://x
 const { authSvc } = vi.hoisted(() => ({
   authSvc: {
     getAppConfig: vi.fn(), demoLogin: vi.fn(), validateInviteToken: vi.fn(), registerUser: vi.fn(), loginUser: vi.fn(),
+    getAppConfigAsync: vi.fn(), registerUserAsync: vi.fn(), loginUserAsync: vi.fn(), getCurrentUserAsync: vi.fn(),
     requestPasswordReset: vi.fn(), resetPassword: vi.fn(), verifyMfaLogin: vi.fn(), getCurrentUser: vi.fn(),
     changePassword: vi.fn(), deleteAccount: vi.fn(), updateMapsKey: vi.fn(), updateApiKeys: vi.fn(), updateSettings: vi.fn(),
     getSettings: vi.fn(), saveAvatar: vi.fn(), deleteAvatar: vi.fn(), listUsers: vi.fn(), validateKeys: vi.fn(),
@@ -38,10 +39,6 @@ const { authSvc } = vi.hoisted(() => ({
     createResourceToken: vi.fn(),
   },
 }));
-authSvc.getAppConfigAsync = authSvc.getAppConfig;
-authSvc.registerUserAsync = authSvc.registerUser;
-authSvc.loginUserAsync = authSvc.loginUser;
-authSvc.getCurrentUserAsync = authSvc.getCurrentUser;
 vi.mock('../../src/services/authService', () => authSvc);
 
 import { AuthModule } from '../../src/nest/auth/auth.module';
@@ -65,11 +62,19 @@ describe('Auth e2e (real auth guard + real cookie service + temp SQLite)', () =>
     app = await build();
     server = app.getHttpServer();
     authSvc.getAppConfig.mockReturnValue({ version: '3' });
+    authSvc.getAppConfigAsync.mockImplementation(authSvc.getAppConfig);
     authSvc.loginUser.mockReturnValue({ token: 'jwt.token.value', user: { id: 1 } });
+    authSvc.loginUserAsync.mockImplementation(authSvc.loginUser);
     authSvc.getCurrentUser.mockReturnValue({ id: 1, email: 'u@example.test' });
+    authSvc.getCurrentUserAsync.mockImplementation(authSvc.getCurrentUser);
   });
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authSvc.getAppConfigAsync.mockImplementation(authSvc.getAppConfig);
+    authSvc.loginUserAsync.mockImplementation(authSvc.loginUser);
+    authSvc.getCurrentUserAsync.mockImplementation(authSvc.getCurrentUser);
+  });
 
   afterAll(async () => {
     await app.close();

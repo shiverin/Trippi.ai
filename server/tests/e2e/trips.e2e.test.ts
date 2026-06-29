@@ -112,7 +112,8 @@ describe('Trips e2e (real auth guard + temp SQLite)', () => {
   it('200 list', async () => {
     const res = await request(server).get('/api/trips').set('Cookie', sessionCookie(1));
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ trips: [{ id: 1, title: 'T', user_id: 1 }] });
+    expect(res.body.trips).toHaveLength(1);
+    expect(res.body.trips[0]).toMatchObject({ id: 1, title: 'T', user_id: 1 });
   });
 
   it('201 create, 403 without permission', async () => {

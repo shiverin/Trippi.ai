@@ -140,6 +140,18 @@ const dashboard: TranslationStrings = {
   'dashboard.tz.empty': 'Других часовых поясов пока нет — добавьте с помощью +',
   'dashboard.upcoming.title': 'Ближайшие брони',
   'dashboard.upcoming.empty': 'Пока ничего не забронировано.',
+  'dashboard.todos.title': 'To-do list', // en-fallback
+  'dashboard.todos.empty': 'All caught up.', // en-fallback
+  'dashboard.todos.count': '{count} open', // en-fallback
+  'dashboard.todos.noDate': 'No date', // en-fallback
+  'dashboard.todos.noDateShort': 'No', // en-fallback
+  'dashboard.todos.overdue': 'Overdue', // en-fallback
+  'dashboard.todos.today': 'Today', // en-fallback
+  'dashboard.todos.due': 'Due {date}', // en-fallback
+  'dashboard.todos.priority': 'P{priority}', // en-fallback
+  'dashboard.todos.untitledTrip': 'Untitled trip', // en-fallback
+  'dashboard.todos.completeAria': 'Mark {task} complete', // en-fallback
+  'dashboard.todos.completeError': 'Could not complete task', // en-fallback
   'dashboard.confirm.copy.title': 'Скопировать эту поездку?',
   'dashboard.confirm.copy.willCopy': 'Будет скопировано',
   'dashboard.confirm.copy.will1': 'Дни, места и распределение по дням',

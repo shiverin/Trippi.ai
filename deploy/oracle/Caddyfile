@@ -1,4 +1,4 @@
-{$TRIPPI_DOMAIN} {
+(trippi_backend) {
     encode zstd gzip
 
     # Backup restores and itinerary imports can be large.
@@ -6,5 +6,22 @@
         max_size 500MB
     }
 
-    reverse_proxy app:3000
+    reverse_proxy app:3000 {
+        # Vercel terminates public HTTPS, then proxies to this backend over HTTP.
+        # Keep the upstream app's secure-cookie / redirect logic aligned with
+        # the user-facing HTTPS origin.
+        header_up X-Forwarded-Proto https
+    }
+}
+
+http://{$TRIPPI_DOMAIN} {
+    import trippi_backend
+}
+
+http://:80 {
+    import trippi_backend
+}
+
+{$TRIPPI_DOMAIN} {
+    import trippi_backend
 }

@@ -5,43 +5,43 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://34.55.197.101.sslip.io/api/:path*"
+      "destination": "http://34.55.197.101/api/:path*"
     },
     {
       "source": "/mcp",
-      "destination": "https://34.55.197.101.sslip.io/mcp"
+      "destination": "http://34.55.197.101/mcp"
     },
     {
       "source": "/oauth/authorize",
-      "destination": "https://34.55.197.101.sslip.io/oauth/authorize"
+      "destination": "http://34.55.197.101/oauth/authorize"
     },
     {
       "source": "/oauth/register",
-      "destination": "https://34.55.197.101.sslip.io/oauth/register"
+      "destination": "http://34.55.197.101/oauth/register"
     },
     {
       "source": "/oauth/token",
-      "destination": "https://34.55.197.101.sslip.io/oauth/token"
+      "destination": "http://34.55.197.101/oauth/token"
     },
     {
       "source": "/oauth/revoke",
-      "destination": "https://34.55.197.101.sslip.io/oauth/revoke"
+      "destination": "http://34.55.197.101/oauth/revoke"
     },
     {
       "source": "/oauth/userinfo",
-      "destination": "https://34.55.197.101.sslip.io/oauth/userinfo"
+      "destination": "http://34.55.197.101/oauth/userinfo"
     },
     {
       "source": "/.well-known/:path*",
-      "destination": "https://34.55.197.101.sslip.io/.well-known/:path*"
+      "destination": "http://34.55.197.101/.well-known/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://34.55.197.101.sslip.io/uploads/:path*"
+      "destination": "http://34.55.197.101/uploads/:path*"
     },
     {
       "source": "/ws",
-      "destination": "https://34.55.197.101.sslip.io/ws"
+      "destination": "http://34.55.197.101/ws"
     },
     {
       "source": "/:path*",

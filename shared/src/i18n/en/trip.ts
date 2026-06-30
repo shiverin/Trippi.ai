@@ -15,6 +15,7 @@ const trip: TranslationStrings = {
   'trip.loadingPhotos': 'Loading place photos...',
   'trip.mobilePlan': 'Plan',
   'trip.mobilePlaces': 'Places',
+  'trip.toast.loadError': "Couldn't load this trip. Please try again.",
   'trip.toast.placeUpdated': 'Place updated',
   'trip.toast.placeAdded': 'Place added',
   'trip.toast.placeDeleted': 'Place deleted',

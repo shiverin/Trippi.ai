@@ -265,16 +265,28 @@ export const useTripStore = create<TripStoreState>((set, get) => ({
         const categoriesPromise = categoriesApi
           .list()
           .catch(() => offlineDb.categories.toArray().then((categories) => ({ categories })));
+        const cachedBundlePromise = readCachedTripBundle(tripId).catch(() => null);
 
         let appliedFreshBundle = false;
-        readCachedTripBundle(tripId)
+        cachedBundlePromise
           .then((cachedBundle) => {
             if (!cachedBundle || appliedFreshBundle) return;
             applyTripBundle(set, cachedBundle, cachedBundle.tags, cachedBundle.categories);
           })
           .catch(() => {});
 
-        const [bundle, tagsData, categoriesData] = await Promise.all([bundlePromise, tagsPromise, categoriesPromise]);
+        let bundle: TripBundleResponse;
+        let tagsData: { tags: Tag[] };
+        let categoriesData: { categories: Category[] };
+        try {
+          [bundle, tagsData, categoriesData] = await Promise.all([bundlePromise, tagsPromise, categoriesPromise]);
+        } catch (err) {
+          const cachedBundle = await cachedBundlePromise;
+          if (!cachedBundle) throw err;
+          appliedFreshBundle = true;
+          applyTripBundle(set, cachedBundle, cachedBundle.tags, cachedBundle.categories);
+          return { accommodations: cachedBundle.accommodations || [], members: cachedBundle.members || [] };
+        }
         appliedFreshBundle = true;
         applyTripBundle(set, bundle, tagsData.tags, categoriesData.categories);
         cacheTripBundle(bundle).catch((err) => {

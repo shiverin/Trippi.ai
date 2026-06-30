@@ -425,10 +425,13 @@ export function useTripPlanner() {
             loadMembersAndAccommodations();
           }
         })
-        .catch(() => {
+        .catch((err) => {
           if (cancelled) return;
           toast.error(t('trip.toast.loadError'));
-          navigate('/dashboard');
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status === 401 || status === 403 || status === 404) {
+            navigate('/dashboard');
+          }
         });
 
       return () => {

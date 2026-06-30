@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   BookMarked,
   CheckSquare,
   ChevronDown,
@@ -8,6 +7,7 @@ import {
   Fingerprint,
   FolderOpen,
   Globe,
+  Home,
   KeyRound,
   Lock,
   Mail,
@@ -307,7 +307,7 @@ export default function LoginPage(): React.ReactElement {
       }}
     >
       {/* Back to landing page */}
-      <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
+      <div className="login-home-button-wrap" style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
         <button
           type="button"
           onClick={() => navigate('/')}
@@ -316,13 +316,13 @@ export default function LoginPage(): React.ReactElement {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '6px 12px',
-            borderRadius: 99,
+            justifyContent: 'center',
+            width: 40,
+            height: 40,
+            padding: 0,
+            borderRadius: '50%',
             background: 'rgba(0,0,0,0.06)',
             border: 'none',
-            fontSize: 13,
-            fontWeight: 600,
             color: '#374151',
             cursor: 'pointer',
             fontFamily: 'inherit',
@@ -335,8 +335,7 @@ export default function LoginPage(): React.ReactElement {
             (e.currentTarget.style.background = 'rgba(0,0,0,0.06)')
           }
         >
-          <ArrowLeft size={14} />
-          Home
+          <Home size={18} strokeWidth={2.2} />
         </button>
       </div>
 
@@ -1467,6 +1466,12 @@ export default function LoginPage(): React.ReactElement {
         .login-plane4 { animation: plane4Move 14s ease-in-out infinite; animation-delay: 3s; }
         .login-plane5 { animation: plane5Move 22s ease-in-out infinite; animation-delay: 9s; }
         .login-plane6 { animation: plane6Move 32s ease-in-out infinite; animation-delay: 16s; }
+
+        @media (min-width: 1024px) {
+          .login-home-button-wrap {
+            left: calc(55% + 16px) !important;
+          }
+        }
 
         @media (max-width: 1023px) {
           .login-form-panel {

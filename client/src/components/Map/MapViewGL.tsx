@@ -34,6 +34,15 @@ function categoryIconSvg(iconName: string | null | undefined, size: number): str
   }
 }
 
+function escAttr(s?: string | null): string {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function isUsableMarkerPhoto(url?: string | null): url is string {
+  return !!url && (url.startsWith('data:') || url.startsWith('/api/maps/place-photo/') || url.startsWith('/uploads/'));
+}
+
 interface RouteSegment {
   mid: [number, number];
   from: [number, number];
@@ -78,10 +87,17 @@ function createMarkerElement(
   orderNumbers: number[] | null,
   selected: boolean
 ): HTMLDivElement {
-  const size = selected ? 44 : 36;
+  const hasPhoto = isUsableMarkerPhoto(photoUrl);
+  const size = hasPhoto ? (selected ? 52 : 44) : selected ? 44 : 36;
   const borderColor = selected ? '#111827' : place.category_color || 'white';
-  const borderWidth = selected ? 3 : 2.5;
-  const shadow = selected ? '0 0 0 3px rgba(17,24,39,0.25), 0 4px 14px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.22)';
+  const borderWidth = hasPhoto ? (selected ? 4 : 3.5) : selected ? 3 : 2.5;
+  const shadow = hasPhoto
+    ? selected
+      ? '0 0 0 3px rgba(17,24,39,0.22), 0 8px 20px rgba(15,23,42,0.32)'
+      : '0 5px 14px rgba(15,23,42,0.28)'
+    : selected
+      ? '0 0 0 3px rgba(17,24,39,0.25), 0 4px 14px rgba(0,0,0,0.3)'
+      : '0 2px 8px rgba(0,0,0,0.22)';
   const bgColor = place.category_color || '#6b7280';
 
   // The visual circle is `size` + 2*border on each side. To make the
@@ -95,7 +111,7 @@ function createMarkerElement(
   if (orderNumbers && orderNumbers.length > 0) {
     const label = orderNumbers.join(' · ');
     badgeHtml = `<span style="
-      position:absolute;bottom:-2px;right:-2px;
+      position:absolute;bottom:${hasPhoto ? '-8px' : '-2px'};right:${hasPhoto ? '-8px' : '-2px'};
       min-width:18px;height:${orderNumbers.length > 1 ? 16 : 18}px;border-radius:${orderNumbers.length > 1 ? 8 : 9}px;
       padding:0 ${orderNumbers.length > 1 ? 4 : 3}px;
       background:rgba(255,255,255,0.94);
@@ -118,21 +134,39 @@ function createMarkerElement(
   // to its stacked slot, not to the map viewport.
   wrap.style.cssText = `width:${outer}px;height:${outer}px;cursor:pointer;`;
 
-  const hasPhoto = photoUrl && (photoUrl.startsWith('data:') || photoUrl.startsWith('/api/maps/place-photo/'));
   if (hasPhoto) {
+    const fallbackSvg = categoryIconSvg(place.category_icon, selected ? 19 : 16);
     wrap.innerHTML = `
-      <div style="
+      <div data-marker-photo-layer style="
         position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
         width:${size}px;height:${size}px;border-radius:50%;
-        border:${borderWidth}px solid ${borderColor};
+        border:${borderWidth}px solid #fff;
         box-shadow:${shadow};
-        overflow:hidden;background:${bgColor};
-        box-sizing:content-box;
+        overflow:hidden;background:#fff;
+        box-sizing:border-box;
       ">
-        <img src="${photoUrl}" width="${size}" height="${size}" style="display:block;border-radius:50%;object-fit:cover;" />
+        <img src="${escAttr(photoUrl)}" alt="${escAttr(place.name || 'Place photo')}" width="${size}" height="${size}" style="display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;" />
+      </div>
+      <div data-marker-fallback-layer style="
+        display:none;align-items:center;justify-content:center;
+        position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        width:${size}px;height:${size}px;border-radius:50%;
+        border:${borderWidth}px solid #fff;
+        box-shadow:${shadow};
+        background:${bgColor};
+        box-sizing:border-box;
+      ">
+        ${fallbackSvg}
       </div>
       ${badgeHtml}
     `;
+    const img = wrap.querySelector('img');
+    const photoLayer = img?.parentElement;
+    const fallbackLayer = wrap.querySelector<HTMLElement>('[data-marker-fallback-layer]');
+    img?.addEventListener('error', () => {
+      if (photoLayer) photoLayer.style.display = 'none';
+      if (fallbackLayer) fallbackLayer.style.display = 'flex';
+    });
   } else {
     wrap.innerHTML = `
       <div style="
@@ -493,6 +527,10 @@ export function MapViewGL({
     for (const place of photoHydrationPlaces) {
       const cacheKey = place.google_place_id || place.osm_id || `${place.lat},${place.lng}`;
       if (!cacheKey) continue;
+      if (isUsableMarkerPhoto(place.image_url)) {
+        setThumb(cacheKey, place.image_url);
+        continue;
+      }
       const cached = getCached(cacheKey);
       if (cached?.thumbDataUrl) {
         setThumb(cacheKey, cached.thumbDataUrl);
@@ -545,7 +583,7 @@ export function MapViewGL({
       if (!place.lat || !place.lng) return;
       const orderNumbers = dayOrderMap[place.id] ?? null;
       const pck = place.google_place_id || place.osm_id || `${place.lat},${place.lng}`;
-      const photoUrl = (pck && photoUrls[pck]) || place.image_url || null;
+      const photoUrl = place.image_url || (pck && photoUrls[pck]) || null;
       const selected = place.id === selectedPlaceId;
       const el = createMarkerElement(
         place as Place & { category_color?: string; category_icon?: string },

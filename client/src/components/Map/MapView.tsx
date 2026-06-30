@@ -37,18 +37,29 @@ function escAttr(s) {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function isUsableMarkerPhoto(url?: string | null): url is string {
+  return !!url && (url.startsWith('data:') || url.startsWith('/api/maps/place-photo/') || url.startsWith('/uploads/'));
+}
+
 const iconCache = new Map<string, L.DivIcon>();
 
 function createPlaceIcon(place, orderNumbers, isSelected) {
   const cacheKey = `${place.id}:${isSelected}:${place.image_url || ''}:${place.category_color || ''}:${place.category_icon || ''}:${orderNumbers?.join(',') || ''}`;
   const cached = iconCache.get(cacheKey);
   if (cached) return cached;
-  const size = isSelected ? 44 : 36;
+  const fallbackSize = isSelected ? 44 : 36;
+  const photoSize = isSelected ? 52 : 44;
+  const hasPhoto = isUsableMarkerPhoto(place.image_url);
+  const size = hasPhoto ? photoSize : fallbackSize;
   const borderColor = isSelected ? '#111827' : place.category_color || 'white';
-  const borderWidth = isSelected ? 3 : 2.5;
-  const shadow = isSelected
+  const fallbackBorderWidth = isSelected ? 3 : 2.5;
+  const photoBorderWidth = isSelected ? 4 : 3.5;
+  const fallbackShadow = isSelected
     ? '0 0 0 3px rgba(17,24,39,0.25), 0 4px 14px rgba(0,0,0,0.3)'
     : '0 2px 8px rgba(0,0,0,0.22)';
+  const photoShadow = isSelected
+    ? '0 0 0 3px rgba(17,24,39,0.22), 0 8px 20px rgba(15,23,42,0.32)'
+    : '0 5px 14px rgba(15,23,42,0.28)';
   const bgColor = place.category_color || '#6b7280';
 
   // Number badges (bottom-right)
@@ -56,7 +67,7 @@ function createPlaceIcon(place, orderNumbers, isSelected) {
   if (orderNumbers && orderNumbers.length > 0) {
     const label = orderNumbers.join(' · ');
     badgeHtml = `<span style="
-      position:absolute;bottom:-4px;right:-4px;
+      position:absolute;bottom:${hasPhoto ? '-8px' : '-4px'};right:${hasPhoto ? '-8px' : '-4px'};
       min-width:18px;height:${orderNumbers.length > 1 ? 16 : 18}px;border-radius:${orderNumbers.length > 1 ? 8 : 9}px;
       padding:0 ${orderNumbers.length > 1 ? 4 : 3}px;
       background:rgba(255,255,255,0.94);
@@ -69,25 +80,34 @@ function createPlaceIcon(place, orderNumbers, isSelected) {
     ">${label}</span>`;
   }
 
-  // Prefer base64 data URLs (no zoom lag); also accept same-origin proxy URLs as a fallback
-  // while the thumb is still being generated in the background
-  if (
-    place.image_url &&
-    (place.image_url.startsWith('data:') || place.image_url.startsWith('/api/maps/place-photo/'))
-  ) {
+  if (hasPhoto) {
+    const photoUrl = escAttr(place.image_url);
+    const alt = escAttr(place.name || 'Place photo');
+    const fallbackSvg = categoryIconSvg(place.category_icon, isSelected ? 19 : 16);
     const imgIcon = L.divIcon({
-      className: '',
+      className: 'trippi-photo-marker',
       html: `<div style="
         width:${size}px;height:${size}px;
         cursor:pointer;position:relative;
       ">
-        <div style="
+        <div data-marker-photo-layer style="
           width:${size}px;height:${size}px;border-radius:50%;
-          border:${borderWidth}px solid ${borderColor};
-          box-shadow:${shadow};
-          overflow:hidden;background:${bgColor};
+          border:${photoBorderWidth}px solid #fff;
+          box-shadow:${photoShadow};
+          overflow:hidden;background:#fff;
+          box-sizing:border-box;
         ">
-          <img src="${place.image_url}" width="${size}" height="${size}" style="display:block;border-radius:50%;object-fit:cover;" />
+          <img src="${photoUrl}" alt="${alt}" width="${size}" height="${size}" style="display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.style.display='none';this.parentElement.nextElementSibling.style.display='flex';" />
+        </div>
+        <div data-marker-fallback-layer style="
+          display:none;align-items:center;justify-content:center;
+          width:${size}px;height:${size}px;border-radius:50%;
+          border:${photoBorderWidth}px solid #fff;
+          box-shadow:${photoShadow};
+          background:${bgColor};
+          box-sizing:border-box;
+        ">
+          ${fallbackSvg}
         </div>
         ${badgeHtml}
       </div>`,
@@ -102,9 +122,9 @@ function createPlaceIcon(place, orderNumbers, isSelected) {
   const fallbackIcon = L.divIcon({
     className: '',
     html: `<div style="
-      width:${size}px;height:${size}px;border-radius:50%;
-      border:${borderWidth}px solid ${borderColor};
-      box-shadow:${shadow};
+      width:${fallbackSize}px;height:${fallbackSize}px;border-radius:50%;
+      border:${fallbackBorderWidth}px solid ${borderColor};
+      box-shadow:${fallbackShadow};
       background:${bgColor};
       display:flex;align-items:center;justify-content:center;
       cursor:pointer;position:relative;
@@ -113,9 +133,9 @@ function createPlaceIcon(place, orderNumbers, isSelected) {
       ${categoryIconSvg(place.category_icon, isSelected ? 18 : 15)}
       ${badgeHtml}
     </div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    tooltipAnchor: [size / 2 + 6, 0],
+    iconSize: [fallbackSize, fallbackSize],
+    iconAnchor: [fallbackSize / 2, fallbackSize / 2],
+    tooltipAnchor: [fallbackSize / 2 + 6, 0],
   });
   iconCache.set(cacheKey, fallbackIcon);
   return fallbackIcon;
@@ -534,6 +554,10 @@ export const MapView = memo(function MapView({
     for (const place of photoHydrationPlaces) {
       const cacheKey = place.google_place_id || place.osm_id || `${place.lat},${place.lng}`;
       if (!cacheKey) continue;
+      if (isUsableMarkerPhoto(place.image_url)) {
+        setThumb(cacheKey, place.image_url);
+        continue;
+      }
 
       const cached = getCached(cacheKey);
       if (cached?.thumbDataUrl) {
@@ -583,7 +607,7 @@ export const MapView = memo(function MapView({
       places.map((place) => {
         const isSelected = place.id === selectedPlaceId;
         const pck = place.google_place_id || place.osm_id || `${place.lat},${place.lng}`;
-        const photoUrl = (pck && photoUrls[pck]) || place.image_url || null;
+        const photoUrl = place.image_url || (pck && photoUrls[pck]) || null;
         const orderNumbers = dayOrderMap[place.id] ?? null;
         return (
           <MemoMarker

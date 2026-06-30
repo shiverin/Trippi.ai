@@ -1,4 +1,5 @@
 import { fireEvent } from '@testing-library/react';
+import L from 'leaflet';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildPlace } from '../../../tests/helpers/factories';
@@ -49,12 +50,12 @@ vi.mock('react-leaflet-cluster', () => ({
 
 vi.mock('leaflet', () => ({
   default: {
-    divIcon: vi.fn(() => ({})),
+    divIcon: vi.fn((options) => options),
     Icon: { Default: { prototype: {}, mergeOptions: vi.fn() } },
     latLngBounds: vi.fn(() => ({ isValid: () => true })),
     point: vi.fn((x: number, y: number) => [x, y]),
   },
-  divIcon: vi.fn(() => ({})),
+  divIcon: vi.fn((options) => options),
   Icon: { Default: { prototype: {}, mergeOptions: vi.fn() } },
   latLngBounds: vi.fn(() => ({ isValid: () => true })),
   point: vi.fn((x: number, y: number) => [x, y]),
@@ -257,8 +258,11 @@ describe('MapView', () => {
     const dataUrl = 'data:image/jpeg;base64,/9j/4AA';
     const places = [buildMapPlace({ id: 10, lat: 48.0, lng: 2.0, image_url: dataUrl })];
     render(<MapView places={places} />);
-    // Marker still renders; base64 path in createPlaceIcon should be exercised
-    expect(screen.getByTestId('marker')).toBeTruthy();
+    const iconOptions = vi.mocked(L.divIcon).mock.calls.at(-1)?.[0] as { className?: string; html?: string };
+    expect(iconOptions.className).toBe('trippi-photo-marker');
+    expect(iconOptions.html).toContain('data-marker-photo-layer');
+    expect(iconOptions.html).toContain('width:44px;height:44px');
+    expect(iconOptions.html).toContain('border:3.5px solid #fff');
   });
 
   it('FE-COMP-MAPVIEW-015: uses cached photo thumb from photoService when available', () => {
@@ -267,6 +271,28 @@ describe('MapView', () => {
     render(<MapView places={places} />);
     expect(screen.getByTestId('marker')).toBeTruthy();
     vi.mocked(photoService.getCached).mockReturnValue(null);
+  });
+
+  it('FE-COMP-MAPVIEW-015b: uses persisted place image_url immediately without fetching', () => {
+    const imageUrl = '/api/maps/place-photo/coords%3A48%3A2/bytes';
+    const places = [
+      buildMapPlace({ id: 215, lat: 48.0, lng: 2.0, image_url: imageUrl, google_place_id: 'gplace_215' }),
+    ];
+    render(<MapView places={places} />);
+    const iconOptions = vi.mocked(L.divIcon).mock.calls.at(-1)?.[0] as { className?: string; html?: string };
+    expect(iconOptions.className).toBe('trippi-photo-marker');
+    expect(iconOptions.html).toContain(imageUrl);
+    expect(photoService.fetchPhoto).not.toHaveBeenCalled();
+  });
+
+  it('FE-COMP-MAPVIEW-015c: keeps true non-photo places as category markers', () => {
+    const places = [buildMapPlace({ id: 216, lat: 48.0, lng: 2.0, category_color: '#8b5cf6', image_url: null })];
+    render(<MapView places={places} />);
+    const iconOptions = vi.mocked(L.divIcon).mock.calls.at(-1)?.[0] as { className?: string; html?: string };
+    expect(iconOptions.className || '').toBe('');
+    expect(iconOptions.html).not.toContain('data-marker-photo-layer');
+    expect(iconOptions.html).toContain('width:36px;height:36px');
+    expect(iconOptions.html).toContain('background:#8b5cf6');
   });
 
   it('FE-COMP-MAPVIEW-016: tooltip shows address when present', async () => {

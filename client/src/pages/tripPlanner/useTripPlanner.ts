@@ -42,6 +42,7 @@ interface BookingRoutePrefs {
   globalShown: boolean;
   hiddenById: Record<string, boolean>;
   hiddenDayIds: Record<string, boolean>;
+  hiddenAssignmentIds: Record<string, boolean>;
 }
 
 function normaliseBooleanRecord(value: unknown): Record<string, boolean> {
@@ -52,17 +53,23 @@ function normaliseBooleanRecord(value: unknown): Record<string, boolean> {
 }
 
 function readBookingRoutePrefs(storageKey: string | null): BookingRoutePrefs {
-  const fallback = { storageKey, globalShown: false, hiddenById: {}, hiddenDayIds: {} };
+  const fallback = { storageKey, globalShown: false, hiddenById: {}, hiddenDayIds: {}, hiddenAssignmentIds: {} };
   if (typeof window === 'undefined' || !storageKey) return fallback;
   try {
     const stored = window.localStorage.getItem(storageKey);
     if (!stored) return fallback;
-    const parsed = JSON.parse(stored) as { globalShown?: unknown; hiddenById?: unknown; hiddenDayIds?: unknown };
+    const parsed = JSON.parse(stored) as {
+      globalShown?: unknown;
+      hiddenById?: unknown;
+      hiddenDayIds?: unknown;
+      hiddenAssignmentIds?: unknown;
+    };
     return {
       storageKey,
       globalShown: parsed?.globalShown === true,
       hiddenById: normaliseBooleanRecord(parsed?.hiddenById),
       hiddenDayIds: normaliseBooleanRecord(parsed?.hiddenDayIds),
+      hiddenAssignmentIds: normaliseBooleanRecord(parsed?.hiddenAssignmentIds),
     };
   } catch {
     return fallback;
@@ -308,6 +315,7 @@ export function useTripPlanner() {
         globalShown: bookingRoutePrefs.globalShown,
         hiddenById: bookingRoutePrefs.hiddenById,
         hiddenDayIds: bookingRoutePrefs.hiddenDayIds,
+        hiddenAssignmentIds: bookingRoutePrefs.hiddenAssignmentIds,
       })
     );
   }, [bookingRoutesStorageKey, bookingRoutePrefs]);
@@ -315,6 +323,7 @@ export function useTripPlanner() {
   const bookingRoutesGlobalShown = bookingRoutePrefs.globalShown;
   const hiddenBookingRouteIds = bookingRoutePrefs.hiddenById;
   const hiddenDayRouteIds = bookingRoutePrefs.hiddenDayIds;
+  const hiddenAssignmentRouteIds = bookingRoutePrefs.hiddenAssignmentIds;
   const isDayRouteVisible = useCallback(
     (dayId: number | null | undefined) => dayId == null || hiddenDayRouteIds[String(dayId)] !== true,
     [hiddenDayRouteIds]
@@ -350,6 +359,7 @@ export function useTripPlanner() {
       globalShown: !prev.globalShown,
       hiddenById: prev.globalShown ? prev.hiddenById : {},
       hiddenDayIds: prev.globalShown ? prev.hiddenDayIds : {},
+      hiddenAssignmentIds: prev.globalShown ? prev.hiddenAssignmentIds : {},
     }));
   }, [bookingRoutesStorageKey]);
   const toggleSelectedDayRoute = useCallback(() => {
@@ -371,6 +381,19 @@ export function useTripPlanner() {
         if (hiddenById[key]) delete hiddenById[key];
         else hiddenById[key] = true;
         return { ...prev, storageKey: bookingRoutesStorageKey, hiddenById };
+      });
+    },
+    [bookingRoutesGlobalShown, bookingRoutesStorageKey]
+  );
+  const toggleAssignmentRoute = useCallback(
+    (assignmentId: number) => {
+      if (!bookingRoutesGlobalShown) return;
+      setBookingRoutePrefs((prev) => {
+        const key = String(assignmentId);
+        const hiddenAssignmentIds = { ...prev.hiddenAssignmentIds };
+        if (hiddenAssignmentIds[key]) delete hiddenAssignmentIds[key];
+        else hiddenAssignmentIds[key] = true;
+        return { ...prev, storageKey: bookingRoutesStorageKey, hiddenAssignmentIds };
       });
     },
     [bookingRoutesGlobalShown, bookingRoutesStorageKey]
@@ -504,7 +527,9 @@ export function useTripPlanner() {
     selectedDayId,
     routeShown,
     routeProfile,
-    tripAccommodations
+    tripAccommodations,
+    hiddenAssignmentRouteIds,
+    categories
   );
 
   const handleSelectDay = useCallback(
@@ -1090,6 +1115,8 @@ export function useTripPlanner() {
     visibleConnections,
     toggleBookingRoutesGlobal,
     toggleConnection,
+    hiddenAssignmentRouteIds,
+    toggleAssignmentRoute,
     transportRoutes,
     mapTransportDetail,
     setMapTransportDetail,

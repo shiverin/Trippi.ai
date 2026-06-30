@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { calculateRouteWithLegs, withHotelBookends } from '../components/Map/RouteCalculator';
+import { calculateRouteWithLegs } from '../components/Map/RouteCalculator';
 import { useSettingsStore } from '../store/settingsStore';
 import type { TripStoreState } from '../store/tripStore';
 import { useTripStore } from '../store/tripStore';
-import type { Accommodation, RouteResult, RouteSegment } from '../types';
+import type { Accommodation, Category, RouteResult, RouteSegment, Waypoint } from '../types';
 import { getTransportRouteEndpoints } from '../utils/dayMerge';
 import { getDayBookendHotels } from '../utils/dayOrder';
 
@@ -32,7 +32,9 @@ export function useRouteCalculation(
   selectedDayId: number | null,
   enabled: boolean = true,
   profile: 'driving' | 'walking' | 'cycling' = 'driving',
-  accommodations: Accommodation[] = NO_ACCOMMODATIONS
+  accommodations: Accommodation[] = NO_ACCOMMODATIONS,
+  hiddenAssignmentRouteIds: Record<string, boolean> = {},
+  categories: Category[] = []
 ) {
   const [route, setRoute] = useState<[number, number][][] | null>(null);
   const [routeInfo, setRouteInfo] = useState<RouteResult | null>(null);
@@ -90,23 +92,41 @@ export function useRouteCalculation(
             });
 
       // Build a unified list of places + transports sorted by effective position.
+      const transportCategoryIds = new Set(
+        categories
+          .filter((category) => category.name?.trim().toLowerCase() === 'transport')
+          .map((category) => category.id)
+      );
       type Entry =
-        | { kind: 'place'; lat: number; lng: number; pos: number }
+        | { kind: 'place'; lat: number; lng: number; pos: number; assignmentId: number }
+        | { kind: 'transport-place'; pos: number; assignmentId: number }
         | {
             kind: 'transport';
             from: { lat: number; lng: number } | null;
             to: { lat: number; lng: number } | null;
             pos: number;
           };
+      const assignmentEntries: Entry[] = da.flatMap((a): Entry[] => {
+          const isTransportPlace = !!a.place?.category_id && transportCategoryIds.has(a.place.category_id);
+          if (a.place?.lat && a.place?.lng) {
+            return [
+              {
+                kind: 'place' as const,
+                lat: a.place.lat,
+                lng: a.place.lng,
+                pos: a.order_index,
+                assignmentId: a.id,
+              },
+            ];
+          }
+          if (isTransportPlace) {
+            return [{ kind: 'transport-place' as const, pos: a.order_index, assignmentId: a.id }];
+          }
+          return [];
+        });
+
       const entries: Entry[] = [
-        ...da
-          .filter((a) => a.place?.lat && a.place?.lng)
-          .map((a) => ({
-            kind: 'place' as const,
-            lat: a.place.lat!,
-            lng: a.place.lng!,
-            pos: a.order_index,
-          })),
+        ...assignmentEntries,
         ...dayTransports.map((r) => {
           const { from, to } = getTransportRouteEndpoints(r, dayId);
           return {
@@ -124,16 +144,21 @@ export function useRouteCalculation(
       //   arrival point starts the next run.
       // - A transport WITHOUT a location is ignored entirely — the places around it
       //   connect directly, as if the booking weren't there.
-      const runs: { lat: number; lng: number }[][] = [];
-      let currentRun: { lat: number; lng: number }[] = [];
+      type RunEntry =
+        | { kind: 'point'; lat: number; lng: number }
+        | { kind: 'transport-place'; assignmentId: number };
+      const runs: RunEntry[][] = [];
+      let currentRun: RunEntry[] = [];
       for (const entry of entries) {
         if (entry.kind === 'place') {
-          currentRun.push({ lat: entry.lat, lng: entry.lng });
+          currentRun.push({ kind: 'point', lat: entry.lat, lng: entry.lng });
+        } else if (entry.kind === 'transport-place') {
+          currentRun.push({ kind: 'transport-place', assignmentId: entry.assignmentId });
         } else if (entry.from || entry.to) {
-          if (entry.from) currentRun.push(entry.from);
+          if (entry.from) currentRun.push({ kind: 'point', lat: entry.from.lat, lng: entry.from.lng });
           if (currentRun.length >= 2) runs.push(currentRun);
           currentRun = [];
-          if (entry.to) currentRun.push(entry.to);
+          if (entry.to) currentRun.push({ kind: 'point', lat: entry.to.lat, lng: entry.to.lng });
         }
       }
       if (currentRun.length >= 2) runs.push(currentRun);
@@ -148,7 +173,7 @@ export function useRouteCalculation(
       const flatPts: { lat: number; lng: number }[] = [];
       for (const e of entries) {
         if (e.kind === 'place') flatPts.push({ lat: e.lat, lng: e.lng });
-        else {
+        else if (e.kind === 'transport') {
           if (e.from) flatPts.push(e.from);
           if (e.to) flatPts.push(e.to);
         }
@@ -161,34 +186,84 @@ export function useRouteCalculation(
       // waypoint is the transport's departure point, so [hotel → departure] is dropped
       // (#1321). Symmetrically, [last-stop → hotel] is dropped when you leave on a transport
       // in the evening and don't sleep in that hotel tonight.
-      const contributes = (e: Entry) => e.kind === 'place' || !!e.from || !!e.to;
+      const contributes = (e: Entry) => e.kind === 'place' || (e.kind === 'transport' && (!!e.from || !!e.to));
       const firstStop = entries.find(contributes);
       const lastStop = [...entries].reverse().find(contributes);
       const drawMorning = firstStop?.kind === 'place' || !!bookends?.morningIsSleptHere;
       const drawEvening = lastStop?.kind === 'place' || !!bookends?.eveningIsOvernight;
-      const runsWithHotel = withHotelBookends(
-        runs,
-        flatPts[0],
-        flatPts[flatPts.length - 1],
-        drawMorning ? hotelPt(bookends?.morning) : null,
-        drawEvening ? hotelPt(bookends?.evening) : null
-      );
+      type LegRequest = { from: Waypoint; to: Waypoint; assignmentId?: number | null };
+      const legRequests: LegRequest[] = [];
+      const addRunLegs = (run: RunEntry[]) => {
+        let previous: Waypoint | null = null;
+        let pendingAssignmentId: number | null = null;
+        for (const item of run) {
+          if (item.kind === 'transport-place') {
+            if (pendingAssignmentId == null) pendingAssignmentId = item.assignmentId;
+            continue;
+          }
+          const point = { lat: item.lat, lng: item.lng };
+          if (previous) {
+            legRequests.push({ from: previous, to: point, assignmentId: pendingAssignmentId });
+          }
+          previous = point;
+          pendingAssignmentId = null;
+        }
+      };
+
+      const firstLocatedIndex = entries.findIndex(contributes);
+      const lastLocatedIndex = entries.length - 1 - [...entries].reverse().findIndex(contributes);
+      const firstPreLocatedTransport =
+        firstLocatedIndex > 0
+          ? entries
+              .slice(0, firstLocatedIndex)
+              .find((entry): entry is Extract<Entry, { kind: 'transport-place' }> => entry.kind === 'transport-place')
+          : null;
+      const lastPostLocatedTransport =
+        lastLocatedIndex >= 0
+          ? entries
+              .slice(lastLocatedIndex + 1)
+              .find((entry): entry is Extract<Entry, { kind: 'transport-place' }> => entry.kind === 'transport-place')
+          : null;
+
+      const morningHotel = drawMorning ? hotelPt(bookends?.morning) : null;
+      const eveningHotel = drawEvening ? hotelPt(bookends?.evening) : null;
+      if (morningHotel && flatPts[0]) {
+        legRequests.push({
+          from: morningHotel,
+          to: flatPts[0],
+          assignmentId: firstPreLocatedTransport?.assignmentId ?? null,
+        });
+      }
+      runs.forEach(addRunLegs);
+      if (eveningHotel && flatPts[flatPts.length - 1]) {
+        legRequests.push({
+          from: flatPts[flatPts.length - 1],
+          to: eveningHotel,
+          assignmentId: lastPostLocatedTransport?.assignmentId ?? null,
+        });
+      }
 
       // Transfer day with no activities: you check out of one accommodation and into
       // another, so there are no waypoints for withHotelBookends to attach a leg to.
       // Draw the hotel → hotel transfer directly. Gated on both bookends being real
       // (drawMorning/drawEvening already exclude the #1321 arrival fallback) and the two
       // hotels being distinct, so an ordinary same-hotel rest day still draws nothing.
-      if (runsWithHotel.length === 0 && drawMorning && drawEvening) {
+      if (legRequests.length === 0 && drawMorning && drawEvening) {
         const m = hotelPt(bookends?.morning);
         const e = hotelPt(bookends?.evening);
-        if (m && e && (m.lat !== e.lat || m.lng !== e.lng)) runsWithHotel.push([m, e]);
+        if (m && e && (m.lat !== e.lat || m.lng !== e.lng)) legRequests.push({ from: m, to: e });
       }
 
+      const visibleLegRequests = legRequests.filter(
+        (leg) => !(leg.assignmentId != null && hiddenAssignmentRouteIds[String(leg.assignmentId)])
+      );
       const straightLines = (): [number, number][][] =>
-        runsWithHotel.map((r) => r.map((p) => [p.lat, p.lng] as [number, number]));
+        visibleLegRequests.map((leg) => [
+          [leg.from.lat, leg.from.lng] as [number, number],
+          [leg.to.lat, leg.to.lng] as [number, number],
+        ]);
 
-      if (runsWithHotel.length === 0) {
+      if (visibleLegRequests.length === 0) {
         setRoute(null);
         setRouteSegments([]);
         return;
@@ -203,7 +278,8 @@ export function useRouteCalculation(
       try {
         const polylines: [number, number][][] = [];
         const allLegs: RouteSegment[] = [];
-        for (const run of runsWithHotel) {
+        for (const leg of visibleLegRequests) {
+          const run = [leg.from, leg.to];
           try {
             const r = await calculateRouteWithLegs(run, { signal: controller.signal, profile });
             polylines.push(
@@ -225,7 +301,7 @@ export function useRouteCalculation(
         if (!(err instanceof Error) || err.name !== 'AbortError') setRouteSegments([]);
       }
     },
-    [enabled, profile, accommodations, optimizeFromAccommodation, distanceUnit]
+    [enabled, profile, accommodations, optimizeFromAccommodation, distanceUnit, hiddenAssignmentRouteIds, categories]
   );
 
   // Stable signature for transport reservations on the selected day — changes when a transport

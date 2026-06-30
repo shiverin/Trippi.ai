@@ -9,6 +9,8 @@ import {
   Ticket,
   Wallet,
 } from 'lucide-react';
+import GroupDecisionList from '../Decisions/GroupDecisionList';
+import type { GroupDecision, GroupDecisionMember, GroupDecisionResponseState } from '../Decisions/groupDecisionModel';
 import type {
   CommandCenterAction,
   CommandCenterModule,
@@ -19,6 +21,18 @@ import type {
 interface CommandCenterPanelProps {
   center: TripCommandCenter;
   onNavigate: (action: CommandCenterAction) => void;
+  decisions?: GroupDecision[];
+  decisionMembers?: GroupDecisionMember[];
+  currentUserId?: number | null;
+  canManageDecisions?: boolean;
+  decisionBusyId?: number | null;
+  onDecisionRespond?: (
+    decisionId: number,
+    optionId: number | null,
+    response: GroupDecisionResponseState
+  ) => void | Promise<void>;
+  onDecisionClose?: (decisionId: number) => void | Promise<void>;
+  onDecisionFinalize?: (decisionId: number, optionId: number) => void | Promise<void>;
 }
 
 const STATUS_CLASS: Record<CommandCenterStatus, string> = {
@@ -150,7 +164,18 @@ function CommandCenterModuleCard({
   );
 }
 
-export default function CommandCenterPanel({ center, onNavigate }: CommandCenterPanelProps) {
+export default function CommandCenterPanel({
+  center,
+  onNavigate,
+  decisions,
+  decisionMembers,
+  currentUserId = null,
+  canManageDecisions = false,
+  decisionBusyId = null,
+  onDecisionRespond,
+  onDecisionClose,
+  onDecisionFinalize,
+}: CommandCenterPanelProps) {
   const flaggedModules = center.modules.filter((module) => module.status === 'attention' || module.status === 'urgent');
   const clearModules = center.modules.filter((module) => module.status === 'good').length;
 
@@ -204,6 +229,25 @@ export default function CommandCenterPanel({ center, onNavigate }: CommandCenter
             </span>
           </div>
         </section>
+
+        {decisions && (
+          <section className="mt-5">
+            <GroupDecisionList
+              decisions={decisions}
+              currentUserId={currentUserId}
+              members={decisionMembers}
+              canEdit={canManageDecisions}
+              compact
+              maxItems={4}
+              emptyTitle="No group decisions yet"
+              emptyText="Open a decision when the group needs to choose an option, then close or finalize it from here."
+              busyDecisionId={decisionBusyId}
+              onRespond={onDecisionRespond}
+              onClose={onDecisionClose}
+              onFinalize={onDecisionFinalize}
+            />
+          </section>
+        )}
 
         <section className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {center.modules.map((module) => (

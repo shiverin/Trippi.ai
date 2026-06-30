@@ -281,6 +281,11 @@ export default function TripPlannerPage(): React.ReactElement | null {
     allowedFileTypes,
     tripMembers,
     setTripMembers,
+    groupDecisions,
+    groupDecisionBusyId,
+    handleGroupDecisionRespond,
+    handleGroupDecisionClose,
+    handleGroupDecisionFinalize,
     loadAccommodations,
     TRANSPORT_TYPES,
     TRIP_TABS,
@@ -575,7 +580,18 @@ export default function TripPlannerPage(): React.ReactElement | null {
         }}
       >
         {activeTab === 'command' && commandCenter && (
-          <CommandCenterPanel center={commandCenter} onNavigate={handleCommandCenterNavigate} />
+          <CommandCenterPanel
+            center={commandCenter}
+            onNavigate={handleCommandCenterNavigate}
+            decisions={groupDecisions}
+            decisionMembers={tripMembers}
+            currentUserId={meId > 0 ? meId : null}
+            canManageDecisions={can('trip_edit', trip)}
+            decisionBusyId={groupDecisionBusyId}
+            onDecisionRespond={handleGroupDecisionRespond}
+            onDecisionClose={handleGroupDecisionClose}
+            onDecisionFinalize={handleGroupDecisionFinalize}
+          />
         )}
 
         {activeTab === 'plan' && (

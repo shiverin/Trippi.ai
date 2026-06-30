@@ -9,6 +9,14 @@ import type {
   Trip,
   TripMember,
 } from '../../types';
+import type { GroupDecision } from '../Decisions/groupDecisionModel';
+import {
+  formatDecisionDeadline,
+  getDecisionDisplayState,
+  getDecisionRespondedCount,
+  getWinningDecisionOption,
+  isDecisionActionable,
+} from '../Decisions/groupDecisionModel';
 
 export type CommandCenterAction = 'decisions' | 'bookings' | 'budget' | 'packing' | 'plan' | 'deadlines';
 export type CommandCenterStatus = 'empty' | 'good' | 'attention' | 'urgent';
@@ -56,6 +64,7 @@ interface BuildCommandCenterInput {
   packingItems: PackingItem[];
   todoItems: TodoItem[];
   tripMembers: TripMember[];
+  groupDecisions?: GroupDecision[];
   now?: Date;
 }
 
@@ -63,7 +72,7 @@ interface TimelineEntry {
   id: string;
   title: string;
   date: string;
-  source: 'todo' | 'booking' | 'trip' | 'budget';
+  source: 'todo' | 'booking' | 'trip' | 'budget' | 'decision';
   tone?: CommandCenterStatus;
 }
 
@@ -241,6 +250,7 @@ export function buildTripCommandCenter({
   packingItems,
   todoItems,
   tripMembers,
+  groupDecisions = [],
   now = new Date(),
 }: BuildCommandCenterInput): TripCommandCenter {
   const sortedDays = sortDays(days);
@@ -279,21 +289,43 @@ export function buildTripCommandCenter({
     .map((day, index) => ({ day, index }))
     .filter(({ day }) => (assignments[String(day.id)] || []).length === 0);
   const decisionTodos = openTodos.filter((todo) => DECISION_RE.test(todoText(todo)));
+  const actionableGroupDecisions = groupDecisions.filter(isDecisionActionable);
+  const groupDecisionItems: CommandCenterItem[] = actionableGroupDecisions.slice(0, 3).map((decision) => {
+    const state = getDecisionDisplayState(decision);
+    const winner = getWinningDecisionOption(decision);
+    const responseLabel = `${getDecisionRespondedCount(decision)} response${
+      getDecisionRespondedCount(decision) === 1 ? '' : 's'
+    }`;
+    return {
+      id: `decision-${decision.id}`,
+      title: decision.title,
+      meta:
+        state === 'closed'
+          ? winner
+            ? `Ready to finalize ${winner.label}`
+            : 'Closed without a winning option'
+          : decision.deadline
+            ? `${formatDecisionDeadline(decision.deadline, now)} - ${responseLabel}`
+            : responseLabel,
+      tone: state === 'closed' ? ('urgent' as const) : ('attention' as const),
+    };
+  });
   const decisionItems: CommandCenterItem[] = [
-    ...decisionTodos.slice(0, 3).map((todo) => ({
+    ...groupDecisionItems,
+    ...decisionTodos.slice(0, Math.max(0, 3 - groupDecisionItems.length)).map((todo) => ({
       id: `todo-${todo.id}`,
       title: todo.name,
       meta: todo.due_date ? formatRelativeDate(todo.due_date, now) : 'Decision task',
       tone: dueTone(!!todo.due_date && (daysUntil(todo.due_date, now) ?? 1) <= 0),
     })),
-    ...emptyDays.slice(0, Math.max(0, 3 - decisionTodos.length)).map(({ day, index }) => ({
+    ...emptyDays.slice(0, Math.max(0, 3 - groupDecisionItems.length - decisionTodos.length)).map(({ day, index }) => ({
       id: `empty-day-${day.id}`,
       title: `${dayName(day, index)} needs a plan`,
       meta: day.date ? displayDate(day.date) : 'No stops yet',
       tone: 'attention' as const,
     })),
   ];
-  const decisionCount = decisionTodos.length + emptyDays.length;
+  const decisionCount = actionableGroupDecisions.length + decisionTodos.length + emptyDays.length;
 
   const unconfirmedReservations = reservations.filter(
     (reservation) => reservation.status !== 'confirmed' || Number(reservation.needs_review || 0) === 1
@@ -450,6 +482,15 @@ export function buildTripCommandCenter({
           },
         ]
       : []),
+    ...actionableGroupDecisions
+      .filter((decision) => !!decision.deadline)
+      .map((decision) => ({
+        id: `decision-${decision.id}`,
+        title: decision.title,
+        date: decision.deadline!,
+        source: 'decision' as const,
+        tone: getDecisionDisplayState(decision) === 'closed' ? ('urgent' as const) : ('attention' as const),
+      })),
     ...(phase === 'after' && budgetItems.length > 0
       ? [
           {

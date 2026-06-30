@@ -1,6 +1,7 @@
 import { writeAudit, getClientIp } from '../../services/auditLog';
 import { isDemoEmail } from '../../services/demo';
 import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
+import { assertImageUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
@@ -148,6 +149,7 @@ export class AuthController {
     if (!file) {
       throw new HttpException({ error: 'No image uploaded' }, 400);
     }
+    await assertImageUpload(file, ALLOWED_AVATAR_EXTS);
     const stored = await storeUploadedMedia('avatars', file, '.jpg');
     try {
       return await this.auth.saveAvatar(user.id, stored.filename);

@@ -5,6 +5,7 @@ import {
   storeUploadedMedia,
   type StoredMediaMetadata,
 } from '../../services/mediaStorage';
+import { assertImageUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -32,6 +33,7 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import path from 'node:path';
 
+const SUPPORTED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
 const IMAGE_UPLOAD = {
   storage: memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
@@ -55,6 +57,13 @@ const IMAGE_UPLOAD = {
       .catch((err) => cb(err instanceof Error ? err : new Error('File type validation failed'), false));
   },
 };
+
+async function allowedImageExts(): Promise<string[]> {
+  const allowedCsv = await getAllowedExtensionsAsync();
+  const allowed = allowedCsv.split(',').map((e) => e.trim().toLowerCase());
+  if (allowed.includes('*')) return SUPPORTED_IMAGE_EXTS;
+  return SUPPORTED_IMAGE_EXTS.filter((ext) => allowed.includes(ext.slice(1)));
+}
 
 /**
  * /api/journeys — cross-trip travel narrative (journeys, entries, photo gallery
@@ -139,7 +148,9 @@ export class JourneyController {
       throw new HttpException({ error: 'No files uploaded' }, 400);
     }
     const results: unknown[] = [];
+    const imageExts = await allowedImageExts();
     for (const file of files) {
+      await assertImageUpload(file, imageExts);
       const stored = await storeUploadedMedia('journey', file, '.jpg');
       const relativePath = stored.key;
       let photo;
@@ -287,7 +298,9 @@ export class JourneyController {
     }
     const storedFiles: { path: string; storage: StoredMediaMetadata }[] = [];
     try {
+      const imageExts = await allowedImageExts();
       for (const file of files) {
+        await assertImageUpload(file, imageExts);
         const stored = await storeUploadedMedia('journey', file, '.jpg');
         storedFiles.push({ path: stored.key, storage: stored.metadata });
       }
@@ -383,6 +396,7 @@ export class JourneyController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
+    await assertImageUpload(file, await allowedImageExts());
     const stored = await storeUploadedMedia('journey', file, '.jpg');
     let result;
     try {

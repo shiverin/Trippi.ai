@@ -1,10 +1,12 @@
 # Oracle Cloud Always Free Deployment
 
-This deploys trippi on an Oracle Cloud Infrastructure VM with:
+This deploys trippi on an Oracle Cloud Infrastructure VM, Google Compute Engine
+VM, or similar Ubuntu VM with:
 
 - the existing production Docker image built from this repo,
 - SQLite persisted at `/opt/trippi/data`,
-- uploads and generated PDFs persisted at `/opt/trippi/uploads`,
+- uploaded media either persisted at `/opt/trippi/uploads` or, for production,
+  stored in Google Cloud Storage,
 - Caddy terminating HTTPS on ports `80` and `443`,
 - MCP and WebSockets proxied through the same public hostname.
 
@@ -67,9 +69,9 @@ sudo nano /opt/trippi/app/deploy/oracle/.env
 Set at minimum:
 
 ```bash
-TRIPPI_DOMAIN=trippi.example.com
-APP_URL=https://trippi.example.com
-ALLOWED_ORIGINS=https://trippi.example.com
+TRIPPI_DOMAIN=34.29.0.6.sslip.io
+APP_URL=https://trippi-ai.vercel.app
+ALLOWED_ORIGINS=https://trippi-ai.vercel.app,https://34.29.0.6.sslip.io
 ADMIN_EMAIL=you@example.com
 ADMIN_PASSWORD=<long random first-login password>
 ```
@@ -82,6 +84,36 @@ TRUST_PROXY=1
 COOKIE_SECURE=true
 DEMO_MODE=false
 ```
+
+For production media on the current GCP deployment:
+
+```bash
+TRIPPI_MEDIA_BACKEND=gcs
+TRIPPI_GCS_BUCKET=trippi-prod-media-project-3ad3d06e-bcb7-4ecf-a7e
+TRIPPI_GCS_PREFIX=prod
+TRIPPI_MEDIA_DELIVERY=signed-url
+TRIPPI_MEDIA_SIGNED_URL_TTL_SECONDS=300
+```
+
+The app service account needs object access to the bucket. The bucket should
+have public access prevention, object versioning, and the lifecycle policy in
+`deploy/oracle/gcs-lifecycle.json`:
+
+```bash
+gcloud storage buckets update gs://trippi-prod-media-project-3ad3d06e-bcb7-4ecf-a7e --versioning
+gcloud storage buckets update gs://trippi-prod-media-project-3ad3d06e-bcb7-4ecf-a7e --lifecycle-file=deploy/oracle/gcs-lifecycle.json
+```
+
+After deploying an image that includes `dist/scripts/mediaBackfill.js`, migrate
+existing local uploads into the bucket:
+
+```bash
+cd /opt/trippi/app
+sudo docker compose --env-file deploy/oracle/.env -f deploy/oracle/docker-compose.yml exec app \
+  node --require tsconfig-paths/register dist/scripts/mediaBackfill.js --apply
+```
+
+The command writes a manifest to `/opt/trippi/data/media-backfill-*.json`.
 
 ## Deploy
 
@@ -96,7 +128,8 @@ Check logs:
 sudo docker compose --env-file deploy/oracle/.env -f deploy/oracle/docker-compose.yml logs -f app
 ```
 
-Open `https://trippi.example.com`.
+Open `https://34.29.0.6.sslip.io` for the backend health path, and
+`https://trippi-ai.vercel.app` for the public app.
 
 ## Encrypted Vercel-to-VM Tunnel
 
@@ -130,8 +163,10 @@ sudo bash deploy/oracle/backup.sh
 
 The archive is written to `/opt/trippi/backups`.
 
-For production, copy backups off the VM with `rclone`, OCI Object Storage, or another
-external storage target. The VM disk is persistent, but it is not a backup by itself.
+For production, copy backups off the VM with `rclone`, OCI Object Storage, GCS,
+or another external storage target. When `TRIPPI_MEDIA_BACKEND=gcs`, backup ZIPs
+include a media manifest rather than the object bytes; bucket versioning and an
+off-bucket export/replication plan are the media recovery layer.
 
 ## Updating
 

@@ -1,6 +1,6 @@
 import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
-import { getMediaStorage, openStoredMedia, type MediaObject } from './mediaStorage';
+import { getMediaStorage, getSignedMediaUrl, openStoredMedia, type MediaObject } from './mediaStorage';
 
 import { Jimp, JimpMime } from 'jimp';
 import crypto from 'node:crypto';
@@ -199,6 +199,13 @@ export async function serveObject(placeId: string): Promise<MediaObject | null> 
   const object = await openStoredMedia(key, key);
   if (object) knownOnDisk.add(placeId);
   return object;
+}
+
+export async function serveSignedUrl(placeId: string): Promise<string | null> {
+  const key = storageKey(placeId);
+  const url = await getSignedMediaUrl(key, { contentType: 'image/jpeg', expiresInSeconds: 300 });
+  if (url) knownOnDisk.add(placeId);
+  return url;
 }
 
 // A cache entry is "referenced" while any place still points at it — either by the

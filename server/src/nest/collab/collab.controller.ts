@@ -1,5 +1,6 @@
-import { BLOCKED_EXTENSIONS } from '../../services/fileService';
+import { BLOCKED_EXTENSIONS, getAllowedExtensionsAsync } from '../../services/fileService';
 import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
+import { assertAttachmentUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -171,6 +172,7 @@ export class CollabController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
+    await assertAttachmentUpload(file, await getAllowedExtensionsAsync());
     const stored = await storeUploadedMedia('files', file);
     let result;
     try {

@@ -1,6 +1,3 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import crypto from 'node:crypto';
-
 import {
   deleteStoredMedia,
   getLocalMediaStorage,
@@ -13,9 +10,13 @@ import {
   uploadUrlToMediaKey,
 } from '../../../src/services/mediaStorage';
 
+import crypto from 'node:crypto';
+import { afterEach, describe, expect, it } from 'vitest';
+
 const ORIGINAL_ENV = {
   TRIPPI_MEDIA_BACKEND: process.env.TRIPPI_MEDIA_BACKEND,
   TRIPPI_MEDIA_DELIVERY: process.env.TRIPPI_MEDIA_DELIVERY,
+  TRIPPI_MEDIA_SIGNED_URL_TTL_SECONDS: process.env.TRIPPI_MEDIA_SIGNED_URL_TTL_SECONDS,
   TRIPPI_GCS_BUCKET: process.env.TRIPPI_GCS_BUCKET,
   TRIPPI_GCS_PREFIX: process.env.TRIPPI_GCS_PREFIX,
 };
@@ -34,6 +35,7 @@ describe('mediaStorage', () => {
   it('defaults to local backend and backend delivery', () => {
     delete process.env.TRIPPI_MEDIA_BACKEND;
     delete process.env.TRIPPI_MEDIA_DELIVERY;
+    delete process.env.TRIPPI_MEDIA_SIGNED_URL_TTL_SECONDS;
     delete process.env.TRIPPI_GCS_BUCKET;
     resetMediaStorageForTests();
 
@@ -55,8 +57,23 @@ describe('mediaStorage', () => {
     expect(getMediaConfig()).toMatchObject({ backend: 'gcs', gcsBucket: 'trippi-media', gcsPrefix: 'prod/uploads' });
   });
 
-  it('rejects unsupported delivery modes and unsafe media keys', () => {
+  it('accepts signed-url delivery only for GCS and rejects unsafe media keys', () => {
+    process.env.TRIPPI_MEDIA_BACKEND = 'local';
     process.env.TRIPPI_MEDIA_DELIVERY = 'signed-url';
+    resetMediaStorageForTests();
+    expect(() => getMediaConfig()).toThrow(/requires TRIPPI_MEDIA_BACKEND=gcs/);
+
+    process.env.TRIPPI_MEDIA_BACKEND = 'gcs';
+    process.env.TRIPPI_GCS_BUCKET = 'trippi-media';
+    process.env.TRIPPI_MEDIA_SIGNED_URL_TTL_SECONDS = '900';
+    resetMediaStorageForTests();
+    expect(getMediaConfig()).toMatchObject({
+      backend: 'gcs',
+      delivery: 'signed-url',
+      signedUrlTtlSeconds: 900,
+    });
+
+    process.env.TRIPPI_MEDIA_DELIVERY = 'cdn';
     resetMediaStorageForTests();
     expect(() => getMediaConfig()).toThrow(/TRIPPI_MEDIA_DELIVERY/);
 

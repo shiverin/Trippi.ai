@@ -7,18 +7,16 @@
     }
 
     reverse_proxy app:3000 {
-        # Vercel terminates public HTTPS, then proxies to this backend over HTTP.
-        # Keep the upstream app's secure-cookie / redirect logic aligned with
-        # the user-facing HTTPS origin.
+        # Vercel and browsers should reach the named backend over HTTPS.
+        # Preserve the original scheme for app redirects/cookies when a TLS
+        # proxy is in front of the Node process.
         header_up X-Forwarded-Proto https
     }
 }
 
-http://{$TRIPPI_DOMAIN} {
-    import trippi_backend
-}
-
 http://:80 {
+    @backend_domain host {$TRIPPI_DOMAIN}
+    redir @backend_domain https://{host}{uri} permanent
     import trippi_backend
 }
 

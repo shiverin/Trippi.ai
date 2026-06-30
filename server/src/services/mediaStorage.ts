@@ -1,20 +1,21 @@
 import { Storage } from '@google-cloud/storage';
 
 import type { Response } from 'express';
-import { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 export type MediaBackend = 'local' | 'gcs';
-export type MediaDelivery = 'backend';
+export type MediaDelivery = 'backend' | 'signed-url';
 
 export interface MediaConfig {
   backend: MediaBackend;
   delivery: MediaDelivery;
   gcsBucket?: string;
   gcsPrefix: string;
+  signedUrlTtlSeconds: number;
   uploadsRoot: string;
 }
 
@@ -40,11 +41,18 @@ export interface MediaObject {
   etag?: string | null;
 }
 
+export interface SignedMediaUrlOptions {
+  contentType?: string | null;
+  contentDisposition?: string | null;
+  expiresInSeconds?: number | null;
+}
+
 export interface MediaStorage {
   readonly backend: MediaBackend;
   putObject(input: MediaObjectInput): Promise<StoredMediaMetadata>;
   getObjectStream(key: string): Promise<MediaObject | null>;
   getObjectBuffer(key: string): Promise<Buffer | null>;
+  getSignedReadUrl?(key: string, opts?: SignedMediaUrlOptions): Promise<string | null>;
   exists(key: string): Promise<boolean>;
   deleteObject(key: string): Promise<void>;
 }
@@ -59,8 +67,12 @@ export function getMediaConfig(): MediaConfig {
   const rawBackend = (process.env.TRIPPI_MEDIA_BACKEND || 'local').trim().toLowerCase();
   const backend: MediaBackend = rawBackend === 'gcs' ? 'gcs' : 'local';
   const rawDelivery = (process.env.TRIPPI_MEDIA_DELIVERY || 'backend').trim().toLowerCase();
-  if (rawDelivery !== 'backend') {
-    throw new Error('TRIPPI_MEDIA_DELIVERY currently supports only "backend"');
+  if (rawDelivery !== 'backend' && rawDelivery !== 'signed-url') {
+    throw new Error('TRIPPI_MEDIA_DELIVERY must be "backend" or "signed-url"');
+  }
+  const delivery = rawDelivery as MediaDelivery;
+  if (delivery === 'signed-url' && backend !== 'gcs') {
+    throw new Error('TRIPPI_MEDIA_DELIVERY=signed-url requires TRIPPI_MEDIA_BACKEND=gcs');
   }
   const gcsBucket = process.env.TRIPPI_GCS_BUCKET?.trim();
   if (backend === 'gcs' && !gcsBucket) {
@@ -68,9 +80,10 @@ export function getMediaConfig(): MediaConfig {
   }
   return {
     backend,
-    delivery: 'backend',
+    delivery,
     gcsBucket,
     gcsPrefix: normalizePrefix(process.env.TRIPPI_GCS_PREFIX || 'prod'),
+    signedUrlTtlSeconds: parsePositiveInt(process.env.TRIPPI_MEDIA_SIGNED_URL_TTL_SECONDS, 300),
     uploadsRoot: UPLOADS_ROOT,
   };
 }
@@ -171,6 +184,40 @@ export async function openStoredMedia(
   return null;
 }
 
+export async function getSignedMediaUrl(
+  storageKey: string | null | undefined,
+  opts: SignedMediaUrlOptions = {},
+): Promise<string | null> {
+  if (!storageKey) return null;
+  const config = getMediaConfig();
+  if (config.delivery !== 'signed-url' || config.backend !== 'gcs') return null;
+  const storage = getMediaStorage();
+  if (!storage.getSignedReadUrl) return null;
+  try {
+    return await storage.getSignedReadUrl(storageKey, {
+      ...opts,
+      expiresInSeconds: opts.expiresInSeconds || config.signedUrlTtlSeconds,
+    });
+  } catch (err) {
+    console.warn(
+      '[media] signed URL generation failed; falling back to backend delivery:',
+      err instanceof Error ? err.message : err,
+    );
+    return null;
+  }
+}
+
+export async function redirectToSignedMediaIfConfigured(
+  res: Response,
+  storageKey: string | null | undefined,
+  opts: SignedMediaUrlOptions = {},
+): Promise<boolean> {
+  const url = await getSignedMediaUrl(storageKey, opts);
+  if (!url) return false;
+  res.redirect(302, url);
+  return true;
+}
+
 export async function openMediaWithLocalFallback(key: string): Promise<MediaObject | null> {
   const normalized = normalizeMediaKey(key);
   const primary = await getMediaStorage().getObjectStream(normalized);
@@ -252,6 +299,12 @@ function normalizePrefix(prefix: string): string {
     throw new Error('Invalid TRIPPI_GCS_PREFIX');
   }
   return clean;
+}
+
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  if (!raw) return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
 }
 
 function bufferFrom(input: Buffer | NodeJS.ReadableStream): NodeJS.ReadableStream {
@@ -389,6 +442,21 @@ class GcsMediaStorage implements MediaStorage {
     if (!exists) return null;
     const [buffer] = await file.download();
     return buffer;
+  }
+
+  async getSignedReadUrl(key: string, opts: SignedMediaUrlOptions = {}): Promise<string | null> {
+    const file = this.bucket().file(this.objectName(key));
+    const [exists] = await file.exists();
+    if (!exists) return null;
+    const expiresInSeconds = opts.expiresInSeconds && opts.expiresInSeconds > 0 ? opts.expiresInSeconds : 300;
+    const [url] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: Date.now() + expiresInSeconds * 1000,
+      responseDisposition: opts.contentDisposition || undefined,
+      responseType: opts.contentType || undefined,
+    });
+    return url;
   }
 
   async exists(key: string): Promise<boolean> {

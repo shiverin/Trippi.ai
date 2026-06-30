@@ -1,3 +1,4 @@
+import { assertXmlOrZipUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -26,6 +27,8 @@ type Trip = NonNullable<Awaited<ReturnType<PlacesService['verifyTripAccess']>>>;
 
 const STRING_LIMITS: Record<string, number> = { name: 200, description: 2000, address: 500, notes: 2000 };
 const UPLOAD = { storage: memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } };
+const GPX_EXTS = new Set(['.gpx']);
+const MAP_EXTS = new Set(['.kml', '.kmz']);
 
 function validateLengths(body: Record<string, unknown>): void {
   for (const [field, max] of Object.entries(STRING_LIMITS)) {
@@ -117,6 +120,7 @@ export class PlacesController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
+    await assertXmlOrZipUpload(file, GPX_EXTS);
     const importWaypoints = parseBool(body.importWaypoints, true);
     const importRoutes = parseBool(body.importRoutes, true);
     const importTracks = parseBool(body.importTracks, true);
@@ -152,6 +156,7 @@ export class PlacesController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
+    await assertXmlOrZipUpload(file, MAP_EXTS);
     const importPoints = parseBool(body.importPoints, true);
     const importPaths = parseBool(body.importPaths, true);
     if (!importPoints && !importPaths) {

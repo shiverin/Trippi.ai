@@ -1,3 +1,4 @@
+import { sendMediaObject } from '../../services/mediaStorage';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,7 +17,6 @@ import type {
 
 import type { Response } from 'express';
 import { createReadStream } from 'node:fs';
-import { sendMediaObject } from '../../services/mediaStorage';
 
 type LocationBias = { low: { lat: number; lng: number }; high: { lat: number; lng: number } };
 
@@ -168,6 +168,12 @@ export class MapsController {
 
   @Get('place-photo/:placeId/bytes')
   async placePhotoBytes(@Param('placeId') placeId: string, @Res() res: Response): Promise<void> {
+    const signedUrl = await this.maps.photoBytesSignedUrl(placeId);
+    if (signedUrl) {
+      res.redirect(302, signedUrl);
+      return;
+    }
+
     const object = await this.maps.photoBytesObject(placeId);
     if (object) {
       await sendMediaObject(res, object, {

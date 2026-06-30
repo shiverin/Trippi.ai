@@ -1,6 +1,11 @@
+import {
+  openStoredMedia,
+  redirectToSignedMediaIfConfigured,
+  sendMediaObject,
+  tripFileLegacyKey,
+} from '../../services/mediaStorage';
 import { FilesService } from './files.service';
 import { Controller, Get, HttpException, Param, Req, Res } from '@nestjs/common';
-import { openStoredMedia, sendMediaObject, tripFileLegacyKey } from '../../services/mediaStorage';
 
 import type { Request, Response } from 'express';
 import path from 'path';
@@ -39,10 +44,24 @@ export class FilesDownloadController {
       throw new HttpException({ error: 'File not found' }, 404);
     }
 
+    // Serve Apple Wallet passes inline with the canonical MIME type so Safari
+    // (iOS/macOS) hands them to Wallet instead of downloading as a blob.
+    const isPkpass = path.extname(file.original_name || file.filename).toLowerCase() === '.pkpass';
     let legacyKey: string;
     let object;
     try {
       legacyKey = tripFileLegacyKey(file.filename);
+      if (
+        await redirectToSignedMediaIfConfigured(res, file.storage_key, {
+          contentType: isPkpass ? 'application/vnd.apple.pkpass' : file.mime_type,
+          contentDisposition: isPkpass
+            ? `inline; filename="${path.basename(file.original_name || file.filename)}"`
+            : null,
+          expiresInSeconds: 300,
+        })
+      ) {
+        return;
+      }
       object = await openStoredMedia(file.storage_key, legacyKey);
     } catch {
       throw new HttpException({ error: 'Forbidden' }, 403);
@@ -51,9 +70,6 @@ export class FilesDownloadController {
       throw new HttpException({ error: 'File not found' }, 404);
     }
 
-    // Serve Apple Wallet passes inline with the canonical MIME type so Safari
-    // (iOS/macOS) hands them to Wallet instead of downloading as a blob.
-    const isPkpass = path.extname(file.original_name || file.filename).toLowerCase() === '.pkpass';
     await sendMediaObject(res, object, {
       contentType: isPkpass ? 'application/vnd.apple.pkpass' : file.mime_type,
       contentDisposition: isPkpass ? `inline; filename="${path.basename(file.original_name || file.filename)}"` : null,

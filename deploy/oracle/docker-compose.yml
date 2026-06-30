@@ -47,6 +47,7 @@ services:
       TRIPPI_GCS_BUCKET: ${TRIPPI_GCS_BUCKET:-}
       TRIPPI_GCS_PREFIX: ${TRIPPI_GCS_PREFIX:-prod}
       TRIPPI_MEDIA_DELIVERY: ${TRIPPI_MEDIA_DELIVERY:-backend}
+      TRIPPI_MEDIA_SIGNED_URL_TTL_SECONDS: ${TRIPPI_MEDIA_SIGNED_URL_TTL_SECONDS:-300}
     volumes:
       - ${TRIPPI_DATA_DIR:-/opt/trippi/data}:/app/data
       - ${TRIPPI_UPLOADS_DIR:-/opt/trippi/uploads}:/app/uploads

@@ -1,3 +1,4 @@
+import { assertBookingImportUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -83,6 +84,7 @@ export class BookingImportController {
           400,
         );
       }
+      await assertBookingImportUpload(f, ACCEPTED_EXTS);
     }
 
     const result: BookingImportPreviewResponse = await this.bookingImport.preview(files);

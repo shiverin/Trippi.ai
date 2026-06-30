@@ -4,6 +4,7 @@ import {
   isBackupUnsupportedForProviderError,
   MAX_BACKUP_UPLOAD_SIZE,
 } from '../../services/backupService';
+import { assertZipUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
 import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -134,6 +135,7 @@ export class BackupController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
+    await assertZipUpload(file);
     const zipPath = file.path;
     const origName = file.originalname || 'upload.zip';
     try {

@@ -185,7 +185,11 @@ describe('BackupController', () => {
   });
 
   it('POST /upload-restore success audits + reports', async () => {
-    const file = { path: '/tmp/does-not-exist-xyz.zip', originalname: 'up.zip' } as Express.Multer.File;
+    const file = {
+      path: '/tmp/does-not-exist-xyz.zip',
+      originalname: 'up.zip',
+      buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+    } as Express.Multer.File;
     const res = await new BackupController(
       svc({ restoreFromZip: vi.fn().mockResolvedValue({ success: true }) } as Partial<BackupService>),
     ).uploadRestore(user, file, req);
@@ -196,7 +200,11 @@ describe('BackupController', () => {
   });
 
   it('POST /upload-restore maps a failed restore status', async () => {
-    const file = { path: '/tmp/does-not-exist-xyz.zip', originalname: 'up.zip' } as Express.Multer.File;
+    const file = {
+      path: '/tmp/does-not-exist-xyz.zip',
+      originalname: 'up.zip',
+      buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+    } as Express.Multer.File;
     expect(
       await thrownAsync(() =>
         new BackupController(
@@ -209,7 +217,12 @@ describe('BackupController', () => {
   });
 
   it('POST /upload-restore falls back to a default name and maps unexpected errors to 500', async () => {
-    const file = { path: '/tmp/does-not-exist-xyz.zip', originalname: '' } as Express.Multer.File;
+    const file = {
+      path: '/tmp/does-not-exist-xyz.zip',
+      filename: 'upload.zip',
+      originalname: '',
+      buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+    } as Express.Multer.File;
     expect(
       await thrownAsync(() =>
         new BackupController(
@@ -217,7 +230,12 @@ describe('BackupController', () => {
         ).uploadRestore(user, file, req),
       ),
     ).toEqual({ status: 500, body: { error: 'Error restoring backup' } });
-    const ok = { path: '/tmp/does-not-exist-xyz.zip', originalname: '' } as Express.Multer.File;
+    const ok = {
+      path: '/tmp/does-not-exist-xyz.zip',
+      filename: 'upload.zip',
+      originalname: '',
+      buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+    } as Express.Multer.File;
     await new BackupController(
       svc({ restoreFromZip: vi.fn().mockResolvedValue({ success: true }) } as Partial<BackupService>),
     ).uploadRestore(user, ok, req);

@@ -1,6 +1,7 @@
 import { isDemoEmail } from '../../services/demo';
 import { MAX_FILE_SIZE, BLOCKED_EXTENSIONS, getAllowedExtensionsAsync } from '../../services/fileService';
 import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
+import { assertAttachmentUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -102,6 +103,7 @@ export class FilesController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
+    await assertAttachmentUpload(file, await getAllowedExtensionsAsync());
     const stored = await storeUploadedMedia('files', file);
     let created;
     try {

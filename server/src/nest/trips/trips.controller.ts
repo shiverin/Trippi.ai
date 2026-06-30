@@ -2,6 +2,7 @@ import { writeAudit, getClientIp, logInfo } from '../../services/auditLog';
 import { isDemoEmail } from '../../services/demo';
 import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
 import { NotFoundError, ValidationError } from '../../services/tripService';
+import { assertImageUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -31,13 +32,14 @@ import { memoryStorage } from 'multer';
 import path from 'path';
 
 const MAX_COVER_SIZE = 20 * 1024 * 1024;
+const ALLOWED_COVER_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const COVER_UPLOAD = {
   storage: memoryStorage(),
   limits: { fileSize: MAX_COVER_SIZE },
   fileFilter: (_req: Request, file: Express.Multer.File, cb: (err: Error | null, accept: boolean) => void) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    if (file.mimetype.startsWith('image/') && !file.mimetype.includes('svg') && allowed.includes(ext)) cb(null, true);
+    if (file.mimetype.startsWith('image/') && !file.mimetype.includes('svg') && ALLOWED_COVER_EXTS.includes(ext))
+      cb(null, true);
     else cb(new Error('Only jpg, png, gif, webp images allowed'), false);
   },
 };
@@ -205,6 +207,7 @@ export class TripsController {
     if (!file) {
       throw new HttpException({ error: 'No image uploaded' }, 400);
     }
+    await assertImageUpload(file, ALLOWED_COVER_EXTS);
     const stored = await storeUploadedMedia('covers', file, '.jpg');
     const coverUrl = `/uploads/covers/${stored.filename}`;
     try {

@@ -5,7 +5,12 @@ import { trippiOAuthProvider, trippiClientsStore } from '../../mcp/oauthProvider
 import { ALL_SCOPES } from '../../mcp/scopes';
 import { verifyJwtAndLoadUser } from '../../middleware/auth';
 import { isAddonEnabled } from '../../services/adminService';
-import { getMediaConfig, openMediaWithLocalFallback, sendMediaObject } from '../../services/mediaStorage';
+import {
+  getMediaConfig,
+  openMediaWithLocalFallback,
+  redirectToSignedMediaIfConfigured,
+  sendMediaObject,
+} from '../../services/mediaStorage';
 import { getMcpSafeUrl } from '../../services/notifications';
 import { authorizationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize';
 import { clientRegistrationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/register';
@@ -47,6 +52,14 @@ function mountMediaCompatRoute(app: express.Application, route: string, namespac
     try {
       const tail = String(req.params[0] || req.params.filename || '');
       const key = `${namespace}/${tail}`;
+      if (
+        await redirectToSignedMediaIfConfigured(res, key, {
+          contentType: uploadContentType(key),
+          expiresInSeconds: 300,
+        })
+      ) {
+        return;
+      }
       const object = await openMediaWithLocalFallback(key);
       if (!object) return res.status(404).send('Not found');
       await sendMediaObject(res, object, {

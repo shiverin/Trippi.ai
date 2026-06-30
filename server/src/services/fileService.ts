@@ -4,6 +4,7 @@ import { verifyJwtAndLoadUser } from '../middleware/auth';
 import { TripFile } from '../types';
 import { consumeEphemeralToken } from './ephemeralTokens';
 import { deleteStoredMedia, tripFileLegacyKey, type StoredMediaMetadata } from './mediaStorage';
+import { BLOCKED_EXTENSIONS } from './uploadPolicy';
 
 import type { Request } from 'express';
 import path from 'path';
@@ -14,40 +15,7 @@ import path from 'path';
 
 export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 export const DEFAULT_ALLOWED_EXTENSIONS = 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv,pkpass';
-// Single authoritative blocklist for every file-upload surface (main
-// file manager + collab attachments). When the admin setting
-// `allowed_file_types` is `*`, this list is still enforced so the
-// wildcard doesn't silently admit executables/scripts.
-export const BLOCKED_EXTENSIONS = [
-  // Server-rendered / scripted content that could XSS a viewer
-  '.svg',
-  '.html',
-  '.htm',
-  '.xml',
-  '.xhtml',
-  // Scripts
-  '.js',
-  '.jsx',
-  '.ts',
-  '.tsx',
-  '.mjs',
-  '.cjs',
-  '.php',
-  '.py',
-  '.rb',
-  '.pl',
-  // Executables
-  '.exe',
-  '.bat',
-  '.sh',
-  '.cmd',
-  '.msi',
-  '.dll',
-  '.com',
-  '.vbs',
-  '.ps1',
-  '.app',
-];
+export { BLOCKED_EXTENSIONS };
 export const filesDir = path.join(__dirname, '../../uploads/files');
 
 // ---------------------------------------------------------------------------
@@ -159,10 +127,7 @@ export function getFileById(id: string | number, tripId: string | number): TripF
   return db.prepare('SELECT * FROM trip_files WHERE id = ? AND trip_id = ?').get(id, tripId) as TripFile | undefined;
 }
 
-export async function getFileByIdAsync(
-  id: string | number,
-  tripId: string | number,
-): Promise<TripFile | undefined> {
+export async function getFileByIdAsync(id: string | number, tripId: string | number): Promise<TripFile | undefined> {
   return asyncDb.prepare('SELECT * FROM trip_files WHERE id = ? AND trip_id = ?').get<TripFile>(id, tripId);
 }
 
@@ -172,10 +137,7 @@ export function getDeletedFile(id: string | number, tripId: string | number): Tr
     .get(id, tripId) as TripFile | undefined;
 }
 
-export async function getDeletedFileAsync(
-  id: string | number,
-  tripId: string | number,
-): Promise<TripFile | undefined> {
+export async function getDeletedFileAsync(id: string | number, tripId: string | number): Promise<TripFile | undefined> {
   return asyncDb
     .prepare('SELECT * FROM trip_files WHERE id = ? AND trip_id = ? AND deleted_at IS NOT NULL')
     .get<TripFile>(id, tripId);
@@ -463,7 +425,9 @@ export async function createFileLinkAsync(
 ) {
   try {
     await asyncDb
-      .prepare('INSERT OR IGNORE INTO file_links (file_id, reservation_id, assignment_id, place_id) VALUES (?, ?, ?, ?)')
+      .prepare(
+        'INSERT OR IGNORE INTO file_links (file_id, reservation_id, assignment_id, place_id) VALUES (?, ?, ?, ?)',
+      )
       .run(fileId, opts.reservation_id || null, opts.assignment_id || null, opts.place_id || null);
   } catch (err) {
     console.error('[Files] Error creating file link:', err instanceof Error ? err.message : err);

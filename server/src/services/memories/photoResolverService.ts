@@ -6,6 +6,7 @@ import {
   getMediaStorage,
   openStoredMedia,
   readStoredMediaBuffer,
+  redirectToSignedMediaIfConfigured,
   sendMediaBuffer,
   sendMediaObject,
   type StoredMediaMetadata,
@@ -222,6 +223,14 @@ export async function streamPhoto(
       let thumbRel = photo.thumbnail_path ?? null;
       if (thumbRel) {
         try {
+          if (
+            await redirectToSignedMediaIfConfigured(res, photo.storage_key ? thumbRel : null, {
+              contentType: 'image/jpeg',
+              expiresInSeconds: 300,
+            })
+          ) {
+            return;
+          }
           const thumbObject = await openStoredMedia(photo.storage_key ? thumbRel : null, thumbRel);
           if (thumbObject) {
             await sendMediaObject(res, thumbObject, {
@@ -269,6 +278,14 @@ export async function streamPhoto(
       }
       if (thumbRel) {
         try {
+          if (
+            await redirectToSignedMediaIfConfigured(res, photo.storage_key ? thumbRel : null, {
+              contentType: 'image/jpeg',
+              expiresInSeconds: 300,
+            })
+          ) {
+            return;
+          }
           const thumbObject = await openStoredMedia(photo.storage_key ? thumbRel : null, thumbRel);
           if (thumbObject) {
             await sendMediaObject(res, thumbObject, {
@@ -291,6 +308,14 @@ export async function streamPhoto(
     }
 
     try {
+      if (
+        await redirectToSignedMediaIfConfigured(res, photo.storage_key, {
+          contentType: photo.storage_content_type || undefined,
+          expiresInSeconds: 300,
+        })
+      ) {
+        return;
+      }
       const object = await openStoredMedia(photo.storage_key, photo.file_path);
       if (object) {
         await sendMediaObject(res, object, {

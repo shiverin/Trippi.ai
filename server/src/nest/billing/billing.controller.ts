@@ -2,12 +2,17 @@ import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BillingError, BillingService } from './billing.service';
-import { Body, Controller, HttpCode, HttpException, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpException, Post, UseGuards } from '@nestjs/common';
 
 @Controller('api/billing')
 @UseGuards(JwtAuthGuard)
 export class BillingController {
   constructor(private readonly billing: BillingService) {}
+
+  @Get('entitlements')
+  async getEntitlements(@CurrentUser() user: User) {
+    return this.billing.getEntitlements(user);
+  }
 
   @Post('checkout-session')
   @HttpCode(200)

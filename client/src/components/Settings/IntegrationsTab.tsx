@@ -1,10 +1,27 @@
-import { Check, ChevronDown, ChevronRight, Copy, KeyRound, Plus, RefreshCw, Terminal, Trash2 } from 'lucide-react';
+import {
+  Bot,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Gauge,
+  KeyRound,
+  Plus,
+  RefreshCw,
+  Terminal,
+  Trash2,
+  TrendingUp,
+  type LucideIcon,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { authApi, oauthApi } from '../../api/client';
 import { ALL_SCOPES } from '../../api/oauthScopes';
+import { formatLimit, isLimitReached, useEntitlements } from '../../hooks/useEntitlements';
 import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
+import type { EntitlementLimit, McpAutomationLimits, ResolvedEntitlements } from '../../types';
 import ScopeGroupPicker from '../OAuth/ScopeGroupPicker';
+import { LockedState } from '../shared/PremiumGate';
 import { useToast } from '../shared/Toast';
 import AirTrailConnectionSection from './AirTrailConnectionSection';
 import PhotoProvidersSection from './PhotoProvidersSection';
@@ -98,6 +115,7 @@ export default function IntegrationsTab(): React.ReactElement {
     <>
       <PhotoProvidersSection />
       {S.airtrailEnabled && <AirTrailConnectionSection />}
+      <PremiumAutomationSection {...S} />
       {S.mcpEnabled && <IntegrationsMcpSection {...S} />}
       <McpTokenModals {...S} />
       <OAuthClientModals {...S} />
@@ -111,6 +129,7 @@ function useIntegrations() {
   const { isEnabled: addonEnabled, loadAddons } = useAddonStore();
   const mcpEnabled = addonEnabled('mcp');
   const airtrailEnabled = addonEnabled('airtrail');
+  const entitlementState = useEntitlements();
 
   useEffect(() => {
     loadAddons();
@@ -148,6 +167,15 @@ function useIntegrations() {
   const [mcpDeleteId, setMcpDeleteId] = useState<number | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mcpLimits = entitlementState.entitlements?.limits.mcpAutomation;
+  const mcpTokenLimit = mcpLimits?.maxTokens;
+  const mcpTokenLimitReached = isLimitReached(mcpTokenLimit, mcpTokens.length);
+
+  const handleUpgrade = () => {
+    entitlementState.startUpgrade().catch((err) => {
+      toast.info(err instanceof Error ? err.message : 'Upgrade checkout is not available yet.');
+    });
+  };
 
   useEffect(() => {
     return () => {
@@ -194,6 +222,10 @@ function useIntegrations() {
 
   const handleCreateMcpToken = async () => {
     if (!mcpNewName.trim()) return;
+    if (mcpTokenLimitReached) {
+      handleUpgrade();
+      return;
+    }
     setMcpCreating(true);
     try {
       const d = await authApi.mcpTokens.create(mcpNewName.trim());
@@ -366,9 +398,14 @@ function useIntegrations() {
     mcpDeleteId,
     setMcpDeleteId,
     copiedKey,
+    entitlementState,
+    mcpLimits,
+    mcpTokenLimit,
+    mcpTokenLimitReached,
     mcpEndpoint,
     mcpJsonConfigOAuth,
     mcpJsonConfig,
+    handleUpgrade,
     handleCreateMcpToken,
     handleDeleteMcpToken,
     handleCopy,
@@ -377,6 +414,146 @@ function useIntegrations() {
     handleRotateSecret,
     handleRevokeSession,
   };
+}
+
+interface PremiumAutomationSectionProps {
+  entitlementState: ReturnType<typeof useEntitlements>;
+  handleUpgrade: () => void;
+}
+
+function PremiumAutomationSection({ entitlementState, handleUpgrade }: PremiumAutomationSectionProps) {
+  const entitlements = entitlementState.entitlements;
+  const upgradeAvailable = !!entitlementState.billing?.checkoutAvailable;
+
+  return (
+    <Section title="Premium Automation" icon={Gauge}>
+      <div className="rounded-lg border border-edge">
+        <AutomationEntitlementRow
+          icon={Bot}
+          title="AI workers"
+          description="Run dedicated AI planning workers for itinerary maintenance and follow-up tasks."
+          lockedDescription={`Your ${entitlements?.planKey ?? 'current'} plan does not include AI workers.`}
+          current={0}
+          limit={entitlements?.limits.aiWorkers}
+          upgradeAvailable={upgradeAvailable}
+          upgradePending={entitlementState.checkoutLoading}
+          onUpgrade={handleUpgrade}
+          testId="ai-workers-locked-state"
+        />
+        <AutomationEntitlementRow
+          icon={TrendingUp}
+          title="Price watches"
+          description="Track saved flight, hotel, and activity prices when watch workflows are available."
+          lockedDescription={`Your ${entitlements?.planKey ?? 'current'} plan does not include price watches.`}
+          current={0}
+          limit={entitlements?.limits.priceWatches}
+          upgradeAvailable={upgradeAvailable}
+          upgradePending={entitlementState.checkoutLoading}
+          onUpgrade={handleUpgrade}
+          testId="price-watches-locked-state"
+          withDivider={false}
+        />
+      </div>
+    </Section>
+  );
+}
+
+interface AutomationEntitlementRowProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  lockedDescription: string;
+  current: number;
+  limit: EntitlementLimit | undefined;
+  upgradeAvailable: boolean;
+  upgradePending: boolean;
+  onUpgrade: () => void;
+  testId: string;
+  withDivider?: boolean;
+}
+
+function AutomationEntitlementRow({
+  icon: Icon,
+  title,
+  description,
+  lockedDescription,
+  current,
+  limit,
+  upgradeAvailable,
+  upgradePending,
+  onUpgrade,
+  testId,
+  withDivider = true,
+}: AutomationEntitlementRowProps) {
+  const detail = `${current}/${formatLimit(limit)} available`;
+  const locked = isLimitReached(limit, current);
+
+  if (locked) {
+    return (
+      <div className={withDivider ? 'border-b border-edge p-3' : 'p-3'}>
+        <LockedState
+          compact
+          title={`${title} locked`}
+          description={lockedDescription}
+          detail={detail}
+          upgradeAvailable={upgradeAvailable}
+          upgradePending={upgradePending}
+          onUpgrade={onUpgrade}
+          testId={testId}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div data-testid={testId} className={`flex items-start gap-3 p-3 ${withDivider ? 'border-b border-edge' : ''}`}>
+      <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-edge bg-surface-secondary text-content-secondary">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-semibold text-content">{title}</p>
+          <span className="rounded border border-edge bg-surface-secondary px-1.5 py-0.5 text-[11px] font-medium text-content-secondary">
+            {detail}
+          </span>
+        </div>
+        <p className="mt-1 text-xs leading-5 text-content-muted">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+interface McpAutomationLimitsPanelProps {
+  entitlements: ResolvedEntitlements | null;
+  limits: McpAutomationLimits | undefined;
+  tokenCount: number;
+}
+
+function McpAutomationLimitsPanel({ entitlements, limits, tokenCount }: McpAutomationLimitsPanelProps) {
+  return (
+    <div data-testid="mcp-automation-limits" className="rounded-lg border border-edge bg-surface-secondary p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="text-sm font-semibold text-content">MCP automation limits</p>
+        <span className="rounded border border-edge bg-surface-card px-1.5 py-0.5 text-[11px] font-medium text-content-secondary">
+          {entitlements?.planKey ?? 'current'} plan
+        </span>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <McpLimitBadge label="Static tokens" value={`${tokenCount}/${formatLimit(limits?.maxTokens)}`} />
+        <McpLimitBadge label="Concurrent sessions" value={formatLimit(limits?.maxConcurrentSessions)} />
+        <McpLimitBadge label="Requests/min" value={formatLimit(limits?.requestsPerMinute)} />
+      </div>
+    </div>
+  );
+}
+
+function McpLimitBadge({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-edge bg-surface-card px-2.5 py-2">
+      <p className="text-[11px] font-medium uppercase text-content-muted">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-content">{value}</p>
+    </div>
+  );
 }
 
 function IntegrationsMcpSection(props: any) {
@@ -431,9 +608,14 @@ function IntegrationsMcpSection(props: any) {
     mcpDeleteId,
     setMcpDeleteId,
     copiedKey,
+    entitlementState,
+    mcpLimits,
+    mcpTokenLimit,
+    mcpTokenLimitReached,
     mcpEndpoint,
     mcpJsonConfigOAuth,
     mcpJsonConfig,
+    handleUpgrade,
     handleCreateMcpToken,
     handleDeleteMcpToken,
     handleCopy,
@@ -464,6 +646,12 @@ function IntegrationsMcpSection(props: any) {
           </button>
         </div>
       </div>
+
+      <McpAutomationLimitsPanel
+        entitlements={entitlementState.entitlements}
+        limits={mcpLimits}
+        tokenCount={mcpTokens.length}
+      />
 
       {/* Sub-tab bar */}
       <div className="flex gap-1 rounded-lg border border-edge bg-surface-secondary p-1">
@@ -717,20 +905,33 @@ function IntegrationsMcpSection(props: any) {
             )}
           </div>
 
-          <div className="flex justify-end">
-            <button
-              onClick={() => {
-                setMcpModalOpen(true);
-                setMcpCreatedToken(null);
-                setMcpNewName('');
-              }}
-              className="flex items-center gap-1.5 rounded-lg bg-surface-tertiary px-3 py-1.5 text-sm font-medium text-content-secondary opacity-60 transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" /> {t('settings.mcp.createToken')}
-            </button>
-          </div>
+          {mcpTokenLimitReached ? (
+            <LockedState
+              compact
+              title="Static MCP token limit reached"
+              description="OAuth clients remain available for MCP access. Static API token creation needs a higher token allowance."
+              detail={`${mcpTokens.length}/${formatLimit(mcpTokenLimit)} tokens`}
+              upgradeAvailable={!!entitlementState.billing?.checkoutAvailable}
+              upgradePending={entitlementState.checkoutLoading}
+              onUpgrade={handleUpgrade}
+              testId="mcp-token-locked-state"
+            />
+          ) : (
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setMcpModalOpen(true);
+                  setMcpCreatedToken(null);
+                  setMcpNewName('');
+                }}
+                className="flex items-center gap-1.5 rounded-lg bg-surface-tertiary px-3 py-1.5 text-sm font-medium text-content-secondary opacity-60 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" /> {t('settings.mcp.createToken')}
+              </button>
+            </div>
+          )}
 
-          {mcpTokens.length === 0 ? (
+          {mcpTokenLimitReached && mcpTokens.length === 0 ? null : mcpTokens.length === 0 ? (
             <p className="py-2 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
               {t('settings.mcp.noTokens')}
             </p>

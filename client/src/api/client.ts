@@ -87,6 +87,7 @@ import {
 import axios, { AxiosInstance } from 'axios';
 import type { z } from 'zod';
 import { isReachable, probeNow } from '../sync/connectivity';
+import type { BillingEntitlementsResponse } from '../types';
 import { API_BASE_URL, apiUrl } from './baseUrl';
 import { getSocketId } from './websocket';
 
@@ -354,6 +355,15 @@ export const authApi = {
     delete: (id: number, password: string) =>
       apiClient.delete(`/auth/passkey/credentials/${id}`, { data: { password } }).then((r) => r.data),
   },
+};
+
+export const billingApi = {
+  entitlements: (): Promise<BillingEntitlementsResponse> =>
+    apiClient.get('/billing/entitlements').then((r) => r.data as BillingEntitlementsResponse),
+  checkoutSession: (data: { planId: string }) =>
+    apiClient.post('/billing/checkout-session', data).then((r) => r.data as { url: string }),
+  portalSession: (data: { returnUrl?: string } = {}) =>
+    apiClient.post('/billing/portal-session', data).then((r) => r.data as { url: string }),
 };
 
 export interface PasskeyCredential {

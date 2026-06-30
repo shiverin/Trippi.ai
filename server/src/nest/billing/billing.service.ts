@@ -1,3 +1,4 @@
+import { getEntitlementsForUser, type ResolvedEntitlements } from '../../services/entitlementService';
 import { getBillingCustomerForUser } from '../../services/subscriptionService';
 import type { User } from '../../types';
 import { BillingConfigError, getAllowedPlan, resolveBillingConfig, resolveBillingRedirectUrls } from './billing.config';
@@ -27,9 +28,30 @@ export interface BillingSessionResult {
   url: string;
 }
 
+export interface BillingUpgradeAvailability {
+  checkoutAvailable: boolean;
+  defaultPlanId: string | null;
+  portalAvailable: boolean;
+}
+
+export interface BillingEntitlementsResult {
+  entitlements: ResolvedEntitlements;
+  billing: BillingUpgradeAvailability;
+}
+
+const CHECKOUT_PLAN_PRIORITY = ['pro', 'agency', 'trial'] as const;
+
 @Injectable()
 export class BillingService {
   constructor(private readonly stripe: StripeClient) {}
+
+  async getEntitlements(user: User): Promise<BillingEntitlementsResult> {
+    const entitlements = await getEntitlementsForUser(user.id);
+    return {
+      entitlements,
+      billing: resolveUpgradeAvailability(entitlements.planKey, entitlements.subscribed),
+    };
+  }
 
   async createCheckoutSession(user: User, input: CreateCheckoutSessionInput): Promise<BillingSessionResult> {
     try {
@@ -92,6 +114,26 @@ export class BillingService {
       throw toBillingError(err);
     }
   }
+}
+
+function pickDefaultCheckoutPlan(currentPlanKey: string, planIds: string[]): string | null {
+  const candidates = planIds.filter((id) => id !== 'free' && id !== currentPlanKey);
+  for (const preferred of CHECKOUT_PLAN_PRIORITY) {
+    if (candidates.includes(preferred)) return preferred;
+  }
+  return candidates[0] ?? null;
+}
+
+export function resolveUpgradeAvailability(currentPlanKey: string, subscribed = false): BillingUpgradeAvailability {
+  const config = resolveBillingConfig();
+  const defaultPlanId = pickDefaultCheckoutPlan(currentPlanKey, Array.from(config.plans.keys()));
+  const checkoutAvailable = Boolean(config.stripeSecretKey && defaultPlanId);
+
+  return {
+    checkoutAvailable,
+    defaultPlanId: checkoutAvailable ? defaultPlanId : null,
+    portalAvailable: Boolean(config.stripeSecretKey && subscribed),
+  };
 }
 
 function resolveBillingConfigReady(config: ReturnType<typeof resolveBillingConfig>): void {

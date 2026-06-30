@@ -1,4 +1,4 @@
-// FE-COMP-TRIPFORM-001 to FE-COMP-TRIPFORM-028
+// FE-COMP-TRIPFORM-001 to FE-COMP-TRIPFORM-031
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { buildTrip, buildUser } from '../../../tests/helpers/factories';
@@ -235,7 +235,41 @@ describe('TripFormModal', () => {
     await waitFor(() => expect(screen.queryByText('alice')).not.toBeInTheDocument());
   });
 
-  it('FE-COMP-TRIPFORM-026: cover image paste fires URL.createObjectURL', async () => {
+  it('FE-COMP-TRIPFORM-026: group size entitlement lock hides the member selector while creating', async () => {
+    seedStore(useAuthStore, { user: buildUser({ id: 1, username: 'me' }), isAuthenticated: true });
+    server.use(
+      http.get('/api/billing/entitlements', () =>
+        HttpResponse.json({
+          entitlements: {
+            userId: 1,
+            planKey: 'free',
+            billingPlanKey: 'free',
+            billingStatus: 'free',
+            subscribed: false,
+            trialing: false,
+            limits: {
+              aiWorkers: 0,
+              priceWatches: 0,
+              mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
+              activeTrips: 3,
+              groupSize: 1,
+            },
+          },
+          billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false },
+        })
+      ),
+      http.get('/api/auth/users', () => HttpResponse.json({ users: [{ id: 100, username: 'alice' }] }))
+    );
+
+    render(<TripFormModal {...defaultProps} trip={null} />);
+
+    await screen.findByText('Group size limit reached');
+    expect(screen.getByText('1/1 members')).toBeInTheDocument();
+    expect(screen.queryByText('Add member')).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Summer in Japan/i)).toBeInTheDocument();
+  });
+
+  it('FE-COMP-TRIPFORM-027: cover image paste fires URL.createObjectURL', async () => {
     const mockCreateObjectURL = vi.fn(() => 'blob:mock-paste-url');
     const original = URL.createObjectURL;
     Object.defineProperty(URL, 'createObjectURL', { writable: true, configurable: true, value: mockCreateObjectURL });
@@ -255,7 +289,7 @@ describe('TripFormModal', () => {
     Object.defineProperty(URL, 'createObjectURL', { writable: true, configurable: true, value: original });
   });
 
-  it('FE-COMP-TRIPFORM-027: onSave error message is displayed', async () => {
+  it('FE-COMP-TRIPFORM-028: onSave error message is displayed', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockRejectedValue(new Error('Server error'));
     render(<TripFormModal {...defaultProps} onSave={onSave} trip={null} />);
@@ -266,7 +300,7 @@ describe('TripFormModal', () => {
     await screen.findByText('Server error');
   });
 
-  it('FE-COMP-TRIPFORM-028: loading spinner shown while submitting', async () => {
+  it('FE-COMP-TRIPFORM-029: loading spinner shown while submitting', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockImplementation(() => new Promise(() => {}));
     render(<TripFormModal {...defaultProps} onSave={onSave} trip={null} />);
@@ -277,7 +311,7 @@ describe('TripFormModal', () => {
     await waitFor(() => expect(screen.getByText('Saving...')).toBeInTheDocument());
   });
 
-  it('FE-COMP-TRIPFORM-029: clearing the day count leaves the field empty (no snap to 1)', () => {
+  it('FE-COMP-TRIPFORM-030: clearing the day count leaves the field empty (no snap to 1)', () => {
     render(<TripFormModal {...defaultProps} trip={null} />);
     const dayInput = document.querySelector('input[max="365"]') as HTMLInputElement;
     expect(dayInput).toBeInTheDocument();
@@ -286,7 +320,7 @@ describe('TripFormModal', () => {
     expect(dayInput.value).toBe('');
   });
 
-  it('FE-COMP-TRIPFORM-030: empty day count blocks submit with an error', async () => {
+  it('FE-COMP-TRIPFORM-031: empty day count blocks submit with an error', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     render(<TripFormModal {...defaultProps} trip={null} onSave={onSave} />);

@@ -18,6 +18,33 @@ function enableMcp() {
   });
 }
 
+function entitlementPayload(overrides: any = {}) {
+  return {
+    entitlements: {
+      userId: 1,
+      planKey: 'free',
+      billingPlanKey: 'free',
+      billingStatus: 'free',
+      subscribed: false,
+      trialing: false,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
+        activeTrips: 3,
+        groupSize: 3,
+      },
+      ...(overrides.entitlements ?? {}),
+    },
+    billing: {
+      checkoutAvailable: false,
+      defaultPlanId: null,
+      portalAvailable: false,
+      ...(overrides.billing ?? {}),
+    },
+  };
+}
+
 const clipboardWriteText = vi.fn().mockResolvedValue(undefined);
 
 beforeAll(() => {
@@ -725,5 +752,93 @@ describe('IntegrationsTab', () => {
     await user.type(screen.getByPlaceholderText(/https:\/\/your-app/i), 'http://localhost');
     await user.click(screen.getByRole('button', { name: /Register Client/i }));
     await screen.findByText(/Failed to register/i);
+  });
+
+  it('FE-COMP-INTEGRATIONS-033: shows free-plan locked states for premium automation', async () => {
+    render(<IntegrationsTab />);
+
+    await screen.findByText('AI workers locked');
+    expect(screen.getByText('Price watches locked')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /coming soon/i }).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('FE-COMP-INTEGRATIONS-034: shows subscribed premium automation allowances without locked copy', async () => {
+    server.use(
+      http.get('/api/billing/entitlements', () =>
+        HttpResponse.json(
+          entitlementPayload({
+            entitlements: {
+              planKey: 'pro',
+              billingPlanKey: 'pro',
+              billingStatus: 'active',
+              subscribed: true,
+              limits: {
+                aiWorkers: 3,
+                priceWatches: 25,
+                mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
+                activeTrips: 25,
+                groupSize: 10,
+              },
+            },
+            billing: { portalAvailable: true },
+          })
+        )
+      )
+    );
+
+    render(<IntegrationsTab />);
+
+    await screen.findByText('AI workers');
+    expect(screen.queryByText('AI workers locked')).not.toBeInTheDocument();
+    expect(screen.queryByText('Price watches locked')).not.toBeInTheDocument();
+    expect(screen.getByText('0/3 available')).toBeInTheDocument();
+    expect(screen.getByText('0/25 available')).toBeInTheDocument();
+  });
+
+  it('FE-COMP-INTEGRATIONS-035: locks static MCP token creation when entitlement cap is reached', async () => {
+    server.use(
+      http.get('/api/billing/entitlements', () =>
+        HttpResponse.json(
+          entitlementPayload({
+            entitlements: {
+              limits: {
+                aiWorkers: 0,
+                priceWatches: 0,
+                mcpAutomation: { maxTokens: 1, maxConcurrentSessions: 200, requestsPerMinute: 300 },
+                activeTrips: 3,
+                groupSize: 3,
+              },
+            },
+            billing: { checkoutAvailable: true, defaultPlanId: 'pro' },
+          })
+        )
+      ),
+      http.get('/api/auth/mcp-tokens', () =>
+        HttpResponse.json({
+          tokens: [
+            {
+              id: 1,
+              name: 'Existing Token',
+              token_prefix: 'tk_existing',
+              created_at: '2025-01-01T00:00:00.000Z',
+              last_used_at: null,
+            },
+          ],
+        })
+      )
+    );
+
+    const user = userEvent.setup();
+    enableMcp();
+    render(<IntegrationsTab />);
+
+    await screen.findByText('MCP Configuration');
+    await user.click(screen.getByRole('button', { name: /API Tokens/i }));
+    await screen.findByText('Static MCP token limit reached');
+    expect(screen.getByText('Existing Token')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Create New Token/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Upgrade/i }).some((button) => !button.hasAttribute('disabled'))).toBe(
+      true
+    );
   });
 });

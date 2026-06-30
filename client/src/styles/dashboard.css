@@ -1165,6 +1165,16 @@
   color: var(--ink);
   box-shadow: var(--glass-shadow-hover), var(--glass-highlight);
 }
+.trek-dash .add-trip-card.is-locked {
+  cursor: default;
+  padding: 20px;
+}
+.trek-dash .add-trip-card.is-locked:hover {
+  transform: none;
+  border-color: var(--line-2);
+  color: inherit;
+  box-shadow: var(--glass-highlight);
+}
 .trek-dash .add-trip-card .circ {
   width: 48px;
   height: 48px;

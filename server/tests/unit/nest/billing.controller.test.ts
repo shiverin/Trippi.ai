@@ -34,6 +34,31 @@ describe('BillingController', () => {
     expect(createCheckoutSession).toHaveBeenCalledWith(user, { planId: 'pro' });
   });
 
+  it('returns the current user entitlements and billing upgrade availability', async () => {
+    const result = {
+      entitlements: {
+        userId: user.id,
+        planKey: 'free',
+        billingPlanKey: 'free',
+        billingStatus: 'free',
+        subscribed: false,
+        trialing: false,
+        limits: {
+          aiWorkers: 0,
+          priceWatches: 0,
+          mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
+          activeTrips: 3,
+          groupSize: 3,
+        },
+      },
+      billing: { checkoutAvailable: true, defaultPlanId: 'pro', portalAvailable: false },
+    };
+    const getEntitlements = vi.fn().mockResolvedValue(result);
+
+    await expect(controller({ getEntitlements }).getEntitlements(user)).resolves.toEqual(result);
+    expect(getEntitlements).toHaveBeenCalledWith(user);
+  });
+
   it('creates portal sessions for the current user', async () => {
     const createPortalSession = vi.fn().mockResolvedValue({ url: 'https://billing.stripe.test/session' });
 

@@ -6,12 +6,16 @@ import type { User } from '../../../src/types';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBillingCustomerForUserMock } = vi.hoisted(() => ({
+const { getBillingCustomerForUserMock, getEntitlementsForUserMock } = vi.hoisted(() => ({
   getBillingCustomerForUserMock: vi.fn(),
+  getEntitlementsForUserMock: vi.fn(),
 }));
 
 vi.mock('../../../src/services/subscriptionService', () => ({
   getBillingCustomerForUser: getBillingCustomerForUserMock,
+}));
+vi.mock('../../../src/services/entitlementService', () => ({
+  getEntitlementsForUser: getEntitlementsForUserMock,
 }));
 
 const user = { id: 7, email: 'organizer@example.test', role: 'user' } as User;
@@ -45,6 +49,51 @@ describe('BillingService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getBillingCustomerForUserMock.mockResolvedValue(undefined);
+    getEntitlementsForUserMock.mockResolvedValue({
+      userId: user.id,
+      planKey: 'free',
+      billingPlanKey: 'free',
+      billingStatus: 'free',
+      subscribed: false,
+      trialing: false,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
+        activeTrips: 3,
+        groupSize: 3,
+      },
+    });
+  });
+
+  it('returns entitlement data with checkout availability derived from billing config', async () => {
+    const result = await withEnv(
+      {
+        APP_URL: 'https://app.example.test',
+        STRIPE_SECRET_KEY: 'sk_test_123',
+        STRIPE_ORGANIZER_PLANS: 'agency=price_agency,pro=price_pro_monthly',
+      },
+      () => service({}).getEntitlements(user),
+    );
+
+    expect(getEntitlementsForUserMock).toHaveBeenCalledWith(user.id);
+    expect(result).toMatchObject({
+      entitlements: { planKey: 'free', limits: { activeTrips: 3, groupSize: 3 } },
+      billing: { checkoutAvailable: true, defaultPlanId: 'pro', portalAvailable: false },
+    });
+  });
+
+  it('returns a coming-soon billing state when checkout is not configured', async () => {
+    const result = await withEnv(
+      {
+        APP_URL: 'https://app.example.test',
+        STRIPE_SECRET_KEY: '',
+        STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+      },
+      () => service({}).getEntitlements(user),
+    );
+
+    expect(result.billing).toEqual({ checkoutAvailable: false, defaultPlanId: null, portalAvailable: false });
   });
 
   it('creates a hosted subscription checkout session for an allowlisted organizer plan', async () => {

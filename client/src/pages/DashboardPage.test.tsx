@@ -1030,9 +1030,7 @@ describe('DashboardPage', () => {
     });
 
     it('keeps legacy widget prefs when migration persistence fails', async () => {
-      server.use(
-        http.put('/api/settings', () => HttpResponse.json({ error: 'Server error' }, { status: 500 }))
-      );
+      server.use(http.put('/api/settings', () => HttpResponse.json({ error: 'Server error' }, { status: 500 })));
       localStorage.setItem('trippi_fx_from', 'CAD');
       localStorage.setItem('trippi_fx_to', 'CHF');
       localStorage.setItem('trippi_dashboard_tz', JSON.stringify(['America/New_York']));
@@ -1063,9 +1061,7 @@ describe('DashboardPage', () => {
 
     it('rolls back timezone widget edits and shows an error when persistence fails', async () => {
       const user = userEvent.setup();
-      server.use(
-        http.put('/api/settings', () => HttpResponse.json({ error: 'Server error' }, { status: 500 }))
-      );
+      server.use(http.put('/api/settings', () => HttpResponse.json({ error: 'Server error' }, { status: 500 })));
       seedStore(useSettingsStore, {
         settings: buildSettings({ dashboard_timezones: ['America/New_York'] }),
         isLoaded: true,
@@ -1143,6 +1139,65 @@ describe('DashboardPage', () => {
       await user.click(screen.getByRole('button', { name: /mark buy flight ticket complete/i }));
       await waitFor(() => expect(completedBody).toEqual({ checked: true }));
       expect(screen.queryByText('Buy flight ticket')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('FE-PAGE-DASH-036: active trip entitlement lock', () => {
+    it('shows a locked create state without hiding existing trips', async () => {
+      const user = userEvent.setup();
+      const owner = buildUser({ id: 1, username: 'owner' });
+      seedStore(useAuthStore, { isAuthenticated: true, user: owner });
+
+      server.use(
+        http.get('/api/billing/entitlements', () =>
+          HttpResponse.json({
+            entitlements: {
+              userId: owner.id,
+              planKey: 'free',
+              billingPlanKey: 'free',
+              billingStatus: 'free',
+              subscribed: false,
+              trialing: false,
+              limits: {
+                aiWorkers: 0,
+                priceWatches: 0,
+                mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
+                activeTrips: 3,
+                groupSize: 3,
+              },
+            },
+            billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false },
+          })
+        ),
+        http.get('/api/trips', ({ request }) => {
+          const url = new URL(request.url);
+          if (url.searchParams.get('archived')) return HttpResponse.json({ trips: [] });
+          return HttpResponse.json({
+            trips: [
+              buildTrip({ id: 301, user_id: owner.id, title: 'Locked Trip One', start_date: '2099-01-01' }),
+              buildTrip({ id: 302, user_id: owner.id, title: 'Locked Trip Two', start_date: '2099-02-01' }),
+              buildTrip({ id: 303, user_id: owner.id, title: 'Locked Trip Three', start_date: '2099-03-01' }),
+            ],
+          });
+        })
+      );
+
+      render(
+        <>
+          <ToastContainer />
+          <DashboardPage />
+        </>
+      );
+
+      await screen.findByTestId('active-trip-locked-state');
+      expect(screen.getAllByText('Locked Trip One').length).toBeGreaterThan(0);
+      expect(screen.getByText('3/3 active')).toBeInTheDocument();
+
+      const newTripButtons = screen.getAllByRole('button', { name: /new trip/i });
+      await user.click(newTripButtons[newTripButtons.length - 1]);
+
+      expect(screen.queryByText(/Create New Trip/i)).not.toBeInTheDocument();
+      expect(screen.getAllByText('Locked Trip Two').length).toBeGreaterThan(0);
     });
   });
 });

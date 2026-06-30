@@ -1,5 +1,5 @@
 import { asyncDb } from '../../db/asyncDatabase';
-import { checkPermission } from '../../services/permissions';
+import { checkPermissionAsync } from '../../services/permissions';
 import { broadcast } from '../../websocket';
 
 export function safeBroadcast(tripId: number, event: string, payload: Record<string, unknown>): void {
@@ -66,7 +66,7 @@ export async function hasTripPermission(action: string, tripId: number | string,
   if (!trip) return false;
   const userRow = await asyncDb.prepare('SELECT role FROM users WHERE id = ?').get<{ role?: string }>(userId);
   const tripOwnerId = typeof trip.user_id === 'number' ? trip.user_id : null;
-  return checkPermission(action, userRow?.role ?? 'user', tripOwnerId, userId, tripOwnerId !== userId);
+  return checkPermissionAsync(action, userRow?.role ?? 'user', tripOwnerId, userId, tripOwnerId !== userId);
 }
 
 /** True when the user has the global admin role (mirrors REST `user.role === 'admin'` gates). */

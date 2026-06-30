@@ -31,6 +31,7 @@ describe('async DB access guardrails', () => {
       'mcp/resources.ts',
       'mcp/tools/_shared.ts',
       'mcp/tools/budget.ts',
+      'mcp/tools/decisions.ts',
       'mcp/tools/days.ts',
       'mcp/tools/notifications.ts',
       'mcp/tools/packing.ts',

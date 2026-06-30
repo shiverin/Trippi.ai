@@ -3,6 +3,7 @@ import { registerAtlasTools } from './tools/atlas';
 import { registerBudgetTools } from './tools/budget';
 import { registerCollabTools } from './tools/collab';
 import { registerDayTools } from './tools/days';
+import { registerDecisionTools } from './tools/decisions';
 import { registerJourneyTools } from './tools/journey';
 import { registerMapsWeatherTools } from './tools/mapsWeather';
 import { registerNotificationTools } from './tools/notifications';
@@ -48,6 +49,8 @@ export function registerTools(
     await registerAtlasTools(server, userId, scopes);
 
     await registerCollabTools(server, userId, scopes);
+
+    registerDecisionTools(server, userId, scopes);
 
     registerTransportTools(server, userId, scopes);
 

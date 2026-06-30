@@ -27,7 +27,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': '확장된 도구 모음 및 프롬프트',
   'system_notice.v3_thankyou.title': '개인적인 감사 인사',
   'system_notice.v3_thankyou.body':
-    '떠나시기 전에 잠깐 시간을 내주세요.\n\ntrippi.ai은 제 자신의 여행을 위해 만든 사이드 프로젝트로 시작했습니다. 4,000명이 넘는 분들이 모험을 계획하는 데 신뢰해 주실 줄은 상상도 못 했습니다. 모든 별, 모든 이슈, 모든 기능 요청 — 저는 다 읽고, 그것들이 풀타임 직장과 대학 사이의 늦은 밤을 버티게 해줍니다.\n\n알아주셨으면 합니다: trippi.ai은 항상 오픈 소스이고, 항상 자체 호스팅이며, 항상 여러분의 것입니다. 추적 없음, 구독 없음, 조건 없음. 그저 여러분만큼 여행을 사랑하는 누군가가 만든 도구입니다.\n\n[jubnl](https://github.com/jubnl)에게 특별한 감사를. 당신은 훌륭한 협력자가 되었습니다. 3.0을 훌륭하게 만든 많은 부분에 당신의 손길이 담겨 있습니다. 거칠던 초기에 이 프로젝트를 믿어줘서 고맙습니다.\n\n그리고 버그를 제출하고, 문자열을 번역하고, trippi.ai을 친구에게 공유하거나, 단순히 여행 계획에 사용해 주신 모든 분들께 — **감사합니다**. 여러분이 바로 이것이 존재하는 이유입니다.\n\n함께하는 더 많은 모험을 위해.\n\n— trippi.ai\n\n---\n\n[Discord 커뮤니티에 참여하세요](https://discord.gg/7Q6M6jDwzf)\n\ntrippi.ai이 여행을 더 즐겁게 만들어 준다면, [커피 한 잔](https://github.com/shiverin/Trippi.ai)으로 불을 켜두는 데 도움이 됩니다.',
+    "계속하기 전에 — 감사합니다. trippi.ai은 제 여행을 위한 플래너로 시작했고, 이 커뮤니티가 이슈, 번역, 아이디어, 실제 여행으로 함께 만들어 왔습니다.\n\ntrippi.ai이 성장하면서 일부는 호스팅 서비스나 유료 플랜으로 발전할 수 있습니다. 프로젝트가 계속 나아지기 위한 변화이며, 더 나은 여행 계획에 집중해 명확하게 안내하겠습니다.\n\n[Discord 커뮤니티에 참여하세요](https://discord.gg/7Q6M6jDwzf)",
   'system_notice.v3014_whitespace_collision.title': '조치 필요: 사용자 계정 충돌',
   'system_notice.v3014_whitespace_collision.body':
     '3.0.14 업그레이드 중 저장된 계정의 앞뒤 공백으로 인한 사용자 이름 또는 이메일 충돌이 감지되었습니다. 영향받은 계정은 자동으로 이름이 변경되었습니다. 검토가 필요한 계정을 확인하려면 **[migration] WHITESPACE COLLISION**으로 시작하는 줄의 서버 로그를 확인하세요.',

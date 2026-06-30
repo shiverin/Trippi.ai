@@ -337,18 +337,53 @@ export class TripsService {
 
   /** Aggregates every trip sub-collection for offline caching (legacy /:id/bundle). */
   async bundle(tripId: string, trip: { user_id: number }) {
-    const { days } = await listDays(tripId);
-    const { owner, members } = await this.listMembers(tripId, trip.user_id);
+    const startedAt = Date.now();
+    const timed = async <T>(label: string, promise: Promise<T>): Promise<T> => {
+      const partStartedAt = Date.now();
+      try {
+        return await promise;
+      } finally {
+        const ms = Date.now() - partStartedAt;
+        if (ms >= 1000) {
+          logWarn(`[perf] trip bundle ${label} trip=${tripId} took ${ms}ms`);
+        }
+      }
+    };
+    const [
+      { days },
+      { owner, members },
+      places,
+      packingItems,
+      todoItems,
+      budgetItems,
+      reservations,
+      files,
+      accommodations,
+    ] = await Promise.all([
+      timed('days', listDays(tripId)),
+      timed('members', this.listMembers(tripId, trip.user_id)),
+      timed('places', listPlacesAsync(String(tripId), {})),
+      timed('packing', listPackingItems(tripId)),
+      timed('todos', listTodoItems(tripId)),
+      timed('budget', listBudgetItems(tripId)),
+      timed('reservations', listReservations(tripId)),
+      timed('files', listFilesAsync(tripId, false)),
+      timed('accommodations', listAccommodations(tripId)),
+    ]);
+    const totalMs = Date.now() - startedAt;
+    if (totalMs >= 1000) {
+      logWarn(`[perf] trip bundle total trip=${tripId} took ${totalMs}ms`);
+    }
     return {
       trip,
       days,
-      places: await listPlacesAsync(String(tripId), {}),
-      packingItems: await listPackingItems(tripId),
-      todoItems: await listTodoItems(tripId),
-      budgetItems: await listBudgetItems(tripId),
-      reservations: await listReservations(tripId),
-      files: await listFilesAsync(tripId, false),
-      accommodations: await listAccommodations(tripId),
+      places,
+      packingItems,
+      todoItems,
+      budgetItems,
+      reservations,
+      files,
+      accommodations,
       members: [owner, ...(members || [])].filter(Boolean),
     };
   }

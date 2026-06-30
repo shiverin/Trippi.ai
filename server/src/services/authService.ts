@@ -656,30 +656,92 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
 }
 
 export async function getAppConfigAsync(authenticatedUser: { id: number } | null) {
-  const get = async (key: string) =>
-    (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value;
-
-  const userCount = Number(
-    (await asyncDb.prepare('SELECT COUNT(*) as count FROM users').get<{ count: number }>())?.count ?? 0,
-  );
+  const settingKeys = [
+    'allowed_file_types',
+    'allow_registration',
+    'notification_channel',
+    'notification_channels',
+    'notify_trip_reminder',
+    'oidc_client_id',
+    'oidc_display_name',
+    'oidc_issuer',
+    'oidc_login',
+    'oidc_only',
+    'oidc_registration',
+    'passkey_login',
+    'password_login',
+    'password_registration',
+    'places_autocomplete_enabled',
+    'places_details_enabled',
+    'places_photos_enabled',
+    'require_mfa',
+    'smtp_host',
+  ];
+  const settingPlaceholders = settingKeys.map(() => '?').join(',');
+  const [settingRows, userCountRow, hasGoogleKeyRow, mustChangeAdmin, passkeyConfigured, permissions] =
+    await Promise.all([
+      asyncDb
+        .prepare(`SELECT key, value FROM app_settings WHERE key IN (${settingPlaceholders})`)
+        .all<{ key: string; value: string }>(...settingKeys),
+      asyncDb.prepare('SELECT COUNT(*) as count FROM users').get<{ count: number }>(),
+      asyncDb
+        .prepare(
+          "SELECT maps_api_key FROM users WHERE role = 'admin' AND maps_api_key IS NOT NULL AND maps_api_key != '' LIMIT 1",
+        )
+        .get(),
+      asyncDb.prepare("SELECT id FROM users WHERE role = 'admin' AND must_change_password = 1 LIMIT 1").get(),
+      isPasskeyConfiguredAsync(),
+      authenticatedUser ? getAllPermissionsAsync() : undefined,
+    ]);
+  const settings = new Map(settingRows.map((row) => [row.key, row.value]));
+  const get = (key: string) => settings.get(key) ?? null;
+  const userCount = Number(userCountRow?.count ?? 0);
   const isDemo = process.env.DEMO_MODE?.toLowerCase() === 'true';
-  const toggles = await resolveAuthTogglesAsync();
-  const version: string = process.env.APP_VERSION ?? require('../../package.json').version;
-  const hasGoogleKey = !!(await asyncDb
-    .prepare(
-      "SELECT maps_api_key FROM users WHERE role = 'admin' AND maps_api_key IS NOT NULL AND maps_api_key != '' LIMIT 1",
-    )
-    .get());
-  const oidcDisplayName = process.env.OIDC_DISPLAY_NAME || (await get('oidc_display_name')) || null;
-  const oidcConfigured = !!(
-    (process.env.OIDC_ISSUER || (await get('oidc_issuer'))) &&
-    (process.env.OIDC_CLIENT_ID || (await get('oidc_client_id')))
+  const passkey_login = get('passkey_login') === 'true';
+  const newKeyValues = ['password_login', 'password_registration', 'oidc_login', 'oidc_registration'].map((key) =>
+    get(key),
   );
-  const requireMfa = (await get('require_mfa')) === 'true';
-  const notifChannel = (await get('notification_channel')) || 'none';
-  const tripReminderSetting = await get('notify_trip_reminder');
-  const hasSmtpHost = !!(process.env.SMTP_HOST || (await get('smtp_host')));
-  const notifChannelsRaw = (await get('notification_channels')) || notifChannel;
+  const hasNewKeys = newKeyValues.some((value) => value !== null);
+  const toggles = hasNewKeys
+    ? {
+        password_login: get('password_login') !== 'false',
+        password_registration: get('password_registration') !== 'false',
+        oidc_login: get('oidc_login') !== 'false',
+        oidc_registration: get('oidc_registration') !== 'false',
+        passkey_login,
+      }
+    : (() => {
+        const oidcOnlyEnabled = process.env.OIDC_ONLY?.toLowerCase() === 'true' || get('oidc_only') === 'true';
+        const oidcConfigured = !!(
+          (process.env.OIDC_ISSUER || get('oidc_issuer')) &&
+          (process.env.OIDC_CLIENT_ID || get('oidc_client_id'))
+        );
+        const oidcOnly = oidcOnlyEnabled && oidcConfigured;
+        const allowReg = (get('allow_registration') ?? 'true') === 'true';
+        return {
+          password_login: !oidcOnly,
+          password_registration: !oidcOnly && allowReg,
+          oidc_login: true,
+          oidc_registration: allowReg,
+          passkey_login,
+        };
+      })();
+  if (process.env.OIDC_ONLY?.toLowerCase() === 'true') {
+    toggles.password_login = false;
+    toggles.password_registration = false;
+  }
+  const version: string = process.env.APP_VERSION ?? require('../../package.json').version;
+  const hasGoogleKey = !!hasGoogleKeyRow;
+  const oidcDisplayName = process.env.OIDC_DISPLAY_NAME || get('oidc_display_name') || null;
+  const oidcConfigured = !!(
+    (process.env.OIDC_ISSUER || get('oidc_issuer')) &&
+    (process.env.OIDC_CLIENT_ID || get('oidc_client_id'))
+  );
+  const requireMfa = get('require_mfa') === 'true';
+  const notifChannel = get('notification_channel') || 'none';
+  const tripReminderSetting = get('notify_trip_reminder');
+  const hasSmtpHost = !!(process.env.SMTP_HOST || get('smtp_host'));
+  const notifChannelsRaw = get('notification_channels') || notifChannel;
   const activeChannels =
     notifChannelsRaw === 'none'
       ? []
@@ -688,12 +750,9 @@ export async function getAppConfigAsync(authenticatedUser: { id: number } | null
           .map((c: string) => c.trim())
           .filter(Boolean);
   const hasWebhookEnabled = activeChannels.includes('webhook');
-  const placesPhotosEnabled = (await get('places_photos_enabled')) !== 'false';
-  const placesAutocompleteEnabled = (await get('places_autocomplete_enabled')) !== 'false';
-  const placesDetailsEnabled = (await get('places_details_enabled')) !== 'false';
-  const mustChangeAdmin = await asyncDb
-    .prepare("SELECT id FROM users WHERE role = 'admin' AND must_change_password = 1 LIMIT 1")
-    .get();
+  const placesPhotosEnabled = get('places_photos_enabled') !== 'false';
+  const placesAutocompleteEnabled = get('places_autocomplete_enabled') !== 'false';
+  const placesDetailsEnabled = get('places_details_enabled') !== 'false';
   const setupComplete = userCount > 0 && !mustChangeAdmin;
 
   return {
@@ -704,7 +763,7 @@ export async function getAppConfigAsync(authenticatedUser: { id: number } | null
     oidc_login: toggles.oidc_login,
     oidc_registration: isDemo ? false : toggles.oidc_registration,
     passkey_login: toggles.passkey_login,
-    passkey_configured: await isPasskeyConfiguredAsync(),
+    passkey_configured: passkeyConfigured,
     env_override_oidc_only: process.env.OIDC_ONLY === 'true',
     has_users: userCount > 0,
     setup_complete: setupComplete,
@@ -714,7 +773,7 @@ export async function getAppConfigAsync(authenticatedUser: { id: number } | null
     oidc_configured: oidcConfigured,
     oidc_display_name: oidcConfigured ? oidcDisplayName || 'SSO' : undefined,
     require_mfa: requireMfa,
-    allowed_file_types: (await get('allowed_file_types')) || 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv',
+    allowed_file_types: get('allowed_file_types') || 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv',
     demo_mode: isDemo,
     demo_email: isDemo ? DEMO_EMAIL_PRIMARY : undefined,
     demo_password: isDemo ? 'demo12345' : undefined,
@@ -729,7 +788,7 @@ export async function getAppConfigAsync(authenticatedUser: { id: number } | null
     places_photos_enabled: placesPhotosEnabled,
     places_autocomplete_enabled: placesAutocompleteEnabled,
     places_details_enabled: placesDetailsEnabled,
-    permissions: authenticatedUser ? await getAllPermissionsAsync() : undefined,
+    permissions,
     dev_mode: process.env.NODE_ENV === 'development',
   };
 }

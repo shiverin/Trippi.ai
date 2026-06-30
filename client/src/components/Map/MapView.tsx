@@ -504,9 +504,17 @@ export const MapView = memo(function MapView({
   const pendingThumbsRef = useRef<Record<string, string>>({});
   const thumbRafRef = useRef<number | null>(null);
 
-  const placeIds = useMemo(() => places.map((p) => p.id).join(','), [places]);
+  const photoHydrationPlaces = useMemo(() => {
+    const seen = new Set<number>();
+    return [...dayPlaces, ...places].filter((place) => {
+      if (seen.has(place.id)) return false;
+      seen.add(place.id);
+      return true;
+    });
+  }, [dayPlaces, places]);
+  const photoHydrationIds = useMemo(() => photoHydrationPlaces.map((p) => p.id).join(','), [photoHydrationPlaces]);
   useEffect(() => {
-    if (!places || places.length === 0 || !placesPhotosEnabled) return;
+    if (!photoHydrationPlaces || photoHydrationPlaces.length === 0 || !placesPhotosEnabled) return;
     const cleanups: (() => void)[] = [];
 
     const setThumb = (cacheKey: string, thumb: string) => {
@@ -523,7 +531,7 @@ export const MapView = memo(function MapView({
       });
     };
 
-    for (const place of places) {
+    for (const place of photoHydrationPlaces) {
       const cacheKey = place.google_place_id || place.osm_id || `${place.lat},${place.lng}`;
       if (!cacheKey) continue;
 
@@ -556,7 +564,7 @@ export const MapView = memo(function MapView({
         thumbRafRef.current = null;
       }
     };
-  }, [placeIds, placesPhotosEnabled]);
+  }, [photoHydrationIds, placesPhotosEnabled, photoHydrationPlaces]);
 
   const clusterIconCreateFunction = useCallback((cluster) => {
     const count = cluster.getChildCount();

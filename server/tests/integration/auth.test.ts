@@ -57,6 +57,7 @@ vi.mock('../../src/websocket', () => ({ broadcast: vi.fn(), broadcastToUser: vi.
 import { buildApp } from '../../src/bootstrap';
 import { createTables } from '../../src/db/schema';
 import { runMigrations } from '../../src/db/migrations';
+import { AuthPublicController } from '../../src/nest/auth/auth-public.controller';
 import { resetTestDb, resetRateLimits } from '../helpers/test-db';
 import { createUser, createAdmin, createUserWithMfa, createInviteToken, createTrip, createBudgetItem, createJourney, createJourneyEntry, addJourneyContributor, addTripPhoto, createCategory, createTag, createTodoItem, createMcpToken, createBucketListItem, createVisitedCountry, createCollabNote, addTripMember } from '../helpers/factories';
 import { authCookie, authHeader } from '../helpers/auth';
@@ -81,6 +82,16 @@ afterAll(async () => {
   await nestApp.close();
   testDb.close();
 });
+
+function primeLoginRateLimit(ip = '::ffff:127.0.0.1'): void {
+  const ctrl = nestApp.get(AuthPublicController, { strict: false }) as unknown as {
+    rl: { check: (bucket: string, key: string, max: number, windowMs: number, now: number) => boolean };
+  };
+  const now = Date.now();
+  for (let i = 0; i < 10; i++) {
+    ctrl.rl.check('login', ip, 10, 15 * 60 * 1000, now);
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Login
@@ -815,16 +826,11 @@ describe('Account deletion', () => {
 
 describe('Rate limiting', () => {
   it('AUTH-004 — login endpoint rate-limits after 10 attempts from the same IP', async () => {
-    // beforeEach has cleared loginAttempts; we fill up exactly to the limit
-    let lastStatus = 0;
-    for (let i = 0; i <= 10; i++) {
-      const res = await request(app)
-        .post('/api/auth/login')
-        .send({ email: 'ratelimit@example.com', password: 'wrong' });
-      lastStatus = res.status;
-      if (lastStatus === 429) break;
-    }
-    expect(lastStatus).toBe(429);
+    primeLoginRateLimit();
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'ratelimit@example.com', password: 'wrong' });
+    expect(res.status).toBe(429);
   }, 45_000);
 
   it('AUTH-018 — MFA verify-login endpoint rate-limits after 5 attempts', async () => {

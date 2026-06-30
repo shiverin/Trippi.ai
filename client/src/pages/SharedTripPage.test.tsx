@@ -349,6 +349,7 @@ describe('SharedTripPage', () => {
 
   describe('FE-PAGE-SHARED-014: Language picker toggles', () => {
     it('opens language dropdown and closes after selecting a language', async () => {
+      localStorage.removeItem('app_language');
       renderSharedTrip('test-token');
 
       await waitFor(() => {
@@ -370,6 +371,8 @@ describe('SharedTripPage', () => {
 
       // Dropdown should close — Español is no longer visible
       expect(screen.queryByRole('button', { name: /español/i })).toBeNull();
+      expect(useSettingsStore.getState().settings.language).toBe('de');
+      expect(localStorage.getItem('app_language')).toBeNull();
     });
   });
 

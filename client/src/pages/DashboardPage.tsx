@@ -30,6 +30,7 @@ import ConfirmDialog from '../components/shared/ConfirmDialog';
 import CopyTripDialog from '../components/shared/CopyTripDialog';
 import CustomSelect from '../components/shared/CustomSelect';
 import PlaceAvatar from '../components/shared/PlaceAvatar';
+import { useToast } from '../components/shared/Toast';
 import { useTranslation } from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
 import '../styles/dashboard.css';
@@ -818,18 +819,34 @@ const FX_FALLBACK = [
 
 function CurrencyTool(): React.ReactElement {
   const { t } = useTranslation();
+  const toast = useToast();
   const isLoaded = useSettingsStore((s) => s.isLoaded);
   const updateSetting = useSettingsStore((s) => s.updateSetting);
   const from = useSettingsStore((s) => s.settings.dashboard_fx_from) || 'EUR';
   const to = useSettingsStore((s) => s.settings.dashboard_fx_to) || 'USD';
-  const setFrom = (v: string) => {
-    updateSetting('dashboard_fx_from', v).catch(() => {});
+  const showSaveError = React.useCallback(
+    (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : t('common.error'));
+    },
+    [t, toast]
+  );
+  const setFrom = async (v: string) => {
+    try {
+      await updateSetting('dashboard_fx_from', v);
+    } catch (err: unknown) {
+      showSaveError(err);
+    }
   };
-  const setTo = (v: string) => {
-    updateSetting('dashboard_fx_to', v).catch(() => {});
+  const setTo = async (v: string) => {
+    try {
+      await updateSetting('dashboard_fx_to', v);
+    } catch (err: unknown) {
+      showSaveError(err);
+    }
   };
   const [amount, setAmount] = useState('100');
   const [rates, setRates] = useState<Record<string, number> | null>(null);
+  const migrationAttemptedRef = React.useRef(false);
 
   const fetchRate = React.useCallback(() => {
     fetch(`https://api.frankfurter.dev/v2/rates?base=${from}`)
@@ -853,17 +870,22 @@ function CurrencyTool(): React.ReactElement {
   // One-time migration of the pre-3.1.3 localStorage values into the user's settings,
   // so a (docker) upgrade no longer resets the widget (#1311).
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || migrationAttemptedRef.current) return;
     const lf = localStorage.getItem('trippi_fx_from') ?? localStorage.getItem('trek_fx_from');
     const lt = localStorage.getItem('trippi_fx_to') ?? localStorage.getItem('trek_fx_to');
     if (!lf && !lt) return;
-    if (lf) updateSetting('dashboard_fx_from', lf).catch(() => {});
-    if (lt) updateSetting('dashboard_fx_to', lt).catch(() => {});
-    localStorage.removeItem('trippi_fx_from');
-    localStorage.removeItem('trippi_fx_to');
-    localStorage.removeItem('trek_fx_from');
-    localStorage.removeItem('trek_fx_to');
-  }, [isLoaded, updateSetting]);
+    migrationAttemptedRef.current = true;
+    const migrate = async (key: 'dashboard_fx_from' | 'dashboard_fx_to', value: string, legacyKeys: string[]) => {
+      try {
+        await updateSetting(key, value);
+        legacyKeys.forEach((legacyKey) => localStorage.removeItem(legacyKey));
+      } catch (err: unknown) {
+        showSaveError(err);
+      }
+    };
+    if (lf) void migrate('dashboard_fx_from', lf, ['trippi_fx_from', 'trek_fx_from']);
+    if (lt) void migrate('dashboard_fx_to', lt, ['trippi_fx_to', 'trek_fx_to']);
+  }, [isLoaded, showSaveError, updateSetting]);
 
   const currencies = rates ? Object.keys(rates).sort() : FX_FALLBACK;
   const ccyOptions = currencies.map((c) => ({ value: c, label: c }));
@@ -871,8 +893,8 @@ function CurrencyTool(): React.ReactElement {
   const converted = rate != null ? (parseFloat(amount.replace(',', '.')) || 0) * rate : null;
 
   const swap = () => {
-    setFrom(to);
-    setTo(from);
+    void setFrom(to);
+    void setTo(from);
   };
 
   return (
@@ -891,7 +913,7 @@ function CurrencyTool(): React.ReactElement {
           <input className="amt mono" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
           <CustomSelect
             value={from}
-            onChange={(v) => setFrom(String(v))}
+            onChange={(v) => void setFrom(String(v))}
             options={ccyOptions}
             searchable
             size="sm"
@@ -906,7 +928,7 @@ function CurrencyTool(): React.ReactElement {
           <input className="amt mono" value={converted != null ? converted.toFixed(2) : '—'} readOnly />
           <CustomSelect
             value={to}
-            onChange={(v) => setTo(String(v))}
+            onChange={(v) => void setTo(String(v))}
             options={ccyOptions}
             searchable
             size="sm"
@@ -954,6 +976,7 @@ function shortZone(tz: string): string {
 
 function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
   const { t } = useTranslation();
+  const toast = useToast();
   const home = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [now, setNow] = useState(() => new Date());
   const isLoaded = useSettingsStore((s) => s.isLoaded);
@@ -961,10 +984,21 @@ function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
   const stored = useSettingsStore((s) => s.settings.dashboard_timezones);
   // Unset (never chosen) falls back to home + defaults; an explicit list is honoured.
   const zones = stored ?? [home, ...DEFAULT_ZONES];
-  const setZones = (next: string[]) => {
-    updateSetting('dashboard_timezones', next).catch(() => {});
+  const showSaveError = React.useCallback(
+    (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : t('common.error'));
+    },
+    [t, toast]
+  );
+  const setZones = async (next: string[]) => {
+    try {
+      await updateSetting('dashboard_timezones', next);
+    } catch (err: unknown) {
+      showSaveError(err);
+    }
   };
   const [adding, setAdding] = useState(false);
+  const migrationAttemptedRef = React.useRef(false);
 
   // A minute's resolution is plenty for clocks and keeps re-renders cheap.
   useEffect(() => {
@@ -975,18 +1009,27 @@ function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
   // One-time migration of the pre-3.1.3 localStorage value into the user's settings,
   // so a (docker) upgrade no longer resets the widget (#1311).
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || migrationAttemptedRef.current) return;
     const raw = localStorage.getItem('trippi_dashboard_tz') ?? localStorage.getItem('trek_dashboard_tz');
     if (!raw) return;
+    migrationAttemptedRef.current = true;
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) updateSetting('dashboard_timezones', parsed).catch(() => {});
+      if (Array.isArray(parsed)) {
+        void (async () => {
+          try {
+            await updateSetting('dashboard_timezones', parsed);
+            localStorage.removeItem('trippi_dashboard_tz');
+            localStorage.removeItem('trek_dashboard_tz');
+          } catch (err: unknown) {
+            showSaveError(err);
+          }
+        })();
+      }
     } catch {
       /* ignore malformed storage */
     }
-    localStorage.removeItem('trippi_dashboard_tz');
-    localStorage.removeItem('trek_dashboard_tz');
-  }, [isLoaded, updateSetting]);
+  }, [isLoaded, showSaveError, updateSetting]);
 
   const allZones = React.useMemo<string[]>(() => {
     const supported = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;
@@ -1002,10 +1045,10 @@ function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
     .map((z) => ({ value: z, label: z.replace(/_/g, ' '), searchLabel: z }));
 
   const addZone = (tz: string) => {
-    if (tz && !zones.includes(tz)) setZones([...zones, tz]);
+    if (tz && !zones.includes(tz)) void setZones([...zones, tz]);
     setAdding(false);
   };
-  const removeZone = (tz: string) => setZones(zones.filter((z) => z !== tz));
+  const removeZone = (tz: string) => void setZones(zones.filter((z) => z !== tz));
 
   const timeIn = (tz: string) =>
     now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz });

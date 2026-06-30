@@ -5,6 +5,7 @@ import { buildSettings, buildTodoItem, buildTrip, buildUser } from '../../tests/
 import { server } from '../../tests/helpers/msw/server';
 import { render, screen, waitFor } from '../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../tests/helpers/store';
+import { ToastContainer } from '../components/shared/Toast';
 import { useAuthStore } from '../store/authStore';
 import { usePermissionsStore } from '../store/permissionsStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -969,10 +970,21 @@ describe('DashboardPage', () => {
     });
 
     it('migrates the pre-3.1.3 localStorage prefs into settings and clears the legacy keys', async () => {
+      const saved: Record<string, unknown> = {};
+      server.use(
+        http.put('/api/settings', async ({ request }) => {
+          const body = (await request.json()) as { key: string; value: unknown };
+          saved[body.key] = body.value;
+          return HttpResponse.json({ success: true });
+        })
+      );
       localStorage.setItem('trippi_fx_from', 'CAD');
       localStorage.setItem('trippi_fx_to', 'CHF');
       localStorage.setItem('trippi_dashboard_tz', JSON.stringify(['America/New_York']));
-      seedStore(useSettingsStore, { settings: buildSettings(), isLoaded: true });
+      seedStore(useSettingsStore, {
+        settings: buildSettings({ dashboard_fx_from: 'EUR', dashboard_fx_to: 'USD' }),
+        isLoaded: true,
+      });
       render(<DashboardPage />);
       // The one-time migration runs on mount (settings already loaded) and removes the keys.
       await waitFor(() => {
@@ -983,6 +995,68 @@ describe('DashboardPage', () => {
       expect(s.dashboard_fx_from).toBe('CAD');
       expect(s.dashboard_fx_to).toBe('CHF');
       expect(s.dashboard_timezones).toEqual(['America/New_York']);
+      expect(saved).toMatchObject({
+        dashboard_fx_from: 'CAD',
+        dashboard_fx_to: 'CHF',
+        dashboard_timezones: ['America/New_York'],
+      });
+    });
+
+    it('keeps legacy widget prefs when migration persistence fails', async () => {
+      server.use(
+        http.put('/api/settings', () => HttpResponse.json({ error: 'Server error' }, { status: 500 }))
+      );
+      localStorage.setItem('trippi_fx_from', 'CAD');
+      localStorage.setItem('trippi_fx_to', 'CHF');
+      localStorage.setItem('trippi_dashboard_tz', JSON.stringify(['America/New_York']));
+      seedStore(useSettingsStore, {
+        settings: buildSettings({ dashboard_fx_from: 'EUR', dashboard_fx_to: 'USD' }),
+        isLoaded: true,
+      });
+
+      render(
+        <>
+          <ToastContainer />
+          <DashboardPage />
+        </>
+      );
+
+      await screen.findAllByText('Server error');
+      expect(localStorage.getItem('trippi_fx_from')).toBe('CAD');
+      expect(localStorage.getItem('trippi_fx_to')).toBe('CHF');
+      expect(localStorage.getItem('trippi_dashboard_tz')).toBe(JSON.stringify(['America/New_York']));
+
+      await waitFor(() => {
+        const s = useSettingsStore.getState().settings;
+        expect(s.dashboard_fx_from).toBe('EUR');
+        expect(s.dashboard_fx_to).toBe('USD');
+        expect(s.dashboard_timezones).toBeUndefined();
+      });
+    });
+
+    it('rolls back timezone widget edits and shows an error when persistence fails', async () => {
+      const user = userEvent.setup();
+      server.use(
+        http.put('/api/settings', () => HttpResponse.json({ error: 'Server error' }, { status: 500 }))
+      );
+      seedStore(useSettingsStore, {
+        settings: buildSettings({ dashboard_timezones: ['America/New_York'] }),
+        isLoaded: true,
+      });
+
+      render(
+        <>
+          <ToastContainer />
+          <DashboardPage />
+        </>
+      );
+
+      await waitFor(() => expect(screen.getByText('New York')).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: /remove new york/i }));
+
+      await screen.findByText('Server error');
+      await waitFor(() => expect(screen.getByText('New York')).toBeInTheDocument());
+      expect(useSettingsStore.getState().settings.dashboard_timezones).toEqual(['America/New_York']);
     });
   });
 

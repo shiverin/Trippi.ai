@@ -41,17 +41,18 @@ describe('settingsStore', () => {
   });
 
   describe('FE-SETTINGS-003: updateSetting() reverts on API failure', () => {
-    it('throws when API fails', async () => {
+    it('throws and rolls back local state when API fails', async () => {
       server.use(
         http.put('/api/settings', () =>
           HttpResponse.json({ error: 'Server error' }, { status: 500 })
         )
       );
 
-      // The store optimistically sets, then throws — the revert is a throw
       await expect(
         useSettingsStore.getState().updateSetting('default_currency', 'GBP')
       ).rejects.toThrow();
+
+      expect(useSettingsStore.getState().settings.default_currency).toBe('USD');
     });
   });
 
@@ -123,7 +124,7 @@ describe('settingsStore', () => {
   });
 
   describe('FE-STORE-SETTINGS-010: updateSettings API failure throws', () => {
-    it('throws when bulk API returns 500', async () => {
+    it('throws and rolls back changed keys when bulk API returns 500', async () => {
       server.use(
         http.post('/api/settings/bulk', () =>
           HttpResponse.json({ error: 'Server error' }, { status: 500 })
@@ -131,8 +132,11 @@ describe('settingsStore', () => {
       );
 
       await expect(
-        useSettingsStore.getState().updateSettings({ dark_mode: true })
+        useSettingsStore.getState().updateSettings({ dark_mode: true, default_currency: 'JPY' })
       ).rejects.toThrow();
+
+      expect(useSettingsStore.getState().settings.dark_mode).toBe(false);
+      expect(useSettingsStore.getState().settings.default_currency).toBe('USD');
     });
   });
 
@@ -201,8 +205,8 @@ describe('settingsStore', () => {
     });
   });
 
-  describe('FE-STORE-SETTINGS-014: updateSetting API failure leaves optimistic state', () => {
-    it('throws on API failure but keeps the optimistic state', async () => {
+  describe('FE-STORE-SETTINGS-014: updateSetting API failure rolls back optimistic state', () => {
+    it('throws on API failure and restores the previous value', async () => {
       server.use(
         http.put('/api/settings', () =>
           HttpResponse.json({ error: 'Server error' }, { status: 500 })
@@ -213,7 +217,60 @@ describe('settingsStore', () => {
         useSettingsStore.getState().updateSetting('default_zoom', 15)
       ).rejects.toThrow();
 
-      expect(useSettingsStore.getState().settings.default_zoom).toBe(15);
+      expect(useSettingsStore.getState().settings.default_zoom).toBe(10);
+    });
+  });
+
+  describe('FE-STORE-SETTINGS-018: updateSetting rollback preserves newer successful changes', () => {
+    it('does not let an older failed save clobber a newer successful save', async () => {
+      server.use(
+        http.put('/api/settings', async ({ request }) => {
+          const body = (await request.json()) as { value?: unknown };
+          if (body.value === 'EUR') {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            return HttpResponse.json({ error: 'Server error' }, { status: 500 });
+          }
+          return HttpResponse.json({ success: true });
+        })
+      );
+
+      const olderSave = useSettingsStore.getState().updateSetting('default_currency', 'EUR');
+      await useSettingsStore.getState().updateSetting('default_currency', 'GBP');
+      await expect(olderSave).rejects.toThrow();
+
+      expect(useSettingsStore.getState().settings.default_currency).toBe('GBP');
+    });
+  });
+
+  describe('FE-STORE-SETTINGS-019: language rollback restores localStorage', () => {
+    it('restores the previous explicit app_language value when save fails', async () => {
+      localStorage.setItem('app_language', 'de');
+      useSettingsStore.setState({ settings: buildSettings({ language: 'de' }) });
+      server.use(
+        http.put('/api/settings', () =>
+          HttpResponse.json({ error: 'Server error' }, { status: 500 })
+        )
+      );
+
+      await expect(useSettingsStore.getState().updateSetting('language', 'fr')).rejects.toThrow();
+
+      expect(useSettingsStore.getState().settings.language).toBe('de');
+      expect(localStorage.getItem('app_language')).toBe('de');
+    });
+
+    it('removes app_language again when there was no previous explicit choice', async () => {
+      localStorage.clear();
+      useSettingsStore.setState({ settings: buildSettings({ language: 'en' }) });
+      server.use(
+        http.put('/api/settings', () =>
+          HttpResponse.json({ error: 'Server error' }, { status: 500 })
+        )
+      );
+
+      await expect(useSettingsStore.getState().updateSetting('language', 'fr')).rejects.toThrow();
+
+      expect(useSettingsStore.getState().settings.language).toBe('en');
+      expect(localStorage.getItem('app_language')).toBeNull();
     });
   });
 });

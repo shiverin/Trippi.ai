@@ -21,6 +21,8 @@ import type { INestApplication } from '@nestjs/common';
 import { createTables } from '../../src/db/schema';
 import { runMigrations } from '../../src/db/migrations';
 import { AuthPublicController } from '../../src/nest/auth/auth-public.controller';
+import { clearAuthUserCache } from '../../src/middleware/auth';
+import { clearAppConfigCache } from '../../src/services/authService';
 import type { RateLimitService } from '../../src/nest/auth/rate-limit.service';
 
 // Tables to clear on reset, child-before-parent to be safe (FK checks are OFF during reset).
@@ -178,6 +180,8 @@ export function resetTestDb(db: Database.Database): void {
   }
   db.exec('PRAGMA foreign_keys = ON');
   seedDefaults(db);
+  clearAuthUserCache();
+  clearAppConfigCache();
 }
 
 /**

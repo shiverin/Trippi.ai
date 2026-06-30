@@ -536,6 +536,7 @@ describe('JourneyPublicPage', () => {
   // FE-PAGE-PUBLICJOURNEY-016
   it('FE-PAGE-PUBLICJOURNEY-016: language picker opens and switches language', async () => {
     const user = userEvent.setup();
+    localStorage.removeItem('app_language');
     setupSuccess();
     render(<JourneyPublicPage />);
     await waitFor(() => {
@@ -562,6 +563,7 @@ describe('JourneyPublicPage', () => {
     // The picker should close and settings store should be updated
     const settings = useSettingsStore.getState().settings;
     expect(settings.language).toBe('de');
+    expect(localStorage.getItem('app_language')).toBeNull();
   });
 
   // FE-PAGE-PUBLICJOURNEY-017

@@ -206,6 +206,24 @@ describe('Navbar', () => {
     expect(updateSetting).toHaveBeenCalledWith('dark_mode', 'dark');
   });
 
+  it('FE-COMP-NAVBAR-023B: dark mode toggle rolls back and shows an error when save fails', async () => {
+    const user = userEvent.setup();
+    const addToast = vi.fn(() => 1);
+    window.__addToast = addToast;
+    server.use(http.put('/api/settings', () => HttpResponse.json({ error: 'Server error' }, { status: 500 })));
+    seedStore(useSettingsStore, { settings: buildSettings({ dark_mode: false }) });
+
+    render(<Navbar />);
+
+    const toggleBtn = document.querySelector('button[title]') as HTMLElement;
+    expect(toggleBtn).toBeTruthy();
+    await user.click(toggleBtn);
+
+    await waitFor(() => expect(addToast).toHaveBeenCalledWith('Server error', 'error', undefined));
+    expect(useSettingsStore.getState().settings.dark_mode).toBe(false);
+    delete window.__addToast;
+  });
+
   it('FE-COMP-NAVBAR-024: global addon nav links appear when addons enabled', () => {
     server.use(
       http.get('/api/addons', () =>

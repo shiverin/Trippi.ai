@@ -54,6 +54,7 @@ function FitBoundsToPlaces({ places }: { places: any[] }) {
 
 export default function SharedTripPage() {
   const { t, locale } = useTranslation();
+  const setLanguageTransient = useSettingsStore((s) => s.setLanguageTransient);
   // Page = wiring container: share fetch + view state live in the hook.
   const { data, error, selectedDay, setSelectedDay, activeTab, setActiveTab, showLangPicker, setShowLangPicker } =
     useSharedTrip();
@@ -279,8 +280,8 @@ export default function SharedTripPage() {
                 <button
                   key={lang.value}
                   onClick={() => {
-                    // Set language locally without API call (shared page has no auth)
-                    useSettingsStore.setState((s) => ({ settings: { ...s.settings, language: lang.value } }));
+                    // Public shared pages have no auth-backed preference; keep this session-only.
+                    setLanguageTransient(lang.value);
                     setShowLangPicker(false);
                   }}
                   className="text-[#374151]"

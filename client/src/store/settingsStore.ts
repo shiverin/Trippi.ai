@@ -4,6 +4,21 @@ import { SUPPORTED_LANGUAGE_CODES } from '../i18n/supportedLanguages';
 import type { Settings } from '../types';
 import { getApiErrorMessage } from '../types';
 
+const UNSET_SETTING = Symbol('unset-setting');
+type SettingsKey = keyof Settings;
+type SettingsValue = Settings[SettingsKey];
+type SettingSnapshot = SettingsValue | typeof UNSET_SETTING;
+
+let pendingSaveId = 0;
+const pendingSaves = new Map<SettingsKey, PendingSettingSave[]>();
+const latestSaveByKey = new Map<SettingsKey, number>();
+
+interface PendingSettingSave {
+  id: number;
+  previous: SettingSnapshot;
+  previousLanguageStorage?: string | null;
+}
+
 interface SettingsState {
   settings: Settings;
   isLoaded: boolean;
@@ -19,6 +34,74 @@ interface SettingsState {
 // Use this instead of reading localStorage directly so the key stays encapsulated here.
 export const hasStoredLanguage = (): boolean =>
   typeof localStorage !== 'undefined' && !!localStorage.getItem('app_language');
+
+function readSettingSnapshot(settings: Settings, key: SettingsKey): SettingSnapshot {
+  return Object.prototype.hasOwnProperty.call(settings, key) ? settings[key] : UNSET_SETTING;
+}
+
+function applySettingSnapshot(settings: Settings, key: SettingsKey, snapshot: SettingSnapshot): Settings {
+  const next = { ...settings };
+  if (snapshot === UNSET_SETTING) {
+    delete (next as Partial<Settings>)[key];
+  } else {
+    (next as Record<string, unknown>)[key] = snapshot;
+  }
+  return next;
+}
+
+function getLanguageStorage(): string | null {
+  return typeof localStorage === 'undefined' ? null : localStorage.getItem('app_language');
+}
+
+function restoreLanguageStorage(value: string | null | undefined): void {
+  if (typeof localStorage === 'undefined') return;
+  if (value == null) localStorage.removeItem('app_language');
+  else localStorage.setItem('app_language', value);
+}
+
+function trackPendingSave(key: SettingsKey, previous: SettingSnapshot): PendingSettingSave {
+  const entry: PendingSettingSave = {
+    id: ++pendingSaveId,
+    previous,
+    previousLanguageStorage: key === 'language' ? getLanguageStorage() : undefined,
+  };
+  latestSaveByKey.set(key, entry.id);
+  const stack = pendingSaves.get(key) ?? [];
+  stack.push(entry);
+  pendingSaves.set(key, stack);
+  return entry;
+}
+
+function finishPendingSave(key: SettingsKey, entry: PendingSettingSave): void {
+  const stack = pendingSaves.get(key);
+  if (!stack) return;
+  const index = stack.findIndex((candidate) => candidate.id === entry.id);
+  if (index === -1) return;
+  stack.splice(index, 1);
+  if (stack.length === 0) pendingSaves.delete(key);
+}
+
+function rollbackPendingSave(key: SettingsKey, entry: PendingSettingSave, set: (fn: (state: SettingsState) => Partial<SettingsState>) => void): void {
+  const stack = pendingSaves.get(key);
+  if (!stack) return;
+  const index = stack.findIndex((candidate) => candidate.id === entry.id);
+  if (index === -1) return;
+
+  const nextEntry = stack[index + 1];
+  if (nextEntry) {
+    nextEntry.previous = entry.previous;
+    if (key === 'language') nextEntry.previousLanguageStorage = entry.previousLanguageStorage;
+  }
+  stack.splice(index, 1);
+  if (stack.length === 0) pendingSaves.delete(key);
+
+  if (latestSaveByKey.get(key) !== entry.id) return;
+
+  set((state) => ({
+    settings: applySettingSnapshot(state.settings, key, entry.previous),
+  }));
+  if (key === 'language') restoreLanguageStorage(entry.previousLanguageStorage);
+}
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: {
@@ -64,13 +147,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   updateSetting: async (key: keyof Settings, value: Settings[keyof Settings]) => {
+    const previous = readSettingSnapshot(get().settings, key);
+    const pending = trackPendingSave(key, previous);
     set((state) => ({
       settings: { ...state.settings, [key]: value },
     }));
     if (key === 'language') localStorage.setItem('app_language', value as string);
     try {
       await settingsApi.set(key, value);
+      finishPendingSave(key, pending);
     } catch (err: unknown) {
+      rollbackPendingSave(key, pending, set);
       console.error('Failed to save setting:', err);
       throw new Error(getApiErrorMessage(err, 'Error saving setting'));
     }
@@ -90,12 +177,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   updateSettings: async (settingsObj: Partial<Settings>) => {
+    const pending = (Object.keys(settingsObj) as SettingsKey[]).map((key) =>
+      trackPendingSave(key, readSettingSnapshot(get().settings, key))
+    );
     set((state) => ({
       settings: { ...state.settings, ...settingsObj },
     }));
     try {
       await settingsApi.setBulk(settingsObj);
+      (Object.keys(settingsObj) as SettingsKey[]).forEach((key, index) => finishPendingSave(key, pending[index]));
     } catch (err: unknown) {
+      (Object.keys(settingsObj) as SettingsKey[]).forEach((key, index) => rollbackPendingSave(key, pending[index], set));
       console.error('Failed to save settings:', err);
       throw new Error(getApiErrorMessage(err, 'Error saving settings'));
     }

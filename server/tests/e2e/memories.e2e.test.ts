@@ -99,6 +99,7 @@ vi.mock('../../src/services/memories/helpersService', async () => {
 
 import { MemoriesModule } from '../../src/nest/memories/memories.module';
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
+import { clearAuthUserCache } from '../../src/middleware/auth';
 
 const BASE = '/api/integrations/memories';
 const UNIFIED = `${BASE}/unified`;
@@ -129,7 +130,8 @@ describe('Memories e2e (real auth guard + temp SQLite)', () => {
   });
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    clearAuthUserCache();
     canAccessUserPhoto.mockReturnValue(true);
     immich.isValidAssetId.mockReturnValue(true);
   });

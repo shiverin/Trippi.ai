@@ -30,6 +30,7 @@ describe('async DB access guardrails', () => {
       'mcp/oauthProvider.ts',
       'mcp/resources.ts',
       'mcp/tools/_shared.ts',
+      'mcp/tools/bookingIntents.ts',
       'mcp/tools/budget.ts',
       'mcp/tools/decisions.ts',
       'mcp/tools/days.ts',

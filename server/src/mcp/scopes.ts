@@ -107,12 +107,13 @@ export const SCOPE_INFO: Record<Scope, ScopeInfo> = {
   'budget:write': { label: 'Manage budget', description: 'Create, update, and delete budget items', group: 'Budget' },
   'reservations:read': {
     label: 'View reservations',
-    description: 'Read reservations and accommodation details',
+    description: 'Read reservations, booking intents, booking options, and checkout handoff state',
     group: 'Reservations',
   },
   'reservations:write': {
     label: 'Manage reservations',
-    description: 'Create, update, delete, and reorder reservations',
+    description:
+      'Create and update reservations, booking intents, price watches, and provider checkout handoffs; does not let Trippi purchase travel or store payment cards',
     group: 'Reservations',
   },
   'collab:read': {

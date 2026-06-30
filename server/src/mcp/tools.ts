@@ -1,5 +1,6 @@
 import { registerAssignmentTools } from './tools/assignments';
 import { registerAtlasTools } from './tools/atlas';
+import { registerBookingIntentTools } from './tools/bookingIntents';
 import { registerBudgetTools } from './tools/budget';
 import { registerCollabTools } from './tools/collab';
 import { registerDayTools } from './tools/days';
@@ -35,6 +36,8 @@ export function registerTools(
     await registerPackingTools(server, userId, scopes);
 
     registerReservationTools(server, userId, scopes);
+
+    registerBookingIntentTools(server, userId, scopes);
 
     registerDayTools(server, userId, scopes);
 

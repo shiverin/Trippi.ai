@@ -2,10 +2,14 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Bot,
   Check,
+  ClipboardCheck,
   Copy,
+  Hotel,
   KeyRound,
   Loader2,
+  Luggage,
   MessageSquare,
+  Plane,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -46,6 +50,15 @@ interface WorkflowPreset {
   name: string;
   description: string;
   scopes: string[];
+}
+
+interface AgentRecipe {
+  id: string;
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  requiredScopes: string[];
+  expectedOutputs: string[];
 }
 
 const READ_ONLY_SCOPES = [
@@ -165,6 +178,96 @@ const WORKFLOWS: WorkflowPreset[] = [
     name: 'Journey publishing',
     description: 'Work with Journey entries and share links from existing trip context.',
     scopes: ['trips:read', 'places:read', 'journey:read', 'journey:write', 'journey:share'],
+  },
+];
+
+const AGENT_RECIPES: AgentRecipe[] = [
+  {
+    id: 'cheaper-hotels',
+    name: 'Find cheaper hotels',
+    description: 'Compare current stays with lower-cost options near saved places and trip dates.',
+    icon: Hotel,
+    requiredScopes: ['trips:read', 'places:read', 'reservations:read', 'budget:read', 'geo:read'],
+    expectedOutputs: [
+      'Lower-cost stay shortlist with location tradeoffs',
+      'Savings comparison against booked or planned lodging',
+      'Provider handoff checklist for the traveler to book',
+    ],
+  },
+  {
+    id: 'monitor-flights',
+    name: 'Monitor flights',
+    description: 'Track flight details, fare/status notes, and follow-up tasks from data the assistant can access.',
+    icon: Plane,
+    requiredScopes: ['trips:read', 'reservations:read', 'todos:read', 'todos:write', 'budget:read'],
+    expectedOutputs: [
+      'Flight watch criteria and current reservation snapshot',
+      'Change summary for fares, timing, or disruption notes',
+      'Todo reminders for traveler review and provider action',
+    ],
+  },
+  {
+    id: 'rebalance-itinerary',
+    name: 'Rebalance itinerary',
+    description: 'Reshuffle days around geography, weather, time windows, and existing trip priorities.',
+    icon: RefreshCw,
+    requiredScopes: [
+      'trips:read',
+      'places:read',
+      'places:write',
+      'todos:read',
+      'todos:write',
+      'budget:read',
+      'geo:read',
+      'weather:read',
+    ],
+    expectedOutputs: [
+      'Day-by-day move plan with rationale',
+      'Drafted place and task updates inside Trippi',
+      'Open decisions that still need traveler approval',
+    ],
+  },
+  {
+    id: 'packing-plan',
+    name: 'Generate packing plan',
+    description: 'Create destination-aware packing lists from itinerary, reservations, weather, and trip tasks.',
+    icon: Luggage,
+    requiredScopes: [
+      'trips:read',
+      'places:read',
+      'reservations:read',
+      'packing:read',
+      'packing:write',
+      'todos:read',
+      'todos:write',
+      'weather:read',
+    ],
+    expectedOutputs: [
+      'Weather-aware packing checklist grouped by bag or category',
+      'Missing-item todos for purchases, laundry, or documents',
+      'Readiness notes for destination-specific essentials',
+    ],
+  },
+  {
+    id: 'trip-readiness',
+    name: 'Summarize trip readiness',
+    description: 'Audit what is booked, planned, packed, budgeted, and still unresolved before departure.',
+    icon: ClipboardCheck,
+    requiredScopes: [
+      'trips:read',
+      'places:read',
+      'reservations:read',
+      'packing:read',
+      'todos:read',
+      'budget:read',
+      'journey:read',
+      'weather:read',
+    ],
+    expectedOutputs: [
+      'Readiness summary across itinerary, reservations, packing, todos, and budget',
+      'Risk list for missing bookings, documents, or timing conflicts',
+      'Prioritized next-action checklist for the traveler',
+    ],
   },
 ];
 
@@ -315,6 +418,11 @@ export default function McpConnectPage(): React.ReactElement {
     setSelectedScopes(workflow.scopes);
   };
 
+  const handleRecipeApply = (recipe: AgentRecipe) => {
+    setSelectedWorkflowId(`recipe-${recipe.id}`);
+    setSelectedScopes(recipe.requiredScopes);
+  };
+
   const handleCopy = async (text: string, key: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -463,6 +571,89 @@ export default function McpConnectPage(): React.ReactElement {
                   <p className="mt-1 text-xs leading-5 text-content-muted">{body}</p>
                 </div>
               ))}
+            </section>
+
+            <section className="rounded-lg border border-edge bg-surface-card p-5">
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-content">MCP agent recipes</h2>
+                  <p className="mt-1 text-sm text-content-muted">
+                    Use these recipes as starter prompts and OAuth scope templates for common travel-assistant jobs. V1
+                    can prepare, monitor, and hand off travel work; it does not purchase flights, hotels, or other
+                    provider inventory on your behalf.
+                  </p>
+                </div>
+                <span className="inline-flex w-fit items-center rounded-md border border-edge bg-surface-secondary px-2.5 py-1 text-xs font-semibold text-content-muted">
+                  Traveler confirms bookings
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                {AGENT_RECIPES.map((recipe) => {
+                  const Icon = recipe.icon;
+                  return (
+                    <article
+                      key={recipe.id}
+                      aria-labelledby={`mcp-recipe-${recipe.id}`}
+                      className="rounded-lg border border-edge bg-surface-secondary p-4"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-edge bg-surface-card text-content-secondary">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 id={`mcp-recipe-${recipe.id}`} className="text-sm font-semibold text-content">
+                            {recipe.name}
+                          </h3>
+                          <p className="mt-1 text-xs leading-5 text-content-muted">{recipe.description}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-content-muted">
+                            Required scopes
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {recipe.requiredScopes.map((scope) => (
+                              <span
+                                key={scope}
+                                className="rounded border border-edge bg-surface-card px-1.5 py-0.5 font-mono text-[11px] text-content-muted"
+                              >
+                                {scope}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-content-muted">
+                            Expected outputs
+                          </p>
+                          <ul className="mt-2 space-y-1.5 text-xs leading-5 text-content-muted">
+                            {recipe.expectedOutputs.map((output) => (
+                              <li key={output} className="flex gap-2">
+                                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                                <span>{output}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        aria-label={`Use scopes for ${recipe.name}`}
+                        onClick={() => handleRecipeApply(recipe)}
+                        className="mt-4 inline-flex max-w-full items-center gap-1.5 rounded-md border border-edge bg-surface-card px-2.5 py-1.5 text-xs font-semibold text-content-secondary transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Use recipe scopes
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
             </section>
 
             <section className="rounded-lg border border-edge bg-surface-card p-5">

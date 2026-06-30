@@ -30,6 +30,41 @@ describe('McpConnectPage', () => {
     await screen.findByText('No OAuth clients yet. Create one below to connect an assistant.');
   });
 
+  it('renders MCP agent recipes with scopes, expected outputs, and v1 no-purchase wording', async () => {
+    render(<McpConnectPage />);
+
+    await screen.findByText('No OAuth clients yet. Create one below to connect an assistant.');
+    expect(screen.getByRole('heading', { name: /mcp agent recipes/i })).toBeInTheDocument();
+    expect(screen.getByText(/V1 can prepare, monitor, and hand off travel work/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not purchase flights, hotels, or other provider inventory/i)).toBeInTheDocument();
+    expect(screen.getByText(/Traveler confirms bookings/i)).toBeInTheDocument();
+
+    const cheaperHotels = screen.getByRole('article', { name: /find cheaper hotels/i });
+    expect(within(cheaperHotels).getByText('Required scopes')).toBeInTheDocument();
+    expect(within(cheaperHotels).getByText('reservations:read')).toBeInTheDocument();
+    expect(within(cheaperHotels).getByText('budget:read')).toBeInTheDocument();
+    expect(within(cheaperHotels).getByText('Expected outputs')).toBeInTheDocument();
+    expect(within(cheaperHotels).getByText(/Lower-cost stay shortlist/i)).toBeInTheDocument();
+    expect(within(cheaperHotels).getByText(/Provider handoff checklist/i)).toBeInTheDocument();
+
+    const monitorFlights = screen.getByRole('article', { name: /monitor flights/i });
+    expect(within(monitorFlights).getByText('todos:write')).toBeInTheDocument();
+    expect(within(monitorFlights).getByText(/Flight watch criteria/i)).toBeInTheDocument();
+
+    const rebalanceItinerary = screen.getByRole('article', { name: /rebalance itinerary/i });
+    expect(within(rebalanceItinerary).getByText('places:write')).toBeInTheDocument();
+    expect(within(rebalanceItinerary).getByText('weather:read')).toBeInTheDocument();
+    expect(within(rebalanceItinerary).getByText(/Day-by-day move plan/i)).toBeInTheDocument();
+
+    const packingPlan = screen.getByRole('article', { name: /generate packing plan/i });
+    expect(within(packingPlan).getByText('packing:write')).toBeInTheDocument();
+    expect(within(packingPlan).getByText(/Weather-aware packing checklist/i)).toBeInTheDocument();
+
+    const tripReadiness = screen.getByRole('article', { name: /summarize trip readiness/i });
+    expect(within(tripReadiness).getByText('journey:read')).toBeInTheDocument();
+    expect(within(tripReadiness).getByText(/Readiness summary/i)).toBeInTheDocument();
+  });
+
   it('shows existing OAuth clients and copies assistant setup instructions', async () => {
     const user = userEvent.setup();
     const writeSpy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
@@ -102,6 +137,46 @@ describe('McpConnectPage', () => {
     ]);
     expect(screen.getAllByText('cid-created').length).toBeGreaterThan(0);
     expect(screen.getByText('secret-created')).toBeInTheDocument();
+  });
+
+  it('creates an OAuth client from an agent recipe scope template', async () => {
+    const user = userEvent.setup();
+    let postedBody: any = null;
+    server.use(
+      http.post('/api/oauth/clients', async ({ request }) => {
+        postedBody = await request.json();
+        return HttpResponse.json({
+          client: {
+            id: 'created-recipe',
+            name: postedBody.name,
+            client_id: 'cid-recipe',
+            client_secret: 'secret-recipe',
+            redirect_uris: postedBody.redirect_uris,
+            allowed_scopes: postedBody.allowed_scopes,
+            created_at: '2026-01-01T00:00:00Z',
+          },
+        });
+      })
+    );
+
+    render(<McpConnectPage />);
+
+    await screen.findByText('No OAuth clients yet. Create one below to connect an assistant.');
+    const packingPlan = screen.getByRole('article', { name: /generate packing plan/i });
+    await user.click(within(packingPlan).getByRole('button', { name: /use scopes for generate packing plan/i }));
+    await user.click(screen.getByRole('button', { name: /create oauth client/i }));
+
+    await screen.findByText('Client created. Copy the secret now.');
+    expect(postedBody.allowed_scopes).toEqual([
+      'trips:read',
+      'places:read',
+      'reservations:read',
+      'packing:read',
+      'packing:write',
+      'todos:read',
+      'todos:write',
+      'weather:read',
+    ]);
   });
 
   it('switches to ChatGPT guidance and requires a callback redirect URI before creating', async () => {

@@ -149,5 +149,30 @@ describe('SettingsPage', () => {
         expect(screen.getByRole('button', { name: /about/i })).toBeInTheDocument();
       });
     });
+
+    it('keeps the version in a cloud SaaS footer when app version is returned by API', async () => {
+      const { http, HttpResponse } = await import('msw');
+      const { server } = await import('../../tests/helpers/msw/server');
+
+      server.use(
+        http.get('/api/auth/app-config', () => {
+          return HttpResponse.json({
+            has_users: true,
+            allow_registration: true,
+            demo_mode: false,
+            oidc_configured: false,
+            oidc_only_mode: false,
+            version: '2.9.10',
+          });
+        })
+      );
+
+      render(<SettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('v2.9.10 · cloud SaaS')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/self-hosted/i)).not.toBeInTheDocument();
+    });
   });
 });

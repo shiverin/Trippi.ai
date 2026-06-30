@@ -67,9 +67,9 @@ const texts: Record<string, DemoTexts> = {
     ],
     whatIs: 'Was ist trippi.ai?',
     whatIsDesc:
-      'Ein selbst-gehosteter Reiseplaner mit Echtzeit-Kollaboration, interaktiver Karte, OIDC Login und Dark Mode.',
+      'Ein Cloud-Reiseplaner mit Echtzeit-Kollaboration, interaktiver Karte, OIDC Login und Dark Mode.',
     selfHost: 'Open Source — ',
-    selfHostLink: 'selbst hosten',
+    selfHostLink: 'Quellcode ansehen',
     close: 'Verstanden',
   },
   en: {
@@ -100,9 +100,9 @@ const texts: Record<string, DemoTexts> = {
     ],
     whatIs: 'What is trippi?',
     whatIsDesc:
-      'A self-hosted travel planner with real-time collaboration, interactive maps, OIDC login and dark mode.',
+      'A cloud travel planner with real-time collaboration, interactive maps, OIDC login and dark mode.',
     selfHost: 'Open source — ',
-    selfHostLink: 'self-host it',
+    selfHostLink: 'View source',
     close: 'Got it',
   },
   es: {
@@ -133,9 +133,9 @@ const texts: Record<string, DemoTexts> = {
     ],
     whatIs: '¿Qué es trippi.ai?',
     whatIsDesc:
-      'Un planificador de viajes autohospedado con colaboración en tiempo real, mapas interactivos, inicio de sesión OIDC y modo oscuro.',
+      'Un planificador de viajes en la nube con colaboración en tiempo real, mapas interactivos, inicio de sesión OIDC y modo oscuro.',
     selfHost: 'Código abierto — ',
-    selfHostLink: 'alójalo tú mismo',
+    selfHostLink: 'ver código',
     close: 'Entendido',
   },
   zh: {
@@ -165,9 +165,9 @@ const texts: Record<string, DemoTexts> = {
       ['Widgets', '货币换算和时区工具'],
     ],
     whatIs: '什么是 trippi.ai？',
-    whatIsDesc: '一个支持实时协作、交互式地图、OIDC 登录和深色模式的自托管旅行规划器。',
+    whatIsDesc: '一个支持实时协作、交互式地图、OIDC 登录和深色模式的云端旅行规划器。',
     selfHost: '开源项目 - ',
-    selfHostLink: '自行部署',
+    selfHostLink: '查看源码',
     close: '知道了',
   },
   'zh-TW': {
@@ -197,9 +197,9 @@ const texts: Record<string, DemoTexts> = {
       ['Widgets', '貨幣換算與時區工具'],
     ],
     whatIs: 'trippi.ai 是什麼？',
-    whatIsDesc: '一個支援即時協作、互動式地圖、OIDC 登入和深色模式的自架旅行規劃器。',
+    whatIsDesc: '一個支援即時協作、互動式地圖、OIDC 登入和深色模式的雲端旅行規劃器。',
     selfHost: '開源專案 - ',
-    selfHostLink: '自行架設',
+    selfHostLink: '查看原始碼',
     close: '知道了',
   },
   ar: {
@@ -229,9 +229,9 @@ const texts: Record<string, DemoTexts> = {
       ['Widgets', 'محول عملات ومناطق زمنية'],
     ],
     whatIs: 'ما هو trippi.ai؟',
-    whatIsDesc: 'مخطط رحلات مستضاف ذاتيًا مع تعاون لحظي وخرائط تفاعلية وتسجيل دخول OIDC ووضع داكن.',
+    whatIsDesc: 'مخطط رحلات سحابي مع تعاون لحظي وخرائط تفاعلية وتسجيل دخول OIDC ووضع داكن.',
     selfHost: 'مفتوح المصدر — ',
-    selfHostLink: 'استضفه بنفسك',
+    selfHostLink: 'عرض المصدر',
     close: 'فهمت',
   },
   id: {
@@ -263,9 +263,9 @@ const texts: Record<string, DemoTexts> = {
     ],
     whatIs: 'Apa itu trippi.ai?',
     whatIsDesc:
-      'Perencana perjalanan yang di-host sendiri dengan kolaborasi real-time, peta interaktif, login OIDC, dan mode gelap.',
+      'Perencana perjalanan cloud dengan kolaborasi real-time, peta interaktif, login OIDC, dan mode gelap.',
     selfHost: 'Buka sumber — ',
-    selfHostLink: 'host mandiri',
+    selfHostLink: 'lihat sumber',
     close: 'Mengerti',
   },
 };

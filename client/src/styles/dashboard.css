@@ -891,9 +891,10 @@
 .trek-dash .trips.list-view .trip-body {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 22px 40px;
-  gap: 28px;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 22px 220px 22px 40px;
+  gap: 24px;
 }
 /* Date rendered as a peer of the counts, set off by a vertical divider rather than
    floating alone at the far left. */
@@ -908,10 +909,13 @@
 }
 .trek-dash .trips.list-view .trip-meta {
   display: flex;
-  gap: 28px;
+  gap: 26px;
   padding: 0 0 0 28px;
   border: none;
   border-left: 1px solid var(--line);
+}
+.trek-dash .trips.list-view .trip-actions {
+  opacity: 1;
 }
 .trek-dash .trip-card {
   position: relative;
@@ -994,13 +998,14 @@
   position: absolute;
   top: 14px;
   right: 14px;
-  z-index: 1;
+  z-index: 3;
   display: flex;
   gap: 6px;
   opacity: 0;
   transition: opacity 0.2s;
 }
-.trek-dash .trip-card:hover .trip-actions {
+.trek-dash .trip-card:hover .trip-actions,
+.trek-dash .trip-card:focus-within .trip-actions {
   opacity: 1;
 }
 .trek-dash .trip-action-btn {
@@ -1018,6 +1023,31 @@
 }
 .trek-dash .trip-action-btn:hover {
   background: oklch(1 0 0 / 0.3);
+}
+.trek-dash .trips.list-view .trip-action-btn {
+  background: oklch(1 0 0 / 0.9);
+  border-color: oklch(0.88 0.008 70 / 0.9);
+  box-shadow: var(--sh-sm), inset 0 1px 0 oklch(1 0 0 / 0.85);
+  color: var(--ink);
+}
+.trek-dash .trips.list-view .trip-action-btn:hover,
+.trek-dash .trips.list-view .trip-action-btn:focus-visible {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+  outline: none;
+}
+.dark .trek-dash .trips.list-view .trip-action-btn {
+  background: oklch(0.1 0 0 / 0.78);
+  border-color: oklch(1 0 0 / 0.14);
+  box-shadow: var(--sh-sm), inset 0 1px 0 oklch(1 0 0 / 0.08);
+  color: var(--ink);
+}
+.dark .trek-dash .trips.list-view .trip-action-btn:hover,
+.dark .trek-dash .trips.list-view .trip-action-btn:focus-visible {
+  background: #f8fafc;
+  border-color: #f8fafc;
+  color: #111827;
 }
 .trek-dash .trip-action-btn svg {
   width: 16px;

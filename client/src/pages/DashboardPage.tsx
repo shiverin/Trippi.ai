@@ -734,6 +734,28 @@ function TripCard({
 
   return (
     <article className="trip-card" onClick={onOpen}>
+      <div className="trip-actions">
+        <button className="trip-action-btn" aria-label={t('common.edit')} onClick={(e) => stop(e, onEdit)}>
+          <Edit2 size={16} />
+        </button>
+        <button
+          className="trip-action-btn"
+          aria-label={t('dashboard.aria.duplicate')}
+          onClick={(e) => stop(e, onCopy)}
+        >
+          <Copy size={16} />
+        </button>
+        <button
+          className="trip-action-btn"
+          aria-label={trip.is_archived ? t('dashboard.restore') : t('dashboard.archive')}
+          onClick={(e) => stop(e, onArchive)}
+        >
+          <Archive size={16} />
+        </button>
+        <button className="trip-action-btn" aria-label={t('common.delete')} onClick={(e) => stop(e, onDelete)}>
+          <Trash2 size={16} />
+        </button>
+      </div>
       <div className="trip-cover" style={{ background: tripGradient(trip.id) }}>
         {coverImageUrl && (
           <img
@@ -746,28 +768,6 @@ function TripCard({
         )}
         <div className={`trip-status ${statusClass}`}>
           <span className="indicator" /> {statusLabel}
-        </div>
-        <div className="trip-actions">
-          <button className="trip-action-btn" aria-label={t('common.edit')} onClick={(e) => stop(e, onEdit)}>
-            <Edit2 size={16} />
-          </button>
-          <button
-            className="trip-action-btn"
-            aria-label={t('dashboard.aria.duplicate')}
-            onClick={(e) => stop(e, onCopy)}
-          >
-            <Copy size={16} />
-          </button>
-          <button
-            className="trip-action-btn"
-            aria-label={trip.is_archived ? t('dashboard.restore') : t('dashboard.archive')}
-            onClick={(e) => stop(e, onArchive)}
-          >
-            <Archive size={16} />
-          </button>
-          <button className="trip-action-btn" aria-label={t('common.delete')} onClick={(e) => stop(e, onDelete)}>
-            <Trash2 size={16} />
-          </button>
         </div>
         <div className="trip-cover-content">
           <h3 className="trip-name">{trip.title}</h3>

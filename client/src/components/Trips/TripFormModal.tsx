@@ -2,6 +2,7 @@ import type { TripCreateRequest } from '@trippi/shared';
 import { Bell, Calendar, Camera, UserPlus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { authApi, tripsApi } from '../../api/client';
+import { formatLimit, isLimitReached, useEntitlements } from '../../hooks/useEntitlements';
 import { useTranslation } from '../../i18n';
 import { useAuthStore } from '../../store/authStore';
 import { useCanDo } from '../../store/permissionsStore';
@@ -11,6 +12,7 @@ import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { CustomDatePicker } from '../shared/CustomDateTimePicker';
 import CustomSelect from '../shared/CustomSelect';
 import Modal from '../shared/Modal';
+import { LockedState } from '../shared/PremiumGate';
 import { useToast } from '../shared/Toast';
 
 interface TripFormModalProps {
@@ -34,6 +36,7 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
   const can = useCanDo();
   const canUploadCover = !isEditing || can('trip_cover_upload', trip);
   const canEditTrip = !isEditing || can('trip_edit', trip);
+  const entitlementState = useEntitlements();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -257,6 +260,15 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
       }
       return next;
     });
+
+  const groupSizeLimit = entitlementState.entitlements?.limits.groupSize;
+  const groupCurrent = 1 + existingMembers.length + selectedMembers.length;
+  const groupLocked = isLimitReached(groupSizeLimit, groupCurrent);
+  const startUpgrade = () => {
+    entitlementState.startUpgrade().catch((err) => {
+      toast.info(err instanceof Error ? err.message : 'Upgrade checkout is not available yet.');
+    });
+  };
 
   const inputCls =
     'w-full px-3 py-2.5 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-transparent text-sm';
@@ -621,40 +633,53 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
                 })}
               </div>
             )}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <CustomSelect
-                value={memberSelectValue}
-                onChange={async (value) => {
-                  if (!value) return;
-                  if (isEditing && trip?.id) {
-                    const user = allUsers.find((u) => u.id === Number(value));
-                    if (user) {
-                      try {
-                        await tripsApi.addMember(trip.id, user.username);
-                        setExistingMembers((prev) => [...prev, { id: user.id, username: user.username }]);
-                        toast.success(t('trips.memberAdded', { username: user.username }));
-                      } catch {
-                        toast.error(t('trips.memberAddError'));
-                      }
-                    }
-                  } else {
-                    setSelectedMembers((prev) => (prev.includes(Number(value)) ? prev : [...prev, Number(value)]));
-                  }
-                  setMemberSelectValue('');
-                }}
-                placeholder={t('dashboard.addMember')}
-                options={allUsers
-                  .filter(
-                    (u) =>
-                      u.id !== currentUser?.id &&
-                      !selectedMembers.includes(u.id) &&
-                      !existingMembers.some((m) => m.id === u.id)
-                  )
-                  .map((u) => ({ value: u.id, label: u.username }))}
-                searchable
-                size="sm"
+            {groupLocked ? (
+              <LockedState
+                compact
+                title="Group size limit reached"
+                detail={`${groupCurrent}/${formatLimit(groupSizeLimit)} members`}
+                description={`Your ${entitlementState.entitlements?.planKey ?? 'current'} plan has reached this trip's member limit.`}
+                upgradeAvailable={!!entitlementState.billing?.checkoutAvailable}
+                upgradePending={entitlementState.checkoutLoading}
+                onUpgrade={startUpgrade}
               />
-            </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <CustomSelect
+                  value={memberSelectValue}
+                  onChange={async (value) => {
+                    if (!value) return;
+                    if (groupLocked) return;
+                    if (isEditing && trip?.id) {
+                      const user = allUsers.find((u) => u.id === Number(value));
+                      if (user) {
+                        try {
+                          await tripsApi.addMember(trip.id, user.username);
+                          setExistingMembers((prev) => [...prev, { id: user.id, username: user.username }]);
+                          toast.success(t('trips.memberAdded', { username: user.username }));
+                        } catch {
+                          toast.error(t('trips.memberAddError'));
+                        }
+                      }
+                    } else {
+                      setSelectedMembers((prev) => (prev.includes(Number(value)) ? prev : [...prev, Number(value)]));
+                    }
+                    setMemberSelectValue('');
+                  }}
+                  placeholder={t('dashboard.addMember')}
+                  options={allUsers
+                    .filter(
+                      (u) =>
+                        u.id !== currentUser?.id &&
+                        !selectedMembers.includes(u.id) &&
+                        !existingMembers.some((m) => m.id === u.id)
+                    )
+                    .map((u) => ({ value: u.id, label: u.username }))}
+                  searchable
+                  size="sm"
+                />
+              </div>
+            )}
           </div>
         )}
       </form>

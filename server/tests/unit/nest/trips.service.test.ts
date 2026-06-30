@@ -24,6 +24,15 @@ vi.mock('../../../src/services/permissions', () => ({
   checkPermissionAsync: checkPermission,
 }));
 
+const { entitlement } = vi.hoisted(() => ({
+  entitlement: {
+    checkActiveTripCapacity: vi.fn(() => ({ allowed: true })),
+    checkTripGroupCapacity: vi.fn(() => ({ allowed: true })),
+    throwIfEntitlementDenied: vi.fn(),
+  },
+}));
+vi.mock('../../../src/services/entitlementService', () => entitlement);
+
 const { tripSvc } = vi.hoisted(() => ({
   tripSvc: {
     listTrips: vi.fn(),
@@ -37,15 +46,14 @@ const { tripSvc } = vi.hoisted(() => ({
     deleteOldCoverAsync: vi.fn(),
     updateCoverImage: vi.fn(),
     listMembers: vi.fn(() => ({ owner: { id: 1 }, members: [] })),
-    addMember: vi.fn(),
     removeMember: vi.fn(),
     exportICS: vi.fn(),
-	    copyTripById: vi.fn(),
-	    TRIP_SELECT: 'SELECT * FROM trips t',
-	    MAX_TRIP_DAYS: 365,
-	    MS_PER_DAY: 86400000,
-	  },
-	}));
+    copyTripById: vi.fn(),
+    TRIP_SELECT: 'SELECT * FROM trips t',
+    MAX_TRIP_DAYS: 365,
+    MS_PER_DAY: 86400000,
+  },
+}));
 vi.mock('../../../src/services/tripService', () => tripSvc);
 vi.mock('../../../src/services/dayService', () => ({ listDays: () => ({ days: [1] }), listAccommodations: () => [] }));
 vi.mock('../../../src/services/placeService', () => ({ listPlaces: () => [], listPlacesAsync: () => [] }));
@@ -85,13 +93,15 @@ describe('TripsService (wrapper delegation + bundle/copy/notify helpers)', () =>
     await s.deleteOldCover('/old.jpg');
     expect(tripSvc.deleteOldCoverAsync).toHaveBeenCalledWith('/old.jpg');
     await s.updateCoverImage('9', '/n.jpg');
-    expect(asyncDbMock.prepare).toHaveBeenCalledWith('UPDATE trips SET cover_image=?, updated_at=CURRENT_TIMESTAMP WHERE id=?');
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith(
+      'UPDATE trips SET cover_image=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+    );
     s.copy('9', 1, 'C');
     expect(tripSvc.copyTripById).toHaveBeenCalledWith('9', 1, 'C');
     await s.listMembers('9', 1);
-    expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT u.id, u.username, u.email, u.avatar'));
-    s.addMember('9', 'b@x.y', 1, 1);
-    expect(tripSvc.addMember).toHaveBeenCalledWith('9', 'b@x.y', 1, 1);
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT u.id, u.username, u.email, u.avatar'),
+    );
     s.removeMember('9', 2);
     expect(tripSvc.removeMember).toHaveBeenCalledWith('9', 2);
     s.exportICS('9');
@@ -109,6 +119,30 @@ describe('TripsService (wrapper delegation + bundle/copy/notify helpers)', () =>
     expect(checkPermission).toHaveBeenCalledWith('trip_edit', 'user', 1, 1, false);
     svc().broadcast('9', 'trip:updated', { a: 1 }, 'sock');
     expect(broadcast).toHaveBeenCalledWith('9', 'trip:updated', { a: 1 }, 'sock');
+  });
+
+  it('assertCanCreateActiveTrip uses entitlement capacity checks', async () => {
+    await svc().assertCanCreateActiveTrip(7);
+    expect(entitlement.checkActiveTripCapacity).toHaveBeenCalledWith(7);
+    expect(entitlement.throwIfEntitlementDenied).toHaveBeenCalledWith({ allowed: true });
+  });
+
+  it('addMember validates and writes through the async DB path', async () => {
+    asyncStmt.get
+      .mockResolvedValueOnce({ id: 2, username: 'bob', email: 'bob@x.y', avatar: null })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ title: 'T' });
+
+    await expect(svc().addMember('9', 'bob@x.y', 1, 1)).resolves.toMatchObject({
+      member: { id: 2, email: 'bob@x.y', role: 'member', avatar_url: null },
+      targetUserId: 2,
+      tripTitle: 'T',
+    });
+    expect(entitlement.checkTripGroupCapacity).toHaveBeenCalledWith(1, '9');
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith(
+      'INSERT INTO trip_members (trip_id, user_id, invited_by) VALUES (?, ?, ?)',
+    );
+    expect(asyncStmt.run).toHaveBeenCalledWith('9', 2, 1);
   });
 
   it('getCopiedTrip re-reads via the TRIP_SELECT query', async () => {

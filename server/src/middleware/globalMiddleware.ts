@@ -212,7 +212,11 @@ export function applyGlobalMiddleware(app: express.Application, opts: { bodyPars
         logWarn(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ip=${req.ip}`);
       }
       const q = Object.keys(req.query).length ? ` query=${JSON.stringify(redact(req.query))}` : '';
-      const b = req.body && Object.keys(req.body).length ? ` body=${JSON.stringify(redact(req.body))}` : '';
+      const b = Buffer.isBuffer(req.body)
+        ? ' body=[raw body]'
+        : req.body && Object.keys(req.body).length
+          ? ` body=${JSON.stringify(redact(req.body))}`
+          : '';
       logDebug(`${req.method} ${req.path} ${res.statusCode} ${ms}ms ip=${req.ip}${q}${b}`);
     });
     next();

@@ -1,4 +1,4 @@
-// FE-COMP-MEMBERS-001 to FE-COMP-MEMBERS-025
+// FE-COMP-MEMBERS-001 to FE-COMP-MEMBERS-026
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { buildTrip, buildUser } from '../../../tests/helpers/factories';
@@ -418,5 +418,45 @@ describe('TripMembersModal', () => {
 
     render(<TripMembersModal {...defaultProps} />);
     await screen.findByText('All users already have access.');
+  });
+
+  it('FE-COMP-MEMBERS-026: group size entitlement lock keeps existing members visible', async () => {
+    server.use(
+      http.get('/api/billing/entitlements', () =>
+        HttpResponse.json({
+          entitlements: {
+            userId: ownerUser.id,
+            planKey: 'free',
+            billingPlanKey: 'free',
+            billingStatus: 'free',
+            subscribed: false,
+            trialing: false,
+            limits: {
+              aiWorkers: 0,
+              priceWatches: 0,
+              mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
+              activeTrips: 3,
+              groupSize: 2,
+            },
+          },
+          billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false },
+        })
+      ),
+      http.get('/api/trips/1/members', () =>
+        HttpResponse.json({
+          owner: { id: ownerUser.id, username: ownerUser.username, avatar_url: null },
+          members: [{ id: memberUser.id, username: memberUser.username, avatar_url: null }],
+          current_user_id: ownerUser.id,
+        })
+      )
+    );
+
+    render(<TripMembersModal {...defaultProps} />);
+
+    await screen.findByTestId('group-size-locked-state');
+    expect(screen.getByText('2/2 members')).toBeInTheDocument();
+    expect(screen.getByText('owner')).toBeInTheDocument();
+    expect(screen.getByText('alice')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Invite$/i })).not.toBeInTheDocument();
   });
 });

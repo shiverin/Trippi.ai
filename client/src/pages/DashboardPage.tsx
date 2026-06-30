@@ -30,7 +30,9 @@ import ConfirmDialog from '../components/shared/ConfirmDialog';
 import CopyTripDialog from '../components/shared/CopyTripDialog';
 import CustomSelect from '../components/shared/CustomSelect';
 import PlaceAvatar from '../components/shared/PlaceAvatar';
+import { LockedState } from '../components/shared/PremiumGate';
 import { useToast } from '../components/shared/Toast';
+import { formatLimit, isLimitReached, useEntitlements } from '../hooks/useEntitlements';
 import { useTranslation } from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
 import '../styles/dashboard.css';
@@ -129,6 +131,7 @@ export default function DashboardPage(): React.ReactElement {
     upcoming,
     pendingTodos,
     gridTrips,
+    ownedActiveTripCount,
     isLoading,
     loadError,
     retryLoad,
@@ -154,6 +157,22 @@ export default function DashboardPage(): React.ReactElement {
     completeDashboardTodo,
     overlaysDisabled,
   } = useDashboard();
+  const toast = useToast();
+  const entitlementState = useEntitlements();
+  const activeTripLimit = entitlementState.entitlements?.limits.activeTrips;
+  const activeTripLocked = isLimitReached(activeTripLimit, ownedActiveTripCount);
+
+  const openCreateTrip = () => {
+    if (activeTripLocked) return;
+    setEditingTrip(null);
+    setShowForm(true);
+  };
+
+  const startUpgrade = () => {
+    entitlementState.startUpgrade().catch((err) => {
+      toast.info(err instanceof Error ? err.message : 'Upgrade checkout is not available yet.');
+    });
+  };
 
   useEffect(() => {
     void import('./TripPlannerPage');
@@ -260,23 +279,32 @@ export default function DashboardPage(): React.ReactElement {
                       onDelete={() => setDeleteTrip(trip)}
                     />
                   ))}
-                  {!isLoading && (tripFilter === 'planned' || gridTrips.length === 0) && (
-                    <button
-                      className="add-trip-card"
-                      onClick={() => {
-                        setEditingTrip(null);
-                        setShowForm(true);
-                      }}
-                    >
-                      <div>
-                        <div className="circ">
-                          <Plus size={20} />
-                        </div>
-                        <div className="ttl">{t('dashboard.newTrip')}</div>
-                        <div className="sub">{t('dashboard.newTripSub')}</div>
+                  {!isLoading &&
+                    (tripFilter === 'planned' || gridTrips.length === 0) &&
+                    (activeTripLocked ? (
+                      <div className="add-trip-card is-locked">
+                        <LockedState
+                          compact
+                          title="Active trip limit reached"
+                          detail={`${ownedActiveTripCount}/${formatLimit(activeTripLimit)} active`}
+                          description={`Your ${entitlementState.entitlements?.planKey ?? 'current'} plan has no more active trip slots.`}
+                          upgradeAvailable={!!entitlementState.billing?.checkoutAvailable}
+                          upgradePending={entitlementState.checkoutLoading}
+                          onUpgrade={startUpgrade}
+                          testId="active-trip-locked-state"
+                        />
                       </div>
-                    </button>
-                  )}
+                    ) : (
+                      <button className="add-trip-card" onClick={openCreateTrip}>
+                        <div>
+                          <div className="circ">
+                            <Plus size={20} />
+                          </div>
+                          <div className="ttl">{t('dashboard.newTrip')}</div>
+                          <div className="sub">{t('dashboard.newTripSub')}</div>
+                        </div>
+                      </button>
+                    ))}
                 </div>
               </section>
             </div>
@@ -297,12 +325,9 @@ export default function DashboardPage(): React.ReactElement {
 
         <button
           className="fab-new-trip"
-          onClick={() => {
-            setEditingTrip(null);
-            setShowForm(true);
-          }}
+          onClick={activeTripLocked ? startUpgrade : openCreateTrip}
           aria-label={t('dashboard.newTrip')}
-          title={t('dashboard.newTrip')}
+          title={activeTripLocked ? 'Active trip limit reached' : t('dashboard.newTrip')}
         >
           <Plus size={22} strokeWidth={2.4} />
           <span className="fab-label">{t('dashboard.newTrip')}</span>

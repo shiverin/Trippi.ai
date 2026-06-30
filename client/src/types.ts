@@ -63,6 +63,43 @@ export interface User {
   must_change_password?: boolean
 }
 
+export type EntitlementLimit = number | null
+
+export interface McpAutomationLimits {
+  maxTokens: EntitlementLimit
+  maxConcurrentSessions: EntitlementLimit
+  requestsPerMinute: EntitlementLimit
+}
+
+export interface EntitlementPlanLimits {
+  aiWorkers: EntitlementLimit
+  priceWatches: EntitlementLimit
+  mcpAutomation: McpAutomationLimits
+  activeTrips: EntitlementLimit
+  groupSize: EntitlementLimit
+}
+
+export interface ResolvedEntitlements {
+  userId: number
+  planKey: string
+  billingPlanKey: string
+  billingStatus: string
+  subscribed: boolean
+  trialing: boolean
+  limits: EntitlementPlanLimits
+}
+
+export interface BillingUpgradeAvailability {
+  checkoutAvailable: boolean
+  defaultPlanId: string | null
+  portalAvailable: boolean
+}
+
+export interface BillingEntitlementsResponse {
+  entitlements: ResolvedEntitlements
+  billing: BillingUpgradeAvailability
+}
+
 export interface TodoItem {
   id: number
   trip_id: number

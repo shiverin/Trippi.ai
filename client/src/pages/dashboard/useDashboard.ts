@@ -47,7 +47,7 @@ export function useDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
   const { t, locale } = useTranslation();
-  const { demoMode, overlaysDisabled, authCheckFailed, loadUser } = useAuthStore();
+  const { demoMode, overlaysDisabled, authCheckFailed, loadUser, user } = useAuthStore();
 
   const toggleViewMode = () => {
     setViewMode((prev) => {
@@ -258,6 +258,7 @@ export function useDashboard() {
       : tripFilter === 'completed'
         ? trips.filter((t) => getTripStatus(t) === 'past')
         : trips.filter((t) => getTripStatus(t) !== 'past');
+  const ownedActiveTripCount = trips.filter((trip) => trip.user_id === user?.id && !trip.is_archived).length;
 
   return {
     // cross-cutting
@@ -273,6 +274,7 @@ export function useDashboard() {
     upcoming,
     pendingTodos,
     gridTrips,
+    ownedActiveTripCount,
     isLoading,
     loadError: loadError || authCheckFailed,
     retryLoad,

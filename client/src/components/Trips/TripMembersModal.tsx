@@ -2,12 +2,14 @@ import { Check, Copy, Crown, Link2, LogOut, Trash2, UserMinus, UserPlus, Users }
 import { useEffect, useRef, useState } from 'react';
 import { authApi, shareApi, tripsApi } from '../../api/client';
 import { useTranslation } from '../../i18n';
+import { formatLimit, isLimitReached, useEntitlements } from '../../hooks/useEntitlements';
 import { useAuthStore } from '../../store/authStore';
 import { useCanDo } from '../../store/permissionsStore';
 import { useTripStore } from '../../store/tripStore';
 import { getApiErrorMessage } from '../../types';
 import CustomSelect from '../shared/CustomSelect';
 import Modal from '../shared/Modal';
+import { LockedState } from '../shared/PremiumGate';
 import { useToast } from '../shared/Toast';
 
 interface AvatarProps {
@@ -308,6 +310,7 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
   const trip = useTripStore((s) => s.trip);
   const canManageMembers = can('member_manage', trip);
   const canManageShare = can('share_manage', trip);
+  const entitlementState = useEntitlements();
 
   useEffect(() => {
     if (isOpen && tripId) {
@@ -377,6 +380,14 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
 
   const isCurrentOwner = data?.owner?.id === user?.id;
   const allMembers = data ? [{ ...data.owner, role: 'owner' }, ...data.members] : [];
+  const groupSizeLimit = entitlementState.entitlements?.limits.groupSize;
+  const groupLocked = isLimitReached(groupSizeLimit, allMembers.length);
+
+  const startUpgrade = () => {
+    entitlementState.startUpgrade().catch((err) => {
+      toast.info(err instanceof Error ? err.message : 'Upgrade checkout is not available yet.');
+    });
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('members.shareTrip')} size="3xl">
@@ -424,46 +435,59 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
               >
                 {t('members.inviteUser')}
               </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <CustomSelect
-                  value={selectedUserId}
-                  onChange={(value) => setSelectedUserId(String(value))}
-                  placeholder={t('members.selectUser')}
-                  options={[
-                    { value: '', label: t('members.selectUser') },
-                    ...availableUsers.map((u) => ({
-                      value: u.id,
-                      label: u.username,
-                    })),
-                  ]}
-                  searchable
-                  style={{ flex: 1 }}
-                  size="sm"
+              {groupLocked ? (
+                <LockedState
+                  compact
+                  title="Group size limit reached"
+                  detail={`${allMembers.length}/${formatLimit(groupSizeLimit)} members`}
+                  description={`Your ${entitlementState.entitlements?.planKey ?? 'current'} plan has reached this trip's member limit.`}
+                  upgradeAvailable={!!entitlementState.billing?.checkoutAvailable}
+                  upgradePending={entitlementState.checkoutLoading}
+                  onUpgrade={startUpgrade}
+                  testId="group-size-locked-state"
                 />
-                <button
-                  onClick={handleAdd}
-                  disabled={adding || !selectedUserId}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '8px 14px',
-                    background: 'var(--accent)',
-                    color: 'var(--accent-text)',
-                    border: 'none',
-                    borderRadius: 10,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: adding || !selectedUserId ? 'default' : 'pointer',
-                    fontFamily: 'inherit',
-                    opacity: adding || !selectedUserId ? 0.4 : 1,
-                    flexShrink: 0,
-                  }}
-                >
-                  <UserPlus size={13} /> {adding ? '…' : t('members.invite')}
-                </button>
-              </div>
-              {availableUsers.length === 0 && allUsers.length > 0 && canManageMembers && (
+              ) : (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <CustomSelect
+                    value={selectedUserId}
+                    onChange={(value) => setSelectedUserId(String(value))}
+                    placeholder={t('members.selectUser')}
+                    options={[
+                      { value: '', label: t('members.selectUser') },
+                      ...availableUsers.map((u) => ({
+                        value: u.id,
+                        label: u.username,
+                      })),
+                    ]}
+                    searchable
+                    style={{ flex: 1 }}
+                    size="sm"
+                  />
+                  <button
+                    onClick={handleAdd}
+                    disabled={adding || !selectedUserId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      padding: '8px 14px',
+                      background: 'var(--accent)',
+                      color: 'var(--accent-text)',
+                      border: 'none',
+                      borderRadius: 10,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: adding || !selectedUserId ? 'default' : 'pointer',
+                      fontFamily: 'inherit',
+                      opacity: adding || !selectedUserId ? 0.4 : 1,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <UserPlus size={13} /> {adding ? '…' : t('members.invite')}
+                  </button>
+                </div>
+              )}
+              {!groupLocked && availableUsers.length === 0 && allUsers.length > 0 && canManageMembers && (
                 <p className="text-content-faint" style={{ fontSize: 11.5, margin: '6px 0 0' }}>
                   {t('members.allHaveAccess')}
                 </p>

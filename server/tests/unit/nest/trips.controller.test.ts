@@ -1,5 +1,6 @@
 import { TripsController } from '../../../src/nest/trips/trips.controller';
 import type { TripsService } from '../../../src/nest/trips/trips.service';
+import { EntitlementLimitError } from '../../../src/services/entitlementService';
 import { NotFoundError, ValidationError } from '../../../src/services/tripService';
 import type { User } from '../../../src/types';
 import { HttpException } from '@nestjs/common';
@@ -38,8 +39,21 @@ function svc(o: Partial<TripsService> = {}): TripsService {
     can: vi.fn().mockReturnValue(true),
     broadcast: vi.fn(),
     notifyInvite: vi.fn(),
+    assertCanCreateActiveTrip: vi.fn().mockResolvedValue(undefined),
     ...o,
   } as unknown as TripsService;
+}
+
+function entitlementError(feature: 'activeTrips' | 'groupSize') {
+  return new EntitlementLimitError({
+    allowed: false,
+    feature,
+    planKey: 'free',
+    current: 3,
+    requested: 1,
+    limit: 3,
+    message: `Your free plan allows up to 3 ${feature}.`,
+  });
 }
 
 async function thrown(fn: () => unknown | Promise<unknown>): Promise<{ status: number; body: unknown }> {
@@ -129,14 +143,30 @@ describe('TripsController (parity with the legacy /api/trips route)', () => {
 
     it('clamps a non-numeric day_count to the default of 7', async () => {
       const create = vi.fn().mockReturnValue({ trip: { id: 9 }, tripId: 9, reminderDays: 0 });
-      await new TripsController(svc({ create } as Partial<TripsService>)).create(user, { title: 'T', day_count: 'abc' }, req);
+      await new TripsController(svc({ create } as Partial<TripsService>)).create(
+        user,
+        { title: 'T', day_count: 'abc' },
+        req,
+      );
       expect(create).toHaveBeenCalledWith(1, expect.objectContaining({ day_count: 7 }));
     });
 
     it('logs the reminder when reminderDays is set', async () => {
       const create = vi.fn().mockReturnValue({ trip: { id: 9 }, tripId: 9, reminderDays: 3 });
-      expect(await new TripsController(svc({ create } as Partial<TripsService>)).create(user, { title: 'T' }, req)).toEqual({
+      expect(
+        await new TripsController(svc({ create } as Partial<TripsService>)).create(user, { title: 'T' }, req),
+      ).toEqual({
         trip: { id: 9 },
+      });
+    });
+
+    it('403 when the active trip entitlement is exhausted', async () => {
+      const s = svc({
+        assertCanCreateActiveTrip: vi.fn().mockRejectedValue(entitlementError('activeTrips')),
+      } as Partial<TripsService>);
+      expect(await thrown(() => new TripsController(s).create(user, { title: 'T' }, req))).toMatchObject({
+        status: 403,
+        body: { code: 'ENTITLEMENT_LIMIT_REACHED', feature: 'activeTrips', plan: 'free', limit: 3 },
       });
     });
   });
@@ -169,15 +199,13 @@ describe('TripsController (parity with the legacy /api/trips route)', () => {
     });
 
     it('updates, audits a change and broadcasts', async () => {
-      const update = vi
-        .fn()
-        .mockReturnValue({
-          updatedTrip: { id: 9 },
-          changes: { title: { oldValue: 'a', newValue: 'b' } },
-          newTitle: 'b',
-          newReminder: 0,
-          oldReminder: 0,
-        });
+      const update = vi.fn().mockReturnValue({
+        updatedTrip: { id: 9 },
+        changes: { title: { oldValue: 'a', newValue: 'b' } },
+        newTitle: 'b',
+        newReminder: 0,
+        oldReminder: 0,
+      });
       const broadcast = vi.fn();
       const s = svc({ update, broadcast } as Partial<TripsService>);
       expect(await new TripsController(s).update(user, '9', { title: 'b' }, req, 'sock')).toEqual({ trip: { id: 9 } });
@@ -282,6 +310,16 @@ describe('TripsController (parity with the legacy /api/trips route)', () => {
         getCopiedTrip: vi.fn().mockReturnValue({ id: 42 }),
       } as Partial<TripsService>);
       expect(await new TripsController(s).copy(user, '9', 'Copy', req)).toEqual({ trip: { id: 42 } });
+    });
+
+    it('403 when copy would exceed the active trip entitlement', async () => {
+      const s = svc({
+        assertCanCreateActiveTrip: vi.fn().mockRejectedValue(entitlementError('activeTrips')),
+      } as Partial<TripsService>);
+      expect(await thrown(() => new TripsController(s).copy(user, '9', 'Copy', req))).toMatchObject({
+        status: 403,
+        body: { code: 'ENTITLEMENT_LIMIT_REACHED', feature: 'activeTrips' },
+      });
     });
   });
 
@@ -390,6 +428,16 @@ describe('TripsController (parity with the legacy /api/trips route)', () => {
         }),
       } as Partial<TripsService>);
       await expect(new TripsController(other).addMember(user, '9', 'bob@x.y')).rejects.toThrow('boom');
+    });
+
+    it('POST maps group-size entitlement failures to 403', async () => {
+      const s = svc({
+        addMember: vi.fn().mockRejectedValue(entitlementError('groupSize')),
+      } as Partial<TripsService>);
+      expect(await thrown(() => new TripsController(s).addMember(user, '9', 'bob@x.y'))).toMatchObject({
+        status: 403,
+        body: { code: 'ENTITLEMENT_LIMIT_REACHED', feature: 'groupSize', plan: 'free' },
+      });
     });
 
     it('DELETE 404 without trip access', async () => {

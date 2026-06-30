@@ -1,4 +1,5 @@
 import { authHandlers } from './auth';
+import { billingHandlers } from './billing';
 import { settingsHandlers } from './settings';
 import { addonHandlers } from './addons';
 import { notificationHandlers } from './notifications';
@@ -18,6 +19,7 @@ import { sharedHandlers } from './shared';
 
 export const defaultHandlers = [
   ...authHandlers,
+  ...billingHandlers,
   ...settingsHandlers,
   ...addonHandlers,
   ...notificationHandlers,

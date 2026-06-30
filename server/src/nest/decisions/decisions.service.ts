@@ -1,6 +1,7 @@
 import { asyncDb, canAccessTripAsync } from '../../db/asyncDatabase';
 import { checkPermissionAsync } from '../../services/permissions';
 import type { User } from '../../types';
+import { broadcast } from '../../websocket';
 import { Injectable } from '@nestjs/common';
 
 const DECISION_STATES = ['open', 'closed', 'decided', 'cancelled'] as const;
@@ -224,6 +225,10 @@ export class DecisionsService {
     return checkPermissionAsync('trip_edit', user.role, trip.user_id, user.id, trip.user_id !== user.id);
   }
 
+  broadcast(tripId: string, event: string, payload: Record<string, unknown>, socketId: string | undefined): void {
+    broadcast(tripId, event, payload, socketId);
+  }
+
   async list(tripId: string) {
     const rows = await asyncDb
       .prepare(
@@ -233,7 +238,7 @@ export class DecisionsService {
         JOIN users u ON u.id = d.created_by
         WHERE d.trip_id = ?
         ORDER BY d.created_at DESC, d.id DESC
-      `,
+      `
       )
       .all<DecisionRow>(tripId);
 
@@ -260,7 +265,7 @@ export class DecisionsService {
           `
           INSERT INTO group_decisions (trip_id, created_by, title, description, deadline, state)
           VALUES (?, ?, ?, ?, ?, ?)
-        `,
+        `
         )
         .run(tripId, userId, title, description, deadline, state);
       const newDecisionId = Number(result.lastInsertRowid);
@@ -269,7 +274,7 @@ export class DecisionsService {
         `
         INSERT INTO group_decision_options (decision_id, label, description, sort_order, metadata)
         VALUES (?, ?, ?, ?, ?)
-      `,
+      `
       );
       for (const option of options) {
         await insertOption.run(newDecisionId, option.label, option.description, option.sortOrder, option.metadata);
@@ -336,7 +341,7 @@ export class DecisionsService {
             UPDATE group_decisions
             SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-          `,
+          `
           )
           .run(...params);
       }
@@ -378,7 +383,7 @@ export class DecisionsService {
           response = excluded.response,
           comment = excluded.comment,
           updated_at = CURRENT_TIMESTAMP
-      `,
+      `
       )
       .run(decisionId, optionId, userId, response, comment);
 
@@ -397,7 +402,7 @@ export class DecisionsService {
         UPDATE group_decisions
         SET final_option_id = ?, state = 'decided', updated_at = CURRENT_TIMESTAMP
         WHERE id = ? AND trip_id = ?
-      `,
+      `
       )
       .run(optionId, decisionId, tripId);
 
@@ -412,7 +417,7 @@ export class DecisionsService {
         FROM group_decisions d
         JOIN users u ON u.id = d.created_by
         WHERE d.trip_id = ? AND d.id = ?
-      `,
+      `
       )
       .get<DecisionRow>(tripId, decisionId);
   }
@@ -424,7 +429,7 @@ export class DecisionsService {
         SELECT * FROM group_decision_options
         WHERE decision_id = ?
         ORDER BY sort_order ASC, id ASC
-      `,
+      `
       )
       .all<OptionRow>(row.id);
     const responses = await asyncDb
@@ -435,7 +440,7 @@ export class DecisionsService {
         JOIN users u ON u.id = r.user_id
         WHERE r.decision_id = ?
         ORDER BY r.updated_at DESC, r.id DESC
-      `,
+      `
       )
       .all<ResponseRow>(row.id);
     const links = await asyncDb
@@ -444,7 +449,7 @@ export class DecisionsService {
         SELECT * FROM group_decision_links
         WHERE decision_id = ?
         ORDER BY id ASC
-      `,
+      `
       )
       .all<LinkRow>(row.id);
 
@@ -503,7 +508,7 @@ export class DecisionsService {
       `
       INSERT OR IGNORE INTO group_decision_links (decision_id, target_type, target_id)
       VALUES (?, ?, ?)
-    `,
+    `
     );
     for (const link of links) {
       await insert.run(decisionId, link.targetType, link.targetId);

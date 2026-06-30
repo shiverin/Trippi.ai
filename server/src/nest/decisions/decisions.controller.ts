@@ -2,7 +2,7 @@ import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DecisionsService, GroupDecisionInputError } from './decisions.service';
-import { Body, Controller, Get, HttpCode, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpException, Param, Post, Put, UseGuards } from '@nestjs/common';
 
 type Trip = NonNullable<Awaited<ReturnType<DecisionsService['verifyTripAccess']>>>;
 
@@ -49,11 +49,18 @@ export class DecisionsController {
   }
 
   @Post()
-  async create(@CurrentUser() user: User, @Param('tripId') tripId: string, @Body() body: Record<string, unknown>) {
+  async create(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Body() body: Record<string, unknown>,
+    @Headers('x-socket-id') socketId?: string
+  ) {
     const trip = await this.requireTrip(tripId, user);
     await this.requireEdit(trip, user);
     try {
-      return { decision: await this.decisions.create(tripId, user.id, body ?? {}) };
+      const decision = await this.decisions.create(tripId, user.id, body ?? {});
+      this.decisions.broadcast(tripId, 'decision:created', { decision }, socketId);
+      return { decision };
     } catch (err) {
       this.handleInputError(err);
     }
@@ -65,6 +72,7 @@ export class DecisionsController {
     @Param('tripId') tripId: string,
     @Param('decisionId') decisionId: string,
     @Body() body: Record<string, unknown>,
+    @Headers('x-socket-id') socketId?: string
   ) {
     const trip = await this.requireTrip(tripId, user);
     await this.requireEdit(trip, user);
@@ -73,6 +81,7 @@ export class DecisionsController {
       if (!decision) {
         throw new HttpException({ error: 'Decision not found' }, 404);
       }
+      this.decisions.broadcast(tripId, 'decision:updated', { decision }, socketId);
       return { decision };
     } catch (err) {
       this.handleInputError(err);
@@ -86,6 +95,7 @@ export class DecisionsController {
     @Param('tripId') tripId: string,
     @Param('decisionId') decisionId: string,
     @Body() body: Record<string, unknown>,
+    @Headers('x-socket-id') socketId?: string
   ) {
     await this.requireTrip(tripId, user);
     try {
@@ -93,6 +103,7 @@ export class DecisionsController {
       if (!decision) {
         throw new HttpException({ error: 'Decision not found' }, 404);
       }
+      this.decisions.broadcast(tripId, 'decision:updated', { decision }, socketId);
       return { decision };
     } catch (err) {
       this.handleInputError(err);
@@ -106,6 +117,7 @@ export class DecisionsController {
     @Param('tripId') tripId: string,
     @Param('decisionId') decisionId: string,
     @Body() body: { option_id?: unknown },
+    @Headers('x-socket-id') socketId?: string
   ) {
     const trip = await this.requireTrip(tripId, user);
     await this.requireEdit(trip, user);
@@ -114,6 +126,7 @@ export class DecisionsController {
       if (!decision) {
         throw new HttpException({ error: 'Decision not found' }, 404);
       }
+      this.decisions.broadcast(tripId, 'decision:updated', { decision }, socketId);
       return { decision };
     } catch (err) {
       this.handleInputError(err);

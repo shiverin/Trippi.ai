@@ -41,9 +41,13 @@ Object.defineProperty(window, 'sessionStorage', {
 
 // Mock the websocket module so stores don't try to open real connections
 vi.mock('../src/api/websocket', () => ({
+  addListener: vi.fn(),
   connect: vi.fn(),
   disconnect: vi.fn(),
   getSocketId: vi.fn(() => null),
+  joinTrip: vi.fn(),
+  leaveTrip: vi.fn(),
+  removeListener: vi.fn(),
   setRefetchCallback: vi.fn(),
   setPreReconnectHook: vi.fn(),
 }));
@@ -64,10 +68,10 @@ afterAll(() => server.close());
 // non-US dev machines (Windows-de-DE returns "Sonntag" instead of "Sunday").
 // Only affects calls without an explicit locale — callers that pass a locale
 // keep their behavior.
-const _origToLocaleDateString = Date.prototype.toLocaleDateString
+const _origToLocaleDateString = Date.prototype.toLocaleDateString;
 Date.prototype.toLocaleDateString = function (locales?: Intl.LocalesArgument, options?: Intl.DateTimeFormatOptions) {
-  return _origToLocaleDateString.call(this, locales ?? 'en-US', options)
-}
+  return _origToLocaleDateString.call(this, locales ?? 'en-US', options);
+};
 
 // window.matchMedia — used by dark mode / responsive components
 Object.defineProperty(window, 'matchMedia', {
@@ -87,22 +91,22 @@ Object.defineProperty(window, 'matchMedia', {
 // IntersectionObserver — used by lazy loading
 // Must use a class or regular function (not arrow function) so 'new IntersectionObserver()' works
 class _MockIntersectionObserver {
-  observe = vi.fn()
-  unobserve = vi.fn()
-  disconnect = vi.fn()
-  root = null
-  rootMargin = ''
-  thresholds: ReadonlyArray<number> = []
-  takeRecords = vi.fn(() => [])
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  root = null;
+  rootMargin = '';
+  thresholds: ReadonlyArray<number> = [];
+  takeRecords = vi.fn(() => []);
   constructor(_callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {}
 }
 globalThis.IntersectionObserver = _MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
 // ResizeObserver — used by resizable panels
 class _MockResizeObserver {
-  observe = vi.fn()
-  unobserve = vi.fn()
-  disconnect = vi.fn()
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
   constructor(_callback: ResizeObserverCallback) {}
 }
 globalThis.ResizeObserver = _MockResizeObserver as unknown as typeof ResizeObserver;
@@ -113,7 +117,11 @@ globalThis.ResizeObserver = _MockResizeObserver as unknown as typeof ResizeObser
 // the real URL.createObjectURL works. For tests that only need the method to
 // exist without returning a real URL, stub it here as a vi.fn fallback.
 if (typeof URL.createObjectURL === 'undefined') {
-  Object.defineProperty(URL, 'createObjectURL', { writable: true, configurable: true, value: vi.fn(() => 'blob:mock') });
+  Object.defineProperty(URL, 'createObjectURL', {
+    writable: true,
+    configurable: true,
+    value: vi.fn(() => 'blob:mock'),
+  });
   Object.defineProperty(URL, 'revokeObjectURL', { writable: true, configurable: true, value: vi.fn() });
 }
 

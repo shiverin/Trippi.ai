@@ -163,4 +163,53 @@ describe('GroupDecisionList', () => {
     expect(screen.getByText('Choose museum window')).toBeInTheDocument();
     expect(screen.queryByText('Pick train time')).not.toBeInTheDocument();
   });
+
+  it('can scope decisions to an itinerary item by requiring day and place links', () => {
+    const itemDecision = buildDecision({
+      title: 'Choose museum arrival time',
+      links: [
+        {
+          id: 1,
+          decision_id: 10,
+          target_type: 'day',
+          target_id: 7,
+          created_at: '2026-06-28T10:00:00Z',
+        },
+        {
+          id: 2,
+          decision_id: 10,
+          target_type: 'place',
+          target_id: 44,
+          created_at: '2026-06-28T10:00:00Z',
+        },
+      ],
+    });
+    const dayOnly = buildDecision({
+      id: 12,
+      title: 'Choose morning pace',
+      links: [
+        {
+          id: 3,
+          decision_id: 12,
+          target_type: 'day',
+          target_id: 7,
+          created_at: '2026-06-28T10:00:00Z',
+        },
+      ],
+    });
+
+    render(
+      <GroupDecisionList
+        decisions={[itemDecision, dayOnly]}
+        linkedTargets={[
+          { target_type: 'day', target_id: 7 },
+          { target_type: 'place', target_id: 44 },
+        ]}
+        matchAllLinkedTargets
+      />
+    );
+
+    expect(screen.getByText('Choose museum arrival time')).toBeInTheDocument();
+    expect(screen.queryByText('Choose morning pace')).not.toBeInTheDocument();
+  });
 });

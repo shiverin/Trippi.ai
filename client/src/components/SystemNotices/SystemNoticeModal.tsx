@@ -79,6 +79,7 @@ function NoticeContent({
 }: ContentProps) {
   const { t } = useTranslation();
   const isLastPage = total <= 1 || currentPage === total - 1;
+  const isWelcomeNotice = notice.id === 'welcome-v1';
 
   const DefaultIcon = SEVERITY_ICONS[notice.severity] ?? Info;
   const LucideIcon: React.ElementType = notice.icon
@@ -86,12 +87,19 @@ function NoticeContent({
     : DefaultIcon;
 
   return (
-    <div className="relative flex flex-col" style={{ flex: '1 1 0', minHeight: '100%' }}>
+    <div
+      className={`relative flex flex-col ${isWelcomeNotice ? 'overflow-hidden bg-[#f7fbff]' : ''}`}
+      style={{ flex: '1 1 0', minHeight: '100%' }}
+    >
       {/* Dismiss X button — only on last page so users read all notices */}
       {notice.dismissible && isLastPage && (
         <button
           onClick={onDismissAll}
-          className="absolute right-4 top-4 z-10 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          className={`absolute right-4 top-4 z-10 rounded-lg p-2 transition-colors ${
+            isWelcomeNotice
+              ? 'bg-white/75 text-slate-500 shadow-sm backdrop-blur hover:bg-white hover:text-slate-800'
+              : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300'
+          }`}
           aria-label="Dismiss"
         >
           <X size={18} />
@@ -113,6 +121,45 @@ function NoticeContent({
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
+          </div>
+        )}
+
+        {isWelcomeNotice && !notice.media && (
+          <div className="relative overflow-hidden border-b border-blue-100 bg-[#eff6ff] px-7 pb-7 pt-8 text-slate-950 sm:px-9 sm:pt-9">
+            <div className="absolute inset-x-0 top-0 h-1 bg-blue-600" />
+            <div className="relative">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700 shadow-sm">
+                <LucideIcon size={14} />
+                Your trip HQ is live
+              </div>
+              <h2
+                id={titleId}
+                className="max-w-[11ch] text-[2.45rem] font-black leading-[0.95] text-slate-950 sm:text-5xl"
+              >
+                {title}
+              </h2>
+              <p className="mt-4 max-w-[30rem] text-base font-medium leading-relaxed text-slate-600">
+                Turn the messy group chat, saved maps, booking links, and “wait who booked what?” chaos into one shared
+                command center.
+              </p>
+              <div className="mt-6 grid grid-cols-3 gap-2" aria-hidden="true">
+                <div className="-rotate-2 rounded-xl border border-white bg-white p-3 shadow-lg shadow-blue-200/50">
+                  <div className="mb-8 h-10 rounded-lg bg-blue-100" />
+                  <p className="text-[10px] font-black uppercase tracking-wide text-blue-700">Plan</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-900">Days, maps, routes</p>
+                </div>
+                <div className="translate-y-3 rounded-xl border border-white bg-white p-3 shadow-lg shadow-blue-200/50">
+                  <div className="mb-8 h-10 rounded-lg bg-emerald-100" />
+                  <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">Decide</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-900">Polls, costs, crew</p>
+                </div>
+                <div className="rotate-2 rounded-xl border border-white bg-white p-3 shadow-lg shadow-blue-200/50">
+                  <div className="mb-8 h-10 rounded-lg bg-amber-100" />
+                  <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Go</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-900">Offline, ready</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -141,9 +188,11 @@ function NoticeContent({
           </div>
         )}
 
-        <div className={`${notice.icon === 'Heart' && !notice.media ? 'px-8 py-6' : 'p-8'} flex flex-col`}>
+        <div
+          className={`${notice.icon === 'Heart' && !notice.media ? 'px-8 py-6' : isWelcomeNotice ? 'px-7 py-6 sm:px-9' : 'p-8'} flex flex-col`}
+        >
           {/* Severity icon (when no hero and not Heart) */}
-          {!notice.media && notice.icon !== 'Heart' && (
+          {!notice.media && notice.icon !== 'Heart' && !isWelcomeNotice && (
             <div
               className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${SEVERITY_ACCENT[notice.severity] ?? ''}`}
             >
@@ -152,7 +201,7 @@ function NoticeContent({
           )}
 
           {/* Title (not for Heart — rendered in gradient header) */}
-          {(notice.icon !== 'Heart' || notice.media) && (
+          {(notice.icon !== 'Heart' || notice.media) && !isWelcomeNotice && (
             <h2 id={titleId} className="mb-3 text-center text-xl font-semibold text-slate-900 dark:text-slate-100">
               {title}
             </h2>
@@ -161,7 +210,11 @@ function NoticeContent({
           {/* Body — markdown */}
           <div
             id={bodyId}
-            className="mx-auto mb-4 text-center text-sm leading-relaxed text-slate-600 dark:text-slate-400"
+            className={`mx-auto mb-4 text-sm leading-relaxed ${
+              isWelcomeNotice
+                ? 'text-left text-[15px] font-medium text-slate-600'
+                : 'text-center text-slate-600 dark:text-slate-400'
+            }`}
           >
             <React.Suspense fallback={<p className="text-sm text-slate-500">{body}</p>}>
               <ReactMarkdown
@@ -234,15 +287,30 @@ function NoticeContent({
 
           {/* Highlights */}
           {notice.highlights && notice.highlights.length > 0 && (
-            <ul className="mx-auto mb-4 space-y-2">
+            <ul className={isWelcomeNotice ? 'mb-4 grid gap-2' : 'mx-auto mb-4 space-y-2'}>
               {notice.highlights.map((h, i) => {
                 const HIcon: React.ElementType | null = h.iconName
                   ? (((LucideIcons as Record<string, unknown>)[h.iconName] as React.ElementType) ?? null)
                   : null;
                 return (
-                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <li
+                    key={i}
+                    className={
+                      isWelcomeNotice
+                        ? 'flex items-center gap-3 rounded-xl border border-blue-100 bg-white px-3 py-3 text-sm font-semibold text-slate-800 shadow-sm'
+                        : 'flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300'
+                    }
+                  >
                     {HIcon ? (
-                      <HIcon size={16} className="shrink-0 text-blue-500" />
+                      <span
+                        className={
+                          isWelcomeNotice
+                            ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600'
+                            : 'shrink-0 text-blue-500'
+                        }
+                      >
+                        <HIcon size={16} />
+                      </span>
                     ) : (
                       <span className="shrink-0 text-blue-500">✓</span>
                     )}
@@ -257,7 +325,11 @@ function NoticeContent({
 
       {/* Sticky footer — pager + CTA, always anchored at the bottom of the slot */}
       <div
-        className="sticky bottom-0 flex flex-col gap-3 border-t border-slate-100 bg-white px-8 pt-4 dark:border-slate-800 dark:bg-slate-900"
+        className={`sticky bottom-0 flex flex-col gap-3 border-t px-8 pt-4 ${
+          isWelcomeNotice
+            ? 'border-blue-100 bg-[#f7fbff]'
+            : 'border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900'
+        }`}
         style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1rem)' }}
       >
         {/* Pager — dots, arrows, counter (only when multiple notices) */}
@@ -314,7 +386,11 @@ function NoticeContent({
             <button
               id={`notice-cta-${notice.id}`}
               onClick={onCTA}
-              className="h-11 w-full rounded-lg bg-blue-600 font-medium text-white transition-colors hover:bg-blue-700"
+              className={`h-11 w-full rounded-lg font-semibold text-white transition-colors ${
+                isWelcomeNotice
+                  ? 'bg-blue-600 shadow-lg shadow-blue-200 hover:bg-blue-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
               {ctaLabel}
             </button>

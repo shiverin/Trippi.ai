@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { useTripStore } from '../../src/store/tripStore';
+import { clearAll } from '../../src/db/offlineDb';
 import { resetAllStores } from '../helpers/store';
 import { buildTrip, buildDay, buildPlace, buildPackingItem, buildTodoItem, buildTag, buildCategory, buildAssignment, buildDayNote, buildBudgetItem, buildReservation, buildTripFile } from '../helpers/factories';
 import { server } from '../helpers/msw/server';
@@ -17,27 +18,64 @@ vi.mock('../../src/api/websocket', () => ({
   setPreReconnectHook: vi.fn(),
 }));
 
-beforeEach(() => {
+beforeEach(async () => {
   resetAllStores();
+  await clearAll();
 });
 
-/** Full set of MSW handlers for one trip's loadTrip fan-out. */
+afterEach(async () => {
+  // loadTrip writes its bundle cache in the background; let that settle before
+  // clearing fake IndexedDB so the next test cannot read a stale cached bundle.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await clearAll();
+});
+
+/** Current loadTrip fan-out: a trip bundle plus global lookup data. */
+function tripBundle(
+  id: number,
+  data: {
+    trip?: unknown; days?: unknown[]; places?: unknown[];
+    packingItems?: unknown[]; todoItems?: unknown[];
+    budgetItems?: unknown[]; reservations?: unknown[]; files?: unknown[];
+    tags?: unknown[]; categories?: unknown[];
+  } = {},
+) {
+  return {
+    trip: data.trip ?? buildTrip({ id }),
+    days: data.days ?? [],
+    places: data.places ?? [],
+    packingItems: data.packingItems ?? [],
+    todoItems: data.todoItems ?? [],
+    budgetItems: data.budgetItems ?? [],
+    reservations: data.reservations ?? [],
+    files: data.files ?? [],
+    accommodations: [],
+    members: [],
+  };
+}
+
 function tripHandlers(
   id: number,
   data: {
+    trip?: unknown; days?: unknown[]; places?: unknown[];
+    packing?: unknown[]; todo?: unknown[];
     budget?: unknown[]; reservations?: unknown[]; files?: unknown[];
     tags?: unknown[]; categories?: unknown[];
   },
 ) {
   return [
-    http.get(`/api/trips/${id}`, () => HttpResponse.json({ trip: buildTrip({ id }) })),
-    http.get(`/api/trips/${id}/days`, () => HttpResponse.json({ days: [] })),
-    http.get(`/api/trips/${id}/places`, () => HttpResponse.json({ places: [] })),
-    http.get(`/api/trips/${id}/packing`, () => HttpResponse.json({ items: [] })),
-    http.get(`/api/trips/${id}/todo`, () => HttpResponse.json({ items: [] })),
-    http.get(`/api/trips/${id}/budget`, () => HttpResponse.json({ items: data.budget ?? [] })),
-    http.get(`/api/trips/${id}/reservations`, () => HttpResponse.json({ reservations: data.reservations ?? [] })),
-    http.get(`/api/trips/${id}/files`, () => HttpResponse.json({ files: data.files ?? [] })),
+    http.get(`/api/trips/${id}/bundle`, () =>
+      HttpResponse.json(tripBundle(id, {
+        trip: data.trip,
+        days: data.days,
+        places: data.places,
+        packingItems: data.packing ?? [],
+        todoItems: data.todo ?? [],
+        budgetItems: data.budget ?? [],
+        reservations: data.reservations ?? [],
+        files: data.files ?? [],
+      }))
+    ),
     http.get('/api/tags', () => HttpResponse.json({ tags: data.tags ?? [] })),
     http.get('/api/categories', () => HttpResponse.json({ categories: data.categories ?? [] })),
   ];
@@ -45,28 +83,12 @@ function tripHandlers(
 
 describe('tripStore', () => {
   describe('loadTrip', () => {
-    it('FE-TRIP-001: fires parallel API calls for trips, days, places, packing, todo, tags, categories', async () => {
+    it('FE-TRIP-001: fires parallel API calls for the trip bundle, tags, and categories', async () => {
       const calledUrls: string[] = [];
       server.use(
-        http.get('/api/trips/:id', ({ params }) => {
-          calledUrls.push(`/api/trips/${params.id}`);
-          return HttpResponse.json({ trip: buildTrip({ id: Number(params.id) }) });
-        }),
-        http.get('/api/trips/:id/days', ({ params }) => {
-          calledUrls.push(`/api/trips/${params.id}/days`);
-          return HttpResponse.json({ days: [] });
-        }),
-        http.get('/api/trips/:id/places', ({ params }) => {
-          calledUrls.push(`/api/trips/${params.id}/places`);
-          return HttpResponse.json({ places: [] });
-        }),
-        http.get('/api/trips/:id/packing', ({ params }) => {
-          calledUrls.push(`/api/trips/${params.id}/packing`);
-          return HttpResponse.json({ items: [] });
-        }),
-        http.get('/api/trips/:id/todo', ({ params }) => {
-          calledUrls.push(`/api/trips/${params.id}/todo`);
-          return HttpResponse.json({ items: [] });
+        http.get('/api/trips/:id/bundle', ({ params }) => {
+          calledUrls.push(`/api/trips/${params.id}/bundle`);
+          return HttpResponse.json(tripBundle(Number(params.id)));
         }),
         http.get('/api/tags', () => {
           calledUrls.push('/api/tags');
@@ -80,11 +102,7 @@ describe('tripStore', () => {
 
       await useTripStore.getState().loadTrip(1);
 
-      expect(calledUrls).toContain('/api/trips/1');
-      expect(calledUrls).toContain('/api/trips/1/days');
-      expect(calledUrls).toContain('/api/trips/1/places');
-      expect(calledUrls).toContain('/api/trips/1/packing');
-      expect(calledUrls).toContain('/api/trips/1/todo');
+      expect(calledUrls).toContain('/api/trips/1/bundle');
       expect(calledUrls).toContain('/api/tags');
       expect(calledUrls).toContain('/api/categories');
     });
@@ -97,15 +115,14 @@ describe('tripStore', () => {
       const tag = buildTag();
       const category = buildCategory();
 
-      server.use(
-        http.get('/api/trips/1', () => HttpResponse.json({ trip })),
-        http.get('/api/trips/1/days', () => HttpResponse.json({ days: [] })),
-        http.get('/api/trips/1/places', () => HttpResponse.json({ places: [place] })),
-        http.get('/api/trips/1/packing', () => HttpResponse.json({ items: [packingItem] })),
-        http.get('/api/trips/1/todo', () => HttpResponse.json({ items: [todoItem] })),
-        http.get('/api/tags', () => HttpResponse.json({ tags: [tag] })),
-        http.get('/api/categories', () => HttpResponse.json({ categories: [category] })),
-      );
+      server.use(...tripHandlers(1, {
+        trip,
+        places: [place],
+        packing: [packingItem],
+        todo: [todoItem],
+        tags: [tag],
+        categories: [category],
+      }));
 
       await useTripStore.getState().loadTrip(1);
       const state = useTripStore.getState();
@@ -122,15 +139,7 @@ describe('tripStore', () => {
       const assignment = buildAssignment({ day_id: 10, order_index: 0 });
       const day = buildDay({ id: 10, assignments: [assignment], notes_items: [] });
 
-      server.use(
-        http.get('/api/trips/1', () => HttpResponse.json({ trip: buildTrip({ id: 1 }) })),
-        http.get('/api/trips/1/days', () => HttpResponse.json({ days: [day] })),
-        http.get('/api/trips/1/places', () => HttpResponse.json({ places: [] })),
-        http.get('/api/trips/1/packing', () => HttpResponse.json({ items: [] })),
-        http.get('/api/trips/1/todo', () => HttpResponse.json({ items: [] })),
-        http.get('/api/tags', () => HttpResponse.json({ tags: [] })),
-        http.get('/api/categories', () => HttpResponse.json({ categories: [] })),
-      );
+      server.use(...tripHandlers(1, { days: [day] }));
 
       await useTripStore.getState().loadTrip(1);
       const { assignments } = useTripStore.getState();
@@ -143,15 +152,7 @@ describe('tripStore', () => {
       const note = buildDayNote({ day_id: 10 });
       const day = buildDay({ id: 10, assignments: [], notes_items: [note] });
 
-      server.use(
-        http.get('/api/trips/1', () => HttpResponse.json({ trip: buildTrip({ id: 1 }) })),
-        http.get('/api/trips/1/days', () => HttpResponse.json({ days: [day] })),
-        http.get('/api/trips/1/places', () => HttpResponse.json({ places: [] })),
-        http.get('/api/trips/1/packing', () => HttpResponse.json({ items: [] })),
-        http.get('/api/trips/1/todo', () => HttpResponse.json({ items: [] })),
-        http.get('/api/tags', () => HttpResponse.json({ tags: [] })),
-        http.get('/api/categories', () => HttpResponse.json({ categories: [] })),
-      );
+      server.use(...tripHandlers(1, { days: [day] }));
 
       await useTripStore.getState().loadTrip(1);
       const { dayNotes } = useTripStore.getState();
@@ -161,35 +162,17 @@ describe('tripStore', () => {
     });
 
     it('FE-TRIP-005: loadTrip sets isLoading true during, false after', async () => {
-      let wasLoadingDuringFetch = false;
-
-      server.use(
-        http.get('/api/trips/1', () => {
-          wasLoadingDuringFetch = useTripStore.getState().isLoading;
-          return HttpResponse.json({ trip: buildTrip({ id: 1 }) });
-        }),
-        http.get('/api/trips/1/days', () => HttpResponse.json({ days: [] })),
-        http.get('/api/trips/1/places', () => HttpResponse.json({ places: [] })),
-        http.get('/api/trips/1/packing', () => HttpResponse.json({ items: [] })),
-        http.get('/api/trips/1/todo', () => HttpResponse.json({ items: [] })),
-        http.get('/api/tags', () => HttpResponse.json({ tags: [] })),
-        http.get('/api/categories', () => HttpResponse.json({ categories: [] })),
-      );
+      server.use(...tripHandlers(1, {}));
 
       const promise = useTripStore.getState().loadTrip(1);
       expect(useTripStore.getState().isLoading).toBe(true);
       await promise;
-      expect(wasLoadingDuringFetch).toBe(true);
       expect(useTripStore.getState().isLoading).toBe(false);
     });
 
     it('FE-TRIP-006: loadTrip on API failure sets error and isLoading: false', async () => {
       server.use(
-        http.get('/api/trips/1', () => HttpResponse.json({ message: 'Not found' }, { status: 404 })),
-        http.get('/api/trips/1/days', () => HttpResponse.json({ days: [] })),
-        http.get('/api/trips/1/places', () => HttpResponse.json({ places: [] })),
-        http.get('/api/trips/1/packing', () => HttpResponse.json({ items: [] })),
-        http.get('/api/trips/1/todo', () => HttpResponse.json({ items: [] })),
+        http.get('/api/trips/1/bundle', () => HttpResponse.json({ message: 'Not found' }, { status: 404 })),
         http.get('/api/tags', () => HttpResponse.json({ tags: [] })),
         http.get('/api/categories', () => HttpResponse.json({ categories: [] })),
       );

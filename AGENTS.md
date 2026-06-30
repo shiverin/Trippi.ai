@@ -11,6 +11,14 @@ Agents may push directly to `main` when the user asks for a push. Prefer running
 focused checks for the files or feature touched, but do not block a requested
 push on the full local parity gate unless the user explicitly asks for it.
 
+When a requested feature or fix has been implemented, reviewed as logically
+sound, and the risk-appropriate checks have passed or been intentionally skipped
+by the user, agents should proceed without asking for another confirmation:
+rebase/update the working branch if needed, merge it into `main` when applicable,
+push `main`, then report the commit and any verification caveats. Do not keep
+work stranded on side branches once it is ready for `main` unless the user
+explicitly asks for branch-only work or no push.
+
 After a requested push to `main`, treat the task as complete once the push
 succeeds unless the user explicitly asks you to watch CI, Vercel, or GitHub
 Actions. Do not spend context polling long-running checks by default. It is fine

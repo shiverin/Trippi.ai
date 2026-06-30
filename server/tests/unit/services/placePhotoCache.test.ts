@@ -4,17 +4,23 @@
  * Uses a real in-memory SQLite DB and a throwaway temp upload dir
  * (TRIPPI_PLACE_PHOTO_DIR) so the real uploads tree is never touched.
  */
-import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
-import path from 'node:path';
+import Database from 'better-sqlite3';
+import { Jimp, JimpMime } from 'jimp';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
-import crypto from 'node:crypto';
-import { Jimp, JimpMime } from 'jimp';
-import Database from 'better-sqlite3';
+import path from 'node:path';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
+
+const { TMP_DIR } = vi.hoisted(() => {
+  const fs = require('node:fs') as typeof import('node:fs');
+  const os = require('node:os') as typeof import('node:os');
+  const path = require('node:path') as typeof import('node:path');
+  return { TMP_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'ppc-')) };
+});
 
 // Throwaway upload dir — set before importing the module under test (it reads the
 // env at load time and mkdirs the dir).
-const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'ppc-'));
 process.env.TRIPPI_PLACE_PHOTO_DIR = TMP_DIR;
 
 // Minimal real DB with just the two tables placePhotoCache touches.
@@ -34,6 +40,62 @@ testDb.exec(`
 `);
 
 vi.mock('../../../src/db/database', () => ({ db: testDb }));
+
+vi.mock('../../../src/services/mediaStorage', () => {
+  const fs = require('node:fs') as typeof import('node:fs');
+  const path = require('node:path') as typeof import('node:path');
+
+  function filePathForKey(key: string): string {
+    return path.join(TMP_DIR, path.basename(key));
+  }
+
+  const storage = {
+    backend: 'local' as const,
+    putObject: vi.fn(async (input: { key: string; body: Buffer | NodeJS.ReadableStream; contentType?: string }) => {
+      const filePath = filePathForKey(input.key);
+      await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+      if (Buffer.isBuffer(input.body)) {
+        await fs.promises.writeFile(filePath, input.body);
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          const stream = fs.createWriteStream(filePath);
+          input.body.on('error', reject).pipe(stream).on('error', reject).on('finish', resolve);
+        });
+      }
+      const stat = await fs.promises.stat(filePath);
+      return {
+        storage_backend: 'local',
+        storage_key: input.key,
+        storage_size: stat.size,
+        storage_content_type: input.contentType || null,
+        storage_etag: null,
+      };
+    }),
+    exists: vi.fn(async (key: string) => fs.existsSync(filePathForKey(key))),
+    getObjectStream: vi.fn(async (key: string) => {
+      const filePath = filePathForKey(key);
+      if (!fs.existsSync(filePath)) return null;
+      const stat = await fs.promises.stat(filePath);
+      return { stream: fs.createReadStream(filePath), size: stat.size, contentType: 'image/jpeg' };
+    }),
+    getObjectBuffer: vi.fn(async (key: string) => {
+      const filePath = filePathForKey(key);
+      return fs.existsSync(filePath) ? fs.promises.readFile(filePath) : null;
+    }),
+    deleteObject: vi.fn(async (key: string) => {
+      await fs.promises.rm(filePathForKey(key), { force: true });
+    }),
+  };
+
+  return {
+    getMediaStorage: () => storage,
+    getSignedMediaUrl: vi.fn(async () => null),
+    openStoredMedia: vi.fn(async (storageKey: string | null | undefined, legacyKey?: string | null) => {
+      const key = storageKey || legacyKey;
+      return key ? storage.getObjectStream(key) : null;
+    }),
+  };
+});
 
 function filePathFor(placeId: string): string {
   const hash = crypto.createHash('sha1').update(placeId).digest('hex');

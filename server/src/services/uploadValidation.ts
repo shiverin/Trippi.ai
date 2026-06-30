@@ -198,7 +198,7 @@ export async function assertXmlOrZipUpload(file: MinimalUploadFile, acceptedExts
   if (!hasReadableBytes(file)) return;
   const detected = detectUploadKind(await readHead(file));
   if (ext === '.kmz') {
-    if (detected !== 'zip') invalid(`Uploaded file content does not match ${ext}`);
+    if (detected !== 'zip') invalid('Uploaded file content does not match KMZ');
     return;
   }
   if (detected !== 'text') invalid(`Uploaded file content does not match ${ext}`);

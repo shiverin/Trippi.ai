@@ -61,13 +61,14 @@ function service() {
   return new BookingIntentsService();
 }
 
+let seedSeq = 0;
+
 function seedTrip(): { user: User; tripId: number } {
+  seedSeq++;
   const userId = Number(
     db
-      .prepare(
-        "INSERT INTO users (username, email, password_hash, role) VALUES ('owner', 'owner@test', 'hash', 'user')",
-      )
-      .run().lastInsertRowid,
+      .prepare('INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)')
+      .run(`owner${seedSeq}`, `owner${seedSeq}@test`, 'hash', 'user').lastInsertRowid,
   );
   const tripId = Number(
     db.prepare("INSERT INTO trips (user_id, title) VALUES (?, 'Trip')").run(userId).lastInsertRowid,
@@ -75,12 +76,63 @@ function seedTrip(): { user: User; tripId: number } {
   return {
     user: {
       id: userId,
-      username: 'owner',
-      email: 'owner@test',
+      username: `owner${seedSeq}`,
+      email: `owner${seedSeq}@test`,
       role: 'user',
     } as User,
     tripId,
   };
+}
+
+function seedApprovedBookingOption(
+  tripId: number,
+  userId: number,
+  intentId: number,
+  overrides: Partial<{
+    externalId: string;
+    title: string;
+    checkoutUrl: string;
+    status: string;
+    intentStatus: string;
+  }> = {},
+): number {
+  db.prepare('UPDATE booking_intents SET status = ? WHERE id = ?').run(overrides.intentStatus ?? 'approved', intentId);
+  const optionId = Number(
+    db
+      .prepare(
+        `
+        INSERT INTO booking_options
+          (booking_intent_id, provider, external_id, title, price, currency, score, checkout_url, status)
+        VALUES (?, 'mock-travel', ?, ?, 420, 'USD', 0.9, ?, ?)
+      `,
+      )
+      .run(
+        intentId,
+        overrides.externalId ?? 'flight-flex',
+        overrides.title ?? 'Flexible Flight',
+        overrides.checkoutUrl ?? 'https://provider.example/checkout/flight-flex',
+        overrides.status ?? 'current',
+      ).lastInsertRowid,
+  );
+  const decisionId = Number(
+    db
+      .prepare(
+        "INSERT INTO group_decisions (trip_id, created_by, title, state) VALUES (?, ?, 'Approve booking option', 'decided')",
+      )
+      .run(tripId, userId).lastInsertRowid,
+  );
+  const decisionOptionId = Number(
+    db
+      .prepare(
+        'INSERT INTO group_decision_options (decision_id, booking_option_id, label, sort_order) VALUES (?, ?, ?, 0)',
+      )
+      .run(decisionId, optionId, overrides.title ?? 'Flexible Flight').lastInsertRowid,
+  );
+  db.prepare('UPDATE group_decisions SET final_option_id = ? WHERE id = ?').run(decisionOptionId, decisionId);
+  db.prepare(
+    "INSERT INTO group_decision_links (decision_id, target_type, target_id) VALUES (?, 'booking_intent', ?)",
+  ).run(decisionId, intentId);
+  return optionId;
 }
 
 beforeAll(() => {
@@ -92,7 +144,13 @@ beforeAll(() => {
 beforeEach(() => {
   db.exec(`
     DELETE FROM agent_jobs;
+    DELETE FROM group_decision_links;
+    DELETE FROM group_decision_responses;
+    DELETE FROM group_decision_options;
+    DELETE FROM group_decisions;
+    DELETE FROM booking_options;
     DELETE FROM booking_intents;
+    DELETE FROM reservations;
     DELETE FROM trip_members;
     DELETE FROM trips;
     DELETE FROM users;
@@ -106,6 +164,35 @@ afterAll(() => {
 });
 
 describe('BookingIntentsService', () => {
+  it('creates checkout handoff columns and accepts the pending_checkout status', () => {
+    const { user, tripId } = seedTrip();
+    const columns = new Set(
+      (
+        db.prepare("PRAGMA table_info('booking_intents')").all() as Array<{
+          name: string;
+        }>
+      ).map((column) => column.name),
+    );
+    expect([...columns]).toEqual(
+      expect.arrayContaining([
+        'checkout_option_id',
+        'checkout_provider',
+        'checkout_url',
+        'checkout_started_at',
+        'booked_at',
+        'reservation_id',
+        'reservation_url',
+        'confirmation_number',
+      ]),
+    );
+
+    expect(() =>
+      db
+        .prepare("INSERT INTO booking_intents (trip_id, created_by, type, status) VALUES (?, ?, 'flight', ?)")
+        .run(tripId, user.id, 'pending_checkout'),
+    ).not.toThrow();
+  });
+
   it('delegates trip access and reservation_edit permission checks', async () => {
     canAccessTripAsync.mockResolvedValue({ id: 5, user_id: 2 });
     checkPermissionAsync.mockResolvedValue(true);
@@ -175,6 +262,117 @@ describe('BookingIntentsService', () => {
     ).resolves.toBeNull();
     await expect(service().archive(String(tripId), String(created!.id))).resolves.toMatchObject({ status: 'archived' });
     await expect(service().archive(String(tripId), '999')).resolves.toBeNull();
+  });
+
+  it('prepares checkout handoff only after approval and records provider option metadata', async () => {
+    const { user, tripId } = seedTrip();
+    const created = await service().create(String(tripId), user.id, {
+      type: 'flight',
+      status: 'options_ready',
+    });
+    const optionId = seedApprovedBookingOption(tripId, user.id, created!.id, {
+      checkoutUrl: 'trippi-provider://checkout/flight-flex',
+      status: 'current',
+      intentStatus: 'approved',
+    });
+
+    await db.prepare("UPDATE booking_intents SET status = 'options_ready' WHERE id = ?").run(created!.id);
+    await expect(service().prepareCheckoutHandoff(String(tripId), String(created!.id))).rejects.toThrow(
+      'booking intent must be approved before checkout handoff',
+    );
+
+    await db.prepare("UPDATE booking_intents SET status = 'approved' WHERE id = ?").run(created!.id);
+    const result = await service().prepareCheckoutHandoff(String(tripId), String(created!.id));
+
+    expect(result?.handoff).toMatchObject({
+      provider: 'mock-travel',
+      option_id: optionId,
+      external_id: 'flight-flex',
+      title: 'Flexible Flight',
+      checkout_url: 'trippi-provider://checkout/flight-flex',
+    });
+    expect(result?.handoff.opened_at).toEqual(expect.any(String));
+    expect(result?.bookingIntent).toMatchObject({
+      id: created!.id,
+      status: 'pending_checkout',
+      checkout_option_id: optionId,
+      checkout_provider: 'mock-travel',
+      checkout_url: 'trippi-provider://checkout/flight-flex',
+      checkout_started_at: result?.handoff.opened_at,
+    });
+  });
+
+  it('marks approved checkout intents as booked and can attach confirmation metadata later', async () => {
+    const { user, tripId } = seedTrip();
+    const created = await service().create(String(tripId), user.id, {
+      type: 'hotel',
+      status: 'approved',
+    });
+    const optionId = seedApprovedBookingOption(tripId, user.id, created!.id, {
+      title: 'Old Town Stay',
+      checkoutUrl: 'https://provider.example/checkout/hotel-1',
+      intentStatus: 'approved',
+    });
+    const reservationId = Number(
+      db
+        .prepare(
+          "INSERT INTO reservations (trip_id, title, type, status, confirmation_number) VALUES (?, 'Old Town Stay', 'hotel', 'confirmed', 'ABC123')",
+        )
+        .run(tripId).lastInsertRowid,
+    );
+
+    const booked = await service().markBooked(String(tripId), String(created!.id), {
+      reservation_id: reservationId,
+      reservation_url: 'https://provider.example/reservations/ABC123',
+      confirmation_number: 'ABC123',
+    });
+
+    expect(booked).toMatchObject({
+      id: created!.id,
+      status: 'booked',
+      checkout_option_id: optionId,
+      checkout_provider: 'mock-travel',
+      checkout_url: 'https://provider.example/checkout/hotel-1',
+      reservation_id: reservationId,
+      reservation_url: 'https://provider.example/reservations/ABC123',
+      confirmation_number: 'ABC123',
+    });
+    expect(booked?.checkout_started_at).toEqual(expect.any(String));
+    expect(booked?.booked_at).toEqual(expect.any(String));
+
+    const attachedLater = await service().markBooked(String(tripId), String(created!.id), {
+      confirmationNumber: 'XYZ789',
+    });
+    expect(attachedLater).toMatchObject({
+      status: 'booked',
+      reservation_id: reservationId,
+      reservation_url: 'https://provider.example/reservations/ABC123',
+      confirmation_number: 'XYZ789',
+    });
+  });
+
+  it('rejects booked metadata that points to another trip reservation', async () => {
+    const { user, tripId } = seedTrip();
+    const other = seedTrip();
+    const created = await service().create(String(tripId), user.id, {
+      type: 'flight',
+      status: 'approved',
+    });
+    seedApprovedBookingOption(tripId, user.id, created!.id, {
+      checkoutUrl: 'https://provider.example/checkout/flight-1',
+      intentStatus: 'approved',
+    });
+    const otherReservationId = Number(
+      db
+        .prepare("INSERT INTO reservations (trip_id, title, type, status) VALUES (?, 'Other', 'flight', 'confirmed')")
+        .run(other.tripId).lastInsertRowid,
+    );
+
+    await expect(
+      service().markBooked(String(tripId), String(created!.id), {
+        reservationId: otherReservationId,
+      }),
+    ).rejects.toThrow('reservation_id must belong to this trip');
   });
 
   it('starts watching and idempotently enqueues a price-watch job', async () => {

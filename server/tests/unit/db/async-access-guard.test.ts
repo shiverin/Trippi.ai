@@ -72,6 +72,13 @@ describe('async DB access guardrails', () => {
       'nest/trips/trips.controller.ts',
       'nest/trips/trips.service.ts',
     ];
+    const bookingCheckoutHandoffEntryPoints = [
+      'nest/booking-intents/booking-intents.controller.ts',
+      'nest/booking-intents/booking-intents.service.ts',
+      'services/bookingPriceWatch.ts',
+    ];
+
+    expect(convertedEntryPoints).toEqual(expect.arrayContaining(bookingCheckoutHandoffEntryPoints));
 
     const offenders = convertedEntryPoints.filter((file) => {
       const source = readFileSync(src(file), 'utf8');

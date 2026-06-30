@@ -379,7 +379,7 @@ export class DecisionsService {
   ) {
     const intent = await this.getBookingIntentRow(tripId, intentId);
     if (!intent) return null;
-    if (intent.status === 'archived' || intent.status === 'booked') {
+    if (intent.status === 'archived' || intent.status === 'pending_checkout' || intent.status === 'booked') {
       throw new GroupDecisionInputError(`${intent.status} booking intents cannot create decisions`);
     }
 
@@ -825,7 +825,7 @@ export class DecisionsService {
         `
         UPDATE booking_intents
         SET status = 'approved', updated_at = CURRENT_TIMESTAMP
-        WHERE trip_id = ? AND id = ? AND status NOT IN ('archived', 'booked')
+        WHERE trip_id = ? AND id = ? AND status NOT IN ('archived', 'pending_checkout', 'booked')
       `,
       )
       .run(tripId, linkedIntent.booking_intent_id);

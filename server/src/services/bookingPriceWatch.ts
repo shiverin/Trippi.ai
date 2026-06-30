@@ -215,7 +215,7 @@ async function markWatchChecked(tripId: number, bookingIntentId: number, optionC
       `
         UPDATE booking_intents
         SET status = CASE
-              WHEN ? > 0 AND status NOT IN ('booked', 'archived') THEN 'options_ready'
+              WHEN ? > 0 AND status IN ('draft', 'watching', 'options_ready') THEN 'options_ready'
               WHEN status = 'draft' THEN 'watching'
               ELSE status
             END,

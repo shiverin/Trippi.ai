@@ -3178,7 +3178,15 @@ function runMigrations(db: Database.Database): void {
           party_constraints TEXT NOT NULL DEFAULT '{}',
           budget TEXT NOT NULL DEFAULT '{}',
           preferences TEXT NOT NULL DEFAULT '{}',
-          status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'booked', 'archived')),
+          status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'pending_checkout', 'booked', 'archived')),
+          checkout_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL,
+          checkout_provider TEXT,
+          checkout_url TEXT,
+          checkout_started_at DATETIME,
+          booked_at DATETIME,
+          reservation_id INTEGER REFERENCES reservations(id) ON DELETE SET NULL,
+          reservation_url TEXT,
+          confirmation_number TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -3260,6 +3268,133 @@ function runMigrations(db: Database.Database): void {
       if (!columns.has('last_checked_at')) {
         db.exec('ALTER TABLE booking_intents ADD COLUMN last_checked_at DATETIME');
       }
+    },
+    // Migration: checkout handoff tracking and pending checkout intent state.
+    // This runs outside the outer migration transaction because the status CHECK
+    // constraint requires a table rebuild and child foreign keys must be paused.
+    {
+      raw: () => {
+        const table = db
+          .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'booking_intents'")
+          .get() as { sql: string } | undefined;
+        if (!table) return;
+
+        const columns = new Set(
+          (
+            db.prepare("PRAGMA table_info('booking_intents')").all() as Array<{
+              name: string;
+            }>
+          ).map((column) => column.name),
+        );
+        const requiredColumns = [
+          'checkout_option_id',
+          'checkout_provider',
+          'checkout_url',
+          'checkout_started_at',
+          'booked_at',
+          'reservation_id',
+          'reservation_url',
+          'confirmation_number',
+        ];
+        const hasPendingCheckoutStatus = table.sql.includes('pending_checkout');
+        const missingColumns = requiredColumns.some((column) => !columns.has(column));
+        if (hasPendingCheckoutStatus && !missingColumns) return;
+
+        const select = (column: string, fallback: string) => (columns.has(column) ? column : fallback);
+
+        db.exec('PRAGMA foreign_keys = OFF');
+        try {
+          db.transaction(() => {
+            db.exec(`
+              CREATE TABLE booking_intents_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+                created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                type TEXT NOT NULL,
+                dates TEXT NOT NULL DEFAULT '{}',
+                origin TEXT,
+                destination TEXT,
+                party_constraints TEXT NOT NULL DEFAULT '{}',
+                budget TEXT NOT NULL DEFAULT '{}',
+                preferences TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'pending_checkout', 'booked', 'archived')),
+                watch_status TEXT NOT NULL DEFAULT 'idle' CHECK(watch_status IN ('idle', 'queued', 'checking', 'checked', 'failed')),
+                last_checked_at DATETIME,
+                checkout_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL,
+                checkout_provider TEXT,
+                checkout_url TEXT,
+                checkout_started_at DATETIME,
+                booked_at DATETIME,
+                reservation_id INTEGER REFERENCES reservations(id) ON DELETE SET NULL,
+                reservation_url TEXT,
+                confirmation_number TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+              );
+            `);
+            db.exec(`
+              INSERT INTO booking_intents_new (
+                id,
+                trip_id,
+                created_by,
+                type,
+                dates,
+                origin,
+                destination,
+                party_constraints,
+                budget,
+                preferences,
+                status,
+                watch_status,
+                last_checked_at,
+                checkout_option_id,
+                checkout_provider,
+                checkout_url,
+                checkout_started_at,
+                booked_at,
+                reservation_id,
+                reservation_url,
+                confirmation_number,
+                created_at,
+                updated_at
+              )
+              SELECT
+                id,
+                trip_id,
+                created_by,
+                type,
+                dates,
+                origin,
+                destination,
+                party_constraints,
+                budget,
+                preferences,
+                status,
+                ${select('watch_status', "'idle'")},
+                ${select('last_checked_at', 'NULL')},
+                ${select('checkout_option_id', 'NULL')},
+                ${select('checkout_provider', 'NULL')},
+                ${select('checkout_url', 'NULL')},
+                ${select('checkout_started_at', 'NULL')},
+                ${select('booked_at', 'NULL')},
+                ${select('reservation_id', 'NULL')},
+                ${select('reservation_url', 'NULL')},
+                ${select('confirmation_number', 'NULL')},
+                created_at,
+                updated_at
+              FROM booking_intents;
+            `);
+            db.exec('DROP TABLE booking_intents');
+            db.exec('ALTER TABLE booking_intents_new RENAME TO booking_intents');
+            db.exec(`
+              CREATE INDEX IF NOT EXISTS idx_booking_intents_trip_id ON booking_intents(trip_id);
+              CREATE INDEX IF NOT EXISTS idx_booking_intents_status ON booking_intents(trip_id, status);
+            `);
+          })();
+        } finally {
+          db.exec('PRAGMA foreign_keys = ON');
+        }
+      },
     },
     () => {
       db.exec(`

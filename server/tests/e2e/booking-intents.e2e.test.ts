@@ -4,7 +4,7 @@ import { BookingIntentsModule } from '../../src/nest/booking-intents/booking-int
 import { TrippiExceptionFilter } from '../../src/nest/common/trippi-exception.filter';
 import { invalidatePermissionsCache } from '../../src/services/permissions';
 import { authCookie } from '../helpers/auth';
-import { addTripMember, createTrip, createUser } from '../helpers/factories';
+import { addTripMember, createReservation, createTrip, createUser } from '../helpers/factories';
 import { resetTestDb } from '../helpers/test-db';
 import { Test } from '@nestjs/testing';
 
@@ -54,6 +54,40 @@ vi.mock('../../src/websocket', () => ({
   broadcast: vi.fn(),
   broadcastToUser: vi.fn(),
 }));
+
+function createApprovedBookingOption(tripId: number, userId: number, intentId: number): number {
+  db.prepare("UPDATE booking_intents SET status = 'approved' WHERE id = ?").run(intentId);
+  const optionId = Number(
+    db
+      .prepare(
+        `
+        INSERT INTO booking_options
+          (booking_intent_id, provider, external_id, title, price, currency, score, checkout_url, status)
+        VALUES (?, 'mock-travel', 'flight-flex', 'Flexible Flight', 420, 'USD', 0.9, ?, 'current')
+      `,
+      )
+      .run(intentId, 'https://provider.example/checkout/flight-flex').lastInsertRowid,
+  );
+  const decisionId = Number(
+    db
+      .prepare(
+        "INSERT INTO group_decisions (trip_id, created_by, title, state) VALUES (?, ?, 'Approve booking option', 'decided')",
+      )
+      .run(tripId, userId).lastInsertRowid,
+  );
+  const decisionOptionId = Number(
+    db
+      .prepare(
+        "INSERT INTO group_decision_options (decision_id, booking_option_id, label, sort_order) VALUES (?, ?, 'Flexible Flight', 0)",
+      )
+      .run(decisionId, optionId).lastInsertRowid,
+  );
+  db.prepare('UPDATE group_decisions SET final_option_id = ? WHERE id = ?').run(decisionOptionId, decisionId);
+  db.prepare(
+    "INSERT INTO group_decision_links (decision_id, target_type, target_id) VALUES (?, 'booking_intent', ?)",
+  ).run(decisionId, intentId);
+  return optionId;
+}
 
 describe('Booking intents e2e', () => {
   let server: Server;
@@ -214,6 +248,72 @@ describe('Booking intents e2e', () => {
       watch_status: 'queued',
       last_checked_at: null,
     });
+  });
+
+  it('hands off approved checkout links and records booked confirmation metadata', async () => {
+    const { user } = createUser(db);
+    const trip = createTrip(db, user.id);
+    const created = await request(server)
+      .post(`/api/trips/${trip.id}/booking-intents`)
+      .set('Cookie', authCookie(user.id))
+      .send({
+        type: 'flight',
+        status: 'options_ready',
+      });
+    const intentId = created.body.booking_intent.id;
+
+    const unapproved = await request(server)
+      .post(`/api/trips/${trip.id}/booking-intents/${intentId}/checkout-handoff`)
+      .set('Cookie', authCookie(user.id));
+    expect(unapproved.status).toBe(400);
+    expect(unapproved.body.error).toContain('approved');
+
+    const optionId = createApprovedBookingOption(trip.id, user.id, intentId);
+    const handoff = await request(server)
+      .post(`/api/trips/${trip.id}/booking-intents/${intentId}/checkout-handoff`)
+      .set('Cookie', authCookie(user.id));
+    expect(handoff.status).toBe(200);
+    expect(handoff.body.handoff).toMatchObject({
+      provider: 'mock-travel',
+      option_id: optionId,
+      external_id: 'flight-flex',
+      checkout_url: 'https://provider.example/checkout/flight-flex',
+    });
+    expect(handoff.body.booking_intent).toMatchObject({
+      status: 'pending_checkout',
+      checkout_option_id: optionId,
+      checkout_provider: 'mock-travel',
+      checkout_url: 'https://provider.example/checkout/flight-flex',
+    });
+
+    const reservation = createReservation(db, trip.id, {
+      title: 'Flexible Flight',
+      type: 'flight',
+    });
+    const booked = await request(server)
+      .post(`/api/trips/${trip.id}/booking-intents/${intentId}/mark-booked`)
+      .set('Cookie', authCookie(user.id))
+      .send({
+        reservation_id: reservation.id,
+        reservation_url: 'https://provider.example/reservations/ABC123',
+        confirmation_number: 'ABC123',
+      });
+    expect(booked.status).toBe(200);
+    expect(booked.body.booking_intent).toMatchObject({
+      status: 'booked',
+      checkout_option_id: optionId,
+      checkout_provider: 'mock-travel',
+      reservation_id: reservation.id,
+      reservation_url: 'https://provider.example/reservations/ABC123',
+      confirmation_number: 'ABC123',
+    });
+    expect(booked.body.booking_intent.booked_at).toEqual(expect.any(String));
+
+    const archived = await request(server)
+      .post(`/api/trips/${trip.id}/booking-intents/${intentId}/archive`)
+      .set('Cookie', authCookie(user.id));
+    expect(archived.status).toBe(200);
+    expect(archived.body.booking_intent.status).toBe('archived');
   });
 
   it('404s outside trip access and validates payloads', async () => {

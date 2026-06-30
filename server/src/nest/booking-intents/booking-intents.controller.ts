@@ -1,7 +1,12 @@
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { BookingIntentInput, BookingIntentValidationError, BookingIntentsService } from './booking-intents.service';
+import {
+  BookingIntentBookedInput,
+  BookingIntentInput,
+  BookingIntentValidationError,
+  BookingIntentsService,
+} from './booking-intents.service';
 import {
   Body,
   Controller,
@@ -142,5 +147,58 @@ export class BookingIntentsController {
     }
     this.bookingIntents.broadcast(tripId, 'booking-intent:archived', { booking_intent: bookingIntent }, socketId);
     return { booking_intent: bookingIntent };
+  }
+
+  @Post(':id/checkout-handoff')
+  @HttpCode(200)
+  async checkoutHandoff(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
+    const trip = await this.requireTrip(tripId, user);
+    await this.requireEdit(trip, user);
+    try {
+      const result = await this.bookingIntents.prepareCheckoutHandoff(tripId, id);
+      if (!result) {
+        throw new HttpException({ error: 'Booking intent not found' }, 404);
+      }
+      this.bookingIntents.broadcast(
+        tripId,
+        'booking-intent:checkout-started',
+        { booking_intent: result.bookingIntent, handoff: result.handoff },
+        socketId,
+      );
+      return {
+        booking_intent: result.bookingIntent,
+        handoff: result.handoff,
+      };
+    } catch (err) {
+      this.mapValidation(err);
+    }
+  }
+
+  @Post(':id/mark-booked')
+  @HttpCode(200)
+  async markBooked(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Body() body: BookingIntentBookedInput,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
+    const trip = await this.requireTrip(tripId, user);
+    await this.requireEdit(trip, user);
+    try {
+      const bookingIntent = await this.bookingIntents.markBooked(tripId, id, body);
+      if (!bookingIntent) {
+        throw new HttpException({ error: 'Booking intent not found' }, 404);
+      }
+      this.bookingIntents.broadcast(tripId, 'booking-intent:booked', { booking_intent: bookingIntent }, socketId);
+      return { booking_intent: bookingIntent };
+    } catch (err) {
+      this.mapValidation(err);
+    }
   }
 }

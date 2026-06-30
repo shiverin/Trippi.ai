@@ -23,6 +23,11 @@ function makeService(overrides: Partial<BookingIntentsService> = {}): BookingInt
       bookingIntent: { id: 9, status: 'watching', watch_status: 'queued' },
       agentJob: { id: 3, type: 'booking-intent.price-watch', status: 'queued' },
     }),
+    prepareCheckoutHandoff: vi.fn().mockResolvedValue({
+      bookingIntent: { id: 9, status: 'pending_checkout', checkout_provider: 'mock-travel' },
+      handoff: { provider: 'mock-travel', option_id: 4, checkout_url: 'https://provider.example/checkout' },
+    }),
+    markBooked: vi.fn().mockResolvedValue({ id: 9, status: 'booked', confirmation_number: 'ABC123' }),
     archive: vi.fn().mockResolvedValue({ id: 9, status: 'archived' }),
     ...overrides,
   } as unknown as BookingIntentsService;
@@ -187,6 +192,94 @@ describe('BookingIntentsController', () => {
       '5',
       'booking-intent:archived',
       { booking_intent: { id: 9, status: 'archived' } },
+      'sock',
+    );
+  });
+
+  it('POST /:id/checkout-handoff prepares provider handoff, broadcasts, and maps failures', async () => {
+    const missing = makeService({ prepareCheckoutHandoff: vi.fn().mockResolvedValue(null) });
+    await expect(thrown(() => new BookingIntentsController(missing).checkoutHandoff(user, '5', '9'))).resolves.toEqual({
+      status: 404,
+      body: { error: 'Booking intent not found' },
+    });
+
+    const denied = makeService({ canEdit: vi.fn().mockResolvedValue(false) });
+    await expect(thrown(() => new BookingIntentsController(denied).checkoutHandoff(user, '5', '9'))).resolves.toEqual({
+      status: 403,
+      body: { error: 'No permission' },
+    });
+
+    const invalid = makeService({
+      prepareCheckoutHandoff: vi.fn().mockRejectedValue(new BookingIntentValidationError('approved only')),
+    });
+    await expect(thrown(() => new BookingIntentsController(invalid).checkoutHandoff(user, '5', '9'))).resolves.toEqual({
+      status: 400,
+      body: { error: 'approved only' },
+    });
+
+    const prepareCheckoutHandoff = vi.fn().mockResolvedValue({
+      bookingIntent: { id: 9, status: 'pending_checkout' },
+      handoff: { provider: 'mock-travel', option_id: 4, checkout_url: 'https://provider.example/checkout' },
+    });
+    const broadcast = vi.fn();
+    const svc = makeService({
+      prepareCheckoutHandoff,
+      broadcast,
+    } as Partial<BookingIntentsService>);
+
+    await expect(new BookingIntentsController(svc).checkoutHandoff(user, '5', '9', 'sock')).resolves.toEqual({
+      booking_intent: { id: 9, status: 'pending_checkout' },
+      handoff: { provider: 'mock-travel', option_id: 4, checkout_url: 'https://provider.example/checkout' },
+    });
+    expect(prepareCheckoutHandoff).toHaveBeenCalledWith('5', '9');
+    expect(broadcast).toHaveBeenCalledWith(
+      '5',
+      'booking-intent:checkout-started',
+      {
+        booking_intent: { id: 9, status: 'pending_checkout' },
+        handoff: { provider: 'mock-travel', option_id: 4, checkout_url: 'https://provider.example/checkout' },
+      },
+      'sock',
+    );
+  });
+
+  it('POST /:id/mark-booked records confirmation metadata and broadcasts', async () => {
+    const missing = makeService({ markBooked: vi.fn().mockResolvedValue(null) });
+    await expect(thrown(() => new BookingIntentsController(missing).markBooked(user, '5', '9', {}))).resolves.toEqual({
+      status: 404,
+      body: { error: 'Booking intent not found' },
+    });
+
+    const invalid = makeService({
+      markBooked: vi.fn().mockRejectedValue(new BookingIntentValidationError('bad reservation')),
+    });
+    await expect(
+      thrown(() => new BookingIntentsController(invalid).markBooked(user, '5', '9', { reservation_id: 'bad' })),
+    ).resolves.toEqual({
+      status: 400,
+      body: { error: 'bad reservation' },
+    });
+
+    const body = {
+      reservation_id: 42,
+      reservation_url: 'https://provider.example/reservations/ABC123',
+      confirmation_number: 'ABC123',
+    };
+    const markBooked = vi.fn().mockResolvedValue({ id: 9, status: 'booked', confirmation_number: 'ABC123' });
+    const broadcast = vi.fn();
+    const svc = makeService({
+      markBooked,
+      broadcast,
+    } as Partial<BookingIntentsService>);
+
+    await expect(new BookingIntentsController(svc).markBooked(user, '5', '9', body, 'sock')).resolves.toEqual({
+      booking_intent: { id: 9, status: 'booked', confirmation_number: 'ABC123' },
+    });
+    expect(markBooked).toHaveBeenCalledWith('5', '9', body);
+    expect(broadcast).toHaveBeenCalledWith(
+      '5',
+      'booking-intent:booked',
+      { booking_intent: { id: 9, status: 'booked', confirmation_number: 'ABC123' } },
       'sock',
     );
   });

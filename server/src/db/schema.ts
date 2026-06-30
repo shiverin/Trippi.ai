@@ -244,9 +244,17 @@ function createTables(db: Database.Database): void {
       party_constraints TEXT NOT NULL DEFAULT '{}',
       budget TEXT NOT NULL DEFAULT '{}',
       preferences TEXT NOT NULL DEFAULT '{}',
-      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'booked', 'archived')),
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'pending_checkout', 'booked', 'archived')),
       watch_status TEXT NOT NULL DEFAULT 'idle' CHECK(watch_status IN ('idle', 'queued', 'checking', 'checked', 'failed')),
       last_checked_at DATETIME,
+      checkout_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL,
+      checkout_provider TEXT,
+      checkout_url TEXT,
+      checkout_started_at DATETIME,
+      booked_at DATETIME,
+      reservation_id INTEGER REFERENCES reservations(id) ON DELETE SET NULL,
+      reservation_url TEXT,
+      confirmation_number TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );

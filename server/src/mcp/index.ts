@@ -2,6 +2,7 @@ import { ADDON_IDS } from '../addons';
 import { isAddonEnabledAsync } from '../services/adminService';
 import { writeAudit, getClientIp } from '../services/auditLog';
 import { verifyMcpTokenAsync, verifyJwtToken } from '../services/authService';
+import { getEntitlementsForUser, limitAllows, type EntitlementLimit } from '../services/entitlementService';
 import { getMcpSafeUrl } from '../services/notifications';
 import { getUserByAccessTokenAsync } from '../services/oauthService';
 import { User } from '../types';
@@ -104,10 +105,7 @@ const STATIC_TOKEN_DEPRECATION_NOTICE =
   "The actual tool result follows — answer the user's question as well.";
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
-const DEFAULT_MAX_SESSIONS_PER_USER = 200;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const parsed = Number.parseInt(process.env.MCP_RATE_LIMIT ?? '', 10);
-const RATE_LIMIT_MAX = Number.isFinite(parsed) && parsed > 0 ? parsed : 300; // requests per minute per user
 
 interface RateLimitEntry {
   count: number;
@@ -115,21 +113,17 @@ interface RateLimitEntry {
 }
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
-function getMaxSessionsPerUser(): number {
-  const sessionParsed = Number.parseInt(process.env.MCP_MAX_SESSION_PER_USER ?? '', 10);
-  return Number.isFinite(sessionParsed) && sessionParsed > 0 ? sessionParsed : DEFAULT_MAX_SESSIONS_PER_USER;
-}
-
-function isRateLimited(userId: number, clientId: string | null): boolean {
+function isRateLimited(userId: number, clientId: string | null, maxRequests: EntitlementLimit): boolean {
+  if (maxRequests === null) return false;
   const key = `${userId}:${clientId ?? 'native'}`;
   const now = Date.now();
   const entry = rateLimitMap.get(key);
   if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
     rateLimitMap.set(key, { count: 1, windowStart: now });
-    return false;
+    return 1 > maxRequests;
   }
   entry.count += 1;
-  return entry.count > RATE_LIMIT_MAX;
+  return entry.count > maxRequests;
 }
 
 function countSessionsForUser(userId: number): number {
@@ -256,8 +250,10 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
     return;
   }
   const { user, scopes, clientId, isStaticToken } = tokenResult;
+  const entitlements = await getEntitlementsForUser(user.id);
+  const mcpLimits = entitlements.limits.mcpAutomation;
 
-  if (isRateLimited(user.id, clientId)) {
+  if (isRateLimited(user.id, clientId, mcpLimits.requestsPerMinute)) {
     res.status(429).json({ error: 'Too many requests. Please slow down.' });
     return;
   }
@@ -300,7 +296,7 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  if (countSessionsForUser(user.id) >= getMaxSessionsPerUser()) {
+  if (!limitAllows(mcpLimits.maxConcurrentSessions, countSessionsForUser(user.id))) {
     res.status(429).json({ error: 'Session limit reached. Close an existing session before opening a new one.' });
     return;
   }

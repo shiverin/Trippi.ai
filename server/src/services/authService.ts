@@ -9,13 +9,14 @@ import { decrypt_api_key, maybe_encrypt_api_key, encrypt_api_key } from './apiKe
 import { avatarUrl } from './avatarUrl';
 import { DEMO_EMAIL_PRIMARY, isDemoEmail } from './demo';
 import { getFlightDistanceKm } from './distanceService';
+import { checkMcpTokenCapacity } from './entitlementService';
 import { createEphemeralToken } from './ephemeralTokens';
+import { deleteMediaBestEffort, mediaKey } from './mediaStorage';
 import { encryptMfaSecret, decryptMfaSecret } from './mfaCrypto';
 import { validatePassword } from './passwordPolicy';
 import { getAllPermissions, getAllPermissionsAsync } from './permissions';
 import { deleteUserCompletely } from './userCleanupService';
 import { isPasskeyConfigured, isPasskeyConfiguredAsync, resolveWebauthnConfigAsync } from './webauthnConfig';
-import { deleteMediaBestEffort, mediaKey } from './mediaStorage';
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -3406,10 +3407,8 @@ export async function createMcpTokenAsync(
   if (!name?.trim()) return { error: 'Token name is required', status: 400 };
   if (name.trim().length > 100) return { error: 'Token name must be 100 characters or less', status: 400 };
 
-  const tokenCount =
-    (await asyncDb.prepare('SELECT COUNT(*) as count FROM mcp_tokens WHERE user_id = ?').get<{ count: number }>(userId))
-      ?.count ?? 0;
-  if (tokenCount >= 10) return { error: 'Maximum of 10 tokens per user reached', status: 400 };
+  const entitlement = await checkMcpTokenCapacity(userId);
+  if (!entitlement.allowed) return { error: entitlement.message ?? 'MCP token limit reached', status: 403 };
 
   const rawToken = 'trippi_' + randomBytes(24).toString('hex');
   const tokenHash = createHash('sha256').update(rawToken).digest('hex');

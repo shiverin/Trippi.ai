@@ -2,6 +2,11 @@ import { asyncDb, canAccessTripAsync } from '../../db/asyncDatabase';
 import { logWarn } from '../../services/auditLog';
 import { listBudgetItems } from '../../services/budgetService';
 import { listDays, listAccommodations } from '../../services/dayService';
+import {
+  checkActiveTripCapacity,
+  checkTripGroupCapacity,
+  throwIfEntitlementDenied,
+} from '../../services/entitlementService';
 import { listFilesAsync } from '../../services/fileService';
 import { listItems as listPackingItems } from '../../services/packingService';
 import { checkPermissionAsync } from '../../services/permissions';
@@ -32,6 +37,10 @@ export class TripsService {
 
   broadcast(tripId: string, event: string, payload: Record<string, unknown>, socketId: string | undefined): void {
     broadcast(tripId, event, payload, socketId);
+  }
+
+  async assertCanCreateActiveTrip(userId: number): Promise<void> {
+    throwIfEntitlementDenied(await checkActiveTripCapacity(userId));
   }
 
   async list(userId: number, archived: number | null) {
@@ -323,8 +332,44 @@ export class TripsService {
     };
   }
 
-  addMember(tripId: string, identifier: string, ownerId: number, userId: number) {
-    return tripSvc.addMember(tripId, identifier, ownerId, userId);
+  async addMember(
+    tripId: string,
+    identifier: string,
+    ownerId: number,
+    userId: number,
+  ): Promise<tripSvc.AddMemberResult> {
+    if (!identifier) throw new tripSvc.ValidationError('Email or username required');
+    const cleanIdentifier = identifier.trim();
+
+    const target = await asyncDb
+      .prepare('SELECT id, username, email, avatar FROM users WHERE email = ? OR username = ?')
+      .get<Pick<User, 'id' | 'username' | 'email' | 'avatar'>>(cleanIdentifier, cleanIdentifier);
+
+    if (!target) throw new tripSvc.NotFoundError('User not found');
+    if (target.id === ownerId) throw new tripSvc.ValidationError('Trip owner is already a member');
+
+    const existing = await asyncDb
+      .prepare('SELECT id FROM trip_members WHERE trip_id = ? AND user_id = ?')
+      .get<{ id: number }>(tripId, target.id);
+    if (existing) throw new tripSvc.ValidationError('User already has access');
+
+    throwIfEntitlementDenied(await checkTripGroupCapacity(ownerId, tripId));
+
+    await asyncDb
+      .prepare('INSERT INTO trip_members (trip_id, user_id, invited_by) VALUES (?, ?, ?)')
+      .run(tripId, target.id, userId);
+
+    const tripInfo = await asyncDb.prepare('SELECT title FROM trips WHERE id = ?').get<{ title: string }>(tripId);
+
+    return {
+      member: {
+        ...target,
+        role: 'member',
+        avatar_url: target.avatar ? `/uploads/avatars/${target.avatar}` : null,
+      },
+      targetUserId: target.id,
+      tripTitle: tripInfo?.title || 'Untitled',
+    };
   }
 
   removeMember(tripId: string, targetId: number): void {

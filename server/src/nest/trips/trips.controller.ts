@@ -1,5 +1,6 @@
 import { writeAudit, getClientIp, logInfo } from '../../services/auditLog';
 import { isDemoEmail } from '../../services/demo';
+import { EntitlementLimitError } from '../../services/entitlementService';
 import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
 import { NotFoundError, ValidationError } from '../../services/tripService';
 import { assertImageUpload } from '../../services/uploadValidation';
@@ -51,6 +52,20 @@ const addDays = (d: Date, n: number) => {
   return r;
 };
 
+function entitlementException(e: EntitlementLimitError): HttpException {
+  return new HttpException(
+    {
+      error: e.message,
+      code: e.code,
+      feature: e.check.feature,
+      plan: e.check.planKey,
+      limit: e.check.limit,
+      current: e.check.current,
+    },
+    e.status,
+  );
+}
+
 /**
  * /api/trips — the trip aggregate root.
  *
@@ -64,6 +79,15 @@ const addDays = (d: Date, n: number) => {
 @UseGuards(JwtAuthGuard)
 export class TripsController {
   constructor(private readonly trips: TripsService) {}
+
+  private async assertCanCreateActiveTrip(userId: number): Promise<void> {
+    try {
+      await this.trips.assertCanCreateActiveTrip(userId);
+    } catch (e: unknown) {
+      if (e instanceof EntitlementLimitError) throw entitlementException(e);
+      throw e;
+    }
+  }
 
   @Get()
   async list(@CurrentUser() user: User, @Query('archived') archived?: string) {
@@ -88,6 +112,7 @@ export class TripsController {
       throw new HttpException({ error: 'End date must be after start date' }, 400);
     }
     const parsedDayCount = day_count ? Math.min(Math.max(Number(day_count) || 7, 1), 365) : undefined;
+    await this.assertCanCreateActiveTrip(user.id);
     const { trip, tripId, reminderDays } = await this.trips.create(user.id, {
       title,
       description,
@@ -234,6 +259,7 @@ export class TripsController {
     if (!(await this.trips.canAccessTrip(id, user.id))) {
       throw new HttpException({ error: 'Trip not found' }, 404);
     }
+    await this.assertCanCreateActiveTrip(user.id);
     try {
       const newTripId = this.trips.copy(id, user.id, title);
       writeAudit({
@@ -296,10 +322,11 @@ export class TripsController {
       throw new HttpException({ error: 'No permission to manage members' }, 403);
     }
     try {
-      const result = this.trips.addMember(id, identifier, access.user_id, user.id);
+      const result = await this.trips.addMember(id, identifier, access.user_id, user.id);
       this.trips.notifyInvite(id, user, result.targetUserId, result.tripTitle, result.member.email);
       return { member: result.member };
     } catch (e: unknown) {
+      if (e instanceof EntitlementLimitError) throw entitlementException(e);
       if (e instanceof NotFoundError) throw new HttpException({ error: e.message }, 404);
       if (e instanceof ValidationError) throw new HttpException({ error: e.message }, 400);
       throw e;

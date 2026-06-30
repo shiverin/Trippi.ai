@@ -74,6 +74,7 @@ const RESET_TABLES = [
   // Trip
   'share_tokens',
   'trip_members',
+  'agent_jobs',
   'trips',
   // Journey
   'journey_share_tokens',

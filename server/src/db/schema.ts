@@ -292,6 +292,34 @@ function createTables(db: Database.Database): void {
       value TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS agent_jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      payload TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled', 'archived')),
+      attempts INTEGER NOT NULL DEFAULT 0,
+      max_attempts INTEGER NOT NULL DEFAULT 3,
+      next_run_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_error TEXT,
+      result_metadata TEXT,
+      idempotency_key TEXT,
+      trip_id INTEGER REFERENCES trips(id) ON DELETE CASCADE,
+      locked_by TEXT,
+      locked_at DATETIME,
+      started_at DATETIME,
+      finished_at DATETIME,
+      cancelled_at DATETIME,
+      archived_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      CHECK(attempts >= 0),
+      CHECK(max_attempts >= 1)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_jobs_idempotency ON agent_jobs(type, idempotency_key);
+    CREATE INDEX IF NOT EXISTS idx_agent_jobs_due ON agent_jobs(status, next_run_at, created_at);
+    CREATE INDEX IF NOT EXISTS idx_agent_jobs_trip ON agent_jobs(trip_id);
+    CREATE INDEX IF NOT EXISTS idx_agent_jobs_locked_at ON agent_jobs(status, locked_at);
+
     CREATE TABLE IF NOT EXISTS budget_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,

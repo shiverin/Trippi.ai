@@ -197,6 +197,19 @@ describe('ModalRenderer', () => {
     expect(screen.getByLabelText('Next notice')).toBeTruthy();
   });
 
+  it('FE-SN-MODAL-010b: welcome notice is shown as a standalone one-page modal', async () => {
+    const welcome = makeNotice({ id: 'welcome-v1', titleKey: 'Welcome to trippi.ai' });
+    const followup = makeNotice({ id: 'n2', titleKey: 'Follow-up Notice' });
+    render(<ModalRenderer notices={[welcome, followup]} />);
+    await flushGraceDelay();
+
+    expect(screen.getByText('Welcome to trippi.ai')).toBeTruthy();
+    expect(screen.queryByText('Follow-up Notice')).toBeNull();
+    expect(screen.queryByLabelText('Previous notice')).toBeNull();
+    expect(screen.queryByLabelText('Next notice')).toBeNull();
+    expect(screen.queryByLabelText('Go to notice 2')).toBeNull();
+  });
+
   it('FE-SN-MODAL-011: next button advances to the next notice; prev returns', async () => {
     const notices = [
       makeNotice({ id: 'n1', titleKey: 'Notice A' }),

@@ -130,7 +130,7 @@ function NoticeContent({
             <div className="relative">
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700 shadow-sm">
                 <LucideIcon size={14} />
-                Your trip HQ is live
+                Plan together
               </div>
               <h2
                 id={titleId}
@@ -139,8 +139,8 @@ function NoticeContent({
                 {title}
               </h2>
               <p className="mt-4 max-w-[30rem] text-base font-medium leading-relaxed text-slate-600">
-                Turn the messy group chat, saved maps, booking links, and “wait who booked what?” chaos into one shared
-                command center.
+                Turn the messy group chat, saved maps, booking links, and "wait who booked what?" chaos into one shared
+                trip plan.
               </p>
               <div className="mt-6 grid grid-cols-3 gap-2" aria-hidden="true">
                 <div className="-rotate-2 rounded-xl border border-white bg-white p-3 shadow-lg shadow-blue-200/50">
@@ -1059,7 +1059,9 @@ function DesktopNoticeModal(S: NoticeState) {
 }
 
 export function ModalRenderer({ notices }: Props) {
-  const S = useSystemNoticeModal(notices);
+  const welcomeNotice = notices.find((notice) => notice.id === 'welcome-v1');
+  const modalNotices = welcomeNotice ? [welcomeNotice] : notices;
+  const S = useSystemNoticeModal(modalNotices);
   // No notice to show
   if (!S.notice) return null;
   return S.isMobile ? <MobileNoticeSheet {...S} /> : <DesktopNoticeModal {...S} />;

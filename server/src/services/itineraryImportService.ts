@@ -624,7 +624,7 @@ async function resolveImportLocations(
       input.lang ?? '',
     ].join('\u0000');
   const uniqueJobCount = new Set(jobs.map(cacheKeyForJob)).size;
-  const hasGoogleKey = Boolean(getMapsKey(userId));
+  const hasGoogleKey = Boolean(await getMapsKey(userId));
   const geocodeConcurrency = hasGoogleKey ? GOOGLE_GEO_CONCURRENCY : NOMINATIM_GEO_CONCURRENCY;
   const resolutionCache = new Map<string, Promise<{ location: ResolvedLocation; warning?: string }>>();
   const timings: {
@@ -758,10 +758,9 @@ async function createTripForImport(
 }
 
 async function updateCoverImageForImport(tripId: number, coverUrl: string): Promise<void> {
-  await asyncDb.prepare('UPDATE trips SET cover_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
-    coverUrl,
-    tripId,
-  );
+  await asyncDb
+    .prepare('UPDATE trips SET cover_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(coverUrl, tripId);
 }
 
 async function getDayByNumber(tripId: number, dayNumber: number): Promise<DayRow | undefined> {
@@ -822,48 +821,46 @@ async function ensureDay(
 async function deleteImportedContent(tripId: number): Promise<number> {
   let removed = 0;
   removed += (
-    await asyncDb
-    .prepare('DELETE FROM reservations WHERE trip_id = ? AND mcp_import_batch_id IS NOT NULL')
-    .run(tripId)
+    await asyncDb.prepare('DELETE FROM reservations WHERE trip_id = ? AND mcp_import_batch_id IS NOT NULL').run(tripId)
   ).changes;
   removed += (
     await asyncDb
-    .prepare('DELETE FROM day_accommodations WHERE trip_id = ? AND mcp_import_batch_id IS NOT NULL')
-    .run(tripId)
+      .prepare('DELETE FROM day_accommodations WHERE trip_id = ? AND mcp_import_batch_id IS NOT NULL')
+      .run(tripId)
   ).changes;
   removed += (
     await asyncDb
-    .prepare(
-      `DELETE FROM day_assignments
+      .prepare(
+        `DELETE FROM day_assignments
        WHERE mcp_import_batch_id IS NOT NULL
          AND day_id IN (SELECT id FROM days WHERE trip_id = ?)`,
-    )
-    .run(tripId)
+      )
+      .run(tripId)
   ).changes;
   removed += (
     await asyncDb
-    .prepare(
-      `DELETE FROM places
+      .prepare(
+        `DELETE FROM places
        WHERE trip_id = ?
          AND mcp_import_batch_id IS NOT NULL
          AND NOT EXISTS (SELECT 1 FROM day_assignments da WHERE da.place_id = places.id)
          AND NOT EXISTS (SELECT 1 FROM day_accommodations a WHERE a.place_id = places.id)
          AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.place_id = places.id)`,
-    )
-    .run(tripId)
+      )
+      .run(tripId)
   ).changes;
   removed += (
     await asyncDb
-    .prepare(
-      `DELETE FROM days
+      .prepare(
+        `DELETE FROM days
        WHERE trip_id = ?
          AND mcp_import_batch_id IS NOT NULL
          AND NOT EXISTS (SELECT 1 FROM day_assignments da WHERE da.day_id = days.id)
          AND NOT EXISTS (SELECT 1 FROM day_notes dn WHERE dn.day_id = days.id)
          AND NOT EXISTS (SELECT 1 FROM day_accommodations a WHERE a.start_day_id = days.id OR a.end_day_id = days.id)
          AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.day_id = days.id OR r.end_day_id = days.id)`,
-    )
-    .run(tripId)
+      )
+      .run(tripId)
   ).changes;
   return removed;
 }

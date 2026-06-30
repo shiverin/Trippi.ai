@@ -7,6 +7,7 @@ import { applyIdempotency } from './idempotency';
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
 
 export function extractToken(req: Request): string | null {
   // Prefer httpOnly cookie; fall back to Authorization: Bearer (MCP, API clients)
@@ -14,6 +15,40 @@ export function extractToken(req: Request): string | null {
   if (cookieToken) return cookieToken;
   const authHeader = req.headers['authorization'];
   return (authHeader && authHeader.split(' ')[1]) || null;
+}
+
+interface AuthUserCacheEntry {
+  expiresAt: number;
+  promise?: Promise<User | null>;
+  user?: User;
+}
+
+const AUTH_USER_CACHE_TTL_MS = Math.max(0, Number(process.env.AUTH_USER_CACHE_TTL_MS ?? 15_000));
+const AUTH_USER_CACHE_MAX = Math.max(0, Number(process.env.AUTH_USER_CACHE_MAX ?? 1000));
+const authUserCache = new Map<string, AuthUserCacheEntry>();
+
+function authTokenCacheKey(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('base64url');
+}
+
+function cloneUser(user: User): User {
+  return { ...user };
+}
+
+function trimAuthUserCache(): void {
+  if (!AUTH_USER_CACHE_MAX) {
+    authUserCache.clear();
+    return;
+  }
+  while (authUserCache.size > AUTH_USER_CACHE_MAX) {
+    const firstKey = authUserCache.keys().next().value as string | undefined;
+    if (!firstKey) return;
+    authUserCache.delete(firstKey);
+  }
+}
+
+export function clearAuthUserCache(): void {
+  authUserCache.clear();
 }
 
 /**
@@ -39,20 +74,41 @@ export async function verifyJwtAndLoadUser(token: string): Promise<User | null> 
     // secret but are not full session tokens — only their dedicated endpoint
     // may accept them, so reject any token carrying a purpose claim here.
     if (decoded.purpose) return null;
-    const row = await asyncDb
-      .prepare('SELECT id, username, email, role, password_version FROM users WHERE id = ?')
-      .get<User & { password_version?: number }>(decoded.id);
-    if (!row) return null;
-    // Session invalidation: any token whose embedded password_version
-    // predates the user's current one is rejected. Tokens issued before
-    // the `pv` claim existed (decoded.pv === undefined) are treated as
-    // version 0 so legacy sessions keep working until the user resets.
-    const tokenPv = typeof decoded.pv === 'number' ? decoded.pv : 0;
-    const currentPv = typeof row.password_version === 'number' ? row.password_version : 0;
-    if (tokenPv !== currentPv) return null;
-    // Don't leak password_version beyond the middleware.
-    const { password_version: _pv, ...user } = row;
-    return user as User;
+
+    if (AUTH_USER_CACHE_TTL_MS > 0) {
+      const now = Date.now();
+      const key = authTokenCacheKey(token);
+      const cached = authUserCache.get(key);
+      if (cached && cached.expiresAt > now) {
+        if (cached.user) return cloneUser(cached.user);
+        if (cached.promise) {
+          const pendingUser = await cached.promise;
+          return pendingUser ? cloneUser(pendingUser) : null;
+        }
+      }
+
+      const promise = loadUserForSession(decoded.id, decoded.pv).then(
+        (user) => {
+          if (user) {
+            authUserCache.set(key, { user: cloneUser(user), expiresAt: Date.now() + AUTH_USER_CACHE_TTL_MS });
+            trimAuthUserCache();
+          } else {
+            authUserCache.delete(key);
+          }
+          return user;
+        },
+        (err) => {
+          authUserCache.delete(key);
+          throw err;
+        },
+      );
+      authUserCache.set(key, { promise, expiresAt: now + AUTH_USER_CACHE_TTL_MS });
+      trimAuthUserCache();
+      const user = await promise;
+      return user ? cloneUser(user) : null;
+    }
+
+    return await loadUserForSession(decoded.id, decoded.pv);
   } catch {
     return null;
   } finally {
@@ -61,6 +117,23 @@ export async function verifyJwtAndLoadUser(token: string): Promise<User | null> 
       logWarn(`[perf] verifyJwtAndLoadUser took ${ms}ms`);
     }
   }
+}
+
+async function loadUserForSession(userId: number, tokenPasswordVersion?: number): Promise<User | null> {
+  const row = await asyncDb
+    .prepare('SELECT id, username, email, role, password_version FROM users WHERE id = ?')
+    .get<User & { password_version?: number }>(userId);
+  if (!row) return null;
+  // Session invalidation: any token whose embedded password_version
+  // predates the user's current one is rejected. Tokens issued before
+  // the `pv` claim existed (tokenPasswordVersion === undefined) are treated as
+  // version 0 so legacy sessions keep working until the user resets.
+  const tokenPv = typeof tokenPasswordVersion === 'number' ? tokenPasswordVersion : 0;
+  const currentPv = typeof row.password_version === 'number' ? row.password_version : 0;
+  if (tokenPv !== currentPv) return null;
+  // Don't leak password_version beyond the middleware.
+  const { password_version: _pv, ...user } = row;
+  return user as User;
 }
 
 const authenticate = (req: Request, res: Response, next: NextFunction): void => {

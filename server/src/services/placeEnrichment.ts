@@ -153,7 +153,7 @@ export async function enrichImportedPlaces(
 ): Promise<void> {
   try {
     if (!places.length) return;
-    if (!getMapsKey(userId)) return;
+    if (!(await getMapsKey(userId))) return;
     await mapWithConcurrency(places, ENRICH_CONCURRENCY, async (place) => {
       try {
         await enrichOne(tripId, userId, place, lang);

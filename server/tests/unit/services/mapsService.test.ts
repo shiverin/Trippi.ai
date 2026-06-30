@@ -35,7 +35,7 @@ const {
 } = vi.hoisted(() => ({
   mockDbGet: vi.fn(() => undefined as any),
   mockDbAll: vi.fn(() => [] as any[]),
-  mockDbRun: vi.fn(),
+  mockDbRun: vi.fn(() => ({ changes: 0 })),
   mockTripAccess: vi.fn(async () => ({ id: 1 })),
   mockCheckSsrf: vi.fn(async () => ({ allowed: true })),
   mockCacheGet: vi.fn(() => null as any),
@@ -49,8 +49,8 @@ const {
   mockCacheSetInFlight: vi.fn(),
 }));
 
-vi.mock('../../../src/db/database', () => ({
-  db: {
+vi.mock('../../../src/db/asyncDatabase', () => ({
+  asyncDb: {
     prepare: () => ({ get: mockDbGet, all: mockDbAll, run: mockDbRun }),
   },
 }));
@@ -106,6 +106,7 @@ afterEach(() => {
   mockDbAll.mockReset();
   mockDbAll.mockReturnValue([]);
   mockDbRun.mockReset();
+  mockDbRun.mockReturnValue({ changes: 0 });
   mockTripAccess.mockReset();
   mockTripAccess.mockResolvedValue({ id: 1 });
   mockCheckSsrf.mockReset();
@@ -227,20 +228,20 @@ describe('buildOsmDetails', () => {
 // ── getMapsKey ────────────────────────────────────────────────────────────────
 
 describe('getMapsKey', () => {
-  it('MAPS-015: returns user key when user has one', () => {
+  it('MAPS-015: returns user key when user has one', async () => {
     mockDbGet.mockReturnValueOnce({ maps_api_key: 'user-api-key' });
-    expect(getMapsKey(1)).toBe('user-api-key');
+    await expect(getMapsKey(1)).resolves.toBe('user-api-key');
   });
 
-  it('MAPS-016: falls back to admin key when user has none', () => {
+  it('MAPS-016: falls back to admin key when user has none', async () => {
     mockDbGet.mockReturnValueOnce({ maps_api_key: null });
     mockDbGet.mockReturnValueOnce({ maps_api_key: 'admin-api-key' });
-    expect(getMapsKey(1)).toBe('admin-api-key');
+    await expect(getMapsKey(1)).resolves.toBe('admin-api-key');
   });
 
-  it('MAPS-017: returns null when neither user nor admin has a key', () => {
+  it('MAPS-017: returns null when neither user nor admin has a key', async () => {
     mockDbGet.mockReturnValue(undefined);
-    expect(getMapsKey(1)).toBeNull();
+    await expect(getMapsKey(1)).resolves.toBeNull();
   });
 });
 

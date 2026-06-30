@@ -2,7 +2,7 @@ import { JWT_SECRET, SESSION_DURATION_SECONDS, SESSION_DURATION_REMEMBER_SECONDS
 import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { revokeUserSessions } from '../mcp';
-import { verifyJwtAndLoadUser } from '../middleware/auth';
+import { clearAuthUserCache, verifyJwtAndLoadUser } from '../middleware/auth';
 import { startTripReminders } from '../scheduler';
 import { User } from '../types';
 import { decrypt_api_key, maybe_encrypt_api_key, encrypt_api_key } from './apiKeyCrypto';
@@ -364,7 +364,7 @@ export async function resolveAuthTogglesAsync(): Promise<{
   passkey_login: boolean;
 }> {
   const get = async (key: string) =>
-    ((await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value ?? null);
+    (await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key))?.value ?? null;
 
   const passkey_login = (await get('passkey_login')) === 'true';
   const newKeyValues = await Promise.all(
@@ -430,9 +430,11 @@ export async function generateTokenAsync(
   const pv =
     typeof user.password_version === 'number'
       ? user.password_version
-      : ((await asyncDb.prepare('SELECT password_version FROM users WHERE id = ?').get<{ password_version?: number }>(
-          user.id,
-        ))?.password_version ?? 0);
+      : ((
+          await asyncDb
+            .prepare('SELECT password_version FROM users WHERE id = ?')
+            .get<{ password_version?: number }>(user.id)
+        )?.password_version ?? 0);
   const expiresIn = rememberMe ? SESSION_DURATION_REMEMBER_SECONDS : SESSION_DURATION_SECONDS;
   return jwt.sign({ id: user.id, pv }, JWT_SECRET, { expiresIn, algorithm: 'HS256' });
 }
@@ -712,8 +714,7 @@ export async function getAppConfigAsync(authenticatedUser: { id: number } | null
     oidc_configured: oidcConfigured,
     oidc_display_name: oidcConfigured ? oidcDisplayName || 'SSO' : undefined,
     require_mfa: requireMfa,
-    allowed_file_types:
-      (await get('allowed_file_types')) || 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv',
+    allowed_file_types: (await get('allowed_file_types')) || 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv',
     demo_mode: isDemo,
     demo_email: isDemo ? DEMO_EMAIL_PRIMARY : undefined,
     demo_password: isDemo ? 'demo12345' : undefined,
@@ -906,7 +907,8 @@ export async function registerUserAsync(body: {
     (await asyncDb.prepare('SELECT COUNT(*) as count FROM users').get<{ count: number }>()) ?? { count: 0 }
   ).count;
 
-  let validInvite: { id: number; token: string; max_uses: number; used_count: number; expires_at?: string } | null = null;
+  let validInvite: { id: number; token: string; max_uses: number; used_count: number; expires_at?: string } | null =
+    null;
   if (invite_token) {
     validInvite = await asyncDb
       .prepare('SELECT * FROM invite_tokens WHERE token = ?')
@@ -976,7 +978,9 @@ export async function registerUserAsync(body: {
           )
           .run(validInvite.id);
         if (updated.changes === 0) {
-          console.warn(`[Auth] Invite token ${validInvite.token.slice(0, 8)}... exceeded max_uses due to race condition`);
+          console.warn(
+            `[Auth] Invite token ${validInvite.token.slice(0, 8)}... exceeded max_uses due to race condition`,
+          );
         }
       }
 
@@ -1138,9 +1142,9 @@ export async function loginUserAsync(body: { email?: string; password?: string; 
     return { mfa_required: true, mfa_token };
   }
 
-  await asyncDb.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?').run(
-    user.id,
-  );
+  await asyncDb
+    .prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 WHERE id = ?')
+    .run(user.id);
   const token = await generateTokenAsync(user, remember);
   const userSafe = stripUserForClient(user) as Record<string, unknown>;
 
@@ -1180,7 +1184,9 @@ export function getCurrentUser(
 
 export async function getCurrentUserAsync(
   userId: number,
-): Promise<(Record<string, unknown> & Pick<User, 'id' | 'username' | 'email' | 'role'> & { avatar_url: string }) | null> {
+): Promise<
+  (Record<string, unknown> & Pick<User, 'id' | 'username' | 'email' | 'role'> & { avatar_url: string }) | null
+> {
   const user = await asyncDb
     .prepare(
       'SELECT id, username, email, role, avatar, oidc_issuer, created_at, mfa_enabled, must_change_password FROM users WHERE id = ?',
@@ -1248,6 +1254,7 @@ export function changePassword(
       /* oauth_tokens table may not exist in very old installs */
     }
   })();
+  clearAuthUserCache();
 
   try {
     revokeUserSessions?.(userId);
@@ -1305,6 +1312,7 @@ export async function changePasswordAsync(
       /* oauth_tokens table may not exist in very old installs */
     }
   })();
+  clearAuthUserCache();
 
   try {
     revokeUserSessions?.(userId);
@@ -1673,7 +1681,9 @@ export async function saveAvatar(userId: number, filename: string) {
     await fs.promises.rm(oldPath, { force: true }).catch(() => {});
   }
 
-  await asyncDb.prepare('UPDATE users SET avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(filename, userId);
+  await asyncDb
+    .prepare('UPDATE users SET avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(filename, userId);
 
   const updated = await asyncDb
     .prepare('SELECT id, username, email, role, avatar FROM users WHERE id = ?')
@@ -1836,9 +1846,7 @@ export async function getAppSettingsAsync(
 
   const result: Record<string, string> = {};
   for (const key of ADMIN_SETTINGS_KEYS) {
-    const row = await asyncDb
-      .prepare('SELECT value FROM app_settings WHERE key = ?')
-      .get<{ value: string }>(key);
+    const row = await asyncDb.prepare('SELECT value FROM app_settings WHERE key = ?').get<{ value: string }>(key);
     if (row)
       result[key] =
         key === 'smtp_pass' || key === 'admin_webhook_url' || key === 'admin_ntfy_token' ? '••••••••' : row.value;
@@ -2267,9 +2275,7 @@ export async function setupMfaAsync(
   if (process.env.DEMO_MODE === 'true' && isDemoEmail(userEmail)) {
     return { error: 'MFA is not available in demo mode.', status: 403 };
   }
-  const row = await asyncDb
-    .prepare('SELECT mfa_enabled FROM users WHERE id = ?')
-    .get<{ mfa_enabled: number }>(userId);
+  const row = await asyncDb.prepare('SELECT mfa_enabled FROM users WHERE id = ?').get<{ mfa_enabled: number }>(userId);
   if (row?.mfa_enabled) {
     return { error: 'MFA is already enabled', status: 400 };
   }
@@ -2687,7 +2693,9 @@ export async function requestPasswordResetAsync(
   }
 
   await asyncDb
-    .prepare('UPDATE password_reset_tokens SET consumed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND consumed_at IS NULL')
+    .prepare(
+      'UPDATE password_reset_tokens SET consumed_at = CURRENT_TIMESTAMP WHERE user_id = ? AND consumed_at IS NULL',
+    )
     .run(user.id);
 
   const raw = randomBytes(PASSWORD_RESET_TOKEN_BYTES).toString('base64url');
@@ -2813,6 +2821,7 @@ export function resetPassword(body: {
       /* oauth_tokens table may not exist in very old installs */
     }
   })();
+  clearAuthUserCache();
 
   // Kick off any MCP/WS session cleanup — same hook the account-delete path uses.
   try {
@@ -2911,6 +2920,7 @@ export async function resetPasswordAsync(body: {
       /* oauth_tokens table may not exist in very old installs */
     }
   })();
+  clearAuthUserCache();
 
   try {
     revokeUserSessions?.(user.id);
@@ -3083,9 +3093,7 @@ export async function passkeyRegisterVerifyAsync(
 
   const { credential, credentialDeviceType, credentialBackedUp, aaguid } = verification.registrationInfo;
 
-  if (
-    await asyncDb.prepare('SELECT id FROM webauthn_credentials WHERE credential_id = ?').get(credential.id)
-  ) {
+  if (await asyncDb.prepare('SELECT id FROM webauthn_credentials WHERE credential_id = ?').get(credential.id)) {
     return { error: 'This passkey is already registered.', status: 409 };
   }
 
@@ -3368,8 +3376,11 @@ export function createWsToken(userId: number): { error?: string; status?: number
 
 export async function createWsTokenAsync(userId: number): Promise<{ error?: string; status?: number; token?: string }> {
   const pv =
-    (await asyncDb.prepare('SELECT password_version FROM users WHERE id = ?').get<{ password_version?: number }>(userId))
-      ?.password_version ?? 0;
+    (
+      await asyncDb
+        .prepare('SELECT password_version FROM users WHERE id = ?')
+        .get<{ password_version?: number }>(userId)
+    )?.password_version ?? 0;
   const token = createEphemeralToken(userId, 'ws', { pv });
   if (!token) return { error: 'Service unavailable', status: 503 };
   return { token };

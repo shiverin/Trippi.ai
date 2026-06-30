@@ -1,4 +1,4 @@
-import { db } from '../db/database';
+import { asyncDb } from '../db/asyncDatabase';
 import { safeFetchFollow, SsrfBlockedError } from '../utils/ssrfGuard';
 import { decrypt_api_key } from './apiKeyCrypto';
 import { getAppUrl } from './notifications';
@@ -185,17 +185,17 @@ function releasePhotoFetchSlot(): void {
 
 // ── API key retrieval ────────────────────────────────────────────────────────
 
-export function getMapsKey(userId: number): string | null {
-  const user = db.prepare('SELECT maps_api_key FROM users WHERE id = ?').get(userId) as
+export async function getMapsKey(userId: number): Promise<string | null> {
+  const user = (await asyncDb.prepare('SELECT maps_api_key FROM users WHERE id = ?').get(userId)) as
     | { maps_api_key: string | null }
     | undefined;
   const user_key = decrypt_api_key(user?.maps_api_key);
   if (user_key) return user_key;
-  const admin = db
+  const admin = (await asyncDb
     .prepare(
       "SELECT maps_api_key FROM users WHERE role = 'admin' AND maps_api_key IS NOT NULL AND maps_api_key != '' LIMIT 1",
     )
-    .get() as { maps_api_key: string } | undefined;
+    .get()) as { maps_api_key: string } | undefined;
   return decrypt_api_key(admin?.maps_api_key) || null;
 }
 
@@ -397,7 +397,7 @@ async function routeGroundSegment(
 
   const googleModes = GOOGLE_TRANSIT_MODES[mode];
   if (googleModes) {
-    const apiKey = getMapsKey(userId);
+    const apiKey = await getMapsKey(userId);
     if (apiKey) {
       try {
         return await fetchGoogleTransitSegment(apiKey, mode, from, to);
@@ -459,19 +459,19 @@ export async function getTransportRoute(
   const trip = await verifyTripAccess(tripId, userId);
   if (!trip) throw routeError('Trip not found or access denied', 403);
 
-  const reservation = db
+  const reservation = (await asyncDb
     .prepare('SELECT id, trip_id, type, title FROM reservations WHERE id = ? AND trip_id = ? LIMIT 1')
-    .get(reservationId, tripId) as TransportReservationRow | undefined;
+    .get(reservationId, tripId)) as TransportReservationRow | undefined;
   if (!reservation) throw routeError('Transport reservation not found', 404);
 
-  const endpoints = db
+  const endpoints = (await asyncDb
     .prepare(
       `SELECT role, sequence, name, code, lat, lng, local_time, local_date
        FROM reservation_endpoints
        WHERE reservation_id = ?
        ORDER BY sequence ASC`,
     )
-    .all(reservation.id) as TransportEndpointRow[];
+    .all(reservation.id)) as TransportEndpointRow[];
 
   if (endpoints.length < 2) {
     return {
@@ -1028,7 +1028,7 @@ export async function searchPlaces(
   lang?: string,
   locationBias?: { lat: number; lng: number; radius?: number },
 ): Promise<{ places: Record<string, unknown>[]; source: string }> {
-  const apiKey = getMapsKey(userId);
+  const apiKey = await getMapsKey(userId);
 
   if (!apiKey) {
     const places = await searchNominatim(query, lang);
@@ -1091,7 +1091,7 @@ export async function autocompletePlaces(
   lang?: string,
   locationBias?: { low: { lat: number; lng: number }; high: { lat: number; lng: number } },
 ): Promise<{ suggestions: { placeId: string; mainText: string; secondaryText: string }[]; source: string }> {
-  const apiKey = getMapsKey(userId);
+  const apiKey = await getMapsKey(userId);
 
   if (!apiKey) {
     return autocompleteNominatim(input, lang);
@@ -1198,18 +1198,18 @@ export async function getPlaceDetails(
 
   // Google details
   const langKey = toApiLang(lang, 'de');
-  const apiKey = getMapsKey(userId);
+  const apiKey = await getMapsKey(userId);
   if (!apiKey) {
     throw Object.assign(new Error('Google Maps API key not configured'), { status: 400 });
   }
 
   // Check DB cache first (lean mask, expanded=0) — 7-day TTL
   const DETAILS_TTL = 7 * 24 * 60 * 60 * 1000;
-  const cached = db
+  const cached = (await asyncDb
     .prepare(
       'SELECT payload_json, fetched_at FROM place_details_cache WHERE place_id = ? AND lang = ? AND expanded = 0',
     )
-    .get(placeId, langKey) as { payload_json: string; fetched_at: number } | undefined;
+    .get(placeId, langKey)) as { payload_json: string; fetched_at: number } | undefined;
   if (cached && Date.now() - cached.fetched_at < DETAILS_TTL) return { place: JSON.parse(cached.payload_json) };
 
   const response = await googleFetch(
@@ -1254,9 +1254,11 @@ export async function getPlaceDetails(
   };
 
   try {
-    db.prepare(
-      'INSERT OR REPLACE INTO place_details_cache (place_id, lang, expanded, payload_json, fetched_at) VALUES (?, ?, 0, ?, ?)',
-    ).run(placeId, langKey, JSON.stringify(place), Date.now());
+    await asyncDb
+      .prepare(
+        'INSERT OR REPLACE INTO place_details_cache (place_id, lang, expanded, payload_json, fetched_at) VALUES (?, ?, 0, ?, ?)',
+      )
+      .run(placeId, langKey, JSON.stringify(place), Date.now());
   } catch (dbErr) {
     console.error('Failed to cache place details:', dbErr);
   }
@@ -1271,14 +1273,14 @@ export async function getPlaceDetailsExpanded(
   refresh = false,
 ): Promise<{ place: Record<string, unknown> }> {
   const langKey = toApiLang(lang, 'de');
-  const apiKey = getMapsKey(userId);
+  const apiKey = await getMapsKey(userId);
   if (!apiKey) throw Object.assign(new Error('Google Maps API key not configured'), { status: 400 });
 
   // Check DB cache for expanded result
   if (!refresh) {
-    const cached = db
+    const cached = (await asyncDb
       .prepare('SELECT payload_json FROM place_details_cache WHERE place_id = ? AND lang = ? AND expanded = 1')
-      .get(placeId, langKey) as { payload_json: string } | undefined;
+      .get(placeId, langKey)) as { payload_json: string } | undefined;
     if (cached) return { place: JSON.parse(cached.payload_json) };
   }
 
@@ -1330,9 +1332,11 @@ export async function getPlaceDetailsExpanded(
   };
 
   try {
-    db.prepare(
-      'INSERT OR REPLACE INTO place_details_cache (place_id, lang, expanded, payload_json, fetched_at) VALUES (?, ?, 1, ?, ?)',
-    ).run(placeId, langKey, JSON.stringify(place), Date.now());
+    await asyncDb
+      .prepare(
+        'INSERT OR REPLACE INTO place_details_cache (place_id, lang, expanded, payload_json, fetched_at) VALUES (?, ?, 1, ?, ?)',
+      )
+      .run(placeId, langKey, JSON.stringify(place), Date.now());
   } catch (dbErr) {
     console.error('Failed to cache expanded place details:', dbErr);
   }
@@ -1341,6 +1345,52 @@ export async function getPlaceDetailsExpanded(
 }
 
 // ── Place photo (Google or Wikimedia, disk-cached) ────────────────────────────
+
+function placePhotoProxyUrl(placeId: string): string {
+  return `/api/maps/place-photo/${encodeURIComponent(placeId)}/bytes`;
+}
+
+async function persistPlacePhotoUrl(
+  placeId: string,
+  photoUrl: string,
+  lat: number,
+  lng: number,
+  name?: string,
+): Promise<void> {
+  try {
+    const updated = await asyncDb
+      .prepare(
+        `
+          UPDATE places
+          SET image_url = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE (image_url IS NULL OR image_url = '')
+            AND (google_place_id = ? OR osm_id = ?)
+        `,
+      )
+      .run(photoUrl, placeId, placeId);
+
+    if (updated.changes > 0 || !placeId.startsWith('coords:') || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return;
+    }
+
+    await asyncDb
+      .prepare(
+        `
+        UPDATE places
+        SET image_url = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE (image_url IS NULL OR image_url = '')
+          AND (google_place_id IS NULL OR google_place_id = '')
+          AND (osm_id IS NULL OR osm_id = '')
+          AND ABS(lat - ?) < 0.000001
+          AND ABS(lng - ?) < 0.000001
+          AND (? IS NULL OR name = ?)
+      `,
+      )
+      .run(photoUrl, lat, lng, name ?? null, name ?? null);
+  } catch (dbErr) {
+    console.error('Failed to persist photo URL to database:', dbErr);
+  }
+}
 
 export async function getPlacePhoto(
   userId: number,
@@ -1351,7 +1401,10 @@ export async function getPlacePhoto(
 ): Promise<{ photoUrl: string; attribution: string | null }> {
   // Disk cache hit — serve immediately, no Google call
   const diskHit = placePhotoCache.get(placeId);
-  if (diskHit) return { photoUrl: diskHit.photoUrl, attribution: diskHit.attribution };
+  if (diskHit) {
+    await persistPlacePhotoUrl(placeId, diskHit.photoUrl, lat, lng, name);
+    return { photoUrl: diskHit.photoUrl, attribution: diskHit.attribution };
+  }
 
   // Recent error — don't hammer the API
   if (placePhotoCache.getErrored(placeId)) {
@@ -1363,13 +1416,15 @@ export async function getPlacePhoto(
   if (existing) {
     const result = await existing;
     if (!result) throw Object.assign(new Error('(Cache) No photo available'), { status: 404 });
-    return { photoUrl: `/api/maps/place-photo/${encodeURIComponent(placeId)}/bytes`, attribution: result.attribution };
+    const photoUrl = placePhotoProxyUrl(placeId);
+    await persistPlacePhotoUrl(placeId, photoUrl, lat, lng, name);
+    return { photoUrl, attribution: result.attribution };
   }
 
   const fetchPromise = (async (): Promise<{ filePath: string; attribution: string | null } | null> => {
     await acquirePhotoFetchSlot();
     try {
-      const apiKey = getMapsKey(userId);
+      const apiKey = await getMapsKey(userId);
       const isCoordLookup = placeId.startsWith('coords:');
 
       // Coordinate-based Wikipedia/Wikimedia lookup. Used for coordinate-only
@@ -1440,16 +1495,6 @@ export async function getPlacePhoto(
         if (!bytes.length) return null;
 
         const cached = await placePhotoCache.put(placeId, bytes, attribution);
-
-        // Persist stable proxy URL to database
-        try {
-          db.prepare(
-            "UPDATE places SET image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE google_place_id = ? AND (image_url IS NULL OR image_url = '')",
-          ).run(cached.photoUrl, placeId);
-        } catch (dbErr) {
-          console.error('Failed to persist photo URL to database:', dbErr);
-        }
-
         return { filePath: cached.filePath, attribution };
       };
 
@@ -1475,7 +1520,9 @@ export async function getPlacePhoto(
 
   const result = await fetchPromise;
   if (!result) throw Object.assign(new Error('No photo available'), { status: 404 });
-  return { photoUrl: `/api/maps/place-photo/${encodeURIComponent(placeId)}/bytes`, attribution: result.attribution };
+  const photoUrl = placePhotoProxyUrl(placeId);
+  await persistPlacePhotoUrl(placeId, photoUrl, lat, lng, name);
+  return { photoUrl, attribution: result.attribution };
 }
 
 // ── Reverse geocoding ────────────────────────────────────────────────────────

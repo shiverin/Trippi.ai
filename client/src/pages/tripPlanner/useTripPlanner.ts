@@ -1,4 +1,4 @@
-import { FolderOpen, Map, PackageCheck, Ticket, Train, Users, Wallet } from 'lucide-react';
+import { ClipboardList, FolderOpen, Map, PackageCheck, Ticket, Train, Users, Wallet } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -10,6 +10,7 @@ import {
   healthApi,
   tripsApi,
 } from '../../api/client';
+import { buildTripCommandCenter } from '../../components/CommandCenter/commandCenterModel';
 import { useToast } from '../../components/shared/Toast';
 import { offlineDb } from '../../db/offlineDb';
 import { useAirtrailConnection } from '../../hooks/useAirtrailConnection';
@@ -164,6 +165,7 @@ export function useTripPlanner() {
   }, []);
 
   const TRIP_TABS = [
+    { id: 'command', label: 'Command', icon: ClipboardList },
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
     { id: 'transports', label: t('trip.tabs.transports'), icon: Train },
     { id: 'buchungen', label: t('trip.tabs.reservations'), shortLabel: t('trip.tabs.reservationsShort'), icon: Ticket },
@@ -324,7 +326,11 @@ export function useTripPlanner() {
       const relatedDayIds = new Set<number>();
       if (reservation.day_id != null) relatedDayIds.add(reservation.day_id);
       if (reservation.end_day_id != null) relatedDayIds.add(reservation.end_day_id);
-      if (reservation.day_id != null && reservation.end_day_id != null && reservation.day_id !== reservation.end_day_id) {
+      if (
+        reservation.day_id != null &&
+        reservation.end_day_id != null &&
+        reservation.day_id !== reservation.end_day_id
+      ) {
         const startIdx = days.findIndex((day) => day.id === reservation.day_id);
         const endIdx = days.findIndex((day) => day.id === reservation.end_day_id);
         if (startIdx !== -1 && endIdx !== -1) {
@@ -984,6 +990,22 @@ export function useTripPlanner() {
   // Show the splash only while trip data is genuinely loading. Place photos are
   // lazy-loaded by visible avatars, so the planner must not wait on photo work.
   const splashDone = !isLoading && !!trip;
+  const commandCenter = useMemo(
+    () =>
+      trip
+        ? buildTripCommandCenter({
+            trip,
+            days,
+            assignments,
+            reservations,
+            budgetItems,
+            packingItems,
+            todoItems,
+            tripMembers,
+          })
+        : null,
+    [trip, days, assignments, reservations, budgetItems, packingItems, todoItems, tripMembers]
+  );
 
   return {
     tripId,
@@ -1135,5 +1157,6 @@ export function useTripPlanner() {
     defaultZoom,
     fontStyle,
     splashDone,
+    commandCenter,
   };
 }

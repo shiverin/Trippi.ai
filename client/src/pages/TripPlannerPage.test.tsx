@@ -4,9 +4,12 @@ import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildAssignment,
+  buildBudgetItem,
   buildDay,
+  buildPackingItem,
   buildPlace,
   buildReservation,
+  buildTodoItem,
   buildTrip,
   buildUser,
 } from '../../tests/helpers/factories';
@@ -536,6 +539,77 @@ describe('TripPlannerPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('collab-panel')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('FE-PAGE-PLANNER-014A: Command tab renders command center', () => {
+    it('shows the group trip command center modules after clicking Command', async () => {
+      vi.useFakeTimers();
+
+      const tripId = 808;
+      sessionStorage.removeItem(`trip-tab-${tripId}`);
+      const { day } = seedTripStore({ id: tripId, tripName: 'Lisbon Crew' });
+      const place = buildPlace({ id: 31, trip_id: tripId, name: 'Tile museum' });
+      seedStore(useTripStore, {
+        assignments: {
+          [String(day.id)]: [
+            buildAssignment({
+              id: 41,
+              day_id: day.id,
+              place,
+              assignment_time: '10:00',
+              assignment_end_time: '11:00',
+            }),
+            buildAssignment({
+              id: 42,
+              day_id: day.id,
+              place: buildPlace({ id: 32, trip_id: tripId, name: 'Lunch market' }),
+              assignment_time: '10:30',
+              assignment_end_time: '12:00',
+            }),
+          ],
+        },
+        reservations: [
+          buildReservation({
+            id: 51,
+            trip_id: tripId,
+            day_id: day.id,
+            title: 'Casa check-in',
+            type: 'hotel',
+            status: 'pending',
+            confirmation_number: null,
+            reservation_time: '2026-07-02T15:00:00',
+          }),
+        ],
+        budgetItems: [buildBudgetItem({ id: 61, trip_id: tripId, name: 'Hotel deposit', payers: [] })],
+        packingItems: [buildPackingItem({ id: 71, trip_id: tripId, name: 'Shared charger', checked: 0 })],
+        todoItems: [
+          buildTodoItem({ id: 81, trip_id: tripId, name: 'Vote on Fado night', category: 'Decision' }),
+          buildTodoItem({ id: 82, trip_id: tripId, name: 'Book airport transfer', category: 'Booking' }),
+        ],
+      } as any);
+
+      renderPlannerPage(tripId);
+
+      act(() => {
+        vi.runAllTimers();
+      });
+
+      vi.useRealTimers();
+
+      const commandTab = await screen.findByTitle('Command');
+      fireEvent.click(commandTab);
+
+      await waitFor(() => {
+        expect(screen.getByText('Lisbon Crew command center')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Pending decisions')).toBeInTheDocument();
+      expect(screen.getByText('Budget health')).toBeInTheDocument();
+      expect(screen.getByText('Booking tasks')).toBeInTheDocument();
+      expect(screen.getByText('Packing assignments')).toBeInTheDocument();
+      expect(screen.getByText('Itinerary conflicts')).toBeInTheDocument();
+      expect(screen.getByText('Upcoming deadlines')).toBeInTheDocument();
     });
   });
 

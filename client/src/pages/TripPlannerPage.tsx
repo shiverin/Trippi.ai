@@ -33,6 +33,8 @@ import {
 import { assignmentsApi } from '../api/client';
 import CostsPanel, { ExpenseModal, type ExpensePrefill } from '../components/Budget/CostsPanel';
 import CollabPanel from '../components/Collab/CollabPanel';
+import type { CommandCenterAction } from '../components/CommandCenter/commandCenterModel';
+import CommandCenterPanel from '../components/CommandCenter/CommandCenterPanel';
 import FileManager from '../components/Files/FileManager';
 import Navbar from '../components/Layout/Navbar';
 import PoiCategoryPill from '../components/Map/PoiCategoryPill';
@@ -394,6 +396,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     defaultZoom,
     fontStyle,
     splashDone,
+    commandCenter,
   } = useTripPlanner();
 
   const poi = usePoiExplore();
@@ -412,6 +415,28 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const openBookingExpense = (req: BookingExpenseRequest) => {
     if (req.editItem) setBookingExpense({ editing: req.editItem });
     else if (req.prefill) setBookingExpense({ editing: null, prefill: req.prefill });
+  };
+
+  const handleCommandCenterNavigate = (action: CommandCenterAction) => {
+    if (action === 'budget') {
+      handleTabChange(enabledAddons.budget ? 'finanzplan' : 'plan');
+      return;
+    }
+    if (action === 'bookings') {
+      handleTabChange('buchungen');
+      return;
+    }
+    if (action === 'packing') {
+      sessionStorage.setItem(`trip-lists-subtab-${tripId}`, 'packing');
+      handleTabChange(enabledAddons.packing ? 'listen' : 'plan');
+      return;
+    }
+    if (action === 'decisions' || action === 'deadlines') {
+      sessionStorage.setItem(`trip-lists-subtab-${tripId}`, 'todo');
+      handleTabChange(enabledAddons.packing ? 'listen' : 'plan');
+      return;
+    }
+    handleTabChange('plan');
   };
 
   if (isLoading || !splashDone) {
@@ -549,6 +574,10 @@ export default function TripPlannerPage(): React.ReactElement | null {
           overscrollBehavior: 'contain',
         }}
       >
+        {activeTab === 'command' && commandCenter && (
+          <CommandCenterPanel center={commandCenter} onNavigate={handleCommandCenterNavigate} />
+        )}
+
         {activeTab === 'plan' && (
           <div style={{ position: 'absolute', inset: 0 }}>
             <MapView

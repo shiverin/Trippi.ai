@@ -1,4 +1,10 @@
 import { asyncDb, canAccessTripAsync } from '../../db/asyncDatabase';
+import type { AgentJob } from '../../services/agentJobQueue';
+import {
+  enqueuePriceWatchJob,
+  type BookingIntentWatchStatus,
+  type PriceWatchJobPayload,
+} from '../../services/bookingPriceWatch';
 import { checkPermissionAsync } from '../../services/permissions';
 import type { User } from '../../types';
 import { broadcast } from '../../websocket';
@@ -33,11 +39,23 @@ interface BookingIntentRow {
   budget: string;
   preferences: string;
   status: BookingIntentStatus;
+  watch_status: BookingIntentWatchStatus;
+  last_checked_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export class BookingIntentValidationError extends Error {}
+
+export interface BookingIntentPriceWatchJob {
+  id: number;
+  type: string;
+  status: string;
+  idempotency_key: string | null;
+  next_run_at: string;
+  provider: string | null;
+  provider_mode: string | null;
+}
 
 function hasOwn(data: BookingIntentInput, key: keyof BookingIntentInput): boolean {
   return Object.prototype.hasOwnProperty.call(data, key);
@@ -100,8 +118,22 @@ function toBookingIntent(row: BookingIntentRow) {
     budget: parseJsonObject(row.budget),
     preferences: parseJsonObject(row.preferences),
     status: row.status,
+    watch_status: row.watch_status,
+    last_checked_at: row.last_checked_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
+  };
+}
+
+function toPriceWatchJob(job: AgentJob<PriceWatchJobPayload>): BookingIntentPriceWatchJob {
+  return {
+    id: job.id,
+    type: job.type,
+    status: job.status,
+    idempotency_key: job.idempotencyKey,
+    next_run_at: job.nextRunAt,
+    provider: job.payload.provider ?? null,
+    provider_mode: job.payload.providerMode ?? null,
   };
 }
 
@@ -228,6 +260,43 @@ export class BookingIntentsService {
       .run(...values);
 
     return this.getById(tripId, id);
+  }
+
+  async startWatch(tripId: string, id: string) {
+    const start = asyncDb.transaction(async () => {
+      const existing = await this.getRow(tripId, id);
+      if (!existing) return null;
+      if (existing.status === 'archived') {
+        throw new BookingIntentValidationError('archived booking intents cannot be watched');
+      }
+
+      await asyncDb
+        .prepare(
+          `
+          UPDATE booking_intents
+          SET status = 'watching',
+              watch_status = 'queued',
+              updated_at = CURRENT_TIMESTAMP
+          WHERE trip_id = ? AND id = ?
+        `,
+        )
+        .run(tripId, id);
+
+      const job = await enqueuePriceWatchJob({
+        tripId: Number(existing.trip_id),
+        bookingIntentId: Number(existing.id),
+      });
+      const bookingIntent = await this.getById(tripId, id);
+
+      return bookingIntent
+        ? {
+            bookingIntent,
+            agentJob: toPriceWatchJob(job),
+          }
+        : null;
+    });
+
+    return start();
   }
 
   async archive(tripId: string, id: string) {

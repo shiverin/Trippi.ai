@@ -23,6 +23,7 @@ describe('async DB access guardrails', () => {
       'middleware/tripAccess.ts',
       'services/agentJobQueue.ts',
       'services/agentJobWorker.ts',
+      'services/bookingPriceWatch.ts',
       'services/tripAccess.ts',
       'websocket.ts',
       'mcp/index.ts',

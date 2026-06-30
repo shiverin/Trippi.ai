@@ -91,6 +91,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   db.exec(`
+    DELETE FROM agent_jobs;
     DELETE FROM booking_intents;
     DELETE FROM trip_members;
     DELETE FROM trips;
@@ -127,6 +128,8 @@ describe('BookingIntentsService', () => {
       budget: { max: 2400, currency: 'USD' },
       preferences: { nonstop: true },
       status: 'watching',
+      watch_status: 'idle',
+      last_checked_at: null,
     });
 
     expect(created).toMatchObject({
@@ -172,6 +175,42 @@ describe('BookingIntentsService', () => {
     ).resolves.toBeNull();
     await expect(service().archive(String(tripId), String(created!.id))).resolves.toMatchObject({ status: 'archived' });
     await expect(service().archive(String(tripId), '999')).resolves.toBeNull();
+  });
+
+  it('starts watching and idempotently enqueues a price-watch job', async () => {
+    const { user, tripId } = seedTrip();
+    const created = await service().create(String(tripId), user.id, {
+      type: 'hotel',
+      destination: 'Kyoto',
+      dates: { checkIn: '2026-11-02', checkOut: '2026-11-05' },
+      budget: { max: 900, currency: 'USD' },
+    });
+
+    const first = await service().startWatch(String(tripId), String(created!.id));
+    const second = await service().startWatch(String(tripId), String(created!.id));
+
+    expect(first?.bookingIntent).toMatchObject({
+      id: created!.id,
+      status: 'watching',
+      watch_status: 'queued',
+      last_checked_at: null,
+    });
+    expect(first?.agentJob).toMatchObject({
+      type: 'booking-intent.price-watch',
+      status: 'queued',
+      idempotency_key: `booking-intent:${created!.id}:price-watch`,
+      provider: 'mock-travel',
+      provider_mode: 'mock-development-provider',
+    });
+    expect(second?.agentJob.id).toBe(first?.agentJob.id);
+    expect(db.prepare('SELECT COUNT(*) AS c FROM agent_jobs').get()).toMatchObject({ c: 1 });
+
+    const stored = await service().list(String(tripId), 'watching');
+    expect(stored[0]).toMatchObject({
+      id: created!.id,
+      watch_status: 'queued',
+      last_checked_at: null,
+    });
   });
 
   it('validates status, type, string lengths, and object fields', async () => {

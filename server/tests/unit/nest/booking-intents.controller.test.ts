@@ -19,6 +19,10 @@ function makeService(overrides: Partial<BookingIntentsService> = {}): BookingInt
     list: vi.fn().mockResolvedValue([]),
     create: vi.fn().mockResolvedValue({ id: 9, status: 'draft' }),
     update: vi.fn().mockResolvedValue({ id: 9, status: 'watching' }),
+    startWatch: vi.fn().mockResolvedValue({
+      bookingIntent: { id: 9, status: 'watching', watch_status: 'queued' },
+      agentJob: { id: 3, type: 'booking-intent.price-watch', status: 'queued' },
+    }),
     archive: vi.fn().mockResolvedValue({ id: 9, status: 'archived' }),
     ...overrides,
   } as unknown as BookingIntentsService;
@@ -126,6 +130,39 @@ describe('BookingIntentsController', () => {
       '5',
       'booking-intent:updated',
       { booking_intent: { id: 9, status: 'approved' } },
+      'sock',
+    );
+  });
+
+  it('POST /:id/start-watch starts watching, broadcasts, and returns the queued job', async () => {
+    const missing = makeService({ startWatch: vi.fn().mockResolvedValue(null) });
+    await expect(thrown(() => new BookingIntentsController(missing).startWatch(user, '5', '9'))).resolves.toEqual({
+      status: 404,
+      body: { error: 'Booking intent not found' },
+    });
+
+    const startWatch = vi.fn().mockResolvedValue({
+      bookingIntent: { id: 9, status: 'watching', watch_status: 'queued' },
+      agentJob: { id: 3, type: 'booking-intent.price-watch', status: 'queued' },
+    });
+    const broadcast = vi.fn();
+    const svc = makeService({
+      startWatch,
+      broadcast,
+    } as Partial<BookingIntentsService>);
+
+    await expect(new BookingIntentsController(svc).startWatch(user, '5', '9', 'sock')).resolves.toEqual({
+      booking_intent: { id: 9, status: 'watching', watch_status: 'queued' },
+      agent_job: { id: 3, type: 'booking-intent.price-watch', status: 'queued' },
+    });
+    expect(startWatch).toHaveBeenCalledWith('5', '9');
+    expect(broadcast).toHaveBeenCalledWith(
+      '5',
+      'booking-intent:watch-started',
+      {
+        booking_intent: { id: 9, status: 'watching', watch_status: 'queued' },
+        agent_job: { id: 3, type: 'booking-intent.price-watch', status: 'queued' },
+      },
       'sock',
     );
   });

@@ -96,6 +96,36 @@ export class BookingIntentsController {
     }
   }
 
+  @Post(':id/start-watch')
+  @HttpCode(200)
+  async startWatch(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('id') id: string,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
+    const trip = await this.requireTrip(tripId, user);
+    await this.requireEdit(trip, user);
+    try {
+      const result = await this.bookingIntents.startWatch(tripId, id);
+      if (!result) {
+        throw new HttpException({ error: 'Booking intent not found' }, 404);
+      }
+      this.bookingIntents.broadcast(
+        tripId,
+        'booking-intent:watch-started',
+        { booking_intent: result.bookingIntent, agent_job: result.agentJob },
+        socketId,
+      );
+      return {
+        booking_intent: result.bookingIntent,
+        agent_job: result.agentJob,
+      };
+    } catch (err) {
+      this.mapValidation(err);
+    }
+  }
+
   @Post(':id/archive')
   @HttpCode(200)
   async archive(

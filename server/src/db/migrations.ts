@@ -3246,6 +3246,22 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_agent_jobs_locked_at ON agent_jobs(status, locked_at);
       `);
     },
+    () => {
+      const columns = new Set(
+        (
+          db.prepare("PRAGMA table_info('booking_intents')").all() as Array<{
+            name: string;
+          }>
+        ).map((column) => column.name),
+      );
+
+      if (!columns.has('watch_status')) {
+        db.exec("ALTER TABLE booking_intents ADD COLUMN watch_status TEXT NOT NULL DEFAULT 'idle'");
+      }
+      if (!columns.has('last_checked_at')) {
+        db.exec('ALTER TABLE booking_intents ADD COLUMN last_checked_at DATETIME');
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {

@@ -245,6 +245,8 @@ function createTables(db: Database.Database): void {
       budget TEXT NOT NULL DEFAULT '{}',
       preferences TEXT NOT NULL DEFAULT '{}',
       status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'booked', 'archived')),
+      watch_status TEXT NOT NULL DEFAULT 'idle' CHECK(watch_status IN ('idle', 'queued', 'checking', 'checked', 'failed')),
+      last_checked_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );

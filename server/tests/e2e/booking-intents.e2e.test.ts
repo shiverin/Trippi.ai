@@ -168,6 +168,54 @@ describe('Booking intents e2e', () => {
     expect(create.body).toEqual({ error: 'No permission' });
   });
 
+  it('starts a price watch with UI-ready watch status and an idempotent agent job', async () => {
+    const { user } = createUser(db);
+    const trip = createTrip(db, user.id);
+    const created = await request(server)
+      .post(`/api/trips/${trip.id}/booking-intents`)
+      .set('Cookie', authCookie(user.id))
+      .send({
+        type: 'hotel',
+        destination: 'Kyoto',
+        dates: { checkIn: '2026-11-02', checkOut: '2026-11-05' },
+        budget: { max: 900, currency: 'USD' },
+      });
+    const intentId = created.body.booking_intent.id;
+
+    const started = await request(server)
+      .post(`/api/trips/${trip.id}/booking-intents/${intentId}/start-watch`)
+      .set('Cookie', authCookie(user.id));
+    const duplicate = await request(server)
+      .post(`/api/trips/${trip.id}/booking-intents/${intentId}/start-watch`)
+      .set('Cookie', authCookie(user.id));
+
+    expect(started.status).toBe(200);
+    expect(started.body.booking_intent).toMatchObject({
+      id: intentId,
+      status: 'watching',
+      watch_status: 'queued',
+      last_checked_at: null,
+    });
+    expect(started.body.agent_job).toMatchObject({
+      type: 'booking-intent.price-watch',
+      status: 'queued',
+      idempotency_key: `booking-intent:${intentId}:price-watch`,
+      provider: 'mock-travel',
+      provider_mode: 'mock-development-provider',
+    });
+    expect(duplicate.body.agent_job.id).toBe(started.body.agent_job.id);
+    expect(db.prepare('SELECT COUNT(*) AS c FROM agent_jobs').get()).toMatchObject({ c: 1 });
+
+    const listed = await request(server)
+      .get(`/api/trips/${trip.id}/booking-intents?status=watching`)
+      .set('Cookie', authCookie(user.id));
+    expect(listed.body.booking_intents[0]).toMatchObject({
+      id: intentId,
+      watch_status: 'queued',
+      last_checked_at: null,
+    });
+  });
+
   it('404s outside trip access and validates payloads', async () => {
     const { user: owner } = createUser(db);
     const { user: other } = createUser(db);

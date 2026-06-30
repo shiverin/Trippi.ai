@@ -54,6 +54,21 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync('__trippi_no_such_user__', BCRYPT_CO
 const MFA_SETUP_TTL_MS = 15 * 60 * 1000;
 const mfaSetupPending = new Map<number, { secret: string; exp: number }>();
 const MFA_BACKUP_CODE_COUNT = 10;
+const APP_CONFIG_CACHE_TTL_MS = Number(process.env.APP_CONFIG_CACHE_TTL_MS || 15_000);
+
+type AppConfigCacheKey = 'anonymous' | 'authenticated';
+
+interface AppConfigCacheEntry {
+  expiresAt: number;
+  pending?: Promise<unknown>;
+  value?: unknown;
+}
+
+const appConfigCache = new Map<AppConfigCacheKey, AppConfigCacheEntry>();
+
+export function clearAppConfigCache(): void {
+  appConfigCache.clear();
+}
 
 const ADMIN_SETTINGS_KEYS = [
   'allow_registration',
@@ -655,7 +670,7 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
   };
 }
 
-export async function getAppConfigAsync(authenticatedUser: { id: number } | null) {
+async function buildAppConfigAsync(authenticatedUser: { id: number } | null) {
   const settingKeys = [
     'allowed_file_types',
     'allow_registration',
@@ -791,6 +806,28 @@ export async function getAppConfigAsync(authenticatedUser: { id: number } | null
     permissions,
     dev_mode: process.env.NODE_ENV === 'development',
   };
+}
+
+export async function getAppConfigAsync(authenticatedUser: { id: number } | null) {
+  if (APP_CONFIG_CACHE_TTL_MS <= 0) return buildAppConfigAsync(authenticatedUser);
+
+  const key: AppConfigCacheKey = authenticatedUser ? 'authenticated' : 'anonymous';
+  const now = Date.now();
+  const cached = appConfigCache.get(key);
+  if (cached?.value !== undefined && cached.expiresAt > now) return cached.value;
+  if (cached?.pending) return cached.pending;
+
+  const pending = buildAppConfigAsync(authenticatedUser);
+  appConfigCache.set(key, { expiresAt: 0, pending });
+
+  try {
+    const value = await pending;
+    appConfigCache.set(key, { expiresAt: Date.now() + APP_CONFIG_CACHE_TTL_MS, value });
+    return value;
+  } catch (err) {
+    appConfigCache.delete(key);
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1984,6 +2021,7 @@ export function updateAppSettings(
   const changedKeys = ADMIN_SETTINGS_KEYS.filter(
     (k) => body[k] !== undefined && !(k === 'smtp_pass' && String(body[k]) === '••••••••'),
   );
+  if (changedKeys.length > 0) clearAppConfigCache();
 
   const summary: Record<string, unknown> = {};
   const smtpChanged = changedKeys.some((k) => k.startsWith('smtp_'));
@@ -2074,6 +2112,7 @@ export async function updateAppSettingsAsync(
   const changedKeys = ADMIN_SETTINGS_KEYS.filter(
     (k) => body[k] !== undefined && !(k === 'smtp_pass' && String(body[k]) === '••••••••'),
   );
+  if (changedKeys.length > 0) clearAppConfigCache();
 
   const summary: Record<string, unknown> = {};
   const smtpChanged = changedKeys.some((k) => k.startsWith('smtp_'));

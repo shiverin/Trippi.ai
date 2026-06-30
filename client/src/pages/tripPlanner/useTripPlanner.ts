@@ -8,6 +8,7 @@ import {
   assignmentsApi,
   authApi,
   healthApi,
+  packingApi,
   tripsApi,
 } from '../../api/client';
 import { buildTripCommandCenter } from '../../components/CommandCenter/commandCenterModel';
@@ -26,8 +27,9 @@ import { useAuthStore } from '../../store/authStore';
 import { useCanDo } from '../../store/permissionsStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useTripStore } from '../../store/tripStore';
-import type { Accommodation, Day, Place, Reservation, TripMember } from '../../types';
+import type { Accommodation, Day, PackingBag, Place, Reservation, TripMember } from '../../types';
 import { getDayRelevantPlaceIds } from '../../utils/dayRelevantPlaceIds';
+import type { PackingResponsibleMember } from '../../utils/packingResponsibilities';
 import {
   BOOKING_ROUTE_TRANSPORT_TYPES,
   buildDisplayedPinOrderMap,
@@ -128,6 +130,10 @@ export function useTripPlanner() {
   const [tripAccommodations, setTripAccommodations] = useState<Accommodation[]>([]);
   const [allowedFileTypes, setAllowedFileTypes] = useState<string | null>(null);
   const [tripMembers, setTripMembers] = useState<TripMember[]>([]);
+  const [packingBags, setPackingBags] = useState<PackingBag[]>([]);
+  const [packingCategoryAssignees, setPackingCategoryAssignees] = useState<
+    Record<string, PackingResponsibleMember[] | undefined>
+  >({});
 
   const loadAccommodations = useCallback(() => {
     if (tripId) {
@@ -196,6 +202,7 @@ export function useTripPlanner() {
     if (tabId === 'finanzplan') tripActions.loadBudgetItems?.(tripId);
     if (tabId === 'dateien' && (!files || files.length === 0)) tripActions.loadFiles?.(tripId);
   };
+  const commandTabActive = activeTab === 'command';
   const {
     leftWidth,
     rightWidth,
@@ -435,7 +442,7 @@ export function useTripPlanner() {
           if (cancelled) return;
           toast.error(t('trip.toast.loadError'));
           const status = (err as { response?: { status?: number } })?.response?.status;
-          if (status === 401 || status === 403 || status === 404) {
+          if (status == null || status === 401 || status === 403 || status === 404) {
             navigate('/dashboard');
           }
         });
@@ -445,6 +452,35 @@ export function useTripPlanner() {
       };
     }
   }, [tripId]);
+
+  useEffect(() => {
+    if (!tripId || !enabledAddons.packing) {
+      setPackingBags([]);
+      setPackingCategoryAssignees({});
+      return;
+    }
+    if (!commandTabActive) return;
+
+    let cancelled = false;
+    Promise.allSettled([packingApi.listBags(tripId), packingApi.getCategoryAssignees(tripId)])
+      .then(([bagsResult, assigneesResult]) => {
+        if (cancelled) return;
+        setPackingBags(bagsResult.status === 'fulfilled' ? bagsResult.value.bags || [] : []);
+        setPackingCategoryAssignees(
+          assigneesResult.status === 'fulfilled' ? assigneesResult.value.assignees || {} : {}
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPackingBags([]);
+          setPackingCategoryAssignees({});
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripId, enabledAddons.packing, commandTabActive]);
 
   useTripWebSocket(tripId);
 
@@ -1000,11 +1036,24 @@ export function useTripPlanner() {
             reservations,
             budgetItems,
             packingItems,
+            packingBags,
+            packingCategoryAssignees,
             todoItems,
             tripMembers,
           })
         : null,
-    [trip, days, assignments, reservations, budgetItems, packingItems, todoItems, tripMembers]
+    [
+      trip,
+      days,
+      assignments,
+      reservations,
+      budgetItems,
+      packingItems,
+      packingBags,
+      packingCategoryAssignees,
+      todoItems,
+      tripMembers,
+    ]
   );
 
   return {

@@ -1,8 +1,13 @@
-import { CheckSquare, Package, Pencil, Plus, Square, Trash2 } from 'lucide-react';
+import { CheckSquare, Package, Pencil, Plus, Square, Trash2, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from '../../i18n';
 import { useTripStore } from '../../store/tripStore';
 import type { PackingBag, PackingItem } from '../../types';
+import {
+  packingResponsibilityDetail,
+  packingResponsibilityLabel,
+  type PackingItemResponsibility,
+} from '../../utils/packingResponsibilities';
 import { useToast } from '../shared/Toast';
 import { PACKING_PLACEHOLDER_NAME } from './packingListPanel.constants';
 import { katColor } from './packingListPanel.helpers';
@@ -18,6 +23,7 @@ interface ArtikelZeileProps {
   bags?: PackingBag[];
   onCreateBag: (name: string) => Promise<PackingBag | undefined>;
   canEdit?: boolean;
+  responsibility?: PackingItemResponsibility;
 }
 
 export function ArtikelZeile({
@@ -30,6 +36,7 @@ export function ArtikelZeile({
   bags = [],
   onCreateBag,
   canEdit = true,
+  responsibility,
 }: ArtikelZeileProps) {
   const isPlaceholder = item.name === PACKING_PLACEHOLDER_NAME;
   const [editing, setEditing] = useState(false);
@@ -42,6 +49,13 @@ export function ArtikelZeile({
   const { togglePackingItem, updatePackingItem, deletePackingItem } = useTripStore();
   const toast = useToast();
   const { t } = useTranslation();
+  const responsibilityLabel = packingResponsibilityLabel(responsibility);
+  const responsibilityDetail = packingResponsibilityDetail(responsibility);
+  const responsibilityTone = responsibility?.isUnassigned
+    ? 'unassigned'
+    : responsibility?.isShared
+      ? 'shared'
+      : 'personal';
 
   const handleToggle = () => togglePackingItem(tripId, item.id, !item.checked);
 
@@ -178,6 +192,47 @@ export function ArtikelZeile({
           }}
         >
           {item.name}
+        </span>
+      )}
+
+      {!isPlaceholder && (
+        <span
+          aria-label={`Responsibility: ${responsibilityLabel}`}
+          title={`Responsible: ${responsibilityDetail}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            maxWidth: 'min(122px, 28vw)',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
+            flexShrink: 0,
+            borderRadius: 999,
+            border:
+              responsibilityTone === 'unassigned'
+                ? '1px solid rgba(245,158,11,0.35)'
+                : '1px solid var(--border-secondary)',
+            background:
+              responsibilityTone === 'unassigned'
+                ? 'rgba(245,158,11,0.12)'
+                : responsibilityTone === 'shared'
+                  ? 'rgba(14,165,233,0.12)'
+                  : 'var(--bg-tertiary)',
+            color:
+              responsibilityTone === 'unassigned'
+                ? '#b45309'
+                : responsibilityTone === 'shared'
+                  ? '#0369a1'
+                  : 'var(--text-muted)',
+            fontSize: 10.5,
+            fontWeight: 700,
+            lineHeight: 1,
+            padding: '3px 7px',
+          }}
+        >
+          {responsibility?.isShared && <Users size={10} style={{ flexShrink: 0 }} />}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{responsibilityLabel}</span>
         </span>
       )}
 

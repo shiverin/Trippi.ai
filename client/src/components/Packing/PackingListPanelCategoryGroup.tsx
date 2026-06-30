@@ -15,6 +15,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from '../../i18n';
 import { useTripStore } from '../../store/tripStore';
 import type { PackingBag, PackingItem } from '../../types';
+import type { PackingItemResponsibility } from '../../utils/packingResponsibilities';
 import { useToast } from '../shared/Toast';
 import { katColor } from './packingListPanel.helpers';
 import { ArtikelZeile } from './PackingListPanelItemRow';
@@ -36,6 +37,7 @@ interface KategorieGruppeProps {
   bags?: PackingBag[];
   onCreateBag: (name: string) => Promise<PackingBag | undefined>;
   canEdit?: boolean;
+  itemResponsibilities: Map<number, PackingItemResponsibility>;
 }
 
 export function KategorieGruppe({
@@ -54,6 +56,7 @@ export function KategorieGruppe({
   bags,
   onCreateBag,
   canEdit = true,
+  itemResponsibilities,
 }: KategorieGruppeProps) {
   const [offen, setOffen] = useState(true);
   const [editingName, setEditingName] = useState(false);
@@ -485,6 +488,7 @@ export function KategorieGruppe({
               bags={bags}
               onCreateBag={onCreateBag}
               canEdit={canEdit}
+              responsibility={itemResponsibilities.get(item.id)}
             />
           ))}
           {/* Inline add item */}

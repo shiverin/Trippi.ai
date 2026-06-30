@@ -8,14 +8,22 @@ export const packingHandlers = [
     });
   }),
 
+  http.get('/api/trips/:id/packing/bags', () => {
+    return HttpResponse.json({ bags: [] });
+  }),
+
+  http.get('/api/trips/:id/packing/category-assignees', () => {
+    return HttpResponse.json({ assignees: {} });
+  }),
+
   http.post('/api/trips/:id/packing', async ({ params, request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     const item = buildPackingItem({ trip_id: Number(params.id), ...body });
     return HttpResponse.json({ item });
   }),
 
   http.put('/api/trips/:id/packing/:itemId', async ({ params, request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     const item = buildPackingItem({ id: Number(params.itemId), trip_id: Number(params.id), ...body });
     return HttpResponse.json({ item });
   }),

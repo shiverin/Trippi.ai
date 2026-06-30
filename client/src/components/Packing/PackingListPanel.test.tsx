@@ -1105,6 +1105,61 @@ describe('PackingListPanel', () => {
     await waitFor(() => expect(putBody).toMatchObject({ user_ids: [] }));
   });
 
+  it('FE-COMP-PACKING-080: shows personal, shared, and unassigned responsibility on item rows', async () => {
+    server.use(
+      http.get('/api/trips/:id/packing/category-assignees', () =>
+        HttpResponse.json({
+          assignees: {
+            Clothing: [{ user_id: 2, username: 'Alice', avatar: null }],
+            Electronics: [
+              { user_id: 2, username: 'Alice', avatar: null },
+              { user_id: 3, username: 'Bob', avatar: null },
+            ],
+          },
+        })
+      )
+    );
+    const items = [
+      buildPackingItem({ id: 801, name: 'Jacket', category: 'Clothing' }),
+      buildPackingItem({ id: 802, name: 'Shared charger', category: 'Electronics' }),
+      buildPackingItem({ id: 803, name: 'Sunscreen', category: 'Toiletries' }),
+    ];
+
+    render(<PackingListPanel tripId={1} items={items} />);
+
+    expect(await screen.findByLabelText('Responsibility: Alice')).toBeInTheDocument();
+    expect(screen.getByLabelText('Responsibility: Alice + Bob')).toBeInTheDocument();
+    expect(screen.getByLabelText('Responsibility: Unassigned')).toBeInTheDocument();
+  });
+
+  it('FE-COMP-PACKING-081: shows completion tracking by responsible member and overall list', async () => {
+    server.use(
+      http.get('/api/trips/:id/packing/category-assignees', () =>
+        HttpResponse.json({
+          assignees: {
+            Clothing: [{ user_id: 2, username: 'Alice', avatar: null }],
+            Electronics: [
+              { user_id: 2, username: 'Alice', avatar: null },
+              { user_id: 3, username: 'Bob', avatar: null },
+            ],
+          },
+        })
+      )
+    );
+    const items = [
+      buildPackingItem({ id: 811, name: 'Jacket', checked: 1, category: 'Clothing' }),
+      buildPackingItem({ id: 812, name: 'Shared charger', checked: 0, category: 'Electronics' }),
+      buildPackingItem({ id: 813, name: 'Sunscreen', checked: 0, category: 'Toiletries' }),
+    ];
+
+    render(<PackingListPanel tripId={1} items={items} />);
+
+    expect(screen.getByText(/1 of 3 packed/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText('Packing progress for Alice: 1 of 2 packed')).toBeInTheDocument();
+    expect(screen.getByLabelText('Packing progress for Bob: 0 of 1 packed')).toBeInTheDocument();
+    expect(screen.getByLabelText('Packing progress for Unassigned: 0 of 1 packed')).toBeInTheDocument();
+  });
+
   it('FE-COMP-PACKING-061: applying a template calls applyTemplate API', async () => {
     const user = userEvent.setup();
     let applyCalled = false;

@@ -88,7 +88,7 @@ describe('buildTripCommandCenter', () => {
     expect(center.modules.find((module) => module.id === 'decisions')?.count).toBeGreaterThan(1);
     expect(center.modules.find((module) => module.id === 'budget')?.status).toBe('attention');
     expect(center.modules.find((module) => module.id === 'bookings')?.count).toBeGreaterThan(0);
-    expect(center.modules.find((module) => module.id === 'packing')?.summary).toContain('1 item');
+    expect(center.modules.find((module) => module.id === 'packing')?.summary).toContain('1 packing blocker');
     expect(center.modules.find((module) => module.id === 'plan')?.items[0]?.title).toContain('overlaps');
     expect(center.modules.find((module) => module.id === 'deadlines')?.items[0]?.meta).toContain('Today');
   });
@@ -112,5 +112,55 @@ describe('buildTripCommandCenter', () => {
     expect(center.modules.find((module) => module.id === 'bookings')?.actionLabel).toBe('Add booking intent');
     expect(center.modules.find((module) => module.id === 'packing')?.emptyText).toContain('Create a packing list');
     expect(center.modules.find((module) => module.id === 'plan')?.status).toBe('good');
+  });
+
+  it('surfaces critical unpacked or unassigned packing blockers ahead of regular open items', () => {
+    const trip = buildTrip({
+      id: 12,
+      title: 'Kyoto Crew',
+      start_date: '2026-07-10',
+      end_date: '2026-07-14',
+    });
+
+    const center = buildTripCommandCenter({
+      trip,
+      days: [],
+      assignments: {},
+      reservations: [],
+      budgetItems: [],
+      packingItems: [
+        buildPackingItem({ id: 901, trip_id: trip.id, name: 'Passport', category: 'Documents', checked: 0 }),
+        buildPackingItem({ id: 902, trip_id: trip.id, name: 'Prescription meds', category: 'Health', checked: 1 }),
+        buildPackingItem({ id: 903, trip_id: trip.id, name: 'Rain jacket', category: 'Clothing', checked: 0 }),
+        buildPackingItem({ id: 904, trip_id: trip.id, name: '...', category: 'Empty category', checked: 0 }),
+      ],
+      packingCategoryAssignees: {
+        Documents: [{ user_id: 2, username: 'Alice', avatar: null }],
+        Clothing: [{ user_id: 2, username: 'Alice', avatar: null }],
+      },
+      todoItems: [],
+      tripMembers: [{ id: 2, username: 'Alice', avatar_url: null } as any],
+      now: new Date('2026-06-30T12:00:00Z'),
+    });
+
+    const packing = center.modules.find((module) => module.id === 'packing');
+    expect(packing?.status).toBe('urgent');
+    expect(packing?.count).toBe(2);
+    expect(packing?.items[0]).toMatchObject({
+      title: 'Passport',
+      meta: 'Critical item open - Alice',
+      tone: 'urgent',
+    });
+    expect(packing?.items[1]).toMatchObject({
+      title: 'Prescription meds',
+      meta: 'Critical item needs owner',
+      tone: 'urgent',
+    });
+    expect(packing?.items[2]).toMatchObject({
+      title: 'Rain jacket',
+      meta: 'Alice - Clothing',
+      tone: 'good',
+    });
+    expect(packing?.items.map((item) => item.title)).not.toContain('...');
   });
 });

@@ -1,5 +1,6 @@
 import { Check, ChevronDown, ChevronRight, Copy, KeyRound, Plus, RefreshCw, Terminal, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { authApi, oauthApi } from '../../api/client';
 import { ALL_SCOPES } from '../../api/oauthScopes';
 import { useTranslation } from '../../i18n';
@@ -446,7 +447,16 @@ function IntegrationsMcpSection(props: any) {
     <Section title={t('settings.mcp.title')} icon={Terminal}>
       {/* Endpoint URL */}
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-content-secondary">{t('settings.mcp.endpoint')}</label>
+        <div className="mb-1.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <label className="block text-sm font-medium text-content-secondary">{t('settings.mcp.endpoint')}</label>
+          <Link
+            to="/mcp-connect"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-edge px-2.5 py-1.5 text-xs font-medium text-content-secondary transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            MCP Connect Assistant
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
         <div className="flex items-center gap-2">
           <code className="flex-1 rounded-lg border border-edge bg-surface-secondary px-3 py-2 font-mono text-sm text-content">
             {mcpEndpoint}

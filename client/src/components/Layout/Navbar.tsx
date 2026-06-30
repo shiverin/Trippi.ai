@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   ArrowLeft,
+  Bot,
   Briefcase,
   CalendarDays,
   ChevronDown,
@@ -73,6 +74,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
 
   // Only show 'global' type addons in the navbar — 'integration' addons have no dedicated page
   const globalAddons = allAddons.filter((a: Addon) => a.type === 'global' && a.enabled);
+  const mcpConnectEnabled = allAddons.some((a: Addon) => a.id === 'mcp' && a.enabled);
 
   useEffect(() => {
     if (user) loadAddons();
@@ -358,6 +360,19 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
                       <Settings className="h-4 w-4" />
                       {t('nav.settings')}
                     </Link>
+
+                    {mcpConnectEnabled && (
+                      <Link
+                        to="/mcp-connect"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-content-secondary transition-colors"
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <Bot className="h-4 w-4" />
+                        {t('nav.mcpConnect')}
+                      </Link>
+                    )}
 
                     {user.role === 'admin' && (
                       <Link

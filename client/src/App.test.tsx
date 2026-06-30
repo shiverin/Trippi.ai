@@ -6,6 +6,7 @@ import { buildSettings, buildUser } from '../tests/helpers/factories';
 import { server } from '../tests/helpers/msw/server';
 import { resetAllStores } from '../tests/helpers/store';
 import App from './App';
+import { useAddonStore } from './store/addonStore';
 import { useAuthStore } from './store/authStore';
 import { useSettingsStore } from './store/settingsStore';
 
@@ -17,6 +18,7 @@ vi.mock('./pages/TripPlannerPage', () => ({ default: () => <div>TripPlanner</div
 vi.mock('./pages/FilesPage', () => ({ default: () => <div>Files</div> }));
 vi.mock('./pages/AdminPage', () => ({ default: () => <div>Admin</div> }));
 vi.mock('./pages/SettingsPage', () => ({ default: () => <div>Settings</div> }));
+vi.mock('./pages/McpConnectPage', () => ({ default: () => <div>MCP Connect</div> }));
 vi.mock('./pages/VacayPage', () => ({ default: () => <div>Vacay</div> }));
 vi.mock('./pages/AtlasPage', () => ({ default: () => <div>Atlas</div> }));
 vi.mock('./pages/SharedTripPage', () => ({ default: () => <div>SharedTrip</div> }));
@@ -163,6 +165,26 @@ describe('ProtectedRoute — admin role check', () => {
     });
     renderApp('/admin');
     await waitFor(() => expect(screen.getByText('Admin')).toBeInTheDocument());
+  });
+
+  it('FE-COMP-APP-011B: /mcp-connect is accessible when the MCP addon is enabled', async () => {
+    seedAuth({
+      isAuthenticated: true,
+      user: buildUser(),
+    });
+    server.use(
+      http.get('/api/addons', () =>
+        HttpResponse.json({
+          addons: [{ id: 'mcp', name: 'MCP', type: 'integration', icon: 'terminal', enabled: true }],
+        })
+      )
+    );
+    useAddonStore.setState({
+      loaded: true,
+      addons: [{ id: 'mcp', name: 'MCP', type: 'integration', icon: 'terminal', enabled: true }],
+    });
+    renderApp('/mcp-connect');
+    await waitFor(() => expect(screen.getByText('MCP Connect')).toBeInTheDocument());
   });
 });
 

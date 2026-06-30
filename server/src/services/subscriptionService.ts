@@ -80,7 +80,7 @@ function isoOrNull(value: string | Date | null | undefined): string | null {
   return value instanceof Date ? value.toISOString() : value;
 }
 
-async function getBillingCustomerByUserId(userId: number): Promise<BillingCustomer | undefined> {
+export async function getBillingCustomerForUser(userId: number): Promise<BillingCustomer | undefined> {
   return asyncDb.prepare('SELECT * FROM billing_customers WHERE user_id = ?').get<BillingCustomer>(userId);
 }
 
@@ -97,7 +97,7 @@ async function upsertBillingCustomer(userId: number, stripeCustomerId: string): 
     )
     .run(userId, stripeCustomerId);
 
-  const customer = await getBillingCustomerByUserId(userId);
+  const customer = await getBillingCustomerForUser(userId);
   if (!customer) throw new Error('Failed to persist billing customer.');
   return customer;
 }

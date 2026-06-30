@@ -7,12 +7,14 @@ import type {
   Reservation,
   TodoItem,
   Trip,
+  TripFile,
   TripMember,
 } from '../../types';
 
-export type CommandCenterAction = 'decisions' | 'bookings' | 'budget' | 'packing' | 'plan' | 'deadlines';
+export type CommandCenterAction = 'decisions' | 'bookings' | 'budget' | 'packing' | 'plan' | 'deadlines' | 'files';
 export type CommandCenterStatus = 'empty' | 'good' | 'attention' | 'urgent';
 export type TripCommandPhase = 'before' | 'during' | 'after' | 'unscheduled';
+export type ReadinessChecklistItemId = 'decisions' | 'balances' | 'bookings' | 'packing' | 'documents';
 
 export interface CommandCenterItem {
   id: string;
@@ -36,6 +38,26 @@ export interface CommandCenterModule {
   progress?: number;
 }
 
+export interface ReadinessChecklistItem {
+  id: ReadinessChecklistItemId;
+  title: string;
+  summary: string;
+  status: CommandCenterStatus;
+  count: number;
+  action: CommandCenterAction;
+  actionLabel: string;
+}
+
+export interface ReadinessChecklist {
+  title: string;
+  summary: string;
+  status: CommandCenterStatus;
+  completedCount: number;
+  totalCount: number;
+  caveat: string;
+  items: ReadinessChecklistItem[];
+}
+
 export interface TripCommandCenter {
   title: string;
   subtitle: string;
@@ -44,6 +66,7 @@ export interface TripCommandCenter {
   tripLengthLabel: string;
   travelerLabel: string;
   nextDeadlineLabel: string;
+  readinessChecklist: ReadinessChecklist;
   modules: CommandCenterModule[];
 }
 
@@ -55,6 +78,7 @@ interface BuildCommandCenterInput {
   budgetItems: BudgetItem[];
   packingItems: PackingItem[];
   todoItems: TodoItem[];
+  files: TripFile[];
   tripMembers: TripMember[];
   now?: Date;
 }
@@ -70,6 +94,11 @@ interface TimelineEntry {
 const DAY_MS = 86_400_000;
 const DECISION_RE = /\b(decide|decision|choose|pick|vote|poll|approve|approval|finali[sz]e)\b/i;
 const BOOKING_RE = /\b(book|booking|reservation|reserve|ticket|flight|hotel|check-?in|visa|passport)\b/i;
+const DOCUMENT_RE =
+  /\b(passport|visa|visas|document|documents|docs|insurance|voucher|boarding pass|boarding|permit|identity|id card|ticket)\b/i;
+const DOCUMENT_FILE_RE = /\.(pdf|docx?|xlsx?|txt|csv|pkpass|eml|html?)$/i;
+const DOCUMENT_MIME_RE =
+  /^(application\/pdf|application\/msword|application\/vnd\.openxmlformats-officedocument|application\/vnd\.apple\.pkpass|message\/rfc822|text\/)/i;
 const TRANSPORT_TYPES = new Set([
   'flight',
   'train',
@@ -80,6 +109,19 @@ const TRANSPORT_TYPES = new Set([
   'bicycle',
   'cruise',
   'ferry',
+  'transport_other',
+]);
+const DOCUMENT_REQUIRED_BOOKING_TYPES = new Set([
+  'flight',
+  'train',
+  'bus',
+  'ferry',
+  'cruise',
+  'hotel',
+  'event',
+  'tour',
+  'car',
+  'car-rental',
   'transport_other',
 ]);
 
@@ -156,6 +198,23 @@ function todoText(todo: TodoItem): string {
 
 function isOpenTodo(todo: TodoItem): boolean {
   return Number(todo.checked) !== 1;
+}
+
+function isActiveFile(file: TripFile): boolean {
+  return !file.deleted_at;
+}
+
+function isDocumentLikeFile(file: TripFile): boolean {
+  return DOCUMENT_MIME_RE.test(file.mime_type || '') || DOCUMENT_FILE_RE.test(file.original_name || file.filename || '');
+}
+
+function linkedReservationIds(file: TripFile): number[] {
+  const ids = [file.reservation_id, ...(file.linked_reservation_ids || [])];
+  return ids.flatMap((id) => {
+    if (id == null) return [];
+    const numeric = Number(id);
+    return Number.isFinite(numeric) ? [numeric] : [];
+  });
 }
 
 function reservationTitle(reservation: Reservation): string {
@@ -240,6 +299,7 @@ export function buildTripCommandCenter({
   budgetItems,
   packingItems,
   todoItems,
+  files,
   tripMembers,
   now = new Date(),
 }: BuildCommandCenterInput): TripCommandCenter {
@@ -361,6 +421,14 @@ export function buildTripCommandCenter({
             tone: 'attention' as const,
           })),
         ].slice(0, 3);
+  const unpaidBudgetShares = budgetItems.flatMap((item) =>
+    (item.members || [])
+      .filter((member) => Number(member.paid) !== 1)
+      .map((member) => ({
+        item,
+        member,
+      }))
+  );
 
   const uncheckedPacking = packingItems.filter((item) => Number(item.checked) !== 1);
   const unassignedPacking = uncheckedPacking.filter((item) => item.bag_id == null);
@@ -473,6 +541,92 @@ export function buildTripCommandCenter({
     meta: `${formatRelativeDate(entry.date, now)} - ${entry.source}`,
     tone: entry.tone,
   }));
+
+  const activeFiles = files.filter(isActiveFile);
+  const reservationIdsWithFiles = new Set(activeFiles.flatMap(linkedReservationIds));
+  const documentTodos = openTodos.filter((todo) => DOCUMENT_RE.test(todoText(todo)));
+  const reservationsMissingDocuments = reservations.filter(
+    (reservation) =>
+      DOCUMENT_REQUIRED_BOOKING_TYPES.has(reservation.type) && !reservationIdsWithFiles.has(reservation.id)
+  );
+  const missingDocumentCount = documentTodos.length + reservationsMissingDocuments.length;
+
+  const readinessItems: ReadinessChecklistItem[] = [
+    {
+      id: 'decisions',
+      title: 'Resolve group decisions',
+      summary:
+        decisionCount > 0
+          ? `${decisionCount} unresolved decision${decisionCount === 1 ? '' : 's'}`
+          : 'No unresolved decisions',
+      status: decisionCount > 0 ? 'attention' : 'good',
+      count: decisionCount,
+      action: 'decisions',
+      actionLabel: decisionCount > 0 ? 'Open tasks' : 'Review tasks',
+    },
+    {
+      id: 'balances',
+      title: 'Settle unpaid balances',
+      summary:
+        unpaidBudgetShares.length > 0
+          ? `${unpaidBudgetShares.length} unpaid share${unpaidBudgetShares.length === 1 ? '' : 's'}`
+          : budgetItems.length === 0
+            ? 'No shared costs tracked yet'
+            : 'All shared balances marked paid',
+      status: unpaidBudgetShares.length > 0 ? 'attention' : budgetItems.length === 0 ? 'empty' : 'good',
+      count: unpaidBudgetShares.length,
+      action: 'budget',
+      actionLabel: unpaidBudgetShares.length > 0 ? 'Open costs' : 'Review costs',
+    },
+    {
+      id: 'bookings',
+      title: 'Confirm missing bookings',
+      summary:
+        bookingCount > 0
+          ? `${bookingCount} booking follow-up${bookingCount === 1 ? '' : 's'}`
+          : reservations.length === 0
+            ? 'No booking intents tracked yet'
+            : 'Bookings have confirmations and statuses',
+      status: bookingCount > 0 ? 'attention' : reservations.length === 0 ? 'empty' : 'good',
+      count: bookingCount,
+      action: 'bookings',
+      actionLabel: bookingCount > 0 ? 'Open bookings' : 'Review bookings',
+    },
+    {
+      id: 'packing',
+      title: 'Pack remaining items',
+      summary:
+        packingItems.length === 0
+          ? 'No packing list yet'
+          : uncheckedPacking.length > 0
+            ? `${uncheckedPacking.length} unpacked item${uncheckedPacking.length === 1 ? '' : 's'}`
+            : 'Everything is checked off',
+      status: packingItems.length === 0 ? 'empty' : uncheckedPacking.length > 0 ? 'attention' : 'good',
+      count: uncheckedPacking.length,
+      action: 'packing',
+      actionLabel: uncheckedPacking.length > 0 ? 'Open packing' : 'Review packing',
+    },
+    {
+      id: 'documents',
+      title: 'Attach missing documents',
+      summary:
+        missingDocumentCount > 0
+          ? `${missingDocumentCount} missing document${missingDocumentCount === 1 ? '' : 's'}`
+          : activeFiles.some(isDocumentLikeFile)
+            ? 'Travel documents are attached'
+            : 'No document requirements detected',
+      status: missingDocumentCount > 0 ? 'attention' : 'good',
+      count: missingDocumentCount,
+      action: 'files',
+      actionLabel: missingDocumentCount > 0 ? 'Open files' : 'Review files',
+    },
+  ];
+  const readinessCompletedCount = readinessItems.filter((item) => item.status === 'good').length;
+  const readinessStatus: CommandCenterStatus = readinessItems.some((item) => item.status === 'urgent')
+    ? 'urgent'
+    : readinessItems.some((item) => item.status === 'attention' || item.status === 'empty')
+      ? 'attention'
+      : 'good';
 
   const modules: CommandCenterModule[] = [
     {
@@ -614,6 +768,16 @@ export function buildTripCommandCenter({
     tripLengthLabel: tripDayCount ? `${tripDayCount} day${tripDayCount === 1 ? '' : 's'}` : 'No days yet',
     travelerLabel: `${Math.max(1, tripMembers.length || 1)} traveler${Math.max(1, tripMembers.length || 1) === 1 ? '' : 's'}`,
     nextDeadlineLabel,
+    readinessChecklist: {
+      title: 'Trip readiness checklist',
+      summary: `${readinessCompletedCount}/${readinessItems.length} checks ready`,
+      status: readinessStatus,
+      completedCount: readinessCompletedCount,
+      totalCount: readinessItems.length,
+      caveat:
+        'Document checks are inferred from uploaded files, booking links, and document-related tasks until required document templates exist.',
+      items: readinessItems,
+    },
     modules,
   };
 }

@@ -1001,10 +1001,11 @@ export function useTripPlanner() {
             budgetItems,
             packingItems,
             todoItems,
+            files,
             tripMembers,
           })
         : null,
-    [trip, days, assignments, reservations, budgetItems, packingItems, todoItems, tripMembers]
+    [trip, days, assignments, reservations, budgetItems, packingItems, todoItems, files, tripMembers]
   );
 
   return {

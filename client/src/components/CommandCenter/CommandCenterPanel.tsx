@@ -4,6 +4,7 @@ import {
   Calendar,
   CheckCircle2,
   ClipboardList,
+  FileText,
   ListTodo,
   Luggage,
   Ticket,
@@ -43,6 +44,7 @@ const MODULE_ICONS = {
   packing: Luggage,
   plan: AlertTriangle,
   deadlines: Calendar,
+  files: FileText,
 } satisfies Record<CommandCenterAction, typeof ClipboardList>;
 
 const MODULE_ACCENTS: Record<CommandCenterAction, string> = {
@@ -52,6 +54,7 @@ const MODULE_ACCENTS: Record<CommandCenterAction, string> = {
   packing: '#d97706',
   plan: '#e11d48',
   deadlines: '#7c3aed',
+  files: '#475569',
 };
 
 function statusTone(status: CommandCenterStatus): CommandCenterStatus {
@@ -150,6 +153,72 @@ function CommandCenterModuleCard({
   );
 }
 
+function ReadinessChecklistCard({ center, onNavigate }: CommandCenterPanelProps) {
+  const checklist = center.readinessChecklist;
+  const progress = checklist.totalCount > 0 ? Math.round((checklist.completedCount / checklist.totalCount) * 100) : 0;
+
+  return (
+    <section className="mt-5 rounded-lg border border-edge-secondary bg-surface-card px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-content text-surface-card">
+              <CheckCircle2 size={17} strokeWidth={2.4} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-semibold text-content">{checklist.title}</h2>
+              <p className="mt-1 text-sm text-content-muted">{checklist.summary}</p>
+            </div>
+          </div>
+        </div>
+        <div className="min-w-[180px]">
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${STATUS_CLASS[checklist.status]}`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[checklist.status]}`} />
+              {checklist.completedCount}/{checklist.totalCount} ready
+            </span>
+            <span className="text-xs font-medium tabular-nums text-content-faint">{progress}%</span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-tertiary">
+            <div className="h-full rounded-full bg-content" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-5">
+        {checklist.items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onNavigate(item.action)}
+            className="group flex min-h-[112px] flex-col justify-between rounded-lg border border-edge-faint bg-surface-secondary p-3 text-left transition hover:border-edge-secondary hover:bg-surface-tertiary"
+          >
+            <span className="flex items-start gap-2.5">
+              <span
+                className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${STATUS_CLASS[item.status]}`}
+              >
+                {item.status === 'good' ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold leading-5 text-content">{item.title}</span>
+                <span className="mt-1 block text-xs leading-4 text-content-muted">{item.summary}</span>
+              </span>
+            </span>
+            <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-accent">
+              {item.actionLabel}
+              <ArrowRight size={13} strokeWidth={2.5} className="transition group-hover:translate-x-0.5" />
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <p className="mt-3 text-xs leading-5 text-content-faint">{checklist.caveat}</p>
+    </section>
+  );
+}
+
 export default function CommandCenterPanel({ center, onNavigate }: CommandCenterPanelProps) {
   const flaggedModules = center.modules.filter((module) => module.status === 'attention' || module.status === 'urgent');
   const clearModules = center.modules.filter((module) => module.status === 'good').length;
@@ -204,6 +273,8 @@ export default function CommandCenterPanel({ center, onNavigate }: CommandCenter
             </span>
           </div>
         </section>
+
+        <ReadinessChecklistCard center={center} onNavigate={onNavigate} />
 
         <section className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {center.modules.map((module) => (

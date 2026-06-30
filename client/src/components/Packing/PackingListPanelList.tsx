@@ -20,6 +20,7 @@ export function PackingList(S: PackingState) {
     bags,
     handleCreateBagByName,
     canEdit,
+    responsibilitySummary,
   } = S;
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0 16px' }}>
@@ -55,6 +56,7 @@ export function PackingList(S: PackingState) {
               bags={bags}
               onCreateBag={handleCreateBagByName}
               canEdit={canEdit}
+              itemResponsibilities={responsibilitySummary.itemResponsibilities}
             />
           ))}
         </div>

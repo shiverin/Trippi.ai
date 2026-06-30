@@ -26,6 +26,7 @@ export function PackingHeader(S: PackingState) {
     bagTrackingEnabled,
     showBagModal,
     setShowBagModal,
+    responsibilitySummary,
     addingCategory,
     newCatName,
     setNewCatName,
@@ -374,6 +375,41 @@ export function PackingHeader(S: PackingState) {
               </div>
             </div>
           </div>
+          {responsibilitySummary.memberProgress.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+              {responsibilitySummary.memberProgress.slice(0, 6).map((bucket) => (
+                <span
+                  key={bucket.key}
+                  aria-label={`Packing progress for ${bucket.label}: ${bucket.packed} of ${bucket.total} packed`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    minHeight: 20,
+                    maxWidth: 150,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    borderRadius: 999,
+                    border:
+                      bucket.kind === 'unassigned'
+                        ? '1px solid rgba(245,158,11,0.35)'
+                        : '1px solid var(--border-secondary)',
+                    background: bucket.kind === 'unassigned' ? 'rgba(245,158,11,0.12)' : 'var(--bg-tertiary)',
+                    color: bucket.kind === 'unassigned' ? '#b45309' : 'var(--text-muted)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                  }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{bucket.label}</span>
+                  <span style={{ color: 'var(--text-faint)', fontVariantNumeric: 'tabular-nums' }}>
+                    {bucket.packed}/{bucket.total}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -3,12 +3,20 @@ import type {
   AssignmentsMap,
   BudgetItem,
   Day,
+  PackingBag,
   PackingItem,
   Reservation,
   TodoItem,
   Trip,
   TripMember,
 } from '../../types';
+import {
+  buildPackingResponsibilitySummary,
+  isCriticalPackingItem,
+  isTrackablePackingItem,
+  packingResponsibilityLabel,
+  type PackingResponsibleMember,
+} from '../../utils/packingResponsibilities';
 import type { GroupDecision } from '../Decisions/groupDecisionModel';
 import {
   formatDecisionDeadline,
@@ -62,6 +70,8 @@ interface BuildCommandCenterInput {
   reservations: Reservation[];
   budgetItems: BudgetItem[];
   packingItems: PackingItem[];
+  packingBags?: PackingBag[];
+  packingCategoryAssignees?: Record<string, PackingResponsibleMember[] | undefined>;
   todoItems: TodoItem[];
   tripMembers: TripMember[];
   groupDecisions?: GroupDecision[];
@@ -273,6 +283,8 @@ export function buildTripCommandCenter({
   reservations,
   budgetItems,
   packingItems,
+  packingBags = [],
+  packingCategoryAssignees = {},
   todoItems,
   tripMembers,
   groupDecisions = [],
@@ -407,18 +419,69 @@ export function buildTripCommandCenter({
           })),
         ].slice(0, 3);
 
-  const uncheckedPacking = packingItems.filter((item) => Number(item.checked) !== 1);
-  const unassignedPacking = uncheckedPacking.filter((item) => item.bag_id == null);
+  const trackedPackingItems = packingItems.filter(isTrackablePackingItem);
+  const packingResponsibility = buildPackingResponsibilitySummary({
+    items: trackedPackingItems,
+    bags: packingBags,
+    categoryAssignees: packingCategoryAssignees,
+    defaultCategory: 'Other',
+  });
+  const uncheckedPacking = trackedPackingItems.filter((item) => Number(item.checked) !== 1);
+  const criticalPacking = trackedPackingItems.filter(isCriticalPackingItem);
+  const unresolvedPacking = trackedPackingItems.filter(
+    (item) => packingResponsibility.itemResponsibilities.get(item.id)?.isUnassigned
+  );
+  const unresolvedPackingIds = new Set(unresolvedPacking.map((item) => item.id));
+  const unassignedCriticalPacking = criticalPacking.filter(
+    (item) => packingResponsibility.itemResponsibilities.get(item.id)?.isUnassigned
+  );
+  const blockerPackingIds = new Set([
+    ...uncheckedPacking.filter(isCriticalPackingItem).map((item) => item.id),
+    ...uncheckedPacking.filter((item) => unresolvedPackingIds.has(item.id)).map((item) => item.id),
+    ...unassignedCriticalPacking.map((item) => item.id),
+  ]);
+  const hasUrgentPackingBlocker = criticalPacking.some(
+    (item) => Number(item.checked) !== 1 || packingResponsibility.itemResponsibilities.get(item.id)?.isUnassigned
+  );
   const packingProgress =
-    packingItems.length === 0
+    trackedPackingItems.length === 0
       ? 0
-      : clampProgress(((packingItems.length - uncheckedPacking.length) / packingItems.length) * 100);
-  const packingItemsList: CommandCenterItem[] = uncheckedPacking.slice(0, 4).map((item) => ({
-    id: `packing-${item.id}`,
-    title: item.name,
-    meta: item.bag_id == null ? 'Needs bag or owner' : item.category || 'Still open',
-    tone: item.bag_id == null ? 'attention' : 'good',
-  }));
+      : clampProgress(((trackedPackingItems.length - uncheckedPacking.length) / trackedPackingItems.length) * 100);
+  const packingItemsList: CommandCenterItem[] = [
+    ...packingItems
+      .filter((item) => blockerPackingIds.has(item.id))
+      .map((item) => {
+        const responsibility = packingResponsibility.itemResponsibilities.get(item.id);
+        const critical = isCriticalPackingItem(item);
+        const open = Number(item.checked) !== 1;
+        const ownerLabel = packingResponsibilityLabel(responsibility);
+        const meta =
+          critical && responsibility?.isUnassigned
+            ? open
+              ? 'Critical item unpacked and unassigned'
+              : 'Critical item needs owner'
+            : critical
+              ? `Critical item open - ${ownerLabel}`
+              : 'Needs owner';
+        return {
+          id: `packing-blocker-${item.id}`,
+          title: item.name,
+          meta,
+          tone: critical ? ('urgent' as const) : ('attention' as const),
+        };
+      }),
+    ...uncheckedPacking
+      .filter((item) => !blockerPackingIds.has(item.id))
+      .map((item) => {
+        const responsibility = packingResponsibility.itemResponsibilities.get(item.id);
+        return {
+          id: `packing-open-${item.id}`,
+          title: item.name,
+          meta: `${packingResponsibilityLabel(responsibility)} - ${item.category || 'Still open'}`,
+          tone: 'good' as const,
+        };
+      }),
+  ].slice(0, 4);
 
   const dayById = new Map(sortedDays.map((day, index) => [day.id, { day, index }]));
   const intervals = [
@@ -595,23 +658,36 @@ export function buildTripCommandCenter({
       id: 'packing',
       title: 'Packing assignments',
       summary:
-        packingItems.length === 0
+        trackedPackingItems.length === 0
           ? 'No packing list yet'
-          : unassignedPacking.length > 0
-            ? `${unassignedPacking.length} item${unassignedPacking.length === 1 ? '' : 's'} need bag or owner`
+          : blockerPackingIds.size > 0
+            ? `${blockerPackingIds.size} packing blocker${blockerPackingIds.size === 1 ? '' : 's'}`
             : uncheckedPacking.length > 0
               ? `${uncheckedPacking.length} item${uncheckedPacking.length === 1 ? '' : 's'} still open`
               : 'Everything is checked off',
-      status: packingItems.length === 0 ? 'empty' : uncheckedPacking.length > 0 ? 'attention' : 'good',
+      status:
+        trackedPackingItems.length === 0
+          ? 'empty'
+          : hasUrgentPackingBlocker
+            ? 'urgent'
+            : uncheckedPacking.length > 0
+              ? 'attention'
+              : 'good',
       statusLabel: statusLabel(
-        packingItems.length === 0 ? 'empty' : uncheckedPacking.length > 0 ? 'attention' : 'good'
+        trackedPackingItems.length === 0
+          ? 'empty'
+          : hasUrgentPackingBlocker
+            ? 'urgent'
+            : uncheckedPacking.length > 0
+              ? 'attention'
+              : 'good'
       ),
-      count: uncheckedPacking.length,
-      actionLabel: packingItems.length === 0 ? 'Create packing list' : 'Open packing',
+      count: blockerPackingIds.size || uncheckedPacking.length,
+      actionLabel: trackedPackingItems.length === 0 ? 'Create packing list' : 'Open packing',
       emptyTitle: 'Packing is unassigned',
       emptyText: 'Create a packing list or assign bags before the group starts asking who has what.',
       items: packingItemsList,
-      metric: packingItems.length > 0 ? `${packingProgress}% packed` : undefined,
+      metric: trackedPackingItems.length > 0 ? `${packingProgress}% packed` : undefined,
       progress: packingProgress,
     },
     {

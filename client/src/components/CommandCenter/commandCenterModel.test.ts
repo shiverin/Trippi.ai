@@ -8,7 +8,53 @@ import {
   buildTodoItem,
   buildTrip,
 } from '../../../tests/helpers/factories';
+import type { GroupDecision } from '../Decisions/groupDecisionModel';
 import { buildTripCommandCenter } from './commandCenterModel';
+
+function buildDecision(overrides: Partial<GroupDecision> = {}): GroupDecision {
+  return {
+    id: 20,
+    trip_id: 8,
+    created_by: 1,
+    created_by_username: 'Maya',
+    created_by_avatar: null,
+    title: 'Approve flight option',
+    description: null,
+    deadline: '2026-07-01',
+    state: 'open',
+    final_option_id: null,
+    final_option: null,
+    options: [
+      {
+        id: 301,
+        decision_id: 20,
+        booking_option_id: 901,
+        label: 'Nonstop Flight',
+        description: null,
+        sort_order: 0,
+        metadata: null,
+        created_at: '2026-06-29T10:00:00Z',
+      },
+      {
+        id: 302,
+        decision_id: 20,
+        booking_option_id: 902,
+        label: 'Flexible Flight',
+        description: null,
+        sort_order: 1,
+        metadata: null,
+        created_at: '2026-06-29T10:00:00Z',
+      },
+    ],
+    responses: [],
+    links: [
+      { id: 1, decision_id: 20, target_type: 'booking_intent', target_id: 701, created_at: '2026-06-29T10:00:00Z' },
+    ],
+    created_at: '2026-06-29T10:00:00Z',
+    updated_at: '2026-06-29T10:00:00Z',
+    ...overrides,
+  };
+}
 
 describe('buildTripCommandCenter', () => {
   it('summarizes decisions, budget, bookings, packing, conflicts, and deadlines', () => {
@@ -112,5 +158,30 @@ describe('buildTripCommandCenter', () => {
     expect(center.modules.find((module) => module.id === 'bookings')?.actionLabel).toBe('Add booking intent');
     expect(center.modules.find((module) => module.id === 'packing')?.emptyText).toContain('Create a packing list');
     expect(center.modules.find((module) => module.id === 'plan')?.status).toBe('good');
+  });
+
+  it('shows pending booking-linked decisions in booking tasks', () => {
+    const trip = buildTrip({ id: 8, title: 'Lisbon Crew', start_date: '2026-07-02', end_date: '2026-07-06' });
+    const decision = buildDecision();
+    const center = buildTripCommandCenter({
+      trip,
+      days: [],
+      assignments: {},
+      reservations: [],
+      budgetItems: [],
+      packingItems: [],
+      todoItems: [],
+      tripMembers: [{ id: 1, username: 'Maya', avatar_url: null } as any],
+      groupDecisions: [decision],
+      now: new Date('2026-06-30T12:00:00Z'),
+    });
+
+    const bookingModule = center.modules.find((module) => module.id === 'bookings');
+    expect(bookingModule?.status).toBe('attention');
+    expect(bookingModule?.items[0]).toMatchObject({
+      id: `booking-decision-${decision.id}`,
+      title: 'Approve flight option',
+      meta: 'Due tomorrow - 0 responses',
+    });
   });
 });

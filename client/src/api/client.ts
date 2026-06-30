@@ -1063,8 +1063,24 @@ export interface GroupDecisionCreateRequest {
   description?: string | null;
   deadline?: string | null;
   state?: GroupDecisionApiState;
-  options: Array<string | { label: string; description?: string | null; sort_order?: number; metadata?: unknown }>;
+  options: Array<
+    | string
+    | {
+        label: string;
+        description?: string | null;
+        sort_order?: number;
+        metadata?: unknown;
+        booking_option_id?: number | null;
+      }
+  >;
   links?: Array<{ target_type: GroupDecisionLinkTargetType; target_id: number }>;
+}
+
+export interface GroupDecisionCreateFromBookingIntentRequest {
+  title?: string | null;
+  description?: string | null;
+  deadline?: string | null;
+  option_ids?: number[];
 }
 
 export interface GroupDecisionUpdateRequest {
@@ -1089,6 +1105,12 @@ export const decisionsApi = {
     apiClient.get(`/trips/${tripId}/decisions/${id}`).then((r) => r.data),
   create: (tripId: number | string, data: GroupDecisionCreateRequest): Promise<{ decision: GroupDecision }> =>
     apiClient.post(`/trips/${tripId}/decisions`, data).then((r) => r.data),
+  createFromBookingIntent: (
+    tripId: number | string,
+    intentId: number | string,
+    data: GroupDecisionCreateFromBookingIntentRequest = {}
+  ): Promise<{ decision: GroupDecision }> =>
+    apiClient.post(`/trips/${tripId}/decisions/booking-intents/${intentId}`, data).then((r) => r.data),
   update: (
     tripId: number | string,
     id: number | string,

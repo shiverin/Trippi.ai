@@ -28,14 +28,38 @@ interface DecisionRow {
   created_by_avatar?: string | null;
 }
 
+interface BookingIntentDecisionRow {
+  id: number;
+  trip_id: number;
+  type: string;
+  origin: string | null;
+  destination: string | null;
+  status: string;
+}
+
 interface OptionRow {
   id: number;
   decision_id: number;
+  booking_option_id: number | null;
   label: string;
   description: string | null;
   sort_order: number;
   metadata: string | null;
   created_at: string;
+}
+
+interface BookingOptionDecisionRow {
+  id: number;
+  booking_intent_id: number;
+  provider: string;
+  external_id: string | null;
+  title: string | null;
+  price: number | null;
+  currency: string | null;
+  score: number | null;
+  expires_at: string | null;
+  metadata: string;
+  status: string;
 }
 
 interface ResponseRow {
@@ -64,6 +88,7 @@ interface NormalizedOption {
   description: string | null;
   sortOrder: number;
   metadata: string | null;
+  bookingOptionId: number | null;
 }
 
 interface NormalizedLink {
@@ -104,6 +129,29 @@ function normalizePositiveId(value: unknown, field: string): number {
     throw new GroupDecisionInputError(`${field} must be a positive integer`);
   }
   return n;
+}
+
+function normalizeOptionalPositiveId(value: unknown, field: string): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  return normalizePositiveId(value, field);
+}
+
+function normalizePositiveIdArray(value: unknown, field: string): number[] | null {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value)) {
+    throw new GroupDecisionInputError(`${field} must be an array`);
+  }
+
+  const seen = new Set<number>();
+  const ids: number[] = [];
+  value.forEach((item, index) => {
+    const id = normalizePositiveId(item, `${field}[${index}]`);
+    if (!seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  });
+  return ids;
 }
 
 function normalizeNonNegativeInteger(value: unknown, field: string): number {
@@ -160,6 +208,7 @@ function normalizeOptions(raw: unknown): NormalizedOption[] {
         description: null,
         sortOrder: index,
         metadata: null,
+        bookingOptionId: null,
       };
     }
 
@@ -179,6 +228,10 @@ function normalizeOptions(raw: unknown): NormalizedOption[] {
       description: normalizeOptionalString(record.description, `options[${index}].description`),
       sortOrder,
       metadata: normalizeMetadata(record.metadata),
+      bookingOptionId: normalizeOptionalPositiveId(
+        record.booking_option_id ?? record.bookingOptionId,
+        `options[${index}].booking_option_id`,
+      ),
     };
   });
 }
@@ -212,6 +265,51 @@ function normalizeLinks(raw: unknown): NormalizedLink[] {
   });
 
   return links;
+}
+
+function hasExpired(expiresAt: string | null, nowMs: number): boolean {
+  if (!expiresAt) return false;
+  const timestamp = Date.parse(expiresAt);
+  return Number.isFinite(timestamp) && timestamp <= nowMs;
+}
+
+function formatPrice(price: number | null, currency: string | null): string | null {
+  if (price == null) return null;
+  const amount = Number.isInteger(price) ? String(price) : price.toFixed(2);
+  return currency ? `${currency.toUpperCase()} ${amount}` : amount;
+}
+
+function bookingIntentTitle(intent: BookingIntentDecisionRow): string {
+  const type = intent.type.replace(/[_-]+/g, ' ');
+  const route = [intent.origin, intent.destination].filter(Boolean).join(' to ');
+  return route ? `Approve ${type} for ${route}` : `Approve ${type} option`;
+}
+
+function bookingIntentDescription(intent: BookingIntentDecisionRow): string {
+  const type = intent.type.replace(/[_-]+/g, ' ');
+  return `Choose which ${type} option the group approves before checkout.`;
+}
+
+function bookingOptionLabel(option: BookingOptionDecisionRow): string {
+  const base = option.title?.trim() || option.provider;
+  const price = formatPrice(option.price, option.currency);
+  return price ? `${base} - ${price}` : base;
+}
+
+function bookingOptionDescription(option: BookingOptionDecisionRow): string | null {
+  const details = [option.provider, option.score == null ? null : `Score ${option.score}`].filter(Boolean);
+  return details.length > 0 ? details.join(' - ') : null;
+}
+
+function bookingOptionMetadata(option: BookingOptionDecisionRow): string {
+  return JSON.stringify({
+    provider: option.provider,
+    external_id: option.external_id,
+    price: option.price,
+    currency: option.currency,
+    score: option.score,
+    expires_at: option.expires_at,
+  });
 }
 
 @Injectable()
@@ -253,29 +351,86 @@ export class DecisionsService {
     const options = normalizeOptions(input.options);
     const links = normalizeLinks(input.links);
     await this.assertLinksBelongToTrip(tripId, links);
+    await this.assertBookingOptionsBelongToTrip(
+      tripId,
+      options.map((option) => option.bookingOptionId).filter((id): id is number => id !== null),
+    );
+
+    const decisionId = await asyncDb.transaction(async () =>
+      this.insertDecision({
+        tripId,
+        userId,
+        title,
+        description,
+        deadline,
+        state,
+        options,
+        links,
+      }),
+    )();
+    return this.get(tripId, decisionId);
+  }
+
+  async createFromBookingIntent(
+    tripId: string,
+    intentId: string | number,
+    userId: number,
+    input: Record<string, unknown>,
+  ) {
+    const intent = await this.getBookingIntentRow(tripId, intentId);
+    if (!intent) return null;
+    if (intent.status === 'archived' || intent.status === 'booked') {
+      throw new GroupDecisionInputError(`${intent.status} booking intents cannot create decisions`);
+    }
+
+    const selectedOptionIds = normalizePositiveIdArray(input.option_ids ?? input.optionIds, 'option_ids');
+    if (selectedOptionIds && selectedOptionIds.length < 2) {
+      throw new GroupDecisionInputError('At least 2 booking options are required');
+    }
+
+    const rows = await this.listCurrentBookingOptionsForIntent(tripId, intentId, selectedOptionIds);
+    const optionsById = new Map(rows.map((option) => [option.id, option]));
+    const orderedRows = selectedOptionIds ? selectedOptionIds.map((id) => optionsById.get(id)).filter(Boolean) : rows;
+    const bookingOptions = orderedRows as BookingOptionDecisionRow[];
+    if (selectedOptionIds && bookingOptions.length !== selectedOptionIds.length) {
+      throw new GroupDecisionInputError('Selected booking options must belong to this intent and be current');
+    }
+    if (bookingOptions.length < 2) {
+      throw new GroupDecisionInputError('At least 2 current booking options are required');
+    }
+
+    const title = normalizeOptionalString(input.title, 'title') ?? bookingIntentTitle(intent);
+    const description = normalizeOptionalString(input.description, 'description') ?? bookingIntentDescription(intent);
+    const deadline = normalizeOptionalString(input.deadline, 'deadline');
+    const options = bookingOptions.map((option, index) => ({
+      label: bookingOptionLabel(option),
+      description: bookingOptionDescription(option),
+      sortOrder: index,
+      metadata: bookingOptionMetadata(option),
+      bookingOptionId: option.id,
+    }));
+    const links = [{ targetType: 'booking_intent' as const, targetId: Number(intent.id) }];
 
     const decisionId = await asyncDb.transaction(async () => {
-      const result = await asyncDb
+      const newDecisionId = await this.insertDecision({
+        tripId,
+        userId,
+        title,
+        description,
+        deadline,
+        state: 'open',
+        options,
+        links,
+      });
+      await asyncDb
         .prepare(
           `
-          INSERT INTO group_decisions (trip_id, created_by, title, description, deadline, state)
-          VALUES (?, ?, ?, ?, ?, ?)
+          UPDATE booking_intents
+          SET status = 'voting', updated_at = CURRENT_TIMESTAMP
+          WHERE trip_id = ? AND id = ?
         `,
         )
-        .run(tripId, userId, title, description, deadline, state);
-      const newDecisionId = Number(result.lastInsertRowid);
-
-      const insertOption = asyncDb.prepare(
-        `
-        INSERT INTO group_decision_options (decision_id, label, description, sort_order, metadata)
-        VALUES (?, ?, ?, ?, ?)
-      `,
-      );
-      for (const option of options) {
-        await insertOption.run(newDecisionId, option.label, option.description, option.sortOrder, option.metadata);
-      }
-
-      await this.replaceLinks(newDecisionId, links);
+        .run(tripId, intentId);
       return newDecisionId;
     })();
 
@@ -343,6 +498,10 @@ export class DecisionsService {
       if (replaceLinks) {
         await this.replaceLinks(Number(decisionId), links);
       }
+      const updated = await this.getDecisionRow(tripId, decisionId);
+      if (updated?.state === 'decided' && updated.final_option_id) {
+        await this.approveLinkedBookingIntent(tripId, decisionId, updated.final_option_id);
+      }
     })();
 
     return this.get(tripId, decisionId);
@@ -391,17 +550,71 @@ export class DecisionsService {
     const optionId = normalizePositiveId(optionIdValue, 'option_id');
     await this.assertOptionBelongsToDecision(decisionId, optionId);
 
-    await asyncDb
-      .prepare(
-        `
-        UPDATE group_decisions
-        SET final_option_id = ?, state = 'decided', updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND trip_id = ?
-      `,
-      )
-      .run(optionId, decisionId, tripId);
+    await asyncDb.transaction(async () => {
+      await asyncDb
+        .prepare(
+          `
+          UPDATE group_decisions
+          SET final_option_id = ?, state = 'decided', updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND trip_id = ?
+        `,
+        )
+        .run(optionId, decisionId, tripId);
+      await this.approveLinkedBookingIntent(tripId, decisionId, optionId);
+    })();
 
     return this.get(tripId, decisionId);
+  }
+
+  private async insertDecision({
+    tripId,
+    userId,
+    title,
+    description,
+    deadline,
+    state,
+    options,
+    links,
+  }: {
+    tripId: string;
+    userId: number;
+    title: string;
+    description: string | null;
+    deadline: string | null;
+    state: DecisionState;
+    options: NormalizedOption[];
+    links: NormalizedLink[];
+  }): Promise<number> {
+    const result = await asyncDb
+      .prepare(
+        `
+        INSERT INTO group_decisions (trip_id, created_by, title, description, deadline, state)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      )
+      .run(tripId, userId, title, description, deadline, state);
+    const decisionId = Number(result.lastInsertRowid);
+
+    const insertOption = asyncDb.prepare(
+      `
+      INSERT INTO group_decision_options
+        (decision_id, booking_option_id, label, description, sort_order, metadata)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `,
+    );
+    for (const option of options) {
+      await insertOption.run(
+        decisionId,
+        option.bookingOptionId,
+        option.label,
+        option.description,
+        option.sortOrder,
+        option.metadata,
+      );
+    }
+
+    await this.replaceLinks(decisionId, links);
+    return decisionId;
   }
 
   private async getDecisionRow(tripId: string, decisionId: string | number): Promise<DecisionRow | undefined> {
@@ -415,6 +628,48 @@ export class DecisionsService {
       `,
       )
       .get<DecisionRow>(tripId, decisionId);
+  }
+
+  private async getBookingIntentRow(
+    tripId: string,
+    intentId: string | number,
+  ): Promise<BookingIntentDecisionRow | undefined> {
+    return asyncDb
+      .prepare(
+        `
+        SELECT id, trip_id, type, origin, destination, status
+        FROM booking_intents
+        WHERE trip_id = ? AND id = ?
+      `,
+      )
+      .get<BookingIntentDecisionRow>(tripId, intentId);
+  }
+
+  private async listCurrentBookingOptionsForIntent(
+    tripId: string,
+    intentId: string | number,
+    optionIds: number[] | null,
+  ): Promise<BookingOptionDecisionRow[]> {
+    const rows = await asyncDb
+      .prepare(
+        `
+        SELECT bo.*
+        FROM booking_options bo
+        JOIN booking_intents bi ON bi.id = bo.booking_intent_id
+        WHERE bi.trip_id = ? AND bi.id = ? AND bo.status = 'current'
+        ORDER BY
+          CASE WHEN bo.score IS NULL THEN 1 ELSE 0 END ASC,
+          bo.score DESC,
+          CASE WHEN bo.price IS NULL THEN 1 ELSE 0 END ASC,
+          bo.price ASC,
+          bo.updated_at DESC,
+          bo.id DESC
+      `,
+      )
+      .all<BookingOptionDecisionRow>(tripId, intentId);
+    const requested = optionIds ? new Set(optionIds) : null;
+    const nowMs = Date.now();
+    return rows.filter((row) => !hasExpired(row.expires_at, nowMs) && (!requested || requested.has(row.id)));
   }
 
   private async formatDecision(row: DecisionRow) {
@@ -451,6 +706,7 @@ export class DecisionsService {
     const formattedOptions = options.map((option) => ({
       id: option.id,
       decision_id: option.decision_id,
+      booking_option_id: option.booking_option_id,
       label: option.label,
       description: option.description,
       sort_order: option.sort_order,
@@ -519,12 +775,64 @@ export class DecisionsService {
     }
   }
 
+  private async assertBookingOptionsBelongToTrip(tripId: string, optionIds: number[]): Promise<void> {
+    const seen = new Set<number>();
+    for (const optionId of optionIds) {
+      if (seen.has(optionId)) continue;
+      seen.add(optionId);
+      const option = await asyncDb
+        .prepare(
+          `
+          SELECT bo.id
+          FROM booking_options bo
+          JOIN booking_intents bi ON bi.id = bo.booking_intent_id
+          WHERE bo.id = ? AND bi.trip_id = ?
+        `,
+        )
+        .get<{ id: number }>(optionId, tripId);
+      if (!option) {
+        throw new GroupDecisionInputError('Booking option not found on this trip');
+      }
+    }
+  }
+
+  private async approveLinkedBookingIntent(
+    tripId: string,
+    decisionId: string | number,
+    finalOptionId: number,
+  ): Promise<void> {
+    const option = await asyncDb
+      .prepare('SELECT booking_option_id FROM group_decision_options WHERE id = ? AND decision_id = ?')
+      .get<{ booking_option_id: number | null }>(finalOptionId, decisionId);
+    if (!option?.booking_option_id) return;
+
+    const linkedIntent = await asyncDb
+      .prepare(
+        `
+        SELECT l.target_id AS booking_intent_id
+        FROM group_decision_links l
+        JOIN booking_options bo ON bo.id = ? AND bo.booking_intent_id = l.target_id
+        JOIN booking_intents bi ON bi.id = l.target_id AND bi.trip_id = ?
+        WHERE l.decision_id = ? AND l.target_type = 'booking_intent'
+        LIMIT 1
+      `,
+      )
+      .get<{ booking_intent_id: number }>(option.booking_option_id, tripId, decisionId);
+    if (!linkedIntent) return;
+
+    await asyncDb
+      .prepare(
+        `
+        UPDATE booking_intents
+        SET status = 'approved', updated_at = CURRENT_TIMESTAMP
+        WHERE trip_id = ? AND id = ? AND status NOT IN ('archived', 'booked')
+      `,
+      )
+      .run(tripId, linkedIntent.booking_intent_id);
+  }
+
   private async assertLinksBelongToTrip(tripId: string, links: NormalizedLink[]): Promise<void> {
     for (const link of links) {
-      if (link.targetType === 'booking_intent') {
-        continue;
-      }
-
       const exists = await this.findLinkedTarget(tripId, link);
       if (!exists) {
         throw new GroupDecisionInputError(`Linked ${link.targetType} was not found on this trip`);
@@ -551,7 +859,9 @@ export class DecisionsService {
           .prepare('SELECT id FROM packing_items WHERE id = ? AND trip_id = ?')
           .get(link.targetId, tripId));
       case 'booking_intent':
-        return true;
+        return !!(await asyncDb
+          .prepare('SELECT id FROM booking_intents WHERE id = ? AND trip_id = ?')
+          .get(link.targetId, tripId));
     }
   }
 }

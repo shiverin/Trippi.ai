@@ -32,15 +32,21 @@ describe('group decisions schema', () => {
       expect(columnNames(db, 'group_decisions')).toEqual(
         expect.arrayContaining(['trip_id', 'created_by', 'deadline', 'state', 'final_option_id']),
       );
+      expect(columnNames(db, 'group_decision_options')).toEqual(
+        expect.arrayContaining(['decision_id', 'booking_option_id', 'label', 'metadata']),
+      );
       expect(columnNames(db, 'group_decision_responses')).toEqual(
         expect.arrayContaining(['decision_id', 'option_id', 'user_id', 'response', 'comment']),
+      );
+      expect(db.prepare("PRAGMA foreign_key_list('group_decision_options')").all()).toContainEqual(
+        expect.objectContaining({ table: 'booking_options', from: 'booking_option_id' }),
       );
     } finally {
       db.close();
     }
   });
 
-  it('applies the latest additive migration when the group decision tables are missing', () => {
+  it('applies group decision migrations when the group decision tables are missing', () => {
     const db = new Database(':memory:');
     try {
       db.exec('PRAGMA foreign_keys = ON');
@@ -56,7 +62,7 @@ describe('group decisions schema', () => {
         DROP TABLE group_decisions;
       `);
       db.exec('PRAGMA foreign_keys = ON');
-      db.prepare('UPDATE schema_version SET version = ?').run(latest - 1);
+      db.prepare('UPDATE schema_version SET version = ?').run(latest - 2);
 
       runMigrations(db);
 
@@ -64,6 +70,7 @@ describe('group decisions schema', () => {
         .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'group_decision_links'`)
         .get();
       expect(row).toBeDefined();
+      expect(columnNames(db, 'group_decision_options')).toContain('booking_option_id');
       expect((db.prepare('SELECT version FROM schema_version').get() as { version: number }).version).toBe(latest);
     } finally {
       db.close();
@@ -90,6 +97,20 @@ describe('group decisions schema', () => {
       const tripId = Number(
         db.prepare('INSERT INTO trips (user_id, title) VALUES (?, ?)').run(ownerId, 'Trip').lastInsertRowid,
       );
+      const bookingIntentId = Number(
+        db
+          .prepare(
+            "INSERT INTO booking_intents (trip_id, created_by, type, status) VALUES (?, ?, 'hotel', 'options_ready')",
+          )
+          .run(tripId, ownerId).lastInsertRowid,
+      );
+      const bookingOptionId = Number(
+        db
+          .prepare(
+            "INSERT INTO booking_options (booking_intent_id, provider, title) VALUES (?, 'mock-travel', 'Old town')",
+          )
+          .run(bookingIntentId).lastInsertRowid,
+      );
       const decisionId = Number(
         db
           .prepare(
@@ -102,8 +123,10 @@ describe('group decisions schema', () => {
       );
       const optionId = Number(
         db
-          .prepare('INSERT INTO group_decision_options (decision_id, label, sort_order) VALUES (?, ?, ?)')
-          .run(decisionId, 'Old town', 0).lastInsertRowid,
+          .prepare(
+            'INSERT INTO group_decision_options (decision_id, booking_option_id, label, sort_order) VALUES (?, ?, ?, ?)',
+          )
+          .run(decisionId, bookingOptionId, 'Old town', 0).lastInsertRowid,
       );
 
       db.prepare(
@@ -130,12 +153,16 @@ describe('group decisions schema', () => {
       const link = db
         .prepare('SELECT target_type, target_id FROM group_decision_links WHERE decision_id = ?')
         .get(decisionId) as { target_type: string; target_id: number };
+      const option = db.prepare('SELECT booking_option_id FROM group_decision_options WHERE id = ?').get(optionId) as {
+        booking_option_id: number;
+      };
 
       expect(decision).toMatchObject({
         deadline: '2026-07-15T12:00:00Z',
         state: 'decided',
         final_option_id: optionId,
       });
+      expect(option).toEqual({ booking_option_id: bookingOptionId });
       expect(response).toEqual({ response: 'selected', comment: 'Looks best' });
       expect(link).toEqual({ target_type: 'booking_intent', target_id: 42 });
     } finally {

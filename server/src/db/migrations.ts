@@ -3093,8 +3093,7 @@ function runMigrations(db: Database.Database): void {
       // do not need to behave like pinned map places.
       db.prepare(
         'INSERT INTO categories (name, color, icon) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = ?)',
-      )
-        .run('Misc', '#64748b', 'FileText', 'Misc');
+      ).run('Misc', '#64748b', 'FileText', 'Misc');
     },
     () => {
       // Rebrand compatibility: some live DBs reached the current schema version
@@ -3280,6 +3279,7 @@ function runMigrations(db: Database.Database): void {
         CREATE TABLE IF NOT EXISTS group_decision_options (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           decision_id INTEGER NOT NULL REFERENCES group_decisions(id) ON DELETE CASCADE,
+          booking_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL,
           label TEXT NOT NULL,
           description TEXT,
           sort_order INTEGER NOT NULL DEFAULT 0,
@@ -3310,10 +3310,30 @@ function runMigrations(db: Database.Database): void {
 
         CREATE INDEX IF NOT EXISTS idx_group_decisions_trip ON group_decisions(trip_id, state, deadline);
         CREATE INDEX IF NOT EXISTS idx_group_decision_options_decision ON group_decision_options(decision_id, sort_order);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_options_booking_option ON group_decision_options(booking_option_id);
         CREATE INDEX IF NOT EXISTS idx_group_decision_responses_decision ON group_decision_responses(decision_id);
         CREATE INDEX IF NOT EXISTS idx_group_decision_responses_user ON group_decision_responses(user_id);
         CREATE INDEX IF NOT EXISTS idx_group_decision_links_decision ON group_decision_links(decision_id);
         CREATE INDEX IF NOT EXISTS idx_group_decision_links_target ON group_decision_links(target_type, target_id);
+      `);
+    },
+    () => {
+      const columns = new Set(
+        (
+          db.prepare("PRAGMA table_info('group_decision_options')").all() as Array<{
+            name: string;
+          }>
+        ).map((column) => column.name),
+      );
+
+      if (!columns.has('booking_option_id')) {
+        db.exec(
+          'ALTER TABLE group_decision_options ADD COLUMN booking_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL',
+        );
+      }
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_group_decision_options_booking_option
+          ON group_decision_options(booking_option_id);
       `);
     },
   ];

@@ -59,6 +59,26 @@ export class DecisionsController {
     }
   }
 
+  @Post('booking-intents/:intentId')
+  async createFromBookingIntent(
+    @CurrentUser() user: User,
+    @Param('tripId') tripId: string,
+    @Param('intentId') intentId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    const trip = await this.requireTrip(tripId, user);
+    await this.requireEdit(trip, user);
+    try {
+      const decision = await this.decisions.createFromBookingIntent(tripId, intentId, user.id, body ?? {});
+      if (!decision) {
+        throw new HttpException({ error: 'Booking intent not found' }, 404);
+      }
+      return { decision };
+    } catch (err) {
+      this.handleInputError(err);
+    }
+  }
+
   @Put(':decisionId')
   async update(
     @CurrentUser() user: User,

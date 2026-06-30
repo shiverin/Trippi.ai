@@ -7,6 +7,7 @@ export type GroupDecisionLinkTargetType = 'trip' | 'day' | 'place' | 'reservatio
 export interface GroupDecisionOption {
   id: number;
   decision_id: number;
+  booking_option_id?: number | null;
   label: string;
   description: string | null;
   sort_order: number;

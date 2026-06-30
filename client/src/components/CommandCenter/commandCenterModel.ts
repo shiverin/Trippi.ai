@@ -183,6 +183,31 @@ function dueTone(isDueOrOverdue: boolean): CommandCenterStatus {
   return isDueOrOverdue ? 'urgent' : 'attention';
 }
 
+function isBookingDecision(decision: GroupDecision): boolean {
+  return decision.links.some((link) => link.target_type === 'booking_intent');
+}
+
+function decisionCommandItem(decision: GroupDecision, now: Date, idPrefix = 'decision'): CommandCenterItem {
+  const state = getDecisionDisplayState(decision);
+  const winner = getWinningDecisionOption(decision);
+  const respondedCount = getDecisionRespondedCount(decision);
+  const responseLabel = `${respondedCount} response${respondedCount === 1 ? '' : 's'}`;
+
+  return {
+    id: `${idPrefix}-${decision.id}`,
+    title: decision.title,
+    meta:
+      state === 'closed'
+        ? winner
+          ? `Ready to finalize ${winner.label}`
+          : 'Closed without a winning option'
+        : decision.deadline
+          ? `${formatDecisionDeadline(decision.deadline, now)} - ${responseLabel}`
+          : responseLabel,
+    tone: state === 'closed' ? 'urgent' : 'attention',
+  };
+}
+
 function parseTimeMinutes(value: string | null | undefined): number | null {
   if (!value) return null;
   const time = value.includes('T') ? value.split('T')[1] : value;
@@ -290,26 +315,9 @@ export function buildTripCommandCenter({
     .filter(({ day }) => (assignments[String(day.id)] || []).length === 0);
   const decisionTodos = openTodos.filter((todo) => DECISION_RE.test(todoText(todo)));
   const actionableGroupDecisions = groupDecisions.filter(isDecisionActionable);
-  const groupDecisionItems: CommandCenterItem[] = actionableGroupDecisions.slice(0, 3).map((decision) => {
-    const state = getDecisionDisplayState(decision);
-    const winner = getWinningDecisionOption(decision);
-    const responseLabel = `${getDecisionRespondedCount(decision)} response${
-      getDecisionRespondedCount(decision) === 1 ? '' : 's'
-    }`;
-    return {
-      id: `decision-${decision.id}`,
-      title: decision.title,
-      meta:
-        state === 'closed'
-          ? winner
-            ? `Ready to finalize ${winner.label}`
-            : 'Closed without a winning option'
-          : decision.deadline
-            ? `${formatDecisionDeadline(decision.deadline, now)} - ${responseLabel}`
-            : responseLabel,
-      tone: state === 'closed' ? ('urgent' as const) : ('attention' as const),
-    };
-  });
+  const groupDecisionItems: CommandCenterItem[] = actionableGroupDecisions
+    .slice(0, 3)
+    .map((decision) => decisionCommandItem(decision, now));
   const decisionItems: CommandCenterItem[] = [
     ...groupDecisionItems,
     ...decisionTodos.slice(0, Math.max(0, 3 - groupDecisionItems.length)).map((todo) => ({
@@ -335,7 +343,12 @@ export function buildTripCommandCenter({
       ['flight', 'hotel', 'train', 'event', 'tour'].includes(reservation.type) && !reservation.confirmation_number
   );
   const bookingTodos = openTodos.filter((todo) => BOOKING_RE.test(todoText(todo)));
+  const bookingDecisionItems = actionableGroupDecisions
+    .filter(isBookingDecision)
+    .slice(0, 2)
+    .map((decision) => decisionCommandItem(decision, now, 'booking-decision'));
   const bookingItems: CommandCenterItem[] = [
+    ...bookingDecisionItems,
     ...unconfirmedReservations.slice(0, 2).map((reservation) => ({
       id: `booking-status-${reservation.id}`,
       title: reservationTitle(reservation),
@@ -362,7 +375,7 @@ export function buildTripCommandCenter({
     ...unconfirmedReservations.map((reservation) => reservation.id),
     ...missingConfirmation.map((reservation) => reservation.id),
   ]);
-  const bookingCount = bookingReservationIds.size + bookingTodos.length;
+  const bookingCount = bookingDecisionItems.length + bookingReservationIds.size + bookingTodos.length;
 
   const tripCurrency = (trip.currency || budgetItems.find((item) => item.currency)?.currency || 'USD').toUpperCase();
   const budgetTotal = budgetItems.reduce(

@@ -80,6 +80,54 @@ vi.mock('../../src/websocket', () => ({ broadcast: vi.fn(), broadcastToUser: vi.
 let nestApp: INestApplication;
 let app: Application;
 
+function createBookingIntent(
+  tripId: number,
+  userId: number,
+  overrides: Partial<{ type: string; status: string }> = {},
+) {
+  return Number(
+    testDb
+      .prepare('INSERT INTO booking_intents (trip_id, created_by, type, status) VALUES (?, ?, ?, ?)')
+      .run(tripId, userId, overrides.type ?? 'flight', overrides.status ?? 'options_ready').lastInsertRowid,
+  );
+}
+
+function createBookingOption(
+  intentId: number,
+  overrides: Partial<{
+    provider: string;
+    external_id: string;
+    title: string;
+    price: number;
+    currency: string;
+    score: number;
+    status: string;
+    expires_at: string;
+  }> = {},
+) {
+  return Number(
+    testDb
+      .prepare(
+        `
+        INSERT INTO booking_options
+          (booking_intent_id, provider, external_id, title, price, currency, score, status, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      )
+      .run(
+        intentId,
+        overrides.provider ?? 'mock-travel',
+        overrides.external_id ?? null,
+        overrides.title ?? null,
+        overrides.price ?? null,
+        overrides.currency ?? null,
+        overrides.score ?? null,
+        overrides.status ?? 'current',
+        overrides.expires_at ?? null,
+      ).lastInsertRowid,
+  );
+}
+
 beforeAll(async () => {
   createTables(testDb);
   runMigrations(testDb);
@@ -106,6 +154,7 @@ describe('Group decisions API', () => {
     const place = createPlace(testDb, trip.id, { name: 'Museum' });
     const reservation = createReservation(testDb, trip.id, { title: 'Train' });
     const packingItem = createPackingItem(testDb, trip.id, { name: 'Adapter' });
+    const bookingIntentId = createBookingIntent(trip.id, user.id);
 
     const res = await request(app)
       .post(`/api/trips/${trip.id}/decisions`)
@@ -120,7 +169,7 @@ describe('Group decisions API', () => {
           { target_type: 'day', target_id: day.id },
           { target_type: 'place', target_id: place.id },
           { target_type: 'reservation', target_id: reservation.id },
-          { target_type: 'booking_intent', target_id: 777 },
+          { target_type: 'booking_intent', target_id: bookingIntentId },
           { target_type: 'packing_item', target_id: packingItem.id },
         ],
       });
@@ -143,6 +192,65 @@ describe('Group decisions API', () => {
     expect(list.status).toBe(200);
     expect(list.body.decisions).toHaveLength(1);
     expect(list.body.decisions[0].links).toHaveLength(6);
+  });
+
+  it('creates a linked booking decision from current options and approves the intent on finalize', async () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id);
+    const intentId = createBookingIntent(trip.id, user.id, { type: 'flight' });
+    const flexible = createBookingOption(intentId, {
+      external_id: 'flight-flex',
+      title: 'Flexible Flight',
+      price: 420,
+      currency: 'USD',
+      score: 0.8,
+      expires_at: '2999-01-01T00:00:00.000Z',
+    });
+    const nonstop = createBookingOption(intentId, {
+      external_id: 'flight-nonstop',
+      title: 'Nonstop Flight',
+      price: 510,
+      currency: 'USD',
+      score: 0.95,
+      expires_at: '2999-01-01T00:00:00.000Z',
+    });
+    createBookingOption(intentId, {
+      external_id: 'flight-archived',
+      title: 'Archived Flight',
+      status: 'archived',
+    });
+
+    const created = await request(app)
+      .post(`/api/trips/${trip.id}/decisions/booking-intents/${intentId}`)
+      .set('Cookie', authCookie(user.id))
+      .send({ deadline: '2026-07-20T12:00:00Z' });
+
+    expect(created.status).toBe(201);
+    expect(created.body.decision.links).toEqual([
+      expect.objectContaining({ target_type: 'booking_intent', target_id: intentId }),
+    ]);
+    expect(created.body.decision.options).toHaveLength(2);
+    expect(created.body.decision.options.map((option: any) => option.booking_option_id)).toEqual([nonstop, flexible]);
+    expect(created.body.decision.options[0]).toMatchObject({
+      label: 'Nonstop Flight - USD 510',
+      metadata: expect.objectContaining({ external_id: 'flight-nonstop' }),
+    });
+    expect(
+      (testDb.prepare('SELECT status FROM booking_intents WHERE id = ?').get(intentId) as { status: string }).status,
+    ).toBe('voting');
+
+    const finalOptionId = created.body.decision.options.find((option: any) => option.booking_option_id === flexible).id;
+    const finalized = await request(app)
+      .post(`/api/trips/${trip.id}/decisions/${created.body.decision.id}/finalize`)
+      .set('Cookie', authCookie(user.id))
+      .send({ option_id: finalOptionId });
+
+    expect(finalized.status).toBe(200);
+    expect(finalized.body.decision.state).toBe('decided');
+    expect(finalized.body.decision.final_option.booking_option_id).toBe(flexible);
+    expect(
+      (testDb.prepare('SELECT status FROM booking_intents WHERE id = ?').get(intentId) as { status: string }).status,
+    ).toBe('approved');
   });
 
   it('allows a trip member response and owner final selection', async () => {

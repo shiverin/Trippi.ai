@@ -524,6 +524,7 @@ function createTables(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS group_decision_options (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       decision_id INTEGER NOT NULL REFERENCES group_decisions(id) ON DELETE CASCADE,
+      booking_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL,
       label TEXT NOT NULL,
       description TEXT,
       sort_order INTEGER NOT NULL DEFAULT 0,
@@ -554,6 +555,7 @@ function createTables(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_group_decisions_trip ON group_decisions(trip_id, state, deadline);
     CREATE INDEX IF NOT EXISTS idx_group_decision_options_decision ON group_decision_options(decision_id, sort_order);
+    CREATE INDEX IF NOT EXISTS idx_group_decision_options_booking_option ON group_decision_options(booking_option_id);
     CREATE INDEX IF NOT EXISTS idx_group_decision_responses_decision ON group_decision_responses(decision_id);
     CREATE INDEX IF NOT EXISTS idx_group_decision_responses_user ON group_decision_responses(user_id);
     CREATE INDEX IF NOT EXISTS idx_group_decision_links_decision ON group_decision_links(decision_id);

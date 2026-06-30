@@ -131,7 +131,7 @@ export default function DashboardPage(): React.ReactElement {
     upcoming,
     pendingTodos,
     gridTrips,
-    ownedActiveTripCount,
+    ownedLifetimeTripCount,
     isLoading,
     loadError,
     retryLoad,
@@ -159,11 +159,11 @@ export default function DashboardPage(): React.ReactElement {
   } = useDashboard();
   const toast = useToast();
   const entitlementState = useEntitlements();
-  const activeTripLimit = entitlementState.entitlements?.limits.activeTrips;
-  const activeTripLocked = isLimitReached(activeTripLimit, ownedActiveTripCount);
+  const lifetimeTripLimit = entitlementState.entitlements?.limits.activeTrips;
+  const lifetimeTripLocked = isLimitReached(lifetimeTripLimit, ownedLifetimeTripCount);
 
   const openCreateTrip = () => {
-    if (activeTripLocked) return;
+    if (lifetimeTripLocked) return;
     setEditingTrip(null);
     setShowForm(true);
   };
@@ -281,13 +281,13 @@ export default function DashboardPage(): React.ReactElement {
                   ))}
                   {!isLoading &&
                     (tripFilter === 'planned' || gridTrips.length === 0) &&
-                    (activeTripLocked ? (
+                    (lifetimeTripLocked ? (
                       <div className="add-trip-card is-locked">
                         <LockedState
                           compact
-                          title="Active trip limit reached"
-                          detail={`${ownedActiveTripCount}/${formatLimit(activeTripLimit)} active`}
-                          description={`Your ${entitlementState.entitlements?.planKey ?? 'current'} plan has no more active trip slots.`}
+                          title="Trip limit reached"
+                          detail={`${ownedLifetimeTripCount}/${formatLimit(lifetimeTripLimit)} lifetime`}
+                          description={`Your ${entitlementState.entitlements?.planKey ?? 'current'} plan includes this many trips for the lifetime of the account.`}
                           upgradeAvailable={!!entitlementState.billing?.checkoutAvailable}
                           upgradePending={entitlementState.checkoutLoading}
                           onUpgrade={startUpgrade}
@@ -325,9 +325,9 @@ export default function DashboardPage(): React.ReactElement {
 
         <button
           className="fab-new-trip"
-          onClick={activeTripLocked ? startUpgrade : openCreateTrip}
+          onClick={lifetimeTripLocked ? startUpgrade : openCreateTrip}
           aria-label={t('dashboard.newTrip')}
-          title={activeTripLocked ? 'Active trip limit reached' : t('dashboard.newTrip')}
+          title={lifetimeTripLocked ? 'Trip limit reached' : t('dashboard.newTrip')}
         >
           <Plus size={22} strokeWidth={2.4} />
           <span className="fab-label">{t('dashboard.newTrip')}</span>

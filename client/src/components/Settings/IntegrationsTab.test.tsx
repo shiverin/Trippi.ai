@@ -10,12 +10,35 @@ import { useAuthStore } from '../../store/authStore';
 import { ToastContainer } from '../shared/Toast';
 import IntegrationsTab from './IntegrationsTab';
 
-function enableMcp() {
+function enableMcp(entitlementOverrides: any = {}) {
   seedStore(useAddonStore, {
     addons: [{ id: 'mcp', name: 'MCP', type: 'integration', icon: '', enabled: true }],
     loaded: true,
     loadAddons: vi.fn(),
   });
+  server.use(
+    http.get('/api/billing/entitlements', () =>
+      HttpResponse.json(
+        entitlementPayload({
+          entitlements: {
+            planKey: 'agency',
+            billingPlanKey: 'agency',
+            billingStatus: 'active',
+            subscribed: true,
+            limits: {
+              aiWorkers: 0,
+              priceWatches: 0,
+              mcpAutomation: { maxTokens: null, maxConcurrentSessions: null, requestsPerMinute: null },
+              activeTrips: null,
+              groupSize: null,
+            },
+          },
+          billing: { portalAvailable: true },
+          ...entitlementOverrides,
+        })
+      )
+    )
+  );
 }
 
 function entitlementPayload(overrides: any = {}) {
@@ -30,9 +53,9 @@ function entitlementPayload(overrides: any = {}) {
       limits: {
         aiWorkers: 0,
         priceWatches: 0,
-        mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
-        activeTrips: 3,
-        groupSize: 3,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: 5,
+        groupSize: null,
       },
       ...(overrides.entitlements ?? {}),
     },
@@ -754,65 +777,30 @@ describe('IntegrationsTab', () => {
     await screen.findByText(/Failed to register/i);
   });
 
-  it('FE-COMP-INTEGRATIONS-033: shows free-plan locked states for premium automation', async () => {
+  it('FE-COMP-INTEGRATIONS-033: keeps unreleased automation allowances out of settings', async () => {
     render(<IntegrationsTab />);
 
-    await screen.findByText('AI workers locked');
-    expect(screen.getByText('Price watches locked')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /coming soon/i }).length).toBeGreaterThanOrEqual(2);
+    await waitFor(() => expect(screen.queryByRole('button', { name: /coming soon/i })).not.toBeInTheDocument());
   });
 
-  it('FE-COMP-INTEGRATIONS-034: shows subscribed premium automation allowances without locked copy', async () => {
+  it('FE-COMP-INTEGRATIONS-034: locks static MCP token creation when entitlement cap is reached', async () => {
+    enableMcp({
+      entitlements: {
+        planKey: 'pro',
+        billingPlanKey: 'pro',
+        billingStatus: 'active',
+        subscribed: true,
+        limits: {
+          aiWorkers: 0,
+          priceWatches: 0,
+          mcpAutomation: { maxTokens: 1, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+          activeTrips: 100,
+          groupSize: null,
+        },
+      },
+      billing: { checkoutAvailable: true, defaultPlanId: 'agency' },
+    });
     server.use(
-      http.get('/api/billing/entitlements', () =>
-        HttpResponse.json(
-          entitlementPayload({
-            entitlements: {
-              planKey: 'pro',
-              billingPlanKey: 'pro',
-              billingStatus: 'active',
-              subscribed: true,
-              limits: {
-                aiWorkers: 3,
-                priceWatches: 25,
-                mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
-                activeTrips: 25,
-                groupSize: 10,
-              },
-            },
-            billing: { portalAvailable: true },
-          })
-        )
-      )
-    );
-
-    render(<IntegrationsTab />);
-
-    await screen.findByText('AI workers');
-    expect(screen.queryByText('AI workers locked')).not.toBeInTheDocument();
-    expect(screen.queryByText('Price watches locked')).not.toBeInTheDocument();
-    expect(screen.getByText('0/3 available')).toBeInTheDocument();
-    expect(screen.getByText('0/25 available')).toBeInTheDocument();
-  });
-
-  it('FE-COMP-INTEGRATIONS-035: locks static MCP token creation when entitlement cap is reached', async () => {
-    server.use(
-      http.get('/api/billing/entitlements', () =>
-        HttpResponse.json(
-          entitlementPayload({
-            entitlements: {
-              limits: {
-                aiWorkers: 0,
-                priceWatches: 0,
-                mcpAutomation: { maxTokens: 1, maxConcurrentSessions: 200, requestsPerMinute: 300 },
-                activeTrips: 3,
-                groupSize: 3,
-              },
-            },
-            billing: { checkoutAvailable: true, defaultPlanId: 'pro' },
-          })
-        )
-      ),
       http.get('/api/auth/mcp-tokens', () =>
         HttpResponse.json({
           tokens: [
@@ -829,7 +817,6 @@ describe('IntegrationsTab', () => {
     );
 
     const user = userEvent.setup();
-    enableMcp();
     render(<IntegrationsTab />);
 
     await screen.findByText('MCP Configuration');

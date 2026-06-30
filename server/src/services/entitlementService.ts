@@ -53,17 +53,14 @@ type PartialPlanLimits = Partial<
 >;
 
 const PLAN_KEYS = ['free', 'trial', 'pro', 'agency'] as const;
-const DEFAULT_MCP_TOKENS = 10;
-const DEFAULT_MCP_SESSIONS = 200;
-const DEFAULT_MCP_REQUESTS_PER_MINUTE = 300;
 
 const FEATURE_LABELS: Record<EntitlementFeature, string> = {
-  aiWorkers: 'AI workers',
-  priceWatches: 'price watches',
+  aiWorkers: 'automation',
+  priceWatches: 'automation',
   mcpTokens: 'MCP tokens',
   mcpConcurrentSessions: 'MCP sessions',
   mcpRequestsPerMinute: 'MCP requests per minute',
-  activeTrips: 'active trips',
+  activeTrips: 'lifetime trips',
   groupSize: 'trip members',
 };
 
@@ -94,51 +91,37 @@ function parseLimit(value: unknown, fallback: EntitlementLimit): EntitlementLimi
   return parsed < 0 ? null : parsed;
 }
 
-function envLimit(name: string, fallback: EntitlementLimit): EntitlementLimit {
-  return parseLimit(process.env[name], fallback);
-}
-
-function positiveEnvLimit(name: string, fallback: EntitlementLimit): EntitlementLimit {
-  const parsed = parseLimit(process.env[name], fallback);
-  if (parsed === null) return null;
-  return parsed > 0 ? parsed : fallback;
-}
-
-function defaultMcpLimits(): McpAutomationLimits {
-  return {
-    maxTokens: envLimit('MCP_MAX_TOKENS_PER_USER', DEFAULT_MCP_TOKENS),
-    maxConcurrentSessions: positiveEnvLimit('MCP_MAX_SESSION_PER_USER', DEFAULT_MCP_SESSIONS),
-    requestsPerMinute: positiveEnvLimit('MCP_RATE_LIMIT', DEFAULT_MCP_REQUESTS_PER_MINUTE),
-  };
-}
-
 function defaultPlans(): Record<string, EntitlementPlanLimits> {
-  const mcp = defaultMcpLimits();
+  const noMcp: McpAutomationLimits = {
+    maxTokens: 0,
+    maxConcurrentSessions: 0,
+    requestsPerMinute: 0,
+  };
   return {
     free: {
       aiWorkers: 0,
       priceWatches: 0,
-      mcpAutomation: { ...mcp },
-      activeTrips: 3,
-      groupSize: 3,
+      mcpAutomation: { ...noMcp },
+      activeTrips: 5,
+      groupSize: null,
     },
     trial: {
-      aiWorkers: 1,
-      priceWatches: 10,
-      mcpAutomation: { ...mcp },
-      activeTrips: 10,
-      groupSize: 6,
+      aiWorkers: 0,
+      priceWatches: 0,
+      mcpAutomation: { ...noMcp },
+      activeTrips: 100,
+      groupSize: null,
     },
     pro: {
-      aiWorkers: 3,
-      priceWatches: 25,
-      mcpAutomation: { ...mcp },
-      activeTrips: 25,
-      groupSize: 10,
+      aiWorkers: 0,
+      priceWatches: 0,
+      mcpAutomation: { ...noMcp },
+      activeTrips: 100,
+      groupSize: null,
     },
     agency: {
-      aiWorkers: null,
-      priceWatches: null,
+      aiWorkers: 0,
+      priceWatches: 0,
       mcpAutomation: {
         maxTokens: null,
         maxConcurrentSessions: null,
@@ -281,10 +264,10 @@ export function throwIfEntitlementDenied(check: EntitlementCheck): void {
   if (!check.allowed) throw new EntitlementLimitError(check);
 }
 
-export async function countActiveTripsForUser(userId: number): Promise<number> {
-  const row = await asyncDb
-    .prepare('SELECT COUNT(*) AS count FROM trips WHERE user_id = ? AND is_archived = 0')
-    .get<{ count: number }>(userId);
+export async function countLifetimeTripsForUser(userId: number): Promise<number> {
+  const row = await asyncDb.prepare('SELECT COUNT(*) AS count FROM trips WHERE user_id = ?').get<{ count: number }>(
+    userId,
+  );
   return row?.count ?? 0;
 }
 
@@ -312,7 +295,7 @@ export async function countMcpTokensForUser(userId: number): Promise<number> {
 
 export async function checkActiveTripCapacity(userId: number, requested = 1): Promise<EntitlementCheck> {
   const entitlements = await getEntitlementsForUser(userId);
-  const current = await countActiveTripsForUser(userId);
+  const current = await countLifetimeTripsForUser(userId);
   return checkEntitlementLimit(entitlements, 'activeTrips', entitlements.limits.activeTrips, current, requested);
 }
 

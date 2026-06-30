@@ -45,8 +45,8 @@ const ENV_KEYS = [
   'TRIPPI_ENTITLEMENTS_FREE_ACTIVE_TRIPS',
   'TRIPPI_ENTITLEMENTS_FREE_GROUP_SIZE',
   'TRIPPI_ENTITLEMENTS_FREE_MCP_TOKENS',
-  'MCP_MAX_SESSION_PER_USER',
-  'MCP_RATE_LIMIT',
+  'TRIPPI_ENTITLEMENTS_FREE_MCP_SESSIONS',
+  'TRIPPI_ENTITLEMENTS_FREE_MCP_REQUESTS_PER_MINUTE',
 ];
 
 const originalEnv = new Map<string, string | undefined>();
@@ -86,6 +86,27 @@ describe('entitlementService', () => {
       expect(plans[plan].mcpAutomation).toHaveProperty('maxConcurrentSessions');
       expect(plans[plan].mcpAutomation).toHaveProperty('requestsPerMinute');
     }
+
+    expect(plans.free).toMatchObject({
+      activeTrips: 5,
+      groupSize: null,
+      mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+    });
+    expect(plans.trial).toMatchObject({
+      activeTrips: 100,
+      groupSize: null,
+      mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+    });
+    expect(plans.pro).toMatchObject({
+      activeTrips: 100,
+      groupSize: null,
+      mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+    });
+    expect(plans.agency).toMatchObject({
+      activeTrips: null,
+      groupSize: null,
+      mcpAutomation: { maxTokens: null, maxConcurrentSessions: null, requestsPerMinute: null },
+    });
   });
 
   it('resolves free entitlements when the user has no billing subscription', async () => {
@@ -137,7 +158,7 @@ describe('entitlementService', () => {
       },
     });
     process.env.TRIPPI_ENTITLEMENTS_FREE_ACTIVE_TRIPS = '1';
-    process.env.MCP_MAX_SESSION_PER_USER = '9';
+    process.env.TRIPPI_ENTITLEMENTS_FREE_MCP_SESSIONS = '9';
 
     const { user } = createUser(testDb);
     await upsertStripeSubscriptionState({
@@ -164,17 +185,17 @@ describe('entitlementService', () => {
     });
   });
 
-  it('checks active trip capacity against non-archived owned trips', async () => {
+  it('checks trip capacity against all lifetime owned trips', async () => {
     process.env.TRIPPI_ENTITLEMENTS_FREE_ACTIVE_TRIPS = '1';
     const { user } = createUser(testDb);
-    createTrip(testDb, user.id, { title: 'Active' });
+    createTrip(testDb, user.id, { title: 'Current' });
     const archived = createTrip(testDb, user.id, { title: 'Archived' });
     testDb.prepare('UPDATE trips SET is_archived = 1 WHERE id = ?').run(archived.id);
 
     await expect(checkActiveTripCapacity(user.id)).resolves.toMatchObject({
       allowed: false,
       feature: 'activeTrips',
-      current: 1,
+      current: 2,
       limit: 1,
     });
   });

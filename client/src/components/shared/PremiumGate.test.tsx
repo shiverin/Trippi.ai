@@ -15,9 +15,9 @@ describe('PremiumGate', () => {
   });
 
   it('shows a disabled coming-soon action when checkout is unavailable', () => {
-    render(<LockedState title="AI workers locked" description="Upgrade path is not configured yet." />);
+    render(<LockedState title="Feature locked" description="Upgrade path is not configured yet." />);
 
-    expect(screen.getByText('AI workers locked')).toBeInTheDocument();
+    expect(screen.getByText('Feature locked')).toBeInTheDocument();
     const button = screen.getByRole('button', { name: /coming soon/i });
     expect(button).toBeDisabled();
   });
@@ -26,7 +26,7 @@ describe('PremiumGate', () => {
     const user = userEvent.setup();
     const onUpgrade = vi.fn();
 
-    render(<LockedState title="Price watches locked" upgradeAvailable onUpgrade={onUpgrade} />);
+    render(<LockedState title="Premium access locked" upgradeAvailable onUpgrade={onUpgrade} />);
 
     await user.click(screen.getByRole('button', { name: /upgrade/i }));
     expect(onUpgrade).toHaveBeenCalledTimes(1);

@@ -113,7 +113,7 @@ export const SCOPE_INFO: Record<Scope, ScopeInfo> = {
   'reservations:write': {
     label: 'Manage reservations',
     description:
-      'Create and update reservations, booking intents, price watches, and provider checkout handoffs; does not let Trippi purchase travel or store payment cards',
+      'Create and update reservations, booking intents, and provider checkout handoffs; does not let Trippi purchase travel or store payment cards',
     group: 'Reservations',
   },
   'collab:read': {

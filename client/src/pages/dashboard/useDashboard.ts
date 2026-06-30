@@ -258,7 +258,7 @@ export function useDashboard() {
       : tripFilter === 'completed'
         ? trips.filter((t) => getTripStatus(t) === 'past')
         : trips.filter((t) => getTripStatus(t) !== 'past');
-  const ownedActiveTripCount = trips.filter((trip) => trip.user_id === user?.id && !trip.is_archived).length;
+  const ownedLifetimeTripCount = [...trips, ...archivedTrips].filter((trip) => trip.user_id === user?.id).length;
 
   return {
     // cross-cutting
@@ -274,7 +274,7 @@ export function useDashboard() {
     upcoming,
     pendingTodos,
     gridTrips,
-    ownedActiveTripCount,
+    ownedLifetimeTripCount,
     isLoading,
     loadError: loadError || authCheckFailed,
     retryLoad,

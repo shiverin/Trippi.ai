@@ -384,7 +384,7 @@ describe('DashboardPage', () => {
       const user = userEvent.setup();
       render(<DashboardPage />);
 
-      // Wait for active trips to load
+      // Wait for trips to load
       await waitFor(() => {
         expect(screen.getAllByText('Paris Adventure')[0]).toBeInTheDocument();
       });
@@ -1142,10 +1142,11 @@ describe('DashboardPage', () => {
     });
   });
 
-  describe('FE-PAGE-DASH-036: active trip entitlement lock', () => {
-    it('shows a locked create state without hiding existing trips', async () => {
+  describe('FE-PAGE-DASH-036: lifetime trip entitlement lock', () => {
+    it('shows a locked create state and starts checkout without hiding existing trips', async () => {
       const user = userEvent.setup();
       const owner = buildUser({ id: 1, username: 'owner' });
+      let checkoutCalled = false;
       seedStore(useAuthStore, { isAuthenticated: true, user: owner });
 
       server.use(
@@ -1161,22 +1162,31 @@ describe('DashboardPage', () => {
               limits: {
                 aiWorkers: 0,
                 priceWatches: 0,
-                mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
-                activeTrips: 3,
-                groupSize: 3,
+                mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+                activeTrips: 5,
+                groupSize: null,
               },
             },
-            billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false },
+            billing: { checkoutAvailable: true, defaultPlanId: 'pro', portalAvailable: false },
           })
         ),
+        http.post('/api/billing/checkout-session', async () => {
+          checkoutCalled = true;
+          return HttpResponse.json({ url: 'https://checkout.example.test/session' });
+        }),
         http.get('/api/trips', ({ request }) => {
           const url = new URL(request.url);
-          if (url.searchParams.get('archived')) return HttpResponse.json({ trips: [] });
+          if (url.searchParams.get('archived')) {
+            return HttpResponse.json({
+              trips: [buildTrip({ id: 305, user_id: owner.id, title: 'Locked Trip Five', is_archived: 1 })],
+            });
+          }
           return HttpResponse.json({
             trips: [
               buildTrip({ id: 301, user_id: owner.id, title: 'Locked Trip One', start_date: '2099-01-01' }),
               buildTrip({ id: 302, user_id: owner.id, title: 'Locked Trip Two', start_date: '2099-02-01' }),
               buildTrip({ id: 303, user_id: owner.id, title: 'Locked Trip Three', start_date: '2099-03-01' }),
+              buildTrip({ id: 304, user_id: owner.id, title: 'Locked Trip Four', start_date: '2099-04-01' }),
             ],
           });
         })
@@ -1191,11 +1201,12 @@ describe('DashboardPage', () => {
 
       await screen.findByTestId('active-trip-locked-state');
       expect(screen.getAllByText('Locked Trip One').length).toBeGreaterThan(0);
-      expect(screen.getByText('3/3 active')).toBeInTheDocument();
+      expect(screen.getByText('5/5 lifetime')).toBeInTheDocument();
 
       const newTripButtons = screen.getAllByRole('button', { name: /new trip/i });
       await user.click(newTripButtons[newTripButtons.length - 1]);
 
+      await waitFor(() => expect(checkoutCalled).toBe(true));
       expect(screen.queryByText(/Create New Trip/i)).not.toBeInTheDocument();
       expect(screen.getAllByText('Locked Trip Two').length).toBeGreaterThan(0);
     });

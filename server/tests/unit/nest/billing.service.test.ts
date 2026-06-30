@@ -59,9 +59,9 @@ describe('BillingService', () => {
       limits: {
         aiWorkers: 0,
         priceWatches: 0,
-        mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
-        activeTrips: 3,
-        groupSize: 3,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: 5,
+        groupSize: null,
       },
     });
   });
@@ -78,7 +78,7 @@ describe('BillingService', () => {
 
     expect(getEntitlementsForUserMock).toHaveBeenCalledWith(user.id);
     expect(result).toMatchObject({
-      entitlements: { planKey: 'free', limits: { activeTrips: 3, groupSize: 3 } },
+      entitlements: { planKey: 'free', limits: { activeTrips: 5, groupSize: null } },
       billing: { checkoutAvailable: true, defaultPlanId: 'pro', portalAvailable: false },
     });
   });

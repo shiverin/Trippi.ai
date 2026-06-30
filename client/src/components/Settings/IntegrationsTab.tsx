@@ -1,18 +1,4 @@
-import {
-  Bot,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Gauge,
-  KeyRound,
-  Plus,
-  RefreshCw,
-  Terminal,
-  Trash2,
-  TrendingUp,
-  type LucideIcon,
-} from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, KeyRound, Plus, RefreshCw, Terminal, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi, oauthApi } from '../../api/client';
@@ -20,7 +6,7 @@ import { ALL_SCOPES } from '../../api/oauthScopes';
 import { formatLimit, isLimitReached, useEntitlements } from '../../hooks/useEntitlements';
 import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
-import type { EntitlementLimit, McpAutomationLimits, ResolvedEntitlements } from '../../types';
+import type { McpAutomationLimits, ResolvedEntitlements } from '../../types';
 import ScopeGroupPicker from '../OAuth/ScopeGroupPicker';
 import { LockedState } from '../shared/PremiumGate';
 import { useToast } from '../shared/Toast';
@@ -116,7 +102,6 @@ export default function IntegrationsTab(): React.ReactElement {
     <>
       <PhotoProvidersSection />
       {S.airtrailEnabled && <AirTrailConnectionSection />}
-      <PremiumAutomationSection {...S} />
       {S.mcpEnabled && <IntegrationsMcpSection {...S} />}
       <McpTokenModals {...S} />
       <OAuthClientModals {...S} />
@@ -415,113 +400,6 @@ function useIntegrations() {
     handleRotateSecret,
     handleRevokeSession,
   };
-}
-
-interface PremiumAutomationSectionProps {
-  entitlementState: ReturnType<typeof useEntitlements>;
-  handleUpgrade: () => void;
-}
-
-function PremiumAutomationSection({ entitlementState, handleUpgrade }: PremiumAutomationSectionProps) {
-  const entitlements = entitlementState.entitlements;
-  const upgradeAvailable = !!entitlementState.billing?.checkoutAvailable;
-
-  return (
-    <Section title="Premium Automation" icon={Gauge}>
-      <div className="rounded-lg border border-edge">
-        <AutomationEntitlementRow
-          icon={Bot}
-          title="AI workers"
-          description="Run dedicated AI planning workers for itinerary maintenance and follow-up tasks."
-          lockedDescription={`Your ${entitlements?.planKey ?? 'current'} plan does not include AI workers.`}
-          current={0}
-          limit={entitlements?.limits.aiWorkers}
-          upgradeAvailable={upgradeAvailable}
-          upgradePending={entitlementState.checkoutLoading}
-          onUpgrade={handleUpgrade}
-          testId="ai-workers-locked-state"
-        />
-        <AutomationEntitlementRow
-          icon={TrendingUp}
-          title="Price watches"
-          description="Track saved flight, hotel, and activity prices when watch workflows are available."
-          lockedDescription={`Your ${entitlements?.planKey ?? 'current'} plan does not include price watches.`}
-          current={0}
-          limit={entitlements?.limits.priceWatches}
-          upgradeAvailable={upgradeAvailable}
-          upgradePending={entitlementState.checkoutLoading}
-          onUpgrade={handleUpgrade}
-          testId="price-watches-locked-state"
-          withDivider={false}
-        />
-      </div>
-    </Section>
-  );
-}
-
-interface AutomationEntitlementRowProps {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  lockedDescription: string;
-  current: number;
-  limit: EntitlementLimit | undefined;
-  upgradeAvailable: boolean;
-  upgradePending: boolean;
-  onUpgrade: () => void;
-  testId: string;
-  withDivider?: boolean;
-}
-
-function AutomationEntitlementRow({
-  icon: Icon,
-  title,
-  description,
-  lockedDescription,
-  current,
-  limit,
-  upgradeAvailable,
-  upgradePending,
-  onUpgrade,
-  testId,
-  withDivider = true,
-}: AutomationEntitlementRowProps) {
-  const detail = `${current}/${formatLimit(limit)} available`;
-  const locked = isLimitReached(limit, current);
-
-  if (locked) {
-    return (
-      <div className={withDivider ? 'border-b border-edge p-3' : 'p-3'}>
-        <LockedState
-          compact
-          title={`${title} locked`}
-          description={lockedDescription}
-          detail={detail}
-          upgradeAvailable={upgradeAvailable}
-          upgradePending={upgradePending}
-          onUpgrade={onUpgrade}
-          testId={testId}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div data-testid={testId} className={`flex items-start gap-3 p-3 ${withDivider ? 'border-b border-edge' : ''}`}>
-      <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-edge bg-surface-secondary text-content-secondary">
-        <Icon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-semibold text-content">{title}</p>
-          <span className="rounded border border-edge bg-surface-secondary px-1.5 py-0.5 text-[11px] font-medium text-content-secondary">
-            {detail}
-          </span>
-        </div>
-        <p className="mt-1 text-xs leading-5 text-content-muted">{description}</p>
-      </div>
-    </div>
-  );
 }
 
 interface McpAutomationLimitsPanelProps {

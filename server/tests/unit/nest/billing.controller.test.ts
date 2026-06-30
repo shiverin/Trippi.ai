@@ -46,9 +46,9 @@ describe('BillingController', () => {
         limits: {
           aiWorkers: 0,
           priceWatches: 0,
-          mcpAutomation: { maxTokens: 10, maxConcurrentSessions: 200, requestsPerMinute: 300 },
-          activeTrips: 3,
-          groupSize: 3,
+          mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+          activeTrips: 5,
+          groupSize: null,
         },
       },
       billing: { checkoutAvailable: true, defaultPlanId: 'pro', portalAvailable: false },

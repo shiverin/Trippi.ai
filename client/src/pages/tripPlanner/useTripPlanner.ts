@@ -40,6 +40,7 @@ import {
   BOOKING_ROUTE_TRANSPORT_TYPES,
   buildDisplayedPinOrderMap,
   hasValidPlaceCoordinates,
+  plannedPlaceIds,
   resolvePoolAssignmentId,
   visibleBookingRouteIds,
 } from './tripPlannerModel';
@@ -793,23 +794,21 @@ export function useTripPlanner() {
       }
     }
 
-    // Build set of planned place IDs for unplanned filter
     const plannedIds =
-      mapPlacesFilter === 'unplanned'
-        ? new Set(Object.values(assignments).flatMap((da) => da.map((a) => a.place?.id).filter(Boolean)))
-        : null;
+      mapPlacesFilter === 'planned' || mapPlacesFilter === 'unplanned' ? plannedPlaceIds(assignments) : null;
 
     return places.filter((p) => {
       if (!hasValidPlaceCoordinates(p)) return false;
       if (selectedDayId && !dayRelevantPlaceIds.has(p.id)) return false;
       if (mapPlacesFilter === 'tracks' && !p.route_geometry) return false;
+      if (mapPlacesFilter === 'planned' && !plannedIds?.has(p.id)) return false;
+      if (mapPlacesFilter === 'unplanned' && plannedIds?.has(p.id)) return false;
       if (mapCategoryFilter.size > 0) {
         if (p.category_id == null) {
           if (!mapCategoryFilter.has('uncategorized')) return false;
         } else if (!mapCategoryFilter.has(String(p.category_id))) return false;
       }
       if (hiddenPlaceIds.has(p.id)) return false;
-      if (plannedIds && plannedIds.has(p.id)) return false;
       return true;
     });
   }, [places, mapCategoryFilter, mapPlacesFilter, assignments, expandedDayIds, selectedDayId, dayRelevantPlaceIds]);

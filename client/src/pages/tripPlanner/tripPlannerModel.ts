@@ -8,6 +8,15 @@ import type { Assignment, Place, Reservation } from '../../types'
 
 type MappablePlace = Pick<Place, 'id' | 'lat' | 'lng'>
 
+export function plannedPlaceIds(assignments: Record<string | number, Assignment[]>): Set<number> {
+  return new Set(
+    Object.values(assignments)
+      .flat()
+      .map((assignment) => assignment.place?.id ?? assignment.place_id)
+      .filter((placeId): placeId is number => typeof placeId === 'number'),
+  )
+}
+
 export const BOOKING_ROUTE_TRANSPORT_TYPES = new Set([
   'flight',
   'train',

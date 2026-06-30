@@ -1351,6 +1351,53 @@ describe('TripPlannerPage', () => {
         expect(capturedMapViewProps.current.places?.map(({ id }) => id).sort((a, b) => a - b)).toEqual([1, 2, 3, 4]);
       });
     });
+
+    it('applies right-sidebar planned and unplanned filters to map pins', async () => {
+      vi.useFakeTimers();
+
+      const tripId = 42;
+      seedTripStore({ id: tripId });
+      const planned = buildPlace({ id: 1, trip_id: tripId, name: 'Planned pin', lat: 1, lng: 1 });
+      const idOnlyPlanned = buildPlace({ id: 2, trip_id: tripId, name: 'ID-only planned pin', lat: 2, lng: 2 });
+      const unplanned = buildPlace({ id: 3, trip_id: tripId, name: 'Unplanned pin', lat: 3, lng: 3 });
+      seedStore(useTripStore, {
+        places: [planned, idOnlyPlanned, unplanned],
+        assignments: {
+          '1': [
+            buildAssignment({ day_id: 1, place_id: planned.id, place: planned }),
+            buildAssignment({ day_id: 1, place_id: idOnlyPlanned.id, place: undefined as any }),
+          ],
+        },
+      } as any);
+
+      renderPlannerPage(tripId);
+
+      act(() => {
+        vi.runAllTimers();
+      });
+
+      vi.useRealTimers();
+
+      await waitFor(() => {
+        expect(capturedMapViewProps.current.places?.map(({ id }) => id).sort((a, b) => a - b)).toEqual([1, 2, 3]);
+      });
+
+      act(() => {
+        capturedPlacesSidebarProps.current.onPlacesFilterChange?.('planned');
+      });
+
+      await waitFor(() => {
+        expect(capturedMapViewProps.current.places?.map(({ id }) => id).sort((a, b) => a - b)).toEqual([1, 2]);
+      });
+
+      act(() => {
+        capturedPlacesSidebarProps.current.onPlacesFilterChange?.('unplanned');
+      });
+
+      await waitFor(() => {
+        expect(capturedMapViewProps.current.places?.map(({ id }) => id)).toEqual([3]);
+      });
+    });
   });
 
   describe('FE-PAGE-PLANNER-026: handleReorder covers reorder logic', () => {

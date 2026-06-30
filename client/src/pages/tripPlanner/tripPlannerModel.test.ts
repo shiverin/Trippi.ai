@@ -3,6 +3,7 @@ import {
   bookingRouteReservationIds,
   buildDisplayedPinOrderMap,
   hasValidPlaceCoordinates,
+  plannedPlaceIds,
   resolvePoolAssignmentId,
   visibleBookingRouteIds,
 } from './tripPlannerModel'
@@ -38,6 +39,18 @@ describe('hasValidPlaceCoordinates', () => {
   it('rejects missing coordinates', () => {
     expect(hasValidPlaceCoordinates(buildPlace({ lat: null, lng: 103.8 }))).toBe(false)
     expect(hasValidPlaceCoordinates(buildPlace({ lat: 1.3, lng: null }))).toBe(false)
+  })
+})
+
+describe('plannedPlaceIds', () => {
+  it('includes places from hydrated assignments and id-only assignments', () => {
+    const hydratedPlace = buildPlace({ id: 10 })
+    const ids = plannedPlaceIds({
+      1: [buildAssignment({ place: hydratedPlace })],
+      2: [buildAssignment({ place: undefined as any, place_id: 20 })],
+    })
+
+    expect([...ids].sort((a, b) => a - b)).toEqual([10, 20])
   })
 })
 

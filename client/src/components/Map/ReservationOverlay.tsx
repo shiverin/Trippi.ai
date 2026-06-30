@@ -7,46 +7,23 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { Marker, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { Reservation, ReservationEndpoint } from '../../types';
+import { getTransportRouteType, normalizeTransportType, TRANSPORT_COLORS, type TransportType } from './transportRouteStyle';
 
 const ENDPOINT_PANE = 'reservation-endpoints';
 const AIRPORT_BADGE_HALF_PX = 16;
 const BADGE_GAP_PX = 5;
 
-type TransportType =
-  | 'flight'
-  | 'train'
-  | 'subway'
-  | 'cruise'
-  | 'car'
-  | 'bus'
-  | 'taxi'
-  | 'bicycle'
-  | 'ferry'
-  | 'transport_other';
-const TRANSPORT_TYPES: TransportType[] = [
-  'flight',
-  'train',
-  'subway',
-  'cruise',
-  'car',
-  'bus',
-  'taxi',
-  'bicycle',
-  'ferry',
-  'transport_other',
-];
-
 const TYPE_META: Record<TransportType, { color: string; icon: typeof Plane; geodesic: boolean }> = {
-  flight: { color: '#111827', icon: Plane, geodesic: true },
-  train: { color: '#dc2626', icon: Train, geodesic: false },
-  subway: { color: '#7c3aed', icon: Train, geodesic: false },
-  cruise: { color: '#0891b2', icon: Ship, geodesic: true },
-  car: { color: '#2563eb', icon: Car, geodesic: false },
-  bus: { color: '#f59e0b', icon: Bus, geodesic: false },
-  taxi: { color: '#ca8a04', icon: CarTaxiFront, geodesic: false },
-  bicycle: { color: '#16a34a', icon: Bike, geodesic: false },
-  ferry: { color: '#0d9488', icon: Sailboat, geodesic: true },
-  transport_other: { color: '#64748b', icon: Route, geodesic: false },
+  flight: { color: TRANSPORT_COLORS.flight, icon: Plane, geodesic: true },
+  train: { color: TRANSPORT_COLORS.train, icon: Train, geodesic: false },
+  subway: { color: TRANSPORT_COLORS.subway, icon: Train, geodesic: false },
+  cruise: { color: TRANSPORT_COLORS.cruise, icon: Ship, geodesic: true },
+  car: { color: TRANSPORT_COLORS.car, icon: Car, geodesic: false },
+  bus: { color: TRANSPORT_COLORS.bus, icon: Bus, geodesic: false },
+  taxi: { color: TRANSPORT_COLORS.taxi, icon: CarTaxiFront, geodesic: false },
+  bicycle: { color: TRANSPORT_COLORS.bicycle, icon: Bike, geodesic: false },
+  ferry: { color: TRANSPORT_COLORS.ferry, icon: Sailboat, geodesic: true },
+  transport_other: { color: TRANSPORT_COLORS.transport_other, icon: Route, geodesic: false },
 };
 
 function useEndpointPane() {
@@ -139,6 +116,10 @@ function haversineKm(a: [number, number], b: [number, number]): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+function isRoutePoint(point: readonly unknown[]): point is [number, number] {
+  return Number.isFinite(point[0]) && Number.isFinite(point[1]);
+}
+
 function parseInTz(isoLocal: string, tz: string): number {
   const [datePart, timePart] = isoLocal.split('T');
   const [y, mo, d] = datePart.split('-').map(Number);
@@ -211,12 +192,18 @@ interface TransportItem {
   to: ReservationEndpoint;
   waypoints: ReservationEndpoint[];
   type: TransportType;
-  arcs: [number, number][][];
+  arcs: TransportArc[];
   primaryArc: [number, number][];
   exact: boolean;
   fallback: [number, number];
   mainLabel: string | null;
   subLabel: string | null;
+}
+
+interface TransportArc {
+  coordinates: [number, number][];
+  type: TransportType;
+  exact: boolean;
 }
 
 function buildStatsHtml(
@@ -421,7 +408,8 @@ export default function ReservationOverlay({
   const items = useMemo<TransportItem[]>(() => {
     const out: TransportItem[] = [];
     for (const r of reservations) {
-      if (!TRANSPORT_TYPES.includes(r.type as TransportType)) continue;
+      const type = getTransportRouteType(r.type);
+      if (!type) continue;
       // Ordered waypoints (from · stops · to). A single-leg booking has exactly two,
       // so the arc + markers below are byte-identical to before for it.
       const waypoints = (r.endpoints || [])
@@ -431,16 +419,23 @@ export default function ReservationOverlay({
       if (waypoints.length < 2) continue;
       const from = waypoints[0];
       const to = waypoints[waypoints.length - 1];
-      const type = r.type as TransportType;
       const isGeo = TYPE_META[type].geodesic;
       const providerRoute = transportRoutes[r.id];
       const providerArcs =
         providerRoute?.segments
-          ?.map((seg) => seg.coordinates.filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng)))
-          .filter((coords): coords is [number, number][] => coords.length >= 2) ?? [];
+          ?.map((seg): TransportArc | null => {
+            const coordinates = seg.coordinates.filter(isRoutePoint);
+            if (coordinates.length < 2) return null;
+            return {
+              coordinates,
+              type: normalizeTransportType(seg.mode || type),
+              exact: seg.exact,
+            };
+          })
+          .filter((arc): arc is TransportArc => arc !== null) ?? [];
       // One arc per leg (between consecutive waypoints), concatenated. Provider
       // geometry wins; endpoint-to-endpoint lines remain the fallback.
-      const arcs: [number, number][][] = providerArcs.length > 0 ? providerArcs : [];
+      const arcs: TransportArc[] = providerArcs.length > 0 ? providerArcs : [];
       let distanceKm = 0;
       for (let i = 0; i < waypoints.length - 1; i++) {
         const a = waypoints[i];
@@ -454,12 +449,12 @@ export default function ReservationOverlay({
                   [b.lat, b.lng],
                 ] as [number, number][],
               ];
-          arcs.push(...segArcs);
+          arcs.push(...segArcs.map((coordinates) => ({ coordinates, type, exact: providerRoute ? providerRoute.exact : true })));
         }
         distanceKm += haversineKm([a.lat, a.lng], [b.lat, b.lng]);
       }
-      const primaryIdx = arcs.reduce((best, seg, idx, all) => (seg.length > all[best].length ? idx : best), 0);
-      const primaryArc = arcs[primaryIdx] ?? [];
+      const primaryIdx = arcs.reduce((best, seg, idx, all) => (seg.coordinates.length > all[best].coordinates.length ? idx : best), 0);
+      const primaryArc = arcs[primaryIdx]?.coordinates ?? [];
       const fallback: [number, number] =
         primaryArc.length > 0
           ? (primaryArc[Math.floor(primaryArc.length / 2)] ?? [(from.lat + to.lat) / 2, (from.lng + to.lng) / 2])
@@ -521,12 +516,12 @@ export default function ReservationOverlay({
         item.arcs.map((seg, segIdx) => (
           <Polyline
             key={`line-${item.res.id}-${segIdx}`}
-            positions={seg}
+            positions={seg.coordinates}
             pathOptions={{
-              color: TYPE_META[item.type].color,
-              weight: item.exact ? 3.25 : 2.75,
-              opacity: item.res.status === 'confirmed' ? (item.exact ? 0.82 : 0.68) : 0.55,
-              dashArray: item.type === 'flight' ? '1, 8' : item.res.status === 'confirmed' && item.exact ? undefined : '6, 6',
+              color: TYPE_META[seg.type].color,
+              weight: seg.exact ? 3.25 : 2.75,
+              opacity: item.res.status === 'confirmed' ? (seg.exact ? 0.82 : 0.68) : 0.55,
+              dashArray: seg.type === 'flight' ? '1, 8' : item.res.status === 'confirmed' && seg.exact ? undefined : '6, 6',
               lineCap: 'round',
               lineJoin: 'round',
             }}

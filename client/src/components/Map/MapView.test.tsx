@@ -37,7 +37,14 @@ vi.mock('react-leaflet', () => ({
       {children}
     </div>
   ),
-  Polyline: ({ positions }: any) => <div data-testid="polyline" data-points={JSON.stringify(positions)} />,
+  Polyline: ({ positions, pathOptions }: any) => (
+    <div
+      data-testid="polyline"
+      data-points={JSON.stringify(positions)}
+      data-color={pathOptions?.color ?? ''}
+      data-dasharray={pathOptions?.dashArray ?? ''}
+    />
+  ),
   CircleMarker: () => <div data-testid="circle-marker" />,
   Circle: () => <div data-testid="circle" />,
   useMap: () => mapMock,
@@ -252,6 +259,84 @@ describe('MapView', () => {
     );
     const routeLine = screen.getAllByTestId('polyline').find((el) => el.getAttribute('data-points')?.includes('[2,7]'));
     expect(routeLine).toBeTruthy();
+    expect(routeLine).toHaveAttribute('data-color', '#dc2626');
+    expect(routeLine).toHaveAttribute('data-dasharray', '');
+  });
+
+  it('FE-COMP-MAPVIEW-013C: transport overlay color-codes provider route segments by segment mode aliases', () => {
+    const reservation = {
+      id: 56,
+      type: 'transport_other',
+      status: 'confirmed',
+      title: 'Mixed ground route',
+      endpoints: [
+        {
+          role: 'from',
+          sequence: 0,
+          name: 'Station',
+          code: 'STA',
+          lat: 1,
+          lng: 1,
+          timezone: null,
+          local_date: null,
+          local_time: null,
+        },
+        {
+          role: 'to',
+          sequence: 1,
+          name: 'Hotel',
+          code: 'HTL',
+          lat: 4,
+          lng: 12,
+          timezone: null,
+          local_date: null,
+          local_time: null,
+        },
+      ],
+    } as any;
+    render(
+      <MapView
+        reservations={[reservation]}
+        visibleConnectionIds={[56]}
+        transportRoutes={{
+          56: {
+            reservationId: 56,
+            source: 'mixed',
+            provider: 'mixed',
+            exact: true,
+            segments: [
+              {
+                mode: 'railway',
+                provider: 'google-routes',
+                source: 'google-routes-transit',
+                exact: true,
+                coordinates: [
+                  [1, 1],
+                  [2, 5],
+                ],
+              },
+              {
+                mode: 'driving',
+                provider: 'osrm',
+                source: 'osrm-driving',
+                exact: true,
+                coordinates: [
+                  [2, 5],
+                  [4, 12],
+                ],
+              },
+            ],
+            warnings: [],
+          },
+        }}
+      />
+    );
+
+    const lines = screen.getAllByTestId('polyline');
+    const railLine = lines.find((el) => el.getAttribute('data-points')?.includes('[2,5]'));
+    const carLine = lines.find((el) => el.getAttribute('data-points')?.includes('[4,12]'));
+    expect(railLine).toHaveAttribute('data-color', '#dc2626');
+    expect(carLine).toHaveAttribute('data-color', '#2563eb');
   });
 
   it('FE-COMP-MAPVIEW-014: marker icon uses base64 image_url for photo places', () => {

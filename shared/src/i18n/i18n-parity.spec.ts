@@ -30,4 +30,22 @@ describe('i18n parity', () => {
       expect(Array.isArray(entry.extra)).toBe(true);
     }
   });
+
+  it('does not include retired no-subscription promise copy in system notices', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const i18nDir = path.dirname(fileURLToPath(import.meta.url));
+    const retiredPromisePattern =
+      /\b(always\s+(?:be\s+)?open[- ]source|always\s+self[- ]hosted|no\s+subscriptions|no\s+strings\s+attached)\b/i;
+    const offenders = fs
+      .readdirSync(i18nDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(i18nDir, entry.name, 'system_notice.ts'))
+      .filter((file) => fs.existsSync(file))
+      .filter((file) => retiredPromisePattern.test(fs.readFileSync(file, 'utf8')))
+      .map((file) => path.relative(i18nDir, file));
+
+    expect(offenders).toEqual([]);
+  });
 });

@@ -42,7 +42,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Erweitertes Toolset & Prompts',
   'system_notice.v3_thankyou.title': 'Ein persönliches Wort von mir',
   'system_notice.v3_thankyou.body':
-    "Bevor du weiterklickst — danke. trippi.ai begann als Planer für meine eigenen Reisen, und diese Community hat es mit Issues, Übersetzungen, Ideen und echten Reisen geprägt.\n\nWährend trippi.ai wächst, können sich einige Teile zu gehosteten Diensten oder bezahlten Plänen entwickeln, damit das Projekt weiter besser werden kann. Ich werde diese Änderungen klar kommunizieren und auf bessere Reiseplanung ausrichten.\n\n[Tritt der Community auf Discord bei](https://discord.gg/7Q6M6jDwzf)",
+    'Bevor du weiterklickst — danke. trippi.ai begann als Planer für meine eigenen Reisen, und diese Community hat es mit Issues, Übersetzungen, Ideen und echten Reisen geprägt.\n\nWährend trippi.ai wächst, können sich einige Teile zu gehosteten Diensten oder bezahlten Plänen entwickeln, damit das Projekt weiter besser werden kann. Ich werde diese Änderungen klar kommunizieren und auf bessere Reiseplanung ausrichten.\n\n[Tritt der Community auf Discord bei](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'Aktion erforderlich: Benutzerkontokonflikt',
   'system_notice.v3014_whitespace_collision.body':
     'Das 3.0.14-Upgrade hat einen oder mehrere Konflikte bei Benutzernamen oder E-Mail-Adressen festgestellt, die durch führende oder nachgestellte Leerzeichen in gespeicherten Konten verursacht wurden. Betroffene Konten wurden automatisch umbenannt. Prüfe die Serverprotokolle auf Zeilen, die mit **[migration] WHITESPACE COLLISION** beginnen, um die betroffenen Konten zu identifizieren.',

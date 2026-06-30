@@ -42,7 +42,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Rozšířená sada nástrojů a promptů',
   'system_notice.v3_thankyou.title': 'Osobní slovo ode mě',
   'system_notice.v3_thankyou.body':
-    "Než budete pokračovat — děkuji. trippi.ai začal jako plánovač pro moje vlastní cesty a tahle komunita ho formovala hlášením chyb, překlady, nápady i skutečnými cestami.\n\nJak trippi.ai roste, některé části se mohou vyvinout v hostované služby nebo placené tarify, aby se projekt mohl dál zlepšovat. Tyto změny budu komunikovat jasně a se zaměřením na lepší plánování cest.\n\n[Přidej se ke komunitě na Discordu](https://discord.gg/7Q6M6jDwzf)",
+    'Než budete pokračovat — děkuji. trippi.ai začal jako plánovač pro moje vlastní cesty a tahle komunita ho formovala hlášením chyb, překlady, nápady i skutečnými cestami.\n\nJak trippi.ai roste, některé části se mohou vyvinout v hostované služby nebo placené tarify, aby se projekt mohl dál zlepšovat. Tyto změny budu komunikovat jasně a se zaměřením na lepší plánování cest.\n\n[Přidej se ke komunitě na Discordu](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'Vyžadována akce: konflikt uživatelského účtu',
   'system_notice.v3014_whitespace_collision.body':
     'Aktualizace 3.0.14 zjistila jeden nebo více konfliktů uživatelského jména nebo e-mailu způsobených mezerami na začátku nebo konci uložených hodnot. Dotčené účty byly automaticky přejmenovány. Zkontrolujte protokoly serveru na řádky začínající **[migration] WHITESPACE COLLISION** a zjistěte, které účty vyžadují kontrolu.',

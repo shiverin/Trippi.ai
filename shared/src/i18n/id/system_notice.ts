@@ -42,7 +42,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Perangkat dan prompt yang diperluas',
   'system_notice.v3_thankyou.title': 'Catatan pribadi dari saya',
   'system_notice.v3_thankyou.body':
-    "Sebelum kamu lanjut — terima kasih. trippi.ai dimulai sebagai perencana untuk perjalanan saya sendiri, dan komunitas ini telah membentuknya lewat issue, terjemahan, ide, dan perjalanan nyata.\n\nSeiring trippi.ai berkembang, beberapa bagian mungkin menjadi layanan terhosting atau paket berbayar agar proyek ini terus membaik. Saya akan menjaga perubahan itu tetap jelas dan berfokus pada perencanaan perjalanan yang lebih baik.\n\n[Bergabunglah dengan komunitas di Discord](https://discord.gg/7Q6M6jDwzf)",
+    'Sebelum kamu lanjut — terima kasih. trippi.ai dimulai sebagai perencana untuk perjalanan saya sendiri, dan komunitas ini telah membentuknya lewat issue, terjemahan, ide, dan perjalanan nyata.\n\nSeiring trippi.ai berkembang, beberapa bagian mungkin menjadi layanan terhosting atau paket berbayar agar proyek ini terus membaik. Saya akan menjaga perubahan itu tetap jelas dan berfokus pada perencanaan perjalanan yang lebih baik.\n\n[Bergabunglah dengan komunitas di Discord](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'Tindakan diperlukan: konflik akun pengguna',
   'system_notice.v3014_whitespace_collision.body':
     'Pembaruan 3.0.14 mendeteksi satu atau lebih konflik nama pengguna atau email yang disebabkan oleh spasi di awal atau akhir nilai yang tersimpan. Akun yang terpengaruh telah diganti nama secara otomatis. Periksa log server untuk baris yang dimulai dengan **[migration] WHITESPACE COLLISION** guna mengidentifikasi akun mana yang perlu ditinjau.',

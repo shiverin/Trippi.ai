@@ -27,7 +27,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Utökad verktygslåda och uppmaningar',
   'system_notice.v3_thankyou.title': 'Ett personligt meddelande från mig',
   'system_notice.v3_thankyou.body':
-    "Innan du fortsätter — tack. trippi.ai började som en planerare för mina egna resor, och den här communityn har format den med issues, översättningar, idéer och riktiga resor.\n\nNär trippi.ai växer kan vissa delar utvecklas till hostade tjänster eller betalplaner så att projektet kan fortsätta förbättras. Jag kommer att hålla de förändringarna tydliga och fokuserade på bättre reseplanering.\n\n[Gå med i communityn på Discord](https://discord.gg/7Q6M6jDwzf)",
+    'Innan du fortsätter — tack. trippi.ai började som en planerare för mina egna resor, och den här communityn har format den med issues, översättningar, idéer och riktiga resor.\n\nNär trippi.ai växer kan vissa delar utvecklas till hostade tjänster eller betalplaner så att projektet kan fortsätta förbättras. Jag kommer att hålla de förändringarna tydliga och fokuserade på bättre reseplanering.\n\n[Gå med i communityn på Discord](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'Åtgärd krävs: konflikt mellan användarkonton',
   'system_notice.v3014_whitespace_collision.body':
     'Uppgraderingen till version 3.0.14 upptäckte en eller flera konflikter mellan användarnamn eller e-postadresser som orsakades av blanksteg i början eller slutet av lagrade konton. De berörda kontona döptes om automatiskt. Kontrollera serverloggarna efter rader som börjar med **[migration] WHITESPACE COLLISION** för att identifiera vilka konton som behöver granskas.',

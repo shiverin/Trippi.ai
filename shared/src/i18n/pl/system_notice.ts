@@ -42,7 +42,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Rozszerzony zestaw narzędzi i promptów',
   'system_notice.v3_thankyou.title': 'Osobiste słowo ode mnie',
   'system_notice.v3_thankyou.body':
-    "Zanim pójdziesz dalej — dziękuję. trippi.ai zaczęło się jako planer moich własnych podróży, a ta społeczność ukształtowała je przez zgłoszenia, tłumaczenia, pomysły i prawdziwe wyjazdy.\n\nWraz z rozwojem trippi.ai niektóre części mogą stać się usługami hostowanymi lub płatnymi planami, aby projekt mógł dalej się ulepszać. Będę jasno komunikować te zmiany i skupiać je na lepszym planowaniu podróży.\n\n[Dołącz do społeczności na Discordzie](https://discord.gg/7Q6M6jDwzf)",
+    'Zanim pójdziesz dalej — dziękuję. trippi.ai zaczęło się jako planer moich własnych podróży, a ta społeczność ukształtowała je przez zgłoszenia, tłumaczenia, pomysły i prawdziwe wyjazdy.\n\nWraz z rozwojem trippi.ai niektóre części mogą stać się usługami hostowanymi lub płatnymi planami, aby projekt mógł dalej się ulepszać. Będę jasno komunikować te zmiany i skupiać je na lepszym planowaniu podróży.\n\n[Dołącz do społeczności na Discordzie](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'Wymagane działanie: konflikt konta użytkownika',
   'system_notice.v3014_whitespace_collision.body':
     'Aktualizacja 3.0.14 wykryła jeden lub więcej konfliktów nazwy użytkownika lub adresu e-mail spowodowanych spacjami na początku lub końcu przechowywanych wartości. Dotknięte konta zostały automatycznie przemianowane. Sprawdź logi serwera pod kątem wierszy zaczynających się od **[migration] WHITESPACE COLLISION**, aby zidentyfikować konta wymagające przeglądu.',

@@ -27,7 +27,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Expanded toolset & prompts',
   'system_notice.v3_thankyou.title': 'A personal note from me',
   'system_notice.v3_thankyou.body':
-    "Before you go — thank you. trippi started as a planner for my own trips, and this community has shaped it with issues, translations, ideas, and real journeys.\n\nAs trippi grows, some parts may evolve into hosted services or paid plans so the project can keep improving. I’ll keep those changes clear and focused on better travel planning.\n\n[Join the community on Discord](https://discord.gg/7Q6M6jDwzf)",
+    'Before you go — thank you. trippi started as a planner for my own trips, and this community has shaped it with issues, translations, ideas, and real journeys.\n\nAs trippi grows, some parts may evolve into hosted services or paid plans so the project can keep improving. I’ll keep those changes clear and focused on better travel planning.\n\n[Join the community on Discord](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'Action required: user account conflict',
   'system_notice.v3014_whitespace_collision.body':
     'The 3.0.14 upgrade detected one or more username or email collisions caused by leading/trailing whitespace in stored accounts. Affected accounts were renamed automatically. Check the server logs for lines starting with **[migration] WHITESPACE COLLISION** to identify which accounts need review.',

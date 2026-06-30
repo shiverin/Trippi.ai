@@ -42,7 +42,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Uitgebreide tools & prompts',
   'system_notice.v3_thankyou.title': 'Een persoonlijk woord van mij',
   'system_notice.v3_thankyou.body':
-    "Voordat je verdergaat — bedankt. trippi.ai begon als een planner voor mijn eigen reizen, en deze community heeft het gevormd met issues, vertalingen, ideeën en echte reizen.\n\nNaarmate trippi.ai groeit, kunnen sommige onderdelen zich ontwikkelen tot gehoste diensten of betaalde plannen zodat het project kan blijven verbeteren. Ik houd die veranderingen duidelijk en gericht op betere reisplanning.\n\n[Sluit je aan bij de community op Discord](https://discord.gg/7Q6M6jDwzf)",
+    'Voordat je verdergaat — bedankt. trippi.ai begon als een planner voor mijn eigen reizen, en deze community heeft het gevormd met issues, vertalingen, ideeën en echte reizen.\n\nNaarmate trippi.ai groeit, kunnen sommige onderdelen zich ontwikkelen tot gehoste diensten of betaalde plannen zodat het project kan blijven verbeteren. Ik houd die veranderingen duidelijk en gericht op betere reisplanning.\n\n[Sluit je aan bij de community op Discord](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'Actie vereist: gebruikersaccountconflict',
   'system_notice.v3014_whitespace_collision.body':
     'De 3.0.14-upgrade heeft één of meer conflicten in gebruikersnaam of e-mailadres gedetecteerd, veroorzaakt door spaties aan het begin of einde van opgeslagen waarden. Getroffen accounts zijn automatisch hernoemd. Controleer de serverlogboeken op regels die beginnen met **[migration] WHITESPACE COLLISION** om te achterhalen welke accounts moeten worden beoordeeld.',

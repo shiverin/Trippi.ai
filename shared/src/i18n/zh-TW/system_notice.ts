@@ -41,7 +41,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': '擴展工具集與提示詞',
   'system_notice.v3_thankyou.title': '來自我的一封私人信',
   'system_notice.v3_thankyou.body':
-    "在你繼續之前，謝謝你。trippi.ai 最初只是我為自己的旅行打造的規劃器，而這個社群透過 issue、翻譯、想法和真實旅程一起塑造了它。\n\n隨著 trippi.ai 成長，部分功能可能發展為託管服務或付費方案，讓專案能持續改進。我會清楚說明這些變化，並專注在更好的旅行規劃。\n\n[加入 Discord 社群](https://discord.gg/7Q6M6jDwzf)",
+    '在你繼續之前，謝謝你。trippi.ai 最初只是我為自己的旅行打造的規劃器，而這個社群透過 issue、翻譯、想法和真實旅程一起塑造了它。\n\n隨著 trippi.ai 成長，部分功能可能發展為託管服務或付費方案，讓專案能持續改進。我會清楚說明這些變化，並專注在更好的旅行規劃。\n\n[加入 Discord 社群](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': '需要操作：使用者帳戶衝突',
   'system_notice.v3014_whitespace_collision.body':
     '3.0.14 版本升級偵測到一個或多個由儲存帳戶中前後空白字元引發的使用者名稱或電子郵件衝突。受影響的帳戶已自動重新命名。請檢查伺服器日誌中以 **[migration] WHITESPACE COLLISION** 開頭的行，以確認哪些帳戶需要審查。',

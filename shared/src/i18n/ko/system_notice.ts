@@ -27,7 +27,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': '확장된 도구 모음 및 프롬프트',
   'system_notice.v3_thankyou.title': '개인적인 감사 인사',
   'system_notice.v3_thankyou.body':
-    "계속하기 전에 — 감사합니다. trippi.ai은 제 여행을 위한 플래너로 시작했고, 이 커뮤니티가 이슈, 번역, 아이디어, 실제 여행으로 함께 만들어 왔습니다.\n\ntrippi.ai이 성장하면서 일부는 호스팅 서비스나 유료 플랜으로 발전할 수 있습니다. 프로젝트가 계속 나아지기 위한 변화이며, 더 나은 여행 계획에 집중해 명확하게 안내하겠습니다.\n\n[Discord 커뮤니티에 참여하세요](https://discord.gg/7Q6M6jDwzf)",
+    '계속하기 전에 — 감사합니다. trippi.ai은 제 여행을 위한 플래너로 시작했고, 이 커뮤니티가 이슈, 번역, 아이디어, 실제 여행으로 함께 만들어 왔습니다.\n\ntrippi.ai이 성장하면서 일부는 호스팅 서비스나 유료 플랜으로 발전할 수 있습니다. 프로젝트가 계속 나아지기 위한 변화이며, 더 나은 여행 계획에 집중해 명확하게 안내하겠습니다.\n\n[Discord 커뮤니티에 참여하세요](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': '조치 필요: 사용자 계정 충돌',
   'system_notice.v3014_whitespace_collision.body':
     '3.0.14 업그레이드 중 저장된 계정의 앞뒤 공백으로 인한 사용자 이름 또는 이메일 충돌이 감지되었습니다. 영향받은 계정은 자동으로 이름이 변경되었습니다. 검토가 필요한 계정을 확인하려면 **[migration] WHITESPACE COLLISION**으로 시작하는 줄의 서버 로그를 확인하세요.',

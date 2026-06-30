@@ -42,7 +42,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Bővített eszközkészlet és promptok',
   'system_notice.v3_thankyou.title': 'Egy személyes gondolat tőlem',
   'system_notice.v3_thankyou.body':
-    "Mielőtt továbbmennél — köszönöm. A trippi.ai a saját utazásaimhoz készült tervezőként indult, és ez a közösség hibajegyekkel, fordításokkal, ötletekkel és valódi utazásokkal formálta.\n\nAhogy a trippi.ai növekszik, egyes részei hosztolt szolgáltatásokká vagy fizetős csomagokká fejlődhetnek, hogy a projekt tovább javulhasson. Ezeket a változásokat világosan, a jobb utazástervezésre figyelve fogom kommunikálni.\n\n[Csatlakozz a közösséghez a Discordon](https://discord.gg/7Q6M6jDwzf)",
+    'Mielőtt továbbmennél — köszönöm. A trippi.ai a saját utazásaimhoz készült tervezőként indult, és ez a közösség hibajegyekkel, fordításokkal, ötletekkel és valódi utazásokkal formálta.\n\nAhogy a trippi.ai növekszik, egyes részei hosztolt szolgáltatásokká vagy fizetős csomagokká fejlődhetnek, hogy a projekt tovább javulhasson. Ezeket a változásokat világosan, a jobb utazástervezésre figyelve fogom kommunikálni.\n\n[Csatlakozz a közösséghez a Discordon](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'Szükséges beavatkozás: felhasználói fiókütközés',
   'system_notice.v3014_whitespace_collision.body':
     'A 3.0.14-es frissítés egy vagy több felhasználónév- vagy e-mail-ütközést észlelt, amelyeket a tárolt értékek elején vagy végén lévő szóközök okoztak. Az érintett fiókok automatikusan át lettek nevezve. Ellenőrizze a szervernaplókat a **[migration] WHITESPACE COLLISION** kezdetű soroknál a felülvizsgálatot igénylő fiókok azonosításához.',

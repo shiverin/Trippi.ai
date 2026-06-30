@@ -42,7 +42,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Strumenti e prompt estesi',
   'system_notice.v3_thankyou.title': 'Una nota personale da parte mia',
   'system_notice.v3_thankyou.body':
-    "Prima di continuare — grazie. trippi.ai è nato come planner per i miei viaggi, e questa community lo ha plasmato con issue, traduzioni, idee e viaggi reali.\n\nMan mano che trippi.ai cresce, alcune parti potranno evolvere in servizi ospitati o piani a pagamento, così il progetto potrà continuare a migliorare. Terrò questi cambiamenti chiari e orientati a una migliore pianificazione dei viaggi.\n\n[Unisciti alla community su Discord](https://discord.gg/7Q6M6jDwzf)",
+    'Prima di continuare — grazie. trippi.ai è nato come planner per i miei viaggi, e questa community lo ha plasmato con issue, traduzioni, idee e viaggi reali.\n\nMan mano che trippi.ai cresce, alcune parti potranno evolvere in servizi ospitati o piani a pagamento, così il progetto potrà continuare a migliorare. Terrò questi cambiamenti chiari e orientati a una migliore pianificazione dei viaggi.\n\n[Unisciti alla community su Discord](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'Azione richiesta: conflitto di account utente',
   'system_notice.v3014_whitespace_collision.body':
     "L'aggiornamento 3.0.14 ha rilevato uno o più conflitti di nome utente o e-mail causati da spazi iniziali o finali nei valori memorizzati. Gli account interessati sono stati rinominati automaticamente. Controlla i log del server per le righe che iniziano con **[migration] WHITESPACE COLLISION** per identificare quali account richiedono revisione.",

@@ -27,7 +27,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Genişletilmiş araç seti ve istemler',
   'system_notice.v3_thankyou.title': 'Benden kişisel bir not',
   'system_notice.v3_thankyou.body':
-    "Devam etmeden önce — teşekkür ederim. trippi.ai kendi seyahatlerim için yaptığım bir planlayıcı olarak başladı; bu topluluk onu issue’lar, çeviriler, fikirler ve gerçek yolculuklarla şekillendirdi.\n\ntrippi.ai büyüdükçe bazı bölümler barındırılan hizmetlere veya ücretli planlara dönüşebilir, böylece proje gelişmeye devam eder. Bu değişiklikleri net tutacağım ve daha iyi seyahat planlamasına odaklayacağım.\n\n[Discord topluluğuna katıl](https://discord.gg/7Q6M6jDwzf)",
+    'Devam etmeden önce — teşekkür ederim. trippi.ai kendi seyahatlerim için yaptığım bir planlayıcı olarak başladı; bu topluluk onu issue’lar, çeviriler, fikirler ve gerçek yolculuklarla şekillendirdi.\n\ntrippi.ai büyüdükçe bazı bölümler barındırılan hizmetlere veya ücretli planlara dönüşebilir, böylece proje gelişmeye devam eder. Bu değişiklikleri net tutacağım ve daha iyi seyahat planlamasına odaklayacağım.\n\n[Discord topluluğuna katıl](https://discord.gg/7Q6M6jDwzf)',
   'system_notice.v3014_whitespace_collision.title': 'İşlem gerekli: kullanıcı hesabı çakışması',
   'system_notice.v3014_whitespace_collision.body':
     '3.0.14 yükseltmesi, kayıtlı hesaplardaki baştaki/sondaki boşluklardan kaynaklanan bir veya daha fazla kullanıcı adı veya e-posta çakışması tespit etti. Etkilenen hesaplar otomatik olarak yeniden adlandırıldı. Hangi hesapların incelenmesi gerektiğini belirlemek için sunucu günlüklerinde **[migration] WHITESPACE COLLISION** ile başlayan satırlara bakın.',

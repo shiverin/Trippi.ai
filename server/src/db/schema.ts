@@ -233,6 +233,22 @@ function createTables(db: Database.Database): void {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS booking_intents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      type TEXT NOT NULL,
+      dates TEXT NOT NULL DEFAULT '{}',
+      origin TEXT,
+      destination TEXT,
+      party_constraints TEXT NOT NULL DEFAULT '{}',
+      budget TEXT NOT NULL DEFAULT '{}',
+      preferences TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'booked', 'archived')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS trip_members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
@@ -458,6 +474,8 @@ function createTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_packing_items_trip_id ON packing_items(trip_id);
     CREATE INDEX IF NOT EXISTS idx_budget_items_trip_id ON budget_items(trip_id);
     CREATE INDEX IF NOT EXISTS idx_reservations_trip_id ON reservations(trip_id);
+    CREATE INDEX IF NOT EXISTS idx_booking_intents_trip_id ON booking_intents(trip_id);
+    CREATE INDEX IF NOT EXISTS idx_booking_intents_status ON booking_intents(trip_id, status);
     CREATE INDEX IF NOT EXISTS idx_trip_files_trip_id ON trip_files(trip_id);
     CREATE INDEX IF NOT EXISTS idx_day_notes_day_id ON day_notes(day_id);
     CREATE INDEX IF NOT EXISTS idx_photos_trip_id ON photos(trip_id);

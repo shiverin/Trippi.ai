@@ -57,6 +57,8 @@ const RESET_TABLES = [
   // Budget
   'budget_item_members',
   'budget_items',
+  // Booking intents
+  'booking_intents',
   // Photos & files
   'trip_photos',
   'trip_album_links',

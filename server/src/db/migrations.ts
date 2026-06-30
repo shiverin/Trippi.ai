@@ -3166,6 +3166,27 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_trippi_photos_storage_key ON trippi_photos(storage_backend, storage_key);
       `);
     },
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS booking_intents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          type TEXT NOT NULL,
+          dates TEXT NOT NULL DEFAULT '{}',
+          origin TEXT,
+          destination TEXT,
+          party_constraints TEXT NOT NULL DEFAULT '{}',
+          budget TEXT NOT NULL DEFAULT '{}',
+          preferences TEXT NOT NULL DEFAULT '{}',
+          status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'booked', 'archived')),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_booking_intents_trip_id ON booking_intents(trip_id);
+        CREATE INDEX IF NOT EXISTS idx_booking_intents_status ON booking_intents(trip_id, status);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

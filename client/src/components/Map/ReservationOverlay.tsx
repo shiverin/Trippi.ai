@@ -36,19 +36,17 @@ const TRANSPORT_TYPES: TransportType[] = [
   'transport_other',
 ];
 
-const TRANSPORT_COLOR = '#3b82f6';
-
 const TYPE_META: Record<TransportType, { color: string; icon: typeof Plane; geodesic: boolean }> = {
-  flight: { color: TRANSPORT_COLOR, icon: Plane, geodesic: true },
-  train: { color: TRANSPORT_COLOR, icon: Train, geodesic: false },
-  subway: { color: TRANSPORT_COLOR, icon: Train, geodesic: false },
-  cruise: { color: TRANSPORT_COLOR, icon: Ship, geodesic: true },
-  car: { color: TRANSPORT_COLOR, icon: Car, geodesic: false },
-  bus: { color: TRANSPORT_COLOR, icon: Bus, geodesic: false },
-  taxi: { color: TRANSPORT_COLOR, icon: CarTaxiFront, geodesic: false },
-  bicycle: { color: TRANSPORT_COLOR, icon: Bike, geodesic: false },
-  ferry: { color: TRANSPORT_COLOR, icon: Sailboat, geodesic: true },
-  transport_other: { color: TRANSPORT_COLOR, icon: Route, geodesic: false },
+  flight: { color: '#111827', icon: Plane, geodesic: true },
+  train: { color: '#dc2626', icon: Train, geodesic: false },
+  subway: { color: '#7c3aed', icon: Train, geodesic: false },
+  cruise: { color: '#0891b2', icon: Ship, geodesic: true },
+  car: { color: '#2563eb', icon: Car, geodesic: false },
+  bus: { color: '#f59e0b', icon: Bus, geodesic: false },
+  taxi: { color: '#ca8a04', icon: CarTaxiFront, geodesic: false },
+  bicycle: { color: '#16a34a', icon: Bike, geodesic: false },
+  ferry: { color: '#0d9488', icon: Sailboat, geodesic: true },
+  transport_other: { color: '#64748b', icon: Route, geodesic: false },
 };
 
 function useEndpointPane() {
@@ -528,7 +526,7 @@ export default function ReservationOverlay({
               color: TYPE_META[item.type].color,
               weight: item.exact ? 3.25 : 2.75,
               opacity: item.res.status === 'confirmed' ? (item.exact ? 0.82 : 0.68) : 0.55,
-              dashArray: item.res.status === 'confirmed' && item.exact ? undefined : '6, 6',
+              dashArray: item.type === 'flight' ? '1, 8' : item.res.status === 'confirmed' && item.exact ? undefined : '6, 6',
               lineCap: 'round',
               lineJoin: 'round',
             }}

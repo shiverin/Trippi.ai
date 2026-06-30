@@ -40,19 +40,17 @@ const TRANSPORT_TYPES: TransportType[] = [
   'ferry',
   'transport_other',
 ];
-const TRANSPORT_COLOR = '#3b82f6';
-
-const TYPE_META: Record<TransportType, { icon: typeof Plane; geodesic: boolean }> = {
-  flight: { icon: Plane, geodesic: true },
-  train: { icon: Train, geodesic: false },
-  subway: { icon: Train, geodesic: false },
-  cruise: { icon: Ship, geodesic: true },
-  car: { icon: Car, geodesic: false },
-  bus: { icon: Bus, geodesic: false },
-  taxi: { icon: CarTaxiFront, geodesic: false },
-  bicycle: { icon: Bike, geodesic: false },
-  ferry: { icon: Sailboat, geodesic: true },
-  transport_other: { icon: Route, geodesic: false },
+const TYPE_META: Record<TransportType, { color: string; icon: typeof Plane; geodesic: boolean }> = {
+  flight: { color: '#111827', icon: Plane, geodesic: true },
+  train: { color: '#dc2626', icon: Train, geodesic: false },
+  subway: { color: '#7c3aed', icon: Train, geodesic: false },
+  cruise: { color: '#0891b2', icon: Ship, geodesic: true },
+  car: { color: '#2563eb', icon: Car, geodesic: false },
+  bus: { color: '#f59e0b', icon: Bus, geodesic: false },
+  taxi: { color: '#ca8a04', icon: CarTaxiFront, geodesic: false },
+  bicycle: { color: '#16a34a', icon: Bike, geodesic: false },
+  ferry: { color: '#0d9488', icon: Sailboat, geodesic: true },
+  transport_other: { color: '#64748b', icon: Route, geodesic: false },
 };
 
 // ── geometry helpers (ported from ReservationOverlay.tsx) ────────────────
@@ -254,7 +252,7 @@ function buildItems(
 
 // ── DOM helpers for HTML markers ──────────────────────────────────────────
 function endpointMarkerHtml(type: TransportType, label: string | null): string {
-  const { icon: IconCmp } = TYPE_META[type];
+  const { color, icon: IconCmp } = TYPE_META[type];
   const svg = renderToStaticMarkup(createElement(IconCmp, { size: 13, color: 'white', strokeWidth: 2.5 }));
   const labelHtml = label
     ? `<span style="display:inline-flex;align-items:center;line-height:1">${escapeHtml(label)}</span>`
@@ -262,7 +260,7 @@ function endpointMarkerHtml(type: TransportType, label: string | null): string {
   return `<div style="
     display:inline-flex;align-items:center;justify-content:center;gap:4px;
     padding:0 8px;border-radius:999px;
-    background:${TRANSPORT_COLOR};box-shadow:0 2px 6px rgba(0,0,0,0.25);
+    background:${color};box-shadow:0 2px 6px rgba(0,0,0,0.25);
     border:1.5px solid #fff;color:#fff;
     font-family:var(--font-system);font-size:11px;font-weight:600;letter-spacing:0.3px;line-height:1;
     box-sizing:border-box;height:22px;white-space:nowrap;cursor:pointer;
@@ -288,7 +286,7 @@ function buildStatsHtml(
     padding:0 11px;border-radius:999px;
     background:rgba(17,24,39,0.92);color:#fff;
     box-shadow:0 2px 6px rgba(0,0,0,0.25);
-    border:1px solid ${TRANSPORT_COLOR}aa;
+    border:1px solid #334155aa;
     font-family:var(--font-system);
     white-space:nowrap;box-sizing:border-box;pointer-events:none;
     transform-origin:center;will-change:transform;
@@ -372,7 +370,7 @@ export class ReservationMapboxOverlay {
       type: 'line',
       source: RESERVATION_SOURCE_ID,
       paint: {
-        'line-color': TRANSPORT_COLOR,
+        'line-color': ['coalesce', ['get', 'color'], '#64748b'] as any,
         'line-width': ['case', ['==', ['get', 'exact'], true], 3.25, 2.75] as any,
         // Confirmed = solid + 0.75; pending = dashed + 0.55.
         'line-opacity': [
@@ -383,6 +381,8 @@ export class ReservationMapboxOverlay {
         ] as any,
         'line-dasharray': [
           'case',
+          ['==', ['get', 'type'], 'flight'],
+          ['literal', [0.5, 2.2]],
           ['all', ['==', ['get', 'status'], 'confirmed'], ['==', ['get', 'exact'], true]],
           ['literal', [1, 0]],
           ['literal', [3, 3]],
@@ -443,6 +443,7 @@ export class ReservationMapboxOverlay {
         properties: {
           resId: item.res.id,
           type: item.type,
+          color: TYPE_META[item.type].color,
           status: item.res.status ?? 'pending',
           exact: item.exact,
         },

@@ -98,4 +98,12 @@ describe('async DB access guardrails', () => {
 
     expect(offenders).toEqual([]);
   });
+
+  it('keeps billing subscription lookups off Oracle alias-star expansion', () => {
+    const source = readFileSync(src('services/subscriptionService.ts'), 'utf8');
+
+    expect(source).not.toMatch(/\bs\.\*/);
+    expect(source).toContain('s.stripe_subscription_id');
+    expect(source).toContain('ensureOracleBillingStorage');
+  });
 });

@@ -211,9 +211,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'trippi.ai adalah perencana perjalanan self-hosted yang membantu kamu mengatur perjalanan dari ide pertama hingga kenangan terakhir. Perencanaan harian, anggaran, daftar bawaan, foto dan masih banyak lagi — semua di satu tempat, di servermu sendiri.',
+    'trippi.ai adalah workspace perjalanan cloud untuk trip grup, peta, anggaran, reservasi, daftar bawaan, foto, dan alur AI/MCP dalam satu tempat.',
   'settings.about.madeWith': 'Dibuat dengan',
-  'settings.about.madeBy': 'oleh trippi.ai dan komunitas open-source yang terus berkembang.',
+  'settings.about.madeBy': 'oleh trippi.ai.',
   'settings.username': 'Nama pengguna',
   'settings.email': 'Email',
   'settings.role': 'Peran',

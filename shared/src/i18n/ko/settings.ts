@@ -204,9 +204,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': '알뜰 여행자',
   'settings.about.supporter.tier.hostelBunkmate': '호스텔 룸메이트',
   'settings.about.description':
-    'trippi.ai은 첫 아이디어부터 마지막 추억까지 여행을 체계적으로 관리하는 자체 호스팅 여행 플래너입니다. 일별 계획, 예산, 짐 목록, 사진 등 모든 것이 하나의 서버에 담겨 있습니다.',
+    'trippi.ai는 그룹 여행, 지도, 예산, 예약, 짐 싸기, 사진, AI/MCP 워크플로를 한곳에서 관리하는 클라우드 여행 워크스페이스입니다.',
   'settings.about.madeWith': '으로 만들어졌습니다',
-  'settings.about.madeBy': 'trippi.ai와 성장하는 오픈 소스 커뮤니티가 함께',
+  'settings.about.madeBy': 'trippi.ai 제공.',
   'settings.username': '사용자 이름',
   'settings.email': '이메일',
   'settings.role': '역할',

@@ -190,9 +190,10 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.businessClassDreamer': 'ビジネスクラスの夢',
   'settings.about.supporter.tier.budgetTraveller': '節約トラベラー',
   'settings.about.supporter.tier.hostelBunkmate': 'ホステル仲間',
-  'settings.about.description': 'trippi.aiはセルフホスト型の旅行プランナーです。',
+  'settings.about.description':
+    'trippi.aiは、グループ旅行、地図、予算、予約、荷造り、写真、AI/MCPワークフローを一か所で管理するクラウド旅行ワークスペースです。',
   'settings.about.madeWith': 'Made with',
-  'settings.about.madeBy': 'by trippi.ai とオープンソースコミュニティ。',
+  'settings.about.madeBy': 'trippi.aiより。',
   'settings.username': 'ユーザー名',
   'settings.email': 'メール',
   'settings.role': '役割',

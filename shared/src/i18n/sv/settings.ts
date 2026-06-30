@@ -218,9 +218,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budgetresenären',
   'settings.about.supporter.tier.hostelBunkmate': 'Rumskamrat på vandrarhem',
   'settings.about.description':
-    'trippi.ai är en resplanerare som du själv kan driva och som hjälper dig att organisera dina resor från den första idén till det sista minnet. Dagsplanering, budget, packlistor, foton och mycket mer – allt på ett och samma ställe, på din egen server.',
+    'trippi.ai är en molnbaserad researbetsyta för gruppresor, kartor, budgetar, bokningar, packning, foton och AI/MCP-flöden på ett ställe.',
   'settings.about.madeWith': 'Gjord med',
-  'settings.about.madeBy': 'av trippi.ai och en växande open source-gemenskap.',
+  'settings.about.madeBy': 'av trippi.ai.',
   'settings.username': 'Användarnamn',
   'settings.email': 'E-post',
   'settings.role': 'Roll',

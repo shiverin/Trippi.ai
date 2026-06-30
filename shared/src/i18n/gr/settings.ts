@@ -219,9 +219,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Οικονομικός Ταξιδιώτης',
   'settings.about.supporter.tier.hostelBunkmate': 'Συγκάτοικος Hostel',
   'settings.about.description':
-    'Το trippi.ai είναι ένας self-hosted ταξιδιωτικός σχεδιαστής που σας βοηθά να οργανώσετε τα ταξίδια σας από την πρώτη ιδέα μέχρι την τελευταία ανάμνηση. Σχεδιασμός ημερών, προϋπολογισμός, λίστες πακεταρίσματος, φωτογραφίες και πολλά άλλα — όλα σε ένα μέρος, στον δικό σας server.',
+    'Το trippi.ai είναι ένας cloud χώρος ταξιδιού για ομαδικό σχεδιασμό, χάρτες, προϋπολογισμούς, κρατήσεις, αποσκευές και ροές AI σε ένα μέρος.',
   'settings.about.madeWith': 'Φτιαγμένο με',
-  'settings.about.madeBy': 'από τον trippi.ai και μια αναπτυσσόμενη κοινότητα open-source.',
+  'settings.about.madeBy': 'από το trippi.ai.',
   'settings.username': 'Όνομα χρήστη',
   'settings.email': 'Email',
   'settings.role': 'Ρόλος',

@@ -187,9 +187,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'trippi.ai est un planificateur de voyage auto-hébergé qui vous aide à organiser vos voyages de la première idée au dernier souvenir. Planification journalière, budget, listes de bagages, photos et bien plus — le tout au même endroit, sur votre propre serveur.',
+    'trippi.ai est un espace de voyage cloud pour organiser les voyages de groupe, cartes, budgets, réservations, bagages et workflows IA au même endroit.',
   'settings.about.madeWith': 'Fait avec',
-  'settings.about.madeBy': 'par trippi.ai et une communauté open-source grandissante.',
+  'settings.about.madeBy': 'par trippi.ai.',
   'settings.username': "Nom d'utilisateur",
   'settings.email': 'E-mail',
   'settings.role': 'Rôle',

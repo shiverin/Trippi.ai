@@ -183,9 +183,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'trippi.ai — это самостоятельно размещаемый планировщик путешествий, который помогает организовать поездки от первой идеи до последнего воспоминания. Планирование по дням, бюджет, списки вещей, фото и многое другое — всё в одном месте, на вашем собственном сервере.',
+    'trippi.ai — облачное рабочее пространство для групповых поездок, карт, бюджетов, бронирований, сборов, фото и AI/MCP-процессов в одном месте.',
   'settings.about.madeWith': 'Сделано с',
-  'settings.about.madeBy': 'Морисом и растущим open-source сообществом.',
+  'settings.about.madeBy': 'от trippi.ai.',
   'settings.username': 'Имя пользователя',
   'settings.email': 'Эл. почта',
   'settings.role': 'Роль',

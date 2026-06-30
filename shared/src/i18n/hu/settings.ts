@@ -185,9 +185,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'A trippi.ai egy saját szerveren üzemeltetett útitervező, amely segít az utazásaid megszervezésében az első ötlettől az utolsó emlékig. Napi tervezés, költségvetés, csomagolási listák, fotók és még sok más — minden egy helyen, a saját szervereden.',
+    'A trippi.ai felhőalapú utazási munkaterület csoportos utakhoz, térképekhez, költségvetésekhez, foglalásokhoz, csomagoláshoz és AI-folyamatokhoz.',
   'settings.about.madeWith': 'Készítve',
-  'settings.about.madeBy': 'trippi.ai és egy növekvő nyílt forráskódú közösség által.',
+  'settings.about.madeBy': 'a trippi.ai által.',
   'settings.username': 'Felhasználónév',
   'settings.email': 'E-mail',
   'settings.role': 'Szerepkör',

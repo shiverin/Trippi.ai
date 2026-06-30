@@ -184,9 +184,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    "trippi.ai is een zelf-gehoste reisplanner die je helpt je reizen te organiseren van het eerste idee tot de laatste herinnering. Dagplanning, budget, paklijsten, foto's en nog veel meer — alles op één plek, op je eigen server.",
+    'trippi.ai is een cloudreiswerkplek voor groepsreizen, kaarten, budgetten, reserveringen, paklijsten, foto’s en AI/MCP-workflows op één plek.',
   'settings.about.madeWith': 'Gemaakt met',
-  'settings.about.madeBy': 'door trippi.ai en een groeiende open-source community.',
+  'settings.about.madeBy': 'door trippi.ai.',
   'settings.username': 'Gebruikersnaam',
   'settings.email': 'E-mail',
   'settings.role': 'Rol',

@@ -205,9 +205,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Bütçe Gezgini',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Yatakhane Arkadaşı',
   'settings.about.description':
-    'trippi.ai, seyahatlerinizi ilk fikirden son anıya kadar organize etmenize yardımcı olan, kendi kendine barındırılan bir seyahat planlayıcıdır. Gün planlaması, bütçe, paketleme listeleri, fotoğraflar ve çok daha fazlası; hepsi tek bir yerde, kendi sunucunuzda.',
+    'trippi.ai grup seyahatleri, haritalar, bütçeler, rezervasyonlar, valiz listeleri, fotoğraflar ve AI/MCP iş akışları için bulut tabanlı bir seyahat çalışma alanıdır.',
   'settings.about.madeWith': 'İle yapıldı',
-  'settings.about.madeBy': 'trippi.ai ve büyüyen bir açık kaynak topluluğu tarafından.',
+  'settings.about.madeBy': 'trippi.ai tarafından.',
   'settings.username': 'Kullanıcı adı',
   'settings.email': 'E-posta',
   'settings.role': 'Rol',

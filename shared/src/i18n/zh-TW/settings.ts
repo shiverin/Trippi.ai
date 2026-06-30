@@ -201,9 +201,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'trippi.ai 是一款自架旅遊規劃器，幫助您從最初構想到最後回憶，整理每次旅行。日程規劃、預算、行李清單、照片及更多功能——全部集中在您自己的伺服器上。',
+    'trippi.ai 是雲端旅行工作區，可在一處管理團體旅行、地圖、預算、預訂、打包、照片與 AI/MCP 工作流程。',
   'settings.about.madeWith': '以',
-  'settings.about.madeBy': '由 trippi.ai 及不斷成長的開源社群製作。',
+  'settings.about.madeBy': '由 trippi.ai 製作。',
   'settings.username': '使用者名稱',
   'settings.email': '郵箱',
   'settings.role': '角色',

@@ -186,9 +186,9 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'trippi.ai ist ein selbst gehosteter Reiseplaner, der dir hilft, deine Trips von der ersten Idee bis zur letzten Erinnerung zu organisieren. Tagesplanung, Budget, Packlisten, Fotos und vieles mehr — alles an einem Ort, auf deinem eigenen Server.',
+    'trippi.ai ist ein cloudbasierter Reise-Workspace für Gruppenplanung, Karten, Budgets, Reservierungen, Packlisten und KI-Workflows an einem Ort.',
   'settings.about.madeWith': 'Entwickelt mit',
-  'settings.about.madeBy': 'von trippi.ai und einer wachsenden Open-Source-Community.',
+  'settings.about.madeBy': 'von trippi.ai.',
   'settings.username': 'Benutzername',
   'settings.email': 'E-Mail',
   'settings.role': 'Rolle',

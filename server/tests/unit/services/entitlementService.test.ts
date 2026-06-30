@@ -8,7 +8,7 @@ import {
   getEntitlementsForUser,
 } from '../../../src/services/entitlementService';
 import { upsertStripeSubscriptionState } from '../../../src/services/subscriptionService';
-import { createTrip, createUser, addTripMember } from '../../helpers/factories';
+import { createTrip, createUser, createAdmin, addTripMember } from '../../helpers/factories';
 import { resetTestDb } from '../../helpers/test-db';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -119,6 +119,24 @@ describe('entitlementService', () => {
       billingPlanKey: 'free',
       subscribed: false,
       trialing: false,
+    });
+  });
+
+  it('resolves admins to agency entitlements without requiring a billing subscription', async () => {
+    const { user } = createAdmin(testDb);
+
+    await expect(getEntitlementsForUser(user.id)).resolves.toMatchObject({
+      userId: user.id,
+      planKey: 'agency',
+      billingStatus: 'free',
+      billingPlanKey: 'free',
+      subscribed: false,
+      trialing: false,
+      limits: {
+        activeTrips: null,
+        groupSize: null,
+        mcpAutomation: { maxTokens: null, maxConcurrentSessions: null, requestsPerMinute: null },
+      },
     });
   });
 

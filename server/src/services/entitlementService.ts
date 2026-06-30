@@ -211,12 +211,21 @@ function resolveEffectivePlanKey(
   return 'pro';
 }
 
+async function getUserRoleForEntitlements(userId: number): Promise<string | null> {
+  const user = await asyncDb.prepare('SELECT role FROM users WHERE id = ?').get<{ role: string | null }>(userId);
+  return user?.role ?? null;
+}
+
 export async function getEntitlementsForUser(userId: number): Promise<ResolvedEntitlements> {
-  const billing = await getBillingSubscriptionForUser(userId);
+  const [billing, userRole] = await Promise.all([
+    getBillingSubscriptionForUser(userId),
+    getUserRoleForEntitlements(userId),
+  ]);
   const plans = getEntitlementPlanDefinitions();
   const billingPlanKey = normalizePlanKey(billing.plan_key);
   const billingStatus = billing.status.toLowerCase();
-  const planKey = resolveEffectivePlanKey(billingStatus, billingPlanKey, plans);
+  const planKey =
+    userRole === 'admin' && plans.agency ? 'agency' : resolveEffectivePlanKey(billingStatus, billingPlanKey, plans);
 
   return {
     userId,

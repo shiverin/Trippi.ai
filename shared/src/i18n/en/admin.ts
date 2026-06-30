@@ -223,6 +223,8 @@ const admin: TranslationStrings = {
   'admin.addons.catalog.vacay.description': 'Personal vacation planner with calendar view',
   'admin.addons.catalog.atlas.name': 'Atlas',
   'admin.addons.catalog.atlas.description': 'World map with visited countries and travel stats',
+  'admin.addons.catalog.friends.name': 'Friends',
+  'admin.addons.catalog.friends.description': 'Find travelers, follow friends, and browse shared trip profiles',
   'admin.addons.catalog.collab.name': 'Collab',
   'admin.addons.catalog.collab.description': 'Real-time notes, polls, and chat for trip planning',
   'admin.addons.catalog.memories.name': 'Photos (Immich)',

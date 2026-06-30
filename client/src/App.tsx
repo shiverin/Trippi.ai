@@ -26,6 +26,7 @@ import './pages/Trips/noticeActions.js';
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const AtlasPage = lazy(() => import('./pages/AtlasPage'));
 const FilesPage = lazy(() => import('./pages/FilesPage'));
+const FriendsPage = lazy(() => import('./pages/FriendsPage'));
 const InAppNotificationsPage = lazy(() => import('./pages/InAppNotificationsPage.tsx'));
 const JourneyDetailPage = lazy(() => import('./pages/JourneyDetailPage'));
 const JourneyPage = lazy(() => import('./pages/JourneyPage'));
@@ -350,6 +351,16 @@ export default function App() {
             <ProtectedRoute>
               <DeferredRoute>
                 <AtlasPage />
+              </DeferredRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            <ProtectedRoute>
+              <DeferredRoute>
+                <FriendsPage />
               </DeferredRoute>
             </ProtectedRoute>
           }

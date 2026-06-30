@@ -1,9 +1,8 @@
+import type { TripOverview } from '@trippi/shared';
 import { describe, expect, it, vi } from 'vitest';
-import { buildTrip } from '../../../tests/helpers/factories';
 import { render, screen, within } from '../../../tests/helpers/render';
 import type { GroupDecision } from '../Decisions/groupDecisionModel';
 import CommandCenterPanel from './CommandCenterPanel';
-import { buildTripCommandCenter } from './commandCenterModel';
 
 function buildDecision(): GroupDecision {
   return {
@@ -58,26 +57,78 @@ function buildDecision(): GroupDecision {
   };
 }
 
-describe('CommandCenterPanel decision embedding', () => {
-  it('renders reusable group decisions inside the command center', () => {
+function buildOverview(): TripOverview {
+  return {
+    generated_at: '2026-06-30T12:00:00.000Z',
+    trip: {
+      id: 808,
+      title: 'Lisbon Crew',
+      start_date: '2026-07-02',
+      end_date: '2026-07-06',
+      currency: 'EUR',
+    },
+    summary: {
+      phase: 'before',
+      subtitle: 'Pre-trip readiness',
+      trip_date_label: 'Jul 2 - Jul 6',
+      trip_length_label: '5 days',
+      traveler_label: '1 traveler',
+      next_deadline_label: 'Tomorrow',
+      flagged_count: 1,
+      clear_count: 0,
+    },
+    readiness: {
+      title: 'Trip readiness checklist',
+      summary: '4/5 checks ready',
+      status: 'attention',
+      completed_count: 4,
+      total_count: 5,
+      caveat: 'Document follow-ups use explicit document tasks and files linked to reservations.',
+      items: [
+        {
+          id: 'decisions',
+          title: 'Resolve group decisions',
+          summary: '1 decision follow-up',
+          status: 'attention',
+          count: 1,
+          action: 'decisions',
+          action_label: 'Open decisions',
+        },
+      ],
+    },
+    boards: [
+      {
+        id: 'decisions',
+        title: 'Pending decisions',
+        summary: '1 explicit decision follow-up',
+        status: 'attention',
+        count: 1,
+        action: 'decisions',
+        action_label: 'Open decisions',
+        empty_title: 'No decisions queued',
+        empty_text: 'Open a decision or add a decision-category task when the group needs to choose.',
+        items: [
+          {
+            id: 'decision-20',
+            source: 'decision',
+            source_id: 20,
+            title: 'Approve the Fado night plan',
+            meta: 'Closed, awaiting final selection',
+            status: 'urgent',
+          },
+        ],
+      },
+    ],
+  };
+}
+
+describe('CommandCenterPanel overview rendering', () => {
+  it('renders backend overview boards and reusable group decisions', () => {
     const decision = buildDecision();
-    const center = buildTripCommandCenter({
-      trip: buildTrip({ id: 808, title: 'Lisbon Crew', start_date: '2026-07-02', end_date: '2026-07-06' }),
-      days: [],
-      assignments: {},
-      reservations: [],
-      budgetItems: [],
-      packingItems: [],
-      todoItems: [],
-      files: [],
-      tripMembers: [{ id: 1, username: 'Maya', avatar_url: null } as any],
-      groupDecisions: [decision],
-      now: new Date('2026-06-30T12:00:00Z'),
-    });
 
     render(
       <CommandCenterPanel
-        center={center}
+        center={buildOverview()}
         onNavigate={vi.fn()}
         decisions={[decision]}
         decisionMembers={[{ id: 1, username: 'Maya', avatar_url: null }]}
@@ -88,8 +139,11 @@ describe('CommandCenterPanel decision embedding', () => {
     );
 
     const decisionList = within(screen.getByTestId('group-decision-list'));
+    expect(screen.getByText('Lisbon Crew overview')).toBeInTheDocument();
+    expect(screen.getByText('Pending decisions')).toBeInTheDocument();
+    expect(screen.getByText('Closed, awaiting final selection')).toBeInTheDocument();
     expect(decisionList.getByText('Approve the Fado night plan')).toBeInTheDocument();
     expect(decisionList.getByText('Closed')).toBeInTheDocument();
-    expect(screen.getByText('Ready to finalize Book Clube de Fado')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Finalize Book Clube de Fado' })).toBeInTheDocument();
   });
 });

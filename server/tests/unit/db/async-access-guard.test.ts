@@ -65,6 +65,8 @@ describe('async DB access guardrails', () => {
       'nest/system-notices/system-notices.service.ts',
       'nest/files/files-download.controller.ts',
       'nest/addons/addons.service.ts',
+      'nest/friends/friends.controller.ts',
+      'nest/friends/friends.service.ts',
       'nest/booking-intents/booking-intents.controller.ts',
       'nest/booking-intents/booking-intents.service.ts',
       'nest/booking-options/booking-options.controller.ts',

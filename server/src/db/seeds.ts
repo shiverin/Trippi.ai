@@ -143,6 +143,15 @@ function seedAddons(db: Database.Database): void {
         sort_order: 11,
       },
       {
+        id: 'friends',
+        name: 'Friends',
+        description: 'Find travelers, follow friends, and browse shared trip profiles',
+        type: 'global',
+        icon: 'Users',
+        enabled: 1,
+        sort_order: 12,
+      },
+      {
         id: 'mcp',
         name: 'MCP',
         description: 'Model Context Protocol for AI assistant integration',

@@ -1,5 +1,9 @@
 import {
   channelTestResultSchema,
+  friendFollowResponseSchema,
+  friendProfileResponseSchema,
+  friendsHubResponseSchema,
+  friendsSearchResponseSchema,
   inAppListResultSchema,
   mapsAutocompleteResultSchema,
   mapsPlaceDetailsResultSchema,
@@ -8,6 +12,7 @@ import {
   mapsReverseResultSchema,
   mapsSearchResultSchema,
   mapsTransportRouteResultSchema,
+  tripOverviewResponseSchema,
   unreadCountResultSchema,
   weatherResultSchema,
   type AccommodationCreateRequest,
@@ -41,6 +46,10 @@ import {
   type FileLinkRequest,
   type FileUpdateRequest,
   type ForgotPasswordRequest,
+  type FriendFollowResponse,
+  type FriendProfileResponse,
+  type FriendsHubResponse,
+  type FriendsSearchResponse,
   type InAppListResult,
   type JourneyAddTripRequest,
   type JourneyCreateRequest,
@@ -78,6 +87,7 @@ import {
   type TripAddMemberRequest,
   type TripCopyRequest,
   type TripCreateRequest,
+  type TripOverviewResponse,
   type TripUpdateRequest,
   type UnreadCountResult,
   type UpdateCategoryRequest,
@@ -428,6 +438,10 @@ export const tripsApi = {
   list: (params?: Record<string, unknown>) => apiClient.get('/trips', { params }).then((r) => r.data),
   create: (data: TripCreateRequest) => apiClient.post('/trips', data).then((r) => r.data),
   get: (id: number | string) => apiClient.get(`/trips/${id}`).then((r) => r.data),
+  overview: (id: number | string): Promise<TripOverviewResponse> =>
+    apiClient
+      .get(`/trips/${id}/overview`)
+      .then((r) => parseInDev(tripOverviewResponseSchema, r.data, 'GET /trips/:id/overview')),
   update: (id: number | string, data: TripUpdateRequest) => apiClient.put(`/trips/${id}`, data).then((r) => r.data),
   delete: (id: number | string) => apiClient.delete(`/trips/${id}`).then((r) => r.data),
   uploadCover: (id: number | string, formData: FormData) =>
@@ -1173,6 +1187,27 @@ export const shareApi = {
     apiClient.post(`/trips/${tripId}/share-link`, perms || {}).then((r) => r.data),
   deleteLink: (tripId: number | string) => apiClient.delete(`/trips/${tripId}/share-link`).then((r) => r.data),
   getSharedTrip: (token: string) => apiClient.get(`/shared/${token}`).then((r) => r.data),
+};
+
+export const friendsApi = {
+  hub: (): Promise<FriendsHubResponse> =>
+    apiClient.get('/friends').then((r) => parseInDev(friendsHubResponseSchema, r.data, 'GET /friends')),
+  search: (q: string): Promise<FriendsSearchResponse> =>
+    apiClient
+      .get('/friends/search', { params: { q } })
+      .then((r) => parseInDev(friendsSearchResponseSchema, r.data, 'GET /friends/search')),
+  profile: (username: string): Promise<FriendProfileResponse> =>
+    apiClient
+      .get(`/friends/users/${encodeURIComponent(username)}`)
+      .then((r) => parseInDev(friendProfileResponseSchema, r.data, 'GET /friends/users/:username')),
+  follow: (userId: number): Promise<FriendFollowResponse> =>
+    apiClient
+      .post(`/friends/${userId}/follow`)
+      .then((r) => parseInDev(friendFollowResponseSchema, r.data, 'POST /friends/:userId/follow')),
+  unfollow: (userId: number): Promise<FriendFollowResponse> =>
+    apiClient
+      .delete(`/friends/${userId}/follow`)
+      .then((r) => parseInDev(friendFollowResponseSchema, r.data, 'DELETE /friends/:userId/follow')),
 };
 
 export const notificationsApi = {

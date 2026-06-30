@@ -75,6 +75,13 @@ function statusTone(status: CommandCenterStatus): CommandCenterStatus {
   return status === 'empty' ? 'attention' : status;
 }
 
+function statusLabel(status: CommandCenterStatus): string {
+  if (status === 'urgent') return 'Urgent';
+  if (status === 'attention') return 'Needs attention';
+  if (status === 'good') return 'On track';
+  return 'Empty';
+}
+
 function CommandCenterModuleCard({
   module,
   onNavigate,
@@ -82,9 +89,9 @@ function CommandCenterModuleCard({
   module: CommandCenterModule;
   onNavigate: (action: CommandCenterAction) => void;
 }) {
-  const Icon = MODULE_ICONS[module.id];
+  const Icon = MODULE_ICONS[module.action];
   const progress = module.progress ?? null;
-  const accent = MODULE_ACCENTS[module.id];
+  const accent = MODULE_ACCENTS[module.action];
   const hasItems = module.items.length > 0;
 
   return (
@@ -107,7 +114,7 @@ function CommandCenterModuleCard({
           className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${STATUS_CLASS[module.status]}`}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[module.status]}`} />
-          {module.statusLabel}
+          {statusLabel(module.status)}
         </span>
       </header>
 
@@ -136,7 +143,7 @@ function CommandCenterModuleCard({
           <div className="space-y-3">
             {module.items.map((item) => (
               <div key={item.id} className="grid grid-cols-[10px_minmax(0,1fr)] gap-3">
-                <span className={`mt-2 h-2 w-2 rounded-full ${DOT_CLASS[statusTone(item.tone || module.status)]}`} />
+                <span className={`mt-2 h-2 w-2 rounded-full ${DOT_CLASS[statusTone(item.status || module.status)]}`} />
                 <div className="min-w-0 border-b border-edge-faint pb-3 last:border-b-0 last:pb-0">
                   <div className="truncate text-sm font-medium text-content">{item.title}</div>
                   <div className="mt-0.5 text-xs text-content-muted">{item.meta}</div>
@@ -149,17 +156,19 @@ function CommandCenterModuleCard({
             <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-surface-tertiary text-content-muted">
               {module.status === 'good' ? <CheckCircle2 size={17} /> : <ClipboardList size={17} />}
             </div>
-            <h3 className="text-sm font-semibold text-content">{module.emptyTitle}</h3>
-            <p className="mt-1 text-sm leading-5 text-content-muted">{module.emptyText}</p>
+            <h3 className="text-sm font-semibold text-content">{module.empty_title ?? 'Nothing to review'}</h3>
+            <p className="mt-1 text-sm leading-5 text-content-muted">
+              {module.empty_text ?? 'This board is clear based on current trip data.'}
+            </p>
           </div>
         )}
 
         <button
           type="button"
-          onClick={() => onNavigate(module.id)}
+          onClick={() => onNavigate(module.action)}
           className="mt-5 inline-flex h-10 items-center justify-center gap-2 self-start rounded-lg bg-accent px-3.5 text-sm font-semibold text-accent-text hover:opacity-90"
         >
-          {module.actionLabel}
+          {module.action_label}
           <ArrowRight size={14} strokeWidth={2.4} />
         </button>
       </div>
@@ -168,8 +177,9 @@ function CommandCenterModuleCard({
 }
 
 function ReadinessChecklistCard({ center, onNavigate }: CommandCenterPanelProps) {
-  const checklist = center.readinessChecklist;
-  const progress = checklist.totalCount > 0 ? Math.round((checklist.completedCount / checklist.totalCount) * 100) : 0;
+  const checklist = center.readiness;
+  const progress =
+    checklist.total_count > 0 ? Math.round((checklist.completed_count / checklist.total_count) * 100) : 0;
 
   return (
     <section className="mt-5 rounded-lg border border-edge-secondary bg-surface-card px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
@@ -191,7 +201,7 @@ function ReadinessChecklistCard({ center, onNavigate }: CommandCenterPanelProps)
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${STATUS_CLASS[checklist.status]}`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[checklist.status]}`} />
-              {checklist.completedCount}/{checklist.totalCount} ready
+              {checklist.completed_count}/{checklist.total_count} ready
             </span>
             <span className="text-xs font-medium tabular-nums text-content-faint">{progress}%</span>
           </div>
@@ -221,14 +231,14 @@ function ReadinessChecklistCard({ center, onNavigate }: CommandCenterPanelProps)
               </span>
             </span>
             <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-accent">
-              {item.actionLabel}
+              {item.action_label}
               <ArrowRight size={13} strokeWidth={2.5} className="transition group-hover:translate-x-0.5" />
             </span>
           </button>
         ))}
       </div>
 
-      <p className="mt-3 text-xs leading-5 text-content-faint">{checklist.caveat}</p>
+      {checklist.caveat && <p className="mt-3 text-xs leading-5 text-content-faint">{checklist.caveat}</p>}
     </section>
   );
 }
@@ -245,8 +255,7 @@ export default function CommandCenterPanel({
   onDecisionClose,
   onDecisionFinalize,
 }: CommandCenterPanelProps) {
-  const flaggedModules = center.modules.filter((module) => module.status === 'attention' || module.status === 'urgent');
-  const clearModules = center.modules.filter((module) => module.status === 'good').length;
+  const { summary } = center;
 
   return (
     <div className="h-full overflow-y-auto overscroll-contain bg-surface-secondary pb-[var(--bottom-nav-h)]">
@@ -260,9 +269,11 @@ export default function CommandCenterPanel({
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-content-faint">
-                    {center.subtitle}
+                    {summary.subtitle}
                   </p>
-                  <h1 className="mt-1 truncate text-2xl font-semibold text-content sm:text-3xl">{center.title}</h1>
+                  <h1 className="mt-1 truncate text-2xl font-semibold text-content sm:text-3xl">
+                    {center.trip.title} overview
+                  </h1>
                 </div>
               </div>
             </div>
@@ -270,19 +281,19 @@ export default function CommandCenterPanel({
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 lg:min-w-[520px]">
               <div className="border-l border-edge-faint pl-3">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-content-faint">Dates</dt>
-                <dd className="mt-1 truncate text-sm font-semibold text-content">{center.tripDateLabel}</dd>
+                <dd className="mt-1 truncate text-sm font-semibold text-content">{summary.trip_date_label}</dd>
               </div>
               <div className="border-l border-edge-faint pl-3">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-content-faint">Length</dt>
-                <dd className="mt-1 text-sm font-semibold text-content">{center.tripLengthLabel}</dd>
+                <dd className="mt-1 text-sm font-semibold text-content">{summary.trip_length_label}</dd>
               </div>
               <div className="border-l border-edge-faint pl-3">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-content-faint">Group</dt>
-                <dd className="mt-1 text-sm font-semibold text-content">{center.travelerLabel}</dd>
+                <dd className="mt-1 text-sm font-semibold text-content">{summary.traveler_label}</dd>
               </div>
               <div className="border-l border-edge-faint pl-3">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-content-faint">Next</dt>
-                <dd className="mt-1 truncate text-sm font-semibold text-content">{center.nextDeadlineLabel}</dd>
+                <dd className="mt-1 truncate text-sm font-semibold text-content">{summary.next_deadline_label}</dd>
               </div>
             </dl>
           </div>
@@ -290,11 +301,11 @@ export default function CommandCenterPanel({
           <div className="mt-5 flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-2 rounded-full bg-surface-tertiary px-3 py-1.5 text-xs font-semibold text-content-muted">
               <span className="h-2 w-2 rounded-full bg-amber-500" />
-              {flaggedModules.length} module{flaggedModules.length === 1 ? '' : 's'} need review
+              {summary.flagged_count} board{summary.flagged_count === 1 ? '' : 's'} need review
             </span>
             <span className="inline-flex items-center gap-2 rounded-full bg-surface-tertiary px-3 py-1.5 text-xs font-semibold text-content-muted">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {clearModules} on track
+              {summary.clear_count} on track
             </span>
           </div>
         </section>
@@ -321,7 +332,7 @@ export default function CommandCenterPanel({
         <ReadinessChecklistCard center={center} onNavigate={onNavigate} />
 
         <section className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {center.modules.map((module) => (
+          {center.boards.map((module) => (
             <CommandCenterModuleCard key={module.id} module={module} onNavigate={onNavigate} />
           ))}
         </section>

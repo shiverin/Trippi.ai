@@ -3521,6 +3521,44 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_billing_webhook_events_processed_at ON billing_webhook_events(processed_at);
       `);
     },
+    () => {
+      // Friends social graph and explicit opt-in profile shelf for shared trips.
+      try {
+        db.exec('ALTER TABLE share_tokens ADD COLUMN profile_visible INTEGER NOT NULL DEFAULT 0');
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column name')) throw err;
+      }
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS user_follows (
+          follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          followed_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (follower_id, followed_id),
+          CHECK (follower_id != followed_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_follows_follower ON user_follows(follower_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_user_follows_followed ON user_follows(followed_id, created_at DESC);
+
+        INSERT INTO addons (id, name, description, type, icon, enabled, config, sort_order)
+        VALUES (
+          'friends',
+          'Friends',
+          'Find travelers, follow friends, and browse shared trip profiles',
+          'global',
+          'Users',
+          1,
+          '{}',
+          12
+        )
+        ON CONFLICT(id) DO UPDATE SET
+          name = excluded.name,
+          description = excluded.description,
+          type = excluded.type,
+          icon = excluded.icon,
+          enabled = excluded.enabled,
+          sort_order = excluded.sort_order;
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

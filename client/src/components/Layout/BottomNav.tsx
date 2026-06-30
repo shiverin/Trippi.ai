@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { CalendarDays, Compass, Globe, LayoutGrid, Plus } from 'lucide-react';
+import { CalendarDays, Compass, Globe, LayoutGrid, Plus, Users } from 'lucide-react';
 import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
@@ -8,6 +8,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 const ADDON_NAV: Record<string, { icon: LucideIcon; labelKey: string }> = {
   vacay: { icon: CalendarDays, labelKey: 'admin.addons.catalog.vacay.name' },
   atlas: { icon: Globe, labelKey: 'admin.addons.catalog.atlas.name' },
+  friends: { icon: Users, labelKey: 'admin.addons.catalog.friends.name' },
   journey: { icon: Compass, labelKey: 'admin.addons.catalog.journey.name' },
 };
 

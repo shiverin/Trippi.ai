@@ -12,6 +12,8 @@ import Modal from '../shared/Modal';
 import { LockedState } from '../shared/PremiumGate';
 import { useToast } from '../shared/Toast';
 
+type SharePermKey = 'share_map' | 'share_bookings' | 'share_packing' | 'share_budget' | 'share_collab';
+
 interface AvatarProps {
   username: string;
   avatarUrl: string | null;
@@ -68,6 +70,7 @@ function ShareLinkSection({
     share_packing: false,
     share_budget: false,
     share_collab: false,
+    profile_visible: false,
   });
   const toast = useToast();
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,6 +93,7 @@ function ShareLinkSection({
             share_packing: d.share_packing ?? false,
             share_budget: d.share_budget ?? false,
             share_collab: d.share_collab ?? false,
+            profile_visible: d.profile_visible ?? false,
           });
         setLoading(false);
       })
@@ -97,6 +101,15 @@ function ShareLinkSection({
   }, [tripId]);
 
   const shareUrl = shareToken ? `${window.location.origin}/shared/${shareToken}` : null;
+  const profileVisibleLabel = t('share.profileVisible');
+  const profileVisibleHint = t('share.profileVisibleHint');
+  const shareOptions: { key: SharePermKey; label: string; always?: boolean }[] = [
+    { key: 'share_map', label: t('share.permMap'), always: true },
+    { key: 'share_bookings', label: t('share.permBookings') },
+    { key: 'share_packing', label: t('share.permPacking') },
+    { key: 'share_budget', label: t('share.permBudget') },
+    { key: 'share_collab', label: t('share.permCollab') },
+  ];
 
   const handleCreate = async () => {
     try {
@@ -107,7 +120,7 @@ function ShareLinkSection({
     }
   };
 
-  const handleUpdatePerms = async (key: string, val: boolean) => {
+  const handleUpdatePerms = async (key: SharePermKey | 'profile_visible', val: boolean) => {
     const newPerms = { ...perms, [key]: val };
     setPerms(newPerms);
     if (shareToken) {
@@ -153,13 +166,7 @@ function ShareLinkSection({
 
       {/* Permission checkboxes */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-        {[
-          { key: 'share_map', label: t('share.permMap'), always: true },
-          { key: 'share_bookings', label: t('share.permBookings') },
-          { key: 'share_packing', label: t('share.permPacking') },
-          { key: 'share_budget', label: t('share.permBudget') },
-          { key: 'share_collab', label: t('share.permCollab') },
-        ].map((opt) => (
+        {shareOptions.map((opt) => (
           <button
             key={opt.key}
             onClick={() => !opt.always && handleUpdatePerms(opt.key, !perms[opt.key])}
@@ -186,6 +193,59 @@ function ShareLinkSection({
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={() => handleUpdatePerms('profile_visible', !perms.profile_visible)}
+        aria-pressed={perms.profile_visible}
+        className="border border-edge bg-surface-secondary"
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+          width: '100%',
+          padding: '9px 10px',
+          borderRadius: 10,
+          marginBottom: 12,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+        }}
+      >
+        <span
+          style={{
+            width: 34,
+            height: 20,
+            borderRadius: 999,
+            padding: 2,
+            background: perms.profile_visible ? 'var(--text-primary)' : 'var(--border-primary)',
+            transition: 'background 0.15s',
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              display: 'block',
+              width: 16,
+              height: 16,
+              borderRadius: '50%',
+              background: perms.profile_visible ? 'var(--bg-primary)' : 'var(--text-muted)',
+              transform: perms.profile_visible ? 'translateX(14px)' : 'translateX(0)',
+              transition: 'transform 0.15s',
+            }}
+          />
+        </span>
+        <span style={{ minWidth: 0 }}>
+          <span className="text-content" style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>
+            {profileVisibleLabel === 'share.profileVisible' ? 'Show on profile' : profileVisibleLabel}
+          </span>
+          <span className="text-content-faint" style={{ display: 'block', marginTop: 2, fontSize: 10, lineHeight: 1.45 }}>
+            {profileVisibleHint === 'share.profileVisibleHint'
+              ? 'Adds this trip card to your Friends profile. Section permissions stay separate.'
+              : profileVisibleHint}
+          </span>
+        </span>
+      </button>
 
       {shareUrl ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

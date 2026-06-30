@@ -346,6 +346,46 @@ describe('TripMembersModal', () => {
     });
   });
 
+  it('FE-COMP-MEMBERS-021b: toggling profile visibility posts profile_visible without changing section intent', async () => {
+    const user = userEvent.setup();
+    seedStore(usePermissionsStore, { permissions: { share_manage: 'trip_owner' } });
+    seedStore(useTripStore, { trip: buildTrip({ id: 1, user_id: ownerUser.id }) });
+
+    let postedPerms: Record<string, unknown> | null = null;
+    server.use(
+      http.get('/api/trips/1/share-link', () =>
+        HttpResponse.json({
+          token: 'tok99',
+          share_map: true,
+          share_bookings: true,
+          share_packing: false,
+          share_budget: false,
+          share_collab: false,
+          profile_visible: false,
+        })
+      ),
+      http.post('/api/trips/1/share-link', async ({ request }) => {
+        postedPerms = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ token: 'tok99', ...postedPerms });
+      })
+    );
+
+    render(<TripMembersModal {...defaultProps} />);
+    const toggle = await screen.findByText('Show on profile');
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(postedPerms).toMatchObject({
+        profile_visible: true,
+        share_map: true,
+        share_bookings: true,
+        share_packing: false,
+        share_budget: false,
+        share_collab: false,
+      });
+    });
+  });
+
   // ── Member management (022-025) ────────────────────────────────────────────
 
   it('FE-COMP-MEMBERS-022: adding a member via select + invite calls POST', async () => {

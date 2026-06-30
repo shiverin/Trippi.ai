@@ -17,10 +17,10 @@ import {
 import { server } from '../../tests/helpers/msw/server';
 import { act, fireEvent, render, screen, waitFor } from '../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../tests/helpers/store';
+import type { GroupDecision } from '../components/Decisions/groupDecisionModel';
 import { useAuthStore } from '../store/authStore';
 import { usePermissionsStore } from '../store/permissionsStore';
 import { useTripStore } from '../store/tripStore';
-import type { GroupDecision } from '../components/Decisions/groupDecisionModel';
 import type { Place } from '../types';
 import TripPlannerPage from './TripPlannerPage';
 
@@ -586,8 +586,8 @@ describe('TripPlannerPage', () => {
     });
   });
 
-  describe('FE-PAGE-PLANNER-014A: Command tab renders command center', () => {
-    it('shows the group trip command center modules after clicking Command', async () => {
+  describe('FE-PAGE-PLANNER-014A: Overview tab renders backend overview', () => {
+    it('shows backend overview boards after clicking Overview', async () => {
       server.use(
         http.get('/api/addons', () =>
           HttpResponse.json({
@@ -596,6 +596,172 @@ describe('TripPlannerPage', () => {
               { id: 'documents', type: 'documents' },
               { id: 'packing', type: 'packing' },
             ],
+          })
+        ),
+        http.get('/api/trips/:id/overview', ({ params }) =>
+          HttpResponse.json({
+            overview: {
+              generated_at: '2026-06-30T12:00:00.000Z',
+              trip: {
+                id: Number(params.id),
+                title: 'Lisbon Crew',
+                start_date: '2026-07-02',
+                end_date: '2026-07-06',
+                currency: 'EUR',
+              },
+              summary: {
+                phase: 'before',
+                subtitle: 'Pre-trip readiness',
+                trip_date_label: 'Jul 2 - Jul 6',
+                trip_length_label: '5 days',
+                traveler_label: '2 travelers',
+                next_deadline_label: 'Today',
+                flagged_count: 4,
+                clear_count: 1,
+              },
+              readiness: {
+                title: 'Trip readiness checklist',
+                summary: '1/5 checks ready',
+                status: 'attention',
+                completed_count: 1,
+                total_count: 5,
+                caveat: 'Document follow-ups use explicit document tasks and files linked to reservations.',
+                items: [
+                  {
+                    id: 'decisions',
+                    title: 'Resolve group decisions',
+                    summary: '1 decision follow-up',
+                    status: 'attention',
+                    count: 1,
+                    action: 'decisions',
+                    action_label: 'Open decisions',
+                  },
+                  {
+                    id: 'balances',
+                    title: 'Settle unpaid balances',
+                    summary: '1 unpaid share',
+                    status: 'attention',
+                    count: 1,
+                    action: 'budget',
+                    action_label: 'Open costs',
+                  },
+                  {
+                    id: 'bookings',
+                    title: 'Confirm bookings',
+                    summary: '1 booking follow-up',
+                    status: 'attention',
+                    count: 1,
+                    action: 'bookings',
+                    action_label: 'Open bookings',
+                  },
+                  {
+                    id: 'packing',
+                    title: 'Pack remaining items',
+                    summary: '1 unpacked item',
+                    status: 'attention',
+                    count: 1,
+                    action: 'packing',
+                    action_label: 'Open packing',
+                  },
+                  {
+                    id: 'documents',
+                    title: 'Clear document follow-ups',
+                    summary: '1 document follow-up',
+                    status: 'attention',
+                    count: 1,
+                    action: 'files',
+                    action_label: 'Open files',
+                  },
+                ],
+              },
+              boards: [
+                {
+                  id: 'decisions',
+                  title: 'Pending decisions',
+                  summary: '1 explicit decision follow-up',
+                  status: 'attention',
+                  count: 1,
+                  action: 'decisions',
+                  action_label: 'Open decisions',
+                  empty_title: 'No decisions queued',
+                  empty_text: 'Open a decision or add a decision-category task when the group needs to choose.',
+                  items: [
+                    {
+                      id: 'todo-81',
+                      source: 'todo',
+                      source_id: 81,
+                      title: 'Vote on Fado night',
+                      meta: 'Decision task',
+                      status: 'attention',
+                    },
+                  ],
+                },
+                {
+                  id: 'budget',
+                  title: 'Budget health',
+                  summary: '1 cost follow-up',
+                  status: 'attention',
+                  count: 1,
+                  action: 'budget',
+                  action_label: 'Open costs',
+                  metric: 'EUR 100',
+                  progress: 50,
+                  items: [],
+                },
+                {
+                  id: 'bookings',
+                  title: 'Booking tasks',
+                  summary: '1 booking follow-up',
+                  status: 'attention',
+                  count: 1,
+                  action: 'bookings',
+                  action_label: 'Review bookings',
+                  items: [],
+                },
+                {
+                  id: 'packing',
+                  title: 'Packing assignments',
+                  summary: '1 item still open',
+                  status: 'attention',
+                  count: 1,
+                  action: 'packing',
+                  action_label: 'Open packing',
+                  metric: '0% packed',
+                  progress: 0,
+                  items: [],
+                },
+                {
+                  id: 'plan',
+                  title: 'Itinerary conflicts',
+                  summary: '1 schedule conflict',
+                  status: 'urgent',
+                  count: 1,
+                  action: 'plan',
+                  action_label: 'Resolve in plan',
+                  items: [],
+                },
+                {
+                  id: 'deadlines',
+                  title: 'Upcoming deadlines',
+                  summary: '1 date coming up',
+                  status: 'attention',
+                  count: 1,
+                  action: 'deadlines',
+                  action_label: 'Open deadlines',
+                  items: [],
+                },
+                {
+                  id: 'files',
+                  title: 'Document follow-ups',
+                  summary: '1 document follow-up',
+                  status: 'attention',
+                  count: 1,
+                  action: 'files',
+                  action_label: 'Open files',
+                  items: [],
+                },
+              ],
+            },
           })
         )
       );
@@ -664,19 +830,19 @@ describe('TripPlannerPage', () => {
       vi.useRealTimers();
 
       await screen.findByTitle('Files');
-      const commandTab = await screen.findByTitle('Command');
-      fireEvent.click(commandTab);
+      const overviewTab = await screen.findByTitle('Overview');
+      fireEvent.click(overviewTab);
 
       await waitFor(() => {
-        expect(screen.getByText('Lisbon Crew command center')).toBeInTheDocument();
+        expect(screen.getByText('Lisbon Crew overview')).toBeInTheDocument();
       });
 
       expect(screen.getByText('Trip readiness checklist')).toBeInTheDocument();
       expect(screen.getByText('Resolve group decisions')).toBeInTheDocument();
       expect(screen.getByText('Settle unpaid balances')).toBeInTheDocument();
-      expect(screen.getByText('Confirm missing bookings')).toBeInTheDocument();
+      expect(screen.getByText('Confirm bookings')).toBeInTheDocument();
       expect(screen.getByText('Pack remaining items')).toBeInTheDocument();
-      expect(screen.getByText('Attach missing documents')).toBeInTheDocument();
+      expect(screen.getByText('Clear document follow-ups')).toBeInTheDocument();
       expect(screen.getByText('Pending decisions')).toBeInTheDocument();
       expect(screen.getByText('Budget health')).toBeInTheDocument();
       expect(screen.getByText('Booking tasks')).toBeInTheDocument();
@@ -684,11 +850,40 @@ describe('TripPlannerPage', () => {
       expect(screen.getByText('Itinerary conflicts')).toBeInTheDocument();
       expect(screen.getByText('Upcoming deadlines')).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: /Attach missing documents/i }));
+      fireEvent.click(screen.getAllByRole('button', { name: /Open files/i })[0]);
 
       await waitFor(() => {
         expect(screen.getByTestId('file-manager')).toBeInTheDocument();
       });
+    });
+
+    it('shows a retry state when the overview endpoint fails', async () => {
+      server.use(
+        http.get('/api/addons', () => HttpResponse.json({ addons: [{ id: 'documents', type: 'documents' }] })),
+        http.get('/api/trips/:id/overview', () => HttpResponse.json({ error: 'Nope' }, { status: 500 }))
+      );
+
+      vi.useFakeTimers();
+
+      const tripId = 809;
+      sessionStorage.removeItem(`trip-tab-${tripId}`);
+      seedTripStore({ id: tripId, tripName: 'Lisbon Crew' });
+
+      renderPlannerPage(tripId);
+
+      act(() => {
+        vi.runAllTimers();
+      });
+
+      vi.useRealTimers();
+
+      const overviewTab = await screen.findByTitle('Overview');
+      fireEvent.click(overviewTab);
+
+      await waitFor(() => {
+        expect(screen.getByText('Overview unavailable')).toBeInTheDocument();
+      });
+      expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
     });
   });
 

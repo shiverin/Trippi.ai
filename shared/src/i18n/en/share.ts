@@ -12,5 +12,7 @@ const share: TranslationStrings = {
   'share.permPacking': 'Packing',
   'share.permBudget': 'Budget',
   'share.permCollab': 'Chat',
+  'share.profileVisible': 'Show on profile',
+  'share.profileVisibleHint': 'Adds this trip card to your Friends profile. Section permissions stay separate.',
 };
 export default share;

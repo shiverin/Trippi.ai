@@ -18,14 +18,17 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useTripStore } from '../store/tripStore';
 // MemoriesPanel moved to Journey addon
 import {
+  AlertTriangle,
   FolderPlus,
   ListTodo,
+  Loader2,
   PackageCheck,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   Plus,
+  RefreshCw,
   Trash2,
   Upload,
   X,
@@ -243,6 +246,46 @@ function ListsContainer({
   );
 }
 
+function OverviewUnavailablePanel({
+  loading,
+  error,
+  onRetry,
+}: {
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="h-full overflow-y-auto bg-surface-secondary px-4 py-6 sm:px-6 lg:px-8">
+      <section className="mx-auto flex min-h-[360px] w-full max-w-7xl items-center justify-center rounded-lg border border-edge-secondary bg-surface-card p-6 text-center shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+        <div className="max-w-md">
+          <div className="mx-auto mb-4 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-surface-tertiary text-content-muted">
+            {loading ? <Loader2 size={20} className="animate-spin" /> : <AlertTriangle size={20} />}
+          </div>
+          <h1 className="text-xl font-semibold text-content">
+            {loading ? 'Loading overview' : 'Overview unavailable'}
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-content-muted">
+            {loading
+              ? 'Loading the backend overview for this trip.'
+              : error || 'The overview could not be loaded from trip data.'}
+          </p>
+          {!loading && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-text hover:opacity-90"
+            >
+              <RefreshCw size={15} strokeWidth={2.3} />
+              Retry
+            </button>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function TripPlannerPage(): React.ReactElement | null {
   const isDarkMode = useDocumentDarkMode();
   // Page = wiring container: the entire planner state machine (store, tabs,
@@ -410,7 +453,10 @@ export default function TripPlannerPage(): React.ReactElement | null {
     defaultZoom,
     fontStyle,
     splashDone,
-    commandCenter,
+    tripOverview,
+    tripOverviewLoading,
+    tripOverviewError,
+    loadTripOverview,
   } = useTripPlanner();
 
   const poi = usePoiExplore();
@@ -592,19 +638,29 @@ export default function TripPlannerPage(): React.ReactElement | null {
           overscrollBehavior: 'contain',
         }}
       >
-        {activeTab === 'command' && commandCenter && (
-          <CommandCenterPanel
-            center={commandCenter}
-            onNavigate={handleCommandCenterNavigate}
-            decisions={groupDecisions}
-            decisionMembers={tripMembers}
-            currentUserId={meId > 0 ? meId : null}
-            canManageDecisions={can('trip_edit', trip)}
-            decisionBusyId={groupDecisionBusyId}
-            onDecisionRespond={handleGroupDecisionRespond}
-            onDecisionClose={handleGroupDecisionClose}
-            onDecisionFinalize={handleGroupDecisionFinalize}
-          />
+        {activeTab === 'command' && (
+          <>
+            {tripOverview ? (
+              <CommandCenterPanel
+                center={tripOverview}
+                onNavigate={handleCommandCenterNavigate}
+                decisions={groupDecisions}
+                decisionMembers={tripMembers}
+                currentUserId={meId > 0 ? meId : null}
+                canManageDecisions={can('trip_edit', trip)}
+                decisionBusyId={groupDecisionBusyId}
+                onDecisionRespond={handleGroupDecisionRespond}
+                onDecisionClose={handleGroupDecisionClose}
+                onDecisionFinalize={handleGroupDecisionFinalize}
+              />
+            ) : (
+              <OverviewUnavailablePanel
+                loading={tripOverviewLoading || !tripOverviewError}
+                error={tripOverviewError}
+                onRetry={loadTripOverview}
+              />
+            )}
+          </>
         )}
 
         {activeTab === 'plan' && (

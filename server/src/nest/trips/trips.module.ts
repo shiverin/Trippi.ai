@@ -1,3 +1,4 @@
+import { TripsOverviewService } from './trips-overview.service';
 import { TripsController } from './trips.controller';
 import { TripsService } from './trips.service';
 import { Module } from '@nestjs/common';
@@ -6,6 +7,6 @@ import { Module } from '@nestjs/common';
  *  not capture the nested sub-domain mounts (collab, files, ...). */
 @Module({
   controllers: [TripsController],
-  providers: [TripsService],
+  providers: [TripsService, TripsOverviewService],
 })
 export class TripsModule {}

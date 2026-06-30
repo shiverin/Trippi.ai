@@ -40,6 +40,7 @@ export class TripShareController {
       share_packing?: boolean;
       share_budget?: boolean;
       share_collab?: boolean;
+      profile_visible?: boolean;
     },
     @Res({ passthrough: true }) res: Response,
   ) {
@@ -50,6 +51,7 @@ export class TripShareController {
       share_packing: body.share_packing,
       share_budget: body.share_budget,
       share_collab: body.share_collab,
+      profile_visible: body.profile_visible,
     });
     // 201 only on first creation; an update answers 200, mirroring the legacy route.
     res.status(result.created ? 201 : 200);

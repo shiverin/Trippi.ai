@@ -9,11 +9,9 @@ import {
   authApi,
   decisionsApi,
   healthApi,
-  packingApi,
   tripsApi,
 } from '../../api/client';
 import { addListener, removeListener } from '../../api/websocket';
-import { buildTripCommandCenter } from '../../components/CommandCenter/commandCenterModel';
 import type {
   GroupDecision,
   GroupDecisionCreateContext,
@@ -35,9 +33,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useCanDo } from '../../store/permissionsStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useTripStore } from '../../store/tripStore';
-import type { Accommodation, Day, PackingBag, Place, Reservation, TripMember } from '../../types';
+import type { Accommodation, Day, Place, Reservation, TripMember, TripOverview } from '../../types';
 import { getDayRelevantPlaceIds } from '../../utils/dayRelevantPlaceIds';
-import type { PackingResponsibleMember } from '../../utils/packingResponsibilities';
 import {
   BOOKING_ROUTE_TRANSPORT_TYPES,
   buildDisplayedPinOrderMap,
@@ -176,10 +173,6 @@ export function useTripPlanner() {
   const [groupDecisionBusyId, setGroupDecisionBusyId] = useState<number | null>(null);
   const [linkedDecisionContext, setLinkedDecisionContext] = useState<GroupDecisionCreateContext | null>(null);
   const [groupDecisionCreateBusy, setGroupDecisionCreateBusy] = useState(false);
-  const [packingBags, setPackingBags] = useState<PackingBag[]>([]);
-  const [packingCategoryAssignees, setPackingCategoryAssignees] = useState<
-    Record<string, PackingResponsibleMember[] | undefined>
-  >({});
 
   const loadAccommodations = useCallback(() => {
     if (tripId) {
@@ -217,7 +210,7 @@ export function useTripPlanner() {
   }, []);
 
   const TRIP_TABS = [
-    { id: 'command', label: 'Command', icon: ClipboardList },
+    { id: 'command', label: t('trip.tabs.overview'), icon: ClipboardList },
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
     { id: 'transports', label: t('trip.tabs.transports'), icon: Train },
     { id: 'buchungen', label: t('trip.tabs.reservations'), shortLabel: t('trip.tabs.reservationsShort'), icon: Ticket },
@@ -249,6 +242,32 @@ export function useTripPlanner() {
     if (tabId === 'dateien' && (!files || files.length === 0)) tripActions.loadFiles?.(tripId);
   };
   const commandTabActive = activeTab === 'command';
+  const [tripOverview, setTripOverview] = useState<TripOverview | null>(null);
+  const [tripOverviewLoading, setTripOverviewLoading] = useState(false);
+  const [tripOverviewError, setTripOverviewError] = useState<string | null>(null);
+  const loadTripOverview = useCallback(async () => {
+    if (!tripId || Number.isNaN(tripId)) return;
+    setTripOverviewLoading(true);
+    setTripOverviewError(null);
+    try {
+      const data = await tripsApi.overview(tripId);
+      setTripOverview(data.overview);
+    } catch (err: unknown) {
+      setTripOverview(null);
+      setTripOverviewError(err instanceof Error ? err.message : t('common.unknownError'));
+    } finally {
+      setTripOverviewLoading(false);
+    }
+  }, [tripId, t]);
+
+  useEffect(() => {
+    setTripOverview(null);
+    setTripOverviewError(null);
+  }, [tripId]);
+
+  useEffect(() => {
+    if (commandTabActive) void loadTripOverview();
+  }, [commandTabActive, loadTripOverview]);
   const {
     leftWidth,
     rightWidth,
@@ -380,8 +399,7 @@ export function useTripPlanner() {
   const shownAssignmentRouteIds = bookingRoutePrefs.shownAssignmentIds;
   const isDayRouteVisible = useCallback(
     (dayId: number | null | undefined) =>
-      dayId != null &&
-      isRouteKeyVisible(bookingRoutesGlobalShown, hiddenDayRouteIds, shownDayRouteIds, String(dayId)),
+      dayId != null && isRouteKeyVisible(bookingRoutesGlobalShown, hiddenDayRouteIds, shownDayRouteIds, String(dayId)),
     [bookingRoutesGlobalShown, hiddenDayRouteIds, shownDayRouteIds]
   );
   const isReservationRouteDayVisible = useCallback(
@@ -461,10 +479,10 @@ export function useTripPlanner() {
     shownAssignmentRouteIds,
     transportCategoryIds,
   ]);
-  const visibleDayRouteIds = useMemo(() => days.filter((day) => isDayRouteVisible(day.id)).map((day) => day.id), [
-    days,
-    isDayRouteVisible,
-  ]);
+  const visibleDayRouteIds = useMemo(
+    () => days.filter((day) => isDayRouteVisible(day.id)).map((day) => day.id),
+    [days, isDayRouteVisible]
+  );
   const routeShown = selectedDayId != null && isDayRouteVisible(selectedDayId);
   const routeMapEnabled = visibleDayRouteIds.length > 0 || Object.keys(visibleAssignmentRouteIds).length > 0;
   const toggleBookingRoutesGlobal = useCallback(() => {
@@ -600,35 +618,6 @@ export function useTripPlanner() {
     }
   }, [tripId]);
 
-  useEffect(() => {
-    if (!tripId || !enabledAddons.packing) {
-      setPackingBags([]);
-      setPackingCategoryAssignees({});
-      return;
-    }
-    if (!commandTabActive) return;
-
-    let cancelled = false;
-    Promise.allSettled([packingApi.listBags(tripId), packingApi.getCategoryAssignees(tripId)])
-      .then(([bagsResult, assigneesResult]) => {
-        if (cancelled) return;
-        setPackingBags(bagsResult.status === 'fulfilled' ? bagsResult.value.bags || [] : []);
-        setPackingCategoryAssignees(
-          assigneesResult.status === 'fulfilled' ? assigneesResult.value.assignees || {} : {}
-        );
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPackingBags([]);
-          setPackingCategoryAssignees({});
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tripId, enabledAddons.packing, commandTabActive]);
-
   useTripWebSocket(tripId);
 
   useEffect(() => {
@@ -667,18 +656,24 @@ export function useTripPlanner() {
       if (event.type === 'joined') {
         decisionsApi
           .list(tripId)
-          .then((data) => setGroupDecisions(Array.isArray(data.decisions) ? data.decisions : []))
+          .then((data) => {
+            setGroupDecisions(Array.isArray(data.decisions) ? data.decisions : []);
+            if (commandTabActive) void loadTripOverview();
+          })
           .catch(() => {});
         return;
       }
       if (event.type !== 'decision:created' && event.type !== 'decision:updated') return;
       const decision = event.decision as GroupDecision | undefined;
-      if (decision?.id) replaceGroupDecision(decision);
+      if (decision?.id) {
+        replaceGroupDecision(decision);
+        if (commandTabActive) void loadTripOverview();
+      }
     };
 
     addListener(handleDecisionEvent);
     return () => removeListener(handleDecisionEvent);
-  }, [tripId, replaceGroupDecision]);
+  }, [tripId, replaceGroupDecision, commandTabActive, loadTripOverview]);
 
   const handleLinkedDecisionCreate = useCallback(
     async (values: GroupDecisionCreateValues) => {
@@ -693,6 +688,7 @@ export function useTripPlanner() {
           links: linkedDecisionContext.links,
         });
         replaceGroupDecision(result.decision);
+        if (commandTabActive) void loadTripOverview();
         setLinkedDecisionContext(null);
         toast.success('Decision created');
       } catch (err: unknown) {
@@ -701,7 +697,7 @@ export function useTripPlanner() {
         setGroupDecisionCreateBusy(false);
       }
     },
-    [tripId, linkedDecisionContext, replaceGroupDecision, toast, t]
+    [tripId, linkedDecisionContext, replaceGroupDecision, commandTabActive, loadTripOverview, toast, t]
   );
 
   const handleGroupDecisionRespond = useCallback(
@@ -714,13 +710,14 @@ export function useTripPlanner() {
           response,
         });
         replaceGroupDecision(result.decision);
+        if (commandTabActive) void loadTripOverview();
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : t('common.unknownError'));
       } finally {
         setGroupDecisionBusyId(null);
       }
     },
-    [tripId, replaceGroupDecision, toast, t]
+    [tripId, replaceGroupDecision, commandTabActive, loadTripOverview, toast, t]
   );
 
   const handleGroupDecisionClose = useCallback(
@@ -730,13 +727,14 @@ export function useTripPlanner() {
       try {
         const result = await decisionsApi.update(tripId, decisionId, { state: 'closed' });
         replaceGroupDecision(result.decision);
+        if (commandTabActive) void loadTripOverview();
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : t('common.unknownError'));
       } finally {
         setGroupDecisionBusyId(null);
       }
     },
-    [tripId, replaceGroupDecision, toast, t]
+    [tripId, replaceGroupDecision, commandTabActive, loadTripOverview, toast, t]
   );
 
   const handleGroupDecisionFinalize = useCallback(
@@ -746,13 +744,14 @@ export function useTripPlanner() {
       try {
         const result = await decisionsApi.finalize(tripId, decisionId, optionId);
         replaceGroupDecision(result.decision);
+        if (commandTabActive) void loadTripOverview();
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : t('common.unknownError'));
       } finally {
         setGroupDecisionBusyId(null);
       }
     },
-    [tripId, replaceGroupDecision, toast, t]
+    [tripId, replaceGroupDecision, commandTabActive, loadTripOverview, toast, t]
   );
 
   const [mapCategoryFilter, setMapCategoryFilter] = useState<Set<string>>(new Set());
@@ -812,24 +811,17 @@ export function useTripPlanner() {
     });
   }, [places, mapCategoryFilter, mapPlacesFilter, assignments, expandedDayIds, selectedDayId, dayRelevantPlaceIds]);
 
-  const {
-    route,
-    routeSegments,
-    routeInfo,
-    setRoute,
-    setRouteInfo,
-    updateRouteForDay,
-    routeableAssignmentRouteIds,
-  } = useRouteCalculation(
-    { assignments } as any,
-    selectedDayId,
-    routeMapEnabled,
-    routeProfile,
-    tripAccommodations,
-    visibleDayRouteIds,
-    visibleAssignmentRouteIds,
-    categories
-  );
+  const { route, routeSegments, routeInfo, setRoute, setRouteInfo, updateRouteForDay, routeableAssignmentRouteIds } =
+    useRouteCalculation(
+      { assignments } as any,
+      selectedDayId,
+      routeMapEnabled,
+      routeProfile,
+      tripAccommodations,
+      visibleDayRouteIds,
+      visibleAssignmentRouteIds,
+      categories
+    );
 
   const handleSelectDay = useCallback(
     (dayId: number | null, skipFit?: boolean) => {
@@ -1308,39 +1300,6 @@ export function useTripPlanner() {
   // Show the splash only while trip data is genuinely loading. Place photos are
   // lazy-loaded by visible avatars, so the planner must not wait on photo work.
   const splashDone = !isLoading && !!trip;
-  const commandCenter = useMemo(
-    () =>
-      trip
-        ? buildTripCommandCenter({
-            trip,
-            days,
-            assignments,
-            reservations,
-            budgetItems,
-            packingItems,
-            packingBags,
-            packingCategoryAssignees,
-            todoItems,
-            files,
-            tripMembers,
-            groupDecisions,
-          })
-        : null,
-    [
-      trip,
-      days,
-      assignments,
-      reservations,
-      budgetItems,
-      packingItems,
-      packingBags,
-      packingCategoryAssignees,
-      todoItems,
-      files,
-      tripMembers,
-      groupDecisions,
-    ]
-  );
 
   return {
     tripId,
@@ -1505,6 +1464,9 @@ export function useTripPlanner() {
     defaultZoom,
     fontStyle,
     splashDone,
-    commandCenter,
+    tripOverview,
+    tripOverviewLoading,
+    tripOverviewError,
+    loadTripOverview,
   };
 }

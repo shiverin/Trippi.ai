@@ -7,6 +7,7 @@ import { assertImageUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TripsOverviewService } from './trips-overview.service';
 import { TripsService } from './trips.service';
 import {
   Body,
@@ -16,6 +17,7 @@ import {
   Headers,
   HttpCode,
   HttpException,
+  Optional,
   Param,
   Post,
   Put,
@@ -78,7 +80,10 @@ function entitlementException(e: EntitlementLimitError): HttpException {
 @Controller('api/trips')
 @UseGuards(JwtAuthGuard)
 export class TripsController {
-  constructor(private readonly trips: TripsService) {}
+  constructor(
+    private readonly trips: TripsService,
+    @Optional() private readonly tripOverview?: TripsOverviewService,
+  ) {}
 
   private async assertCanCreateActiveTrip(userId: number): Promise<void> {
     try {
@@ -130,6 +135,18 @@ export class TripsController {
     });
     if (reminderDays > 0) logInfo(`${user.email} set ${reminderDays}-day reminder for trip "${title}"`);
     return { trip };
+  }
+
+  @Get(':id/overview')
+  async overview(@CurrentUser() user: User, @Param('id') id: string) {
+    if (!this.tripOverview) {
+      throw new HttpException({ error: 'Overview service unavailable' }, 500);
+    }
+    const overview = await this.tripOverview.getOverview(id, user.id);
+    if (!overview) {
+      throw new HttpException({ error: 'Trip not found' }, 404);
+    }
+    return { overview };
   }
 
   @Get(':id')

@@ -34,6 +34,7 @@ interface SharePermissions {
   share_packing?: boolean;
   share_budget?: boolean;
   share_collab?: boolean;
+  profile_visible?: boolean;
 }
 
 interface ShareTokenInfo {
@@ -44,6 +45,11 @@ interface ShareTokenInfo {
   share_packing: boolean;
   share_budget: boolean;
   share_collab: boolean;
+  profile_visible: boolean;
+}
+
+function boolToDb(value: boolean | undefined): number | null {
+  return typeof value === 'boolean' ? (value ? 1 : 0) : null;
 }
 
 /**
@@ -55,26 +61,26 @@ export function createOrUpdateShareLink(
   createdBy: number,
   permissions: SharePermissions,
 ): { token: string; created: boolean } {
-  const {
-    share_map = true,
-    share_bookings = true,
-    share_packing = false,
-    share_budget = false,
-    share_collab = false,
-  } = permissions;
-
   const existing = db.prepare('SELECT token FROM share_tokens WHERE trip_id = ?').get(tripId) as
     | { token: string }
     | undefined;
   if (existing) {
     db.prepare(
-      'UPDATE share_tokens SET share_map = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ? WHERE trip_id = ?',
+      `UPDATE share_tokens
+       SET share_map = COALESCE(?, share_map),
+           share_bookings = COALESCE(?, share_bookings),
+           share_packing = COALESCE(?, share_packing),
+           share_budget = COALESCE(?, share_budget),
+           share_collab = COALESCE(?, share_collab),
+           profile_visible = COALESCE(?, profile_visible)
+       WHERE trip_id = ?`,
     ).run(
-      share_map ? 1 : 0,
-      share_bookings ? 1 : 0,
-      share_packing ? 1 : 0,
-      share_budget ? 1 : 0,
-      share_collab ? 1 : 0,
+      boolToDb(permissions.share_map),
+      boolToDb(permissions.share_bookings),
+      boolToDb(permissions.share_packing),
+      boolToDb(permissions.share_budget),
+      boolToDb(permissions.share_collab),
+      boolToDb(permissions.profile_visible),
       tripId,
     );
     return { token: existing.token, created: false };
@@ -87,16 +93,17 @@ export function createOrUpdateShareLink(
   const token = crypto.randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
   db.prepare(
-    'INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_bookings, share_packing, share_budget, share_collab, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_bookings, share_packing, share_budget, share_collab, profile_visible, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   ).run(
     tripId,
     token,
     createdBy,
-    share_map ? 1 : 0,
-    share_bookings ? 1 : 0,
-    share_packing ? 1 : 0,
-    share_budget ? 1 : 0,
-    share_collab ? 1 : 0,
+    permissions.share_map ?? true ? 1 : 0,
+    permissions.share_bookings ?? true ? 1 : 0,
+    permissions.share_packing ?? false ? 1 : 0,
+    permissions.share_budget ?? false ? 1 : 0,
+    permissions.share_collab ?? false ? 1 : 0,
+    permissions.profile_visible ?? false ? 1 : 0,
     expiresAt,
   );
   return { token, created: true };
@@ -107,28 +114,28 @@ export async function createOrUpdateShareLinkAsync(
   createdBy: number,
   permissions: SharePermissions,
 ): Promise<{ token: string; created: boolean }> {
-  const {
-    share_map = true,
-    share_bookings = true,
-    share_packing = false,
-    share_budget = false,
-    share_collab = false,
-  } = permissions;
-
   const existing = await asyncDb
     .prepare('SELECT token FROM share_tokens WHERE trip_id = ?')
     .get<{ token: string }>(tripId);
   if (existing) {
     await asyncDb
       .prepare(
-        'UPDATE share_tokens SET share_map = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ? WHERE trip_id = ?',
+        `UPDATE share_tokens
+         SET share_map = COALESCE(?, share_map),
+             share_bookings = COALESCE(?, share_bookings),
+             share_packing = COALESCE(?, share_packing),
+             share_budget = COALESCE(?, share_budget),
+             share_collab = COALESCE(?, share_collab),
+             profile_visible = COALESCE(?, profile_visible)
+         WHERE trip_id = ?`,
       )
       .run(
-        share_map ? 1 : 0,
-        share_bookings ? 1 : 0,
-        share_packing ? 1 : 0,
-        share_budget ? 1 : 0,
-        share_collab ? 1 : 0,
+        boolToDb(permissions.share_map),
+        boolToDb(permissions.share_bookings),
+        boolToDb(permissions.share_packing),
+        boolToDb(permissions.share_budget),
+        boolToDb(permissions.share_collab),
+        boolToDb(permissions.profile_visible),
         tripId,
       );
     return { token: existing.token, created: false };
@@ -138,17 +145,18 @@ export async function createOrUpdateShareLinkAsync(
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
   await asyncDb
     .prepare(
-      'INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_bookings, share_packing, share_budget, share_collab, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_bookings, share_packing, share_budget, share_collab, profile_visible, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       tripId,
       token,
       createdBy,
-      share_map ? 1 : 0,
-      share_bookings ? 1 : 0,
-      share_packing ? 1 : 0,
-      share_budget ? 1 : 0,
-      share_collab ? 1 : 0,
+      permissions.share_map ?? true ? 1 : 0,
+      permissions.share_bookings ?? true ? 1 : 0,
+      permissions.share_packing ?? false ? 1 : 0,
+      permissions.share_budget ?? false ? 1 : 0,
+      permissions.share_collab ?? false ? 1 : 0,
+      permissions.profile_visible ?? false ? 1 : 0,
       expiresAt,
     );
   return { token, created: true };
@@ -168,6 +176,7 @@ export function getShareLink(tripId: string): ShareTokenInfo | null {
     share_packing: !!row.share_packing,
     share_budget: !!row.share_budget,
     share_collab: !!row.share_collab,
+    profile_visible: !!row.profile_visible,
   };
 }
 
@@ -182,6 +191,7 @@ export async function getShareLinkAsync(tripId: string): Promise<ShareTokenInfo 
     share_packing: !!row.share_packing,
     share_budget: !!row.share_budget,
     share_collab: !!row.share_collab,
+    profile_visible: !!row.profile_visible,
   };
 }
 

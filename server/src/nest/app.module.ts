@@ -19,6 +19,7 @@ import { DatabaseModule } from './database/database.module';
 import { DaysModule } from './days/days.module';
 import { DecisionsModule } from './decisions/decisions.module';
 import { FilesModule } from './files/files.module';
+import { FriendsModule } from './friends/friends.module';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 import { AirtrailModule } from './integrations/airtrail.module';
@@ -61,6 +62,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
     TagsModule,
     NotificationsModule,
     AtlasModule,
+    FriendsModule,
     VacayModule,
     PackingModule,
     TodoModule,

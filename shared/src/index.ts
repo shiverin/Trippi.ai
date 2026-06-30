@@ -31,6 +31,8 @@ export * from './day/day.schema';
 export * from './assignment/assignment.schema';
 export * from './place/place.schema';
 export * from './trip/trip.schema';
+export * from './trip-overview/trip-overview.schema';
+export * from './friends/friends.schema';
 export * from './collab/collab.schema';
 export * from './file/file.schema';
 export * from './journey/journey.schema';

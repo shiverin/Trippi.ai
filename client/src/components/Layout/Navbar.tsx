@@ -25,7 +25,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useToast } from '../shared/Toast';
 import InAppNotificationBell from './InAppNotificationBell.tsx';
 
-const ADDON_ICONS: Record<string, LucideIcon> = { CalendarDays, Briefcase, Globe, Compass };
+const ADDON_ICONS: Record<string, LucideIcon> = { CalendarDays, Briefcase, Globe, Users, Compass };
 
 interface NavbarProps {
   tripTitle?: string;

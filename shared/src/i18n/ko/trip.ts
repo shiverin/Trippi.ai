@@ -2,6 +2,7 @@ import type { TranslationStrings } from '../types';
 
 const trip: TranslationStrings = {
   'trip.tabs.plan': '계획',
+  'trip.tabs.overview': '개요',
   'trip.tabs.transports': '교통',
   'trip.tabs.reservations': '예약',
   'trip.tabs.reservationsShort': '예약',

@@ -19,7 +19,7 @@ const isOracleAsync = dbProvider === 'oracle-async';
 if (requestedOracleNative() && !isOracleNative) {
   console.warn(
     '[DB] TRIPPI_DB_PROVIDER=oracle-native requested, but ORACLE_NATIVE_ALLOW_BLOCKING is not true. ' +
-      'Falling back to Oracle-backed SQLite mode so slow Oracle calls cannot block the HTTP server.',
+      'Using async Oracle mode so slow Oracle calls cannot block the HTTP server.',
   );
 }
 

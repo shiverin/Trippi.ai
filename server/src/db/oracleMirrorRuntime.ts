@@ -12,6 +12,14 @@ import fs from 'fs';
 let timer: NodeJS.Timeout | null = null;
 let syncInFlight: Promise<void> | null = null;
 
+function mirrorEnabled(): boolean {
+  return process.env.TRIPPI_ENABLE_SQLITE_MIRROR?.trim().toLowerCase() === 'true';
+}
+
+function shouldRunMirror(): boolean {
+  return isOracleBackedMode() && mirrorEnabled();
+}
+
 function intervalMs(): number {
   const configured = Number.parseInt(process.env.ORACLE_MIRROR_INTERVAL_MS ?? '', 10);
   if (Number.isFinite(configured) && configured > 0) return configured;
@@ -19,7 +27,7 @@ function intervalMs(): number {
 }
 
 async function syncOnce(reason: string): Promise<void> {
-  if (!isOracleBackedMode()) return;
+  if (!shouldRunMirror()) return;
   if (syncInFlight) return syncInFlight;
 
   syncInFlight = (async () => {
@@ -41,6 +49,12 @@ async function syncOnce(reason: string): Promise<void> {
 
 export async function prepareOracleBackedMode(): Promise<void> {
   if (!isOracleBackedMode()) return;
+  if (!mirrorEnabled()) {
+    console.warn(
+      '[Oracle DB] SQLite mirror mode requested but disabled. Set TRIPPI_ENABLE_SQLITE_MIRROR=true only for legacy recovery/debug work.',
+    );
+    return;
+  }
 
   const sqlitePath = resolveSqliteDbPath();
   if (requestedOracleNative()) {
@@ -78,7 +92,7 @@ export async function prepareOracleBackedMode(): Promise<void> {
 }
 
 export function startOracleBackedSync(): void {
-  if (!isOracleBackedMode() || timer) return;
+  if (!shouldRunMirror() || timer) return;
 
   const ms = intervalMs();
   console.log(`[Oracle DB] Background Oracle sync enabled every ${ms} ms.`);

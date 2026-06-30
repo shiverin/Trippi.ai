@@ -4,8 +4,9 @@
 
 The active local workspace for this project is `/Users/shizhen/Documents/Trippi.ai`.
 Use this path for all app, git, and database work unless the user explicitly says
-otherwise. The live local SQLite database is `server/data/travel.db` in this
-workspace; make a timestamped backup before manual data edits.
+otherwise. Production data lives in Oracle Autonomous Database through
+`TRIPPI_DB_PROVIDER=oracle-async`; local SQLite files are disposable test-only
+state and must not be treated as backups or recovery sources.
 
 Agents may push directly to `main` when the user asks for a push. Prefer running
 focused checks for the files or feature touched, but do not block a requested
@@ -54,7 +55,7 @@ docker compose -f deploy/testing-dev/docker-compose.yml up --build
 Use `http://127.0.0.1:5180/login` for the frontend and
 `http://127.0.0.1:3005/api/health` for backend health. The setup uses Docker
 named volumes plus `TRIPPI_DB_FILE=/workspace/server/data/testing-dev.db`; it
-must not read or write the workspace's live `server/data/travel.db`, and agents
+must not read or write any workspace `server/data/travel.db`, and agents
 must not point localhost at production/live backends for ordinary local testing.
 The default throwaway admin is `testing-dev@trippi.local` with password
 `TestingDev12345!`; if the app asks for a new password, that change stays inside
@@ -89,9 +90,9 @@ Important provider rules:
 
 1. Production currently runs `TRIPPI_DB_PROVIDER=oracle-async`. New
    request-time/runtime code must be async-safe and use `asyncDb`.
-2. `TRIPPI_DB_PROVIDER=oracle` is the compatibility mode: local SQLite runtime
-   cache plus Oracle mirror. It remains supported, but it is not the current
-   production runtime mode.
+2. `TRIPPI_DB_PROVIDER=oracle` resolves to direct async Oracle by default.
+   The legacy local SQLite cache plus Oracle mirror requires
+   `TRIPPI_ENABLE_SQLITE_MIRROR=true` and must not be enabled for production.
 3. `TRIPPI_DB_PROVIDER=oracle-async` is the direct async Oracle mode.
    Under this mode, sync `db` access intentionally throws so blocking calls are
    caught during smoke tests.

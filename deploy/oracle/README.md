@@ -10,8 +10,9 @@ VM, or similar Ubuntu VM with:
 - Caddy terminating HTTPS on ports `80` and `443`,
 - MCP and WebSockets proxied through the same public hostname.
 
-This path preserves the current backend architecture. No database rewrite is required.
-Despite the directory name, the VM installer and Docker Compose stack are generic
+This path runs the backend against Oracle Autonomous Database in direct async
+mode. Oracle is the database source of truth; local SQLite files are not a
+production backup or restore source. Despite the directory name, the VM installer and Docker Compose stack are generic
 Ubuntu VM deployment assets; they can also be reused on Azure, Google Compute
 Engine, AWS EC2, or another VPS. See
 `docs/free-backend-fallback-runbook.md` for provider-specific zero-spend notes.
@@ -154,19 +155,24 @@ and use that hostname in `vercel.json` instead.
 
 ## Backups
 
-Create a local backup archive:
+For Oracle deployments, do not create local SQLite backup archives. The
+`deploy/oracle/backup.sh` helper refuses to run when `TRIPPI_DB_PROVIDER` is
+`oracle-async`, `oracle`, `oracle-backed`, or `oracle-mirror`.
+The production Compose file also pins `TRIPPI_ENABLE_SQLITE_MIRROR=false` so an
+old `.env` value cannot accidentally re-enable the legacy mirror.
+
+Use Oracle Autonomous Database export, flashback, or managed backup tooling for
+database recovery. Uploaded media should be protected through the configured
+object storage bucket.
+
+Legacy SQLite-only instances can still create a local archive:
 
 ```bash
 cd /opt/trippi/app
 sudo bash deploy/oracle/backup.sh
 ```
 
-The archive is written to `/opt/trippi/backups`.
-
-For production, copy backups off the VM with `rclone`, OCI Object Storage, GCS,
-or another external storage target. When `TRIPPI_MEDIA_BACKEND=gcs`, backup ZIPs
-include a media manifest rather than the object bytes; bucket versioning and an
-off-bucket export/replication plan are the media recovery layer.
+The archive is written to `/opt/trippi/backups` only for SQLite-only deployments.
 
 ## Updating
 

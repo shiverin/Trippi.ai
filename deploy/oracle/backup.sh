@@ -19,6 +19,15 @@ UPLOADS_DIR="${TRIPPI_UPLOADS_DIR:-/opt/trippi/uploads}"
 BACKUP_DIR="${TRIPPI_BACKUP_DIR:-/opt/trippi/backups}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT_DIR="${BACKUP_DIR}/${STAMP}"
+DB_PROVIDER="${TRIPPI_DB_PROVIDER:-oracle-async}"
+
+if [[ "${DB_PROVIDER}" == "oracle-async" || "${DB_PROVIDER}" == "oracle" || "${DB_PROVIDER}" == "oracle-backed" || "${DB_PROVIDER}" == "oracle-mirror" ]]; then
+  cat >&2 <<'EOF'
+SQLite VM backups are disabled for Oracle cloud database deployments.
+Oracle Autonomous Database is the source of truth; use Oracle export/backup tooling instead.
+EOF
+  exit 2
+fi
 
 mkdir -p "${OUT_DIR}"
 

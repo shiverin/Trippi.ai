@@ -43,7 +43,7 @@ export class BackupUnsupportedForProviderError extends Error {
   readonly status = 501;
 
   constructor() {
-    super('SQLite backup/restore is not available when TRIPPI_DB_PROVIDER=oracle-async.');
+    super('SQLite backup/restore is not available for Oracle cloud database deployments.');
   }
 }
 

@@ -45,15 +45,28 @@ npm run oracle:smoke
 
 The smoke script creates a `TRIPPI_ORACLE_SMOKE` table if missing, inserts JSON, and reads it back. It proves the free Oracle DB can be reached before any app data is moved.
 
-## Local Oracle-backed app mode
+## Legacy SQLite Mirror Mode
 
-`TRIPPI_DB_PROVIDER=oracle` now runs the local backend in Oracle-backed compatibility mode:
+This mode is deprecated and must not be used for production. Production should
+run `TRIPPI_DB_PROVIDER=oracle-async`, where Oracle Autonomous Database is the
+source of truth and no local SQLite cache is restored or mirrored.
+
+The old SQLite mirror only runs when both variables are set:
+
+```bash
+TRIPPI_DB_PROVIDER=oracle
+TRIPPI_ENABLE_SQLITE_MIRROR=true
+```
+
+With that explicit recovery/debug opt-in, the local backend runs in
+Oracle-backed compatibility mode:
 
 1. On startup, the server restores the latest mirrored Oracle rows into the local SQLite compatibility cache before the app imports the DB singleton.
 2. The existing app code runs unchanged against that local cache, so current auth, trips, planner, MCP, PDF, files, and settings paths continue to use the same battle-tested code.
 3. A background sync mirrors the full local DB state back into Oracle on an interval and again during graceful shutdown.
 
-This makes Oracle the durable cross-machine backing store for local/dev use while the service-by-service native Oracle SQL rewrite is still in progress. It is not yet the final Oracle-native runtime schema.
+This is only for legacy recovery/debug work while the service-by-service native
+Oracle SQL rewrite is still in progress. Do not use it as a backup strategy.
 
 For local development, keep the private Oracle wallet/env outside the repo:
 
@@ -62,16 +75,18 @@ For local development, keep the private Oracle wallet/env outside the repo:
 /Users/shizhen/.trippi/oracle-wallet
 ```
 
-Then start the full app in Oracle-backed mode:
+Then start the full app in legacy Oracle-backed mode:
 
 ```bash
+TRIPPI_ENABLE_SQLITE_MIRROR=true \
 npm run dev:oracle
 ```
 
-Or start only the already-built backend in Oracle-backed mode:
+Or start only the already-built backend in legacy Oracle-backed mode:
 
 ```bash
 npm run build --workspace=server
+TRIPPI_ENABLE_SQLITE_MIRROR=true \
 npm run start:oracle --workspace=server
 ```
 
@@ -89,7 +104,8 @@ Config knobs:
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `TRIPPI_DB_PROVIDER=oracle` | Enables Oracle-backed compatibility mode. | off |
+| `TRIPPI_DB_PROVIDER=oracle` | Uses async Oracle by default. | off |
+| `TRIPPI_ENABLE_SQLITE_MIRROR=true` | Enables deprecated local SQLite mirror mode. | off |
 | `ORACLE_ENV_FILE` | Private env file used by `npm run dev:oracle`. | `~/.trippi/oracle-autonomous.env` |
 | `ORACLE_MIRROR_INTERVAL_MS` | Background mirror interval after boot. | `30000` (`15000` via `dev:oracle`) |
 | `ORACLE_MIRROR_BATCH_SIZE` | Rows per Oracle `executeMany` batch. | `250` |

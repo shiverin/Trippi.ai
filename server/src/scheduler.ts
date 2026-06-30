@@ -80,6 +80,11 @@ function saveSettings(settings: BackupSettings): void {
 }
 
 async function runBackup(): Promise<void> {
+  if (isOracleAsyncRuntime()) {
+    logInfo('Auto-Backup skipped for oracle-async runtime');
+    return;
+  }
+
   if (!fs.existsSync(backupsDir)) fs.mkdirSync(backupsDir, { recursive: true });
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -149,6 +154,11 @@ function start(): void {
   }
 
   const settings = loadSettings();
+  if (isOracleAsyncRuntime()) {
+    logInfo('Auto-Backup disabled for oracle-async runtime');
+    return;
+  }
+
   if (!settings.enabled) {
     logInfo('Auto-Backup disabled');
     return;

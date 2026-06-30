@@ -62,6 +62,8 @@ describe('async DB access guardrails', () => {
       'nest/categories/categories.service.ts',
       'nest/common/idempotency.interceptor.ts',
       'nest/database/database.service.ts',
+      'nest/decisions/decisions.controller.ts',
+      'nest/decisions/decisions.service.ts',
       'nest/health/health.service.ts',
       'nest/maps/maps.service.ts',
       'nest/platform/platform.routes.ts',

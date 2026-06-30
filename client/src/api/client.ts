@@ -86,6 +86,12 @@ import {
 } from '@trippi/shared';
 import axios, { AxiosInstance } from 'axios';
 import type { z } from 'zod';
+import type {
+  GroupDecision,
+  GroupDecisionApiState,
+  GroupDecisionLinkTargetType,
+  GroupDecisionResponseState,
+} from '../components/Decisions/groupDecisionModel';
 import { isReachable, probeNow } from '../sync/connectivity';
 import { API_BASE_URL, apiUrl } from './baseUrl';
 import { getSocketId } from './websocket';
@@ -851,17 +857,15 @@ export const mapsApi = {
   // Overpass can be slow on a fresh (uncached) area, so this call gets a longer
   // timeout than the global default instead of aborting at 8s and showing nothing.
   pois: (category: string, bbox: { south: number; west: number; north: number; east: number }, signal?: AbortSignal) =>
-    apiClient
-      .get('/maps/pois', { params: { category, ...bbox }, signal, timeout: 20000 })
-      .then(
-        (r) =>
-          r.data as {
-            pois: import('../components/Map/poiCategories').Poi[];
-            source: string;
-            truncated: boolean;
-            clamped?: boolean;
-          }
-      ),
+    apiClient.get('/maps/pois', { params: { category, ...bbox }, signal, timeout: 20000 }).then(
+      (r) =>
+        r.data as {
+          pois: import('../components/Map/poiCategories').Poi[];
+          source: string;
+          truncated: boolean;
+          clamped?: boolean;
+        }
+    ),
 };
 
 export const airportsApi = {
@@ -1052,6 +1056,53 @@ export const collabApi = {
       .then((r) => r.data),
   linkPreview: (tripId: number | string, url: string) =>
     apiClient.get(`/trips/${tripId}/collab/link-preview?url=${encodeURIComponent(url)}`).then((r) => r.data),
+};
+
+export interface GroupDecisionCreateRequest {
+  title: string;
+  description?: string | null;
+  deadline?: string | null;
+  state?: GroupDecisionApiState;
+  options: Array<string | { label: string; description?: string | null; sort_order?: number; metadata?: unknown }>;
+  links?: Array<{ target_type: GroupDecisionLinkTargetType; target_id: number }>;
+}
+
+export interface GroupDecisionUpdateRequest {
+  title?: string;
+  description?: string | null;
+  deadline?: string | null;
+  state?: GroupDecisionApiState;
+  final_option_id?: number | null;
+  links?: Array<{ target_type: GroupDecisionLinkTargetType; target_id: number }>;
+}
+
+export interface GroupDecisionResponseRequest {
+  option_id?: number | null;
+  response?: GroupDecisionResponseState;
+  comment?: string | null;
+}
+
+export const decisionsApi = {
+  list: (tripId: number | string): Promise<{ decisions: GroupDecision[] }> =>
+    apiClient.get(`/trips/${tripId}/decisions`).then((r) => r.data),
+  get: (tripId: number | string, id: number | string): Promise<{ decision: GroupDecision }> =>
+    apiClient.get(`/trips/${tripId}/decisions/${id}`).then((r) => r.data),
+  create: (tripId: number | string, data: GroupDecisionCreateRequest): Promise<{ decision: GroupDecision }> =>
+    apiClient.post(`/trips/${tripId}/decisions`, data).then((r) => r.data),
+  update: (
+    tripId: number | string,
+    id: number | string,
+    data: GroupDecisionUpdateRequest
+  ): Promise<{ decision: GroupDecision }> =>
+    apiClient.put(`/trips/${tripId}/decisions/${id}`, data).then((r) => r.data),
+  respond: (
+    tripId: number | string,
+    id: number | string,
+    data: GroupDecisionResponseRequest
+  ): Promise<{ decision: GroupDecision }> =>
+    apiClient.post(`/trips/${tripId}/decisions/${id}/responses`, data).then((r) => r.data),
+  finalize: (tripId: number | string, id: number | string, optionId: number): Promise<{ decision: GroupDecision }> =>
+    apiClient.post(`/trips/${tripId}/decisions/${id}/finalize`, { option_id: optionId }).then((r) => r.data),
 };
 
 export const backupApi = {

@@ -1,5 +1,15 @@
 import { http, HttpResponse } from 'msw';
-import { buildTrip, buildDay, buildUser, buildPlace, buildPackingItem, buildTodoItem, buildBudgetItem, buildReservation, buildTripFile } from '../../factories';
+import {
+  buildBudgetItem,
+  buildDay,
+  buildPackingItem,
+  buildPlace,
+  buildReservation,
+  buildTodoItem,
+  buildTrip,
+  buildTripFile,
+  buildUser,
+} from '../../factories';
 
 export const tripsHandlers = [
   // List all trips (active or archived)
@@ -27,13 +37,13 @@ export const tripsHandlers = [
   }),
 
   http.put('/api/trips/:id', async ({ params, request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     const trip = buildTrip({ id: Number(params.id), ...body });
     return HttpResponse.json({ trip });
   }),
 
   http.post('/api/trips', async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     const trip = buildTrip({ ...body });
     return HttpResponse.json({ trip });
   }),
@@ -45,6 +55,10 @@ export const tripsHandlers = [
 
   http.get('/api/trips/:id/accommodations', () => {
     return HttpResponse.json({ accommodations: [] });
+  }),
+
+  http.get('/api/trips/:id/decisions', () => {
+    return HttpResponse.json({ decisions: [] });
   }),
 
   http.get('/api/trips/:id/bundle', ({ params }) => {
@@ -68,7 +82,7 @@ export const tripsHandlers = [
   }),
 
   http.post('/api/trips/:id/copy', async ({ params, request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     const trip = buildTrip({ id: Number(params.id) + 1000, ...body });
     return HttpResponse.json({ trip });
   }),

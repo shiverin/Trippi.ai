@@ -371,6 +371,18 @@ function settledValue<T>(result: PromiseSettledResult<T>, fallback: T): T {
   return result.status === 'fulfilled' ? result.value : fallback;
 }
 
+function optionalOverviewPart<T>(label: string, fallback: T, load: () => Promise<T>): Promise<T> {
+  try {
+    return Promise.resolve(load()).catch((err) => {
+      console.warn(`[overview] ${label} unavailable; using fallback`, err instanceof Error ? err.message : err);
+      return fallback;
+    });
+  } catch (err) {
+    console.warn(`[overview] ${label} unavailable; using fallback`, err instanceof Error ? err.message : err);
+    return Promise.resolve(fallback);
+  }
+}
+
 @Injectable()
 export class TripsOverviewService {
   async getOverview(tripId: string, userId: number, now = new Date()): Promise<TripOverview | null> {
@@ -394,18 +406,22 @@ export class TripsOverviewService {
       bookingIntentsResult,
       tripMemberCountResult,
     ] = await Promise.allSettled([
-      listDays(tripId) as Promise<{ days?: DayWithAssignments[] }>,
-      listReservations(tripId) as Promise<Reservation[]>,
-      listBudgetItems(tripId) as Promise<BudgetItem[]>,
-      listPackingItems(tripId) as Promise<PackingItemForOverview[]>,
-      listBags(tripId) as Promise<PackingBagForOverview[]>,
-      getCategoryAssignees(tripId) as Promise<Record<string, ResponsibleMember[] | undefined>>,
-      listTodoItems(tripId) as Promise<TodoRow[]>,
-      listFilesAsync(tripId, false) as Promise<TripFileForOverview[]>,
-      this.listDecisions(tripId),
-      this.listDecisionResponseCounts(tripId),
-      this.listBookingIntents(tripId),
-      this.countTripMembers(tripId),
+      optionalOverviewPart('days', { days: [] }, () => listDays(tripId) as Promise<{ days?: DayWithAssignments[] }>),
+      optionalOverviewPart('reservations', [], () => listReservations(tripId) as Promise<Reservation[]>),
+      optionalOverviewPart('budget items', [], () => listBudgetItems(tripId) as Promise<BudgetItem[]>),
+      optionalOverviewPart('packing items', [], () => listPackingItems(tripId) as Promise<PackingItemForOverview[]>),
+      optionalOverviewPart('packing bags', [], () => listBags(tripId) as Promise<PackingBagForOverview[]>),
+      optionalOverviewPart(
+        'packing category assignees',
+        {},
+        () => getCategoryAssignees(tripId) as Promise<Record<string, ResponsibleMember[] | undefined>>,
+      ),
+      optionalOverviewPart('todo items', [], () => listTodoItems(tripId) as Promise<TodoRow[]>),
+      optionalOverviewPart('files', [], () => listFilesAsync(tripId, false) as Promise<TripFileForOverview[]>),
+      optionalOverviewPart('decisions', [], () => this.listDecisions(tripId)),
+      optionalOverviewPart('decision response counts', [], () => this.listDecisionResponseCounts(tripId)),
+      optionalOverviewPart('booking intents', [], () => this.listBookingIntents(tripId)),
+      optionalOverviewPart('trip member count', 1, () => this.countTripMembers(tripId)),
     ]);
 
     const days = settledValue(daysResult, { days: [] }).days ?? [];

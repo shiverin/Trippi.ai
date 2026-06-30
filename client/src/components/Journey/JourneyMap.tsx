@@ -40,6 +40,7 @@ interface Props {
   onMarkerClick?: (id: string, type?: string) => void;
   fullScreen?: boolean;
   paddingBottom?: number;
+  forceDefaultTile?: boolean;
 }
 
 function buildMarkerItems(entries: MapEntry[]): MapMarkerItem[] {
@@ -85,11 +86,12 @@ function markerSvg(dayColor: string, dayLabel: number, highlighted: boolean): st
 const EMPTY_TRAIL: { lat: number; lng: number }[] = [];
 
 const JourneyMap = forwardRef<JourneyMapHandle, Props>(function JourneyMap(
-  { entries, trail, height = 220, dark, activeMarkerId, onMarkerClick, fullScreen, paddingBottom },
+  { entries, trail, height = 220, dark, activeMarkerId, onMarkerClick, fullScreen, paddingBottom, forceDefaultTile },
   ref
 ) {
   const stableTrail = trail || EMPTY_TRAIL;
-  const mapTileUrl = useSettingsStore((s) => s.settings.map_tile_url);
+  const customMapTileUrl = useSettingsStore((s) => s.settings.map_tile_url);
+  const mapTileUrl = forceDefaultTile ? '' : customMapTileUrl;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());

@@ -22,6 +22,11 @@ const settings: TranslationStrings = {
   'settings.mapMapboxSubtitle': 'Vector tiles, 3D buildings & terrain',
   'settings.mapMapLibreSubtitle': 'OpenFreeMap vector tiles, no token',
   'settings.mapExperimental': 'Experimental',
+  'settings.mapLockedBadge': 'Pro',
+  'settings.mapPremiumLockedTitle': 'Pro map options locked',
+  'settings.mapPremiumLockedDescription':
+    'Beginner stays on the default 2D map. Upgrade to Pro to unlock map providers, styles, and 3D options.',
+  'settings.mapUpgradeCta': 'Upgrade to Pro',
   'settings.mapMapboxToken': 'Mapbox Access Token',
   'settings.mapMapboxTokenHint': 'Public token (pk.*) from',
   'settings.mapMapboxTokenLink': 'mapbox.com → Access tokens',

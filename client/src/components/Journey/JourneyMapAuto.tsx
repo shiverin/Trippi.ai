@@ -1,4 +1,5 @@
 import { forwardRef, lazy, Suspense, useImperativeHandle, useRef } from 'react';
+import { useMapEntitlements } from '../../hooks/useMapEntitlements';
 import { useSettingsStore } from '../../store/settingsStore';
 import JourneyMap, { type JourneyMapHandle } from './JourneyMap';
 import type { JourneyMapGLHandle } from './JourneyMapGL';
@@ -32,17 +33,19 @@ interface Props {
   onMarkerClick?: (id: string, type?: string) => void;
   fullScreen?: boolean;
   paddingBottom?: number;
+  forceDefaultTile?: boolean;
 }
 
 const JourneyMapAuto = forwardRef<JourneyMapAutoHandle, Props>(function JourneyMapAuto(props, ref) {
   const provider = useSettingsStore((s) => s.settings.map_provider);
   const token = useSettingsStore((s) => s.settings.mapbox_access_token);
+  const { freeMapLocked } = useMapEntitlements();
   const leafletRef = useRef<JourneyMapHandle>(null);
   const glRef = useRef<JourneyMapGLHandle>(null);
 
   // Fall back to Leaflet when the user selected Mapbox GL but hasn't
   // supplied a token yet. MapLibre/OpenFreeMap is tokenless.
-  const useGL = provider === 'maplibre-gl' || (provider === 'mapbox-gl' && !!token);
+  const useGL = !freeMapLocked && (provider === 'maplibre-gl' || (provider === 'mapbox-gl' && !!token));
   const glProvider = provider === 'maplibre-gl' ? 'maplibre-gl' : 'mapbox-gl';
 
   useImperativeHandle(
@@ -64,7 +67,7 @@ const JourneyMapAuto = forwardRef<JourneyMapAutoHandle, Props>(function JourneyM
     );
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <JourneyMap ref={leafletRef} {...(props as any)} />;
+  return <JourneyMap ref={leafletRef} {...(props as any)} forceDefaultTile={freeMapLocked} />;
 });
 
 export default JourneyMapAuto;

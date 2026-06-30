@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { useMapEntitlements } from '../../hooks/useMapEntitlements';
 import { useSettingsStore } from '../../store/settingsStore';
 import { MapView } from './MapView';
 
@@ -18,18 +19,20 @@ const MapViewGL = lazy(() => import('./MapViewGL').then((m) => ({ default: m.Map
 export function MapViewAuto(props: any) {
   const provider = useSettingsStore((s) => s.settings.map_provider);
   const token = useSettingsStore((s) => s.settings.mapbox_access_token);
+  const { freeMapLocked } = useMapEntitlements();
+  const effectiveProps = freeMapLocked ? { ...props, tileUrl: undefined } : props;
   // Fall back to Leaflet when Mapbox is selected but no token is set,
   // so trip planner never shows an empty map due to a missing token.
   const glProvider =
-    provider === 'maplibre-gl' ? 'maplibre-gl' : provider === 'mapbox-gl' && token ? 'mapbox-gl' : null;
+    freeMapLocked ? null : provider === 'maplibre-gl' ? 'maplibre-gl' : provider === 'mapbox-gl' && token ? 'mapbox-gl' : null;
   if (glProvider) {
     // Render the previous Leaflet map as the fallback so there's no blank flash
     // while the GL chunk loads on first use.
     return (
-      <Suspense fallback={<MapView {...props} />}>
-        <MapViewGL {...props} glProvider={glProvider} />
+      <Suspense fallback={<MapView {...effectiveProps} />}>
+        <MapViewGL {...effectiveProps} glProvider={glProvider} />
       </Suspense>
     );
   }
-  return <MapView {...props} />;
+  return <MapView {...effectiveProps} />;
 }

@@ -1,5 +1,6 @@
-import { Box, Check, ChevronDown, Globe2, Layers, Map, Save } from 'lucide-react';
+import { Box, Check, ChevronDown, Globe2, Layers, Lock, Map, Save } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMapEntitlements } from '../../hooks/useMapEntitlements';
 import { useTranslation } from '../../i18n';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { Place } from '../../types';
@@ -158,6 +159,7 @@ export default function MapSettingsTab(): React.ReactElement {
   const { settings, updateSettings } = useSettingsStore();
   const { t } = useTranslation();
   const toast = useToast();
+  const mapEntitlements = useMapEntitlements();
   const initialProvider = normalizeProvider(settings.map_provider);
   const [saving, setSaving] = useState(false);
   const [provider, setProvider] = useState<Provider>(initialProvider);
@@ -171,6 +173,8 @@ export default function MapSettingsTab(): React.ReactElement {
   const [defaultLat, setDefaultLat] = useState<number | string>(settings.default_lat || 48.8566);
   const [defaultLng, setDefaultLng] = useState<number | string>(settings.default_lng || 2.3522);
   const [defaultZoom, setDefaultZoom] = useState<number | string>(settings.default_zoom || 10);
+  const freeMapLocked = mapEntitlements.freeMapLocked;
+  const effectiveProvider: Provider = freeMapLocked ? 'leaflet' : provider;
 
   useEffect(() => {
     const nextProvider = normalizeProvider(settings.map_provider);
@@ -184,6 +188,14 @@ export default function MapSettingsTab(): React.ReactElement {
     setDefaultLng(settings.default_lng || 2.3522);
     setDefaultZoom(settings.default_zoom || 10);
   }, [settings]);
+
+  useEffect(() => {
+    if (!freeMapLocked) return;
+    setProvider('leaflet');
+    setMapTileUrl('');
+    setMapbox3d(false);
+    setMapboxQuality(false);
+  }, [freeMapLocked]);
 
   const handleMapClick = useCallback((mapInfo) => {
     setDefaultLat(mapInfo.latlng.lat);
@@ -217,17 +229,22 @@ export default function MapSettingsTab(): React.ReactElement {
   const saveMapSettings = async (): Promise<void> => {
     setSaving(true);
     try {
-      const glStyle = provider === 'leaflet' ? mapboxStyle : normalizeStyleForProvider(provider, mapboxStyle);
+      const saveProvider = freeMapLocked ? 'leaflet' : provider;
+      const glStyle = saveProvider === 'leaflet' ? mapboxStyle : normalizeStyleForProvider(saveProvider, mapboxStyle);
       setMapboxStyle(glStyle);
       // Save into the active provider's own slot so the other provider's style survives.
-      const stylePatch = provider === 'maplibre-gl' ? { maplibre_style: glStyle } : { mapbox_style: glStyle };
+      const stylePatch = freeMapLocked
+        ? { mapbox_style: MAPBOX_DEFAULT_STYLE, maplibre_style: '' }
+        : saveProvider === 'maplibre-gl'
+          ? { maplibre_style: glStyle }
+          : { mapbox_style: glStyle };
       await updateSettings({
-        map_provider: provider,
-        map_tile_url: mapTileUrl,
-        mapbox_access_token: mapboxToken,
+        map_provider: saveProvider,
+        map_tile_url: freeMapLocked ? '' : mapTileUrl,
+        mapbox_access_token: freeMapLocked ? '' : mapboxToken,
         ...stylePatch,
-        mapbox_3d_enabled: mapbox3d,
-        mapbox_quality_mode: mapboxQuality,
+        mapbox_3d_enabled: freeMapLocked ? false : mapbox3d,
+        mapbox_quality_mode: freeMapLocked ? false : mapboxQuality,
         default_lat: parseFloat(String(defaultLat)),
         default_lng: parseFloat(String(defaultLng)),
         default_zoom: parseInt(String(defaultZoom)),
@@ -244,6 +261,7 @@ export default function MapSettingsTab(): React.ReactElement {
   // mapbox-streets-v8 tileset as a fallback building source.
   const supports3d = true;
   const changeProvider = (nextProvider: Provider) => {
+    if (freeMapLocked && nextProvider !== 'leaflet') return;
     setProvider(nextProvider);
     if (nextProvider !== 'leaflet') setMapboxStyle(styleForProvider(nextProvider, mapboxStyle));
   };
@@ -258,7 +276,7 @@ export default function MapSettingsTab(): React.ReactElement {
             type="button"
             onClick={() => changeProvider('leaflet')}
             className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
-              provider === 'leaflet'
+              effectiveProvider === 'leaflet'
                 ? 'border-slate-900 bg-slate-50 dark:border-slate-200 dark:bg-slate-800'
                 : 'border-slate-200 hover:border-slate-400 dark:border-slate-700'
             }`}
@@ -271,11 +289,14 @@ export default function MapSettingsTab(): React.ReactElement {
           </button>
           <button
             type="button"
+            disabled={freeMapLocked}
             onClick={() => changeProvider('mapbox-gl')}
             className={`relative flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
-              provider === 'mapbox-gl'
+              effectiveProvider === 'mapbox-gl'
                 ? 'border-slate-900 bg-slate-50 dark:border-slate-200 dark:bg-slate-800'
-                : 'border-slate-200 hover:border-slate-400 dark:border-slate-700'
+                : freeMapLocked
+                  ? 'border-slate-200 bg-slate-50 opacity-60 dark:border-slate-700 dark:bg-slate-900'
+                  : 'border-slate-200 hover:border-slate-400 dark:border-slate-700'
             }`}
           >
             <Box size={18} className="mt-0.5 flex-shrink-0 text-slate-700 dark:text-slate-300" />
@@ -288,16 +309,19 @@ export default function MapSettingsTab(): React.ReactElement {
             </div>
             {/* Experimental badge only on ≥sm; on mobile there's no room next to the title. */}
             <span className="absolute right-2 top-2 hidden rounded bg-amber-100 px-1.5 py-[3px] text-[9px] font-semibold uppercase leading-none tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 sm:inline-block">
-              {t('settings.mapExperimental')}
+              {freeMapLocked ? t('settings.mapLockedBadge') : t('settings.mapExperimental')}
             </span>
           </button>
           <button
             type="button"
+            disabled={freeMapLocked}
             onClick={() => changeProvider('maplibre-gl')}
             className={`relative flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
-              provider === 'maplibre-gl'
+              effectiveProvider === 'maplibre-gl'
                 ? 'border-slate-900 bg-slate-50 dark:border-slate-200 dark:bg-slate-800'
-                : 'border-slate-200 hover:border-slate-400 dark:border-slate-700'
+                : freeMapLocked
+                  ? 'border-slate-200 bg-slate-50 opacity-60 dark:border-slate-700 dark:bg-slate-900'
+                  : 'border-slate-200 hover:border-slate-400 dark:border-slate-700'
             }`}
           >
             <Globe2 size={18} className="mt-0.5 flex-shrink-0 text-slate-700 dark:text-slate-300" />
@@ -308,40 +332,70 @@ export default function MapSettingsTab(): React.ReactElement {
               </div>
               <div className="mt-0.5 hidden text-xs text-slate-500 sm:block">{t('settings.mapMapLibreSubtitle')}</div>
             </div>
+            {freeMapLocked && (
+              <span className="absolute right-2 top-2 hidden rounded bg-slate-200 px-1.5 py-[3px] text-[9px] font-semibold uppercase leading-none tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300 sm:inline-block">
+                {t('settings.mapLockedBadge')}
+              </span>
+            )}
           </button>
         </div>
         <p className="mt-2 text-xs text-slate-400">{t('settings.mapProviderHint')}</p>
+        {freeMapLocked && (
+          <div className="mt-3 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-900">
+            <Lock className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
+            <div>
+              <div className="font-medium text-slate-900 dark:text-white">{t('settings.mapPremiumLockedTitle')}</div>
+              <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                {t('settings.mapPremiumLockedDescription')}
+              </div>
+              {mapEntitlements.billing?.checkoutAvailable && (
+                <button
+                  type="button"
+                  onClick={() => void mapEntitlements.startUpgrade()}
+                  disabled={mapEntitlements.checkoutLoading}
+                  className="mt-2 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:bg-slate-400"
+                >
+                  {mapEntitlements.checkoutLoading ? t('common.loading') : t('settings.mapUpgradeCta')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Leaflet settings */}
-      {provider === 'leaflet' && (
+      {effectiveProvider === 'leaflet' && (
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('settings.mapTemplate')}</label>
           <CustomSelect
             value={mapTileUrl}
             onChange={(value: string) => {
-              if (value) setMapTileUrl(value);
+              if (!freeMapLocked && value) setMapTileUrl(value);
             }}
             placeholder={t('settings.mapTemplatePlaceholder.select')}
             options={MAP_PRESETS.map((p) => ({ value: p.url, label: p.name }))}
             size="sm"
             style={{ marginBottom: 8 }}
+            disabled={freeMapLocked}
           />
           <input
             type="text"
             value={mapTileUrl}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMapTileUrl(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              if (!freeMapLocked) setMapTileUrl(e.target.value);
+            }}
+            disabled={freeMapLocked}
             placeholder="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-slate-400"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-slate-400 disabled:bg-slate-100 disabled:text-slate-400"
           />
           <p className="mt-1 text-xs text-slate-400">{t('settings.mapDefaultHint')}</p>
         </div>
       )}
 
       {/* GL settings */}
-      {provider !== 'leaflet' && (
+      {effectiveProvider !== 'leaflet' && (
         <div className="space-y-3">
-          {provider === 'mapbox-gl' && (
+          {effectiveProvider === 'mapbox-gl' && (
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('settings.mapMapboxToken')}</label>
               <input
@@ -368,21 +422,21 @@ export default function MapSettingsTab(): React.ReactElement {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('settings.mapStyle')}</label>
             <div className="mb-2">
-              <StyleDropdown value={mapboxStyle} provider={provider} onChange={setMapboxStyle} />
+              <StyleDropdown value={mapboxStyle} provider={effectiveProvider} onChange={setMapboxStyle} />
             </div>
             <input
               type="text"
               value={mapboxStyle}
               onChange={(e) => setMapboxStyle(e.target.value)}
-              placeholder={defaultStyleForProvider(provider)}
+              placeholder={defaultStyleForProvider(effectiveProvider)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-slate-400"
             />
             <p className="mt-1 text-xs text-slate-400">
-              {provider === 'maplibre-gl' ? t('settings.mapOpenFreeMapStyleHint') : t('settings.mapStyleHint')}
+              {effectiveProvider === 'maplibre-gl' ? t('settings.mapOpenFreeMapStyleHint') : t('settings.mapStyleHint')}
             </p>
           </div>
 
-          {provider === 'mapbox-gl' && (
+          {effectiveProvider === 'mapbox-gl' && (
             <>
               <div
                 className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
@@ -456,9 +510,9 @@ export default function MapSettingsTab(): React.ReactElement {
 
       <div>
         <div style={{ position: 'relative', inset: 0, height: '200px', width: '100%' }}>
-          {provider !== 'leaflet' ? (
+          {effectiveProvider !== 'leaflet' ? (
             <GlMapPreview
-              provider={provider}
+              provider={effectiveProvider}
               token={mapboxToken}
               style={mapboxStyle}
               lat={parseFloat(String(defaultLat)) || 48.8566}
@@ -466,8 +520,8 @@ export default function MapSettingsTab(): React.ReactElement {
               // Zoom in close so the style's character (3D buildings,
               // satellite texture, label density) is immediately visible.
               zoom={Math.max(parseInt(String(defaultZoom)) || 10, 16)}
-              enable3d={provider === 'mapbox-gl' && mapbox3d && supports3d}
-              quality={provider === 'mapbox-gl' && mapboxQuality}
+              enable3d={effectiveProvider === 'mapbox-gl' && mapbox3d && supports3d}
+              quality={effectiveProvider === 'mapbox-gl' && mapboxQuality}
               onClick={(ll) => {
                 setDefaultLat(ll.lat);
                 setDefaultLng(ll.lng);
@@ -486,7 +540,7 @@ export default function MapSettingsTab(): React.ReactElement {
               onMapContextMenu: null,
               center: [settings.default_lat, settings.default_lng],
               zoom: defaultZoom,
-              tileUrl: mapTileUrl,
+              tileUrl: freeMapLocked ? undefined : mapTileUrl,
               fitKey: null,
               dayOrderMap: [],
               leftWidth: 0,

@@ -1,6 +1,8 @@
 // FE-COMP-MAP-001 to FE-COMP-MAP-017
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { buildSettings, buildUser } from '../../../tests/helpers/factories';
+import { server } from '../../../tests/helpers/msw/server';
 import { render, screen, waitFor } from '../../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../../tests/helpers/store';
 import { useAuthStore } from '../../store/authStore';
@@ -14,6 +16,57 @@ vi.mock('../Map/MapView', () => ({
     <div data-testid="map-view" onClick={() => onMapClick?.({ latlng: { lat: 51.5, lng: -0.1 } })} />
   ),
 }));
+
+function entitlementPayload(overrides: any = {}) {
+  return {
+    entitlements: {
+      userId: 1,
+      planKey: 'free',
+      billingPlanKey: 'free',
+      billingStatus: 'free',
+      subscribed: false,
+      trialing: false,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: 5,
+        groupSize: null,
+      },
+      ...(overrides.entitlements ?? {}),
+    },
+    billing: {
+      checkoutAvailable: false,
+      defaultPlanId: null,
+      portalAvailable: false,
+      ...(overrides.billing ?? {}),
+    },
+  };
+}
+
+function enableProMaps() {
+  server.use(
+    http.get('/api/billing/entitlements', () =>
+      HttpResponse.json(
+        entitlementPayload({
+          entitlements: {
+            planKey: 'pro',
+            billingPlanKey: 'pro',
+            billingStatus: 'active',
+            subscribed: true,
+            limits: {
+              aiWorkers: 0,
+              priceWatches: 0,
+              mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+              activeTrips: 100,
+              groupSize: null,
+            },
+          },
+        })
+      )
+    )
+  );
+}
 
 beforeEach(() => {
   resetAllStores();
@@ -87,9 +140,11 @@ describe('MapSettingsTab', () => {
   });
 
   it('FE-COMP-MAP-010: typing a custom tile URL updates the text input', async () => {
+    enableProMaps();
     const user = userEvent.setup();
     render(<MapSettingsTab />);
     const tileInput = screen.getByPlaceholderText(/openstreetmap/i);
+    await waitFor(() => expect(tileInput).not.toBeDisabled());
     await user.clear(tileInput);
     // Escape curly braces so userEvent doesn't treat them as special keys
     await user.type(tileInput, 'https://custom.tiles/{{z}/{{x}/{{y}.png');
@@ -192,5 +247,59 @@ describe('MapSettingsTab', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('40')).toBeInTheDocument();
     });
+  });
+
+  it('FE-COMP-MAP-018: free users are locked to the default 2D map controls', async () => {
+    render(<MapSettingsTab />);
+
+    await screen.findByText('Pro map options locked');
+    expect(screen.getByRole('button', { name: /Mapbox/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /MapLibre/i })).toBeDisabled();
+    expect(screen.getByPlaceholderText(/openstreetmap/i)).toBeDisabled();
+  });
+
+  it('FE-COMP-MAP-019: free users save back to default 2D map settings', async () => {
+    const user = userEvent.setup();
+    const updateSettings = vi.fn().mockResolvedValue(undefined);
+    seedStore(useSettingsStore, {
+      settings: buildSettings({
+        map_provider: 'mapbox-gl',
+        map_tile_url: 'https://custom.tiles/{z}/{x}/{y}.png',
+        mapbox_access_token: 'pk.previous',
+        mapbox_3d_enabled: true,
+        mapbox_quality_mode: true,
+      }),
+      updateSettings,
+    });
+
+    render(<MapSettingsTab />);
+    await screen.findByText('Pro map options locked');
+    await user.click(screen.getByText('Save Map'));
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        map_provider: 'leaflet',
+        map_tile_url: '',
+        mapbox_access_token: '',
+        mapbox_style: expect.any(String),
+        maplibre_style: '',
+        mapbox_3d_enabled: false,
+        mapbox_quality_mode: false,
+      })
+    );
+  });
+
+  it('FE-COMP-MAP-020: pro users can unlock premium map controls', async () => {
+    enableProMaps();
+    const user = userEvent.setup();
+    render(<MapSettingsTab />);
+
+    const tileInput = screen.getByPlaceholderText(/openstreetmap/i);
+    await waitFor(() => expect(tileInput).not.toBeDisabled());
+    const mapboxButton = screen.getByRole('button', { name: /Mapbox/i });
+    expect(mapboxButton).not.toBeDisabled();
+
+    await user.click(mapboxButton);
+    expect(screen.getByText('Mapbox Access Token')).toBeInTheDocument();
   });
 });

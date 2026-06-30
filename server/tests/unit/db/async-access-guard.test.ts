@@ -21,6 +21,8 @@ describe('async DB access guardrails', () => {
       'middleware/idempotency.ts',
       'middleware/mfaPolicy.ts',
       'middleware/tripAccess.ts',
+      'services/agentJobQueue.ts',
+      'services/agentJobWorker.ts',
       'services/tripAccess.ts',
       'websocket.ts',
       'mcp/index.ts',

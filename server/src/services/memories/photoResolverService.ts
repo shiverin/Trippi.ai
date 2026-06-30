@@ -2,11 +2,19 @@ import { asyncDb } from '../../db/asyncDatabase';
 import { db } from '../../db/database';
 import type { TrippiPhoto } from '../../types';
 import { encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
+import {
+  getMediaStorage,
+  openStoredMedia,
+  readStoredMediaBuffer,
+  sendMediaBuffer,
+  sendMediaObject,
+  type StoredMediaMetadata,
+} from '../mediaStorage';
 import type { ServiceResult, AssetInfo } from './helpersService';
 import { fail, success } from './helpersService';
 import { streamImmichAsset, fetchImmichThumbnailBytes, getAssetInfo as getImmichAssetInfo } from './immichService';
 import { streamSynologyAsset, fetchSynologyThumbnailBytes, getSynologyAssetInfo } from './synologyService';
-import { ensureLocalThumbnail } from './thumbnailService';
+import { createThumbnailFromBuffer, ensureLocalThumbnail } from './thumbnailService';
 import * as photoCache from './trippiPhotoCache';
 
 import { Response } from 'express';
@@ -66,6 +74,7 @@ export function getOrCreateLocalTrippiPhoto(
   thumbnailPath?: string | null,
   width?: number | null,
   height?: number | null,
+  storage?: Partial<StoredMediaMetadata>,
 ): number {
   const existing = db
     .prepare("SELECT id FROM trippi_photos WHERE provider = 'local' AND file_path = ?")
@@ -73,8 +82,27 @@ export function getOrCreateLocalTrippiPhoto(
   if (existing) return existing.id;
 
   const res = db
-    .prepare('INSERT INTO trippi_photos (provider, file_path, thumbnail_path, width, height) VALUES (?, ?, ?, ?, ?)')
-    .run('local', filePath, thumbnailPath || null, width || null, height || null);
+    .prepare(
+      `
+      INSERT INTO trippi_photos (
+        provider, file_path, thumbnail_path, width, height,
+        storage_backend, storage_key, storage_etag, storage_size, storage_content_type
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    )
+    .run(
+      'local',
+      filePath,
+      thumbnailPath || null,
+      width || null,
+      height || null,
+      storage?.storage_backend || null,
+      storage?.storage_key || null,
+      storage?.storage_etag || null,
+      storage?.storage_size ?? null,
+      storage?.storage_content_type || null,
+    );
   return Number(res.lastInsertRowid);
 }
 
@@ -83,15 +111,55 @@ export async function getOrCreateLocalTrippiPhotoAsync(
   thumbnailPath?: string | null,
   width?: number | null,
   height?: number | null,
+  storage?: Partial<StoredMediaMetadata>,
 ): Promise<number> {
   const existing = await asyncDb
-    .prepare("SELECT id FROM trippi_photos WHERE provider = 'local' AND file_path = ?")
-    .get<{ id: number }>(filePath);
-  if (existing) return existing.id;
+    .prepare("SELECT id, storage_key FROM trippi_photos WHERE provider = 'local' AND file_path = ?")
+    .get<{ id: number; storage_key?: string | null }>(filePath);
+  if (existing) {
+    if (storage?.storage_key && !existing.storage_key) {
+      await asyncDb
+        .prepare(
+          `
+          UPDATE trippi_photos
+          SET storage_backend = ?, storage_key = ?, storage_etag = ?, storage_size = ?, storage_content_type = ?
+          WHERE id = ?
+        `,
+        )
+        .run(
+          storage.storage_backend || null,
+          storage.storage_key,
+          storage.storage_etag || null,
+          storage.storage_size ?? null,
+          storage.storage_content_type || null,
+          existing.id,
+        );
+    }
+    return existing.id;
+  }
 
   const res = await asyncDb
-    .prepare('INSERT INTO trippi_photos (provider, file_path, thumbnail_path, width, height) VALUES (?, ?, ?, ?, ?)')
-    .run('local', filePath, thumbnailPath || null, width || null, height || null);
+    .prepare(
+      `
+      INSERT INTO trippi_photos (
+        provider, file_path, thumbnail_path, width, height,
+        storage_backend, storage_key, storage_etag, storage_size, storage_content_type
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    )
+    .run(
+      'local',
+      filePath,
+      thumbnailPath || null,
+      width || null,
+      height || null,
+      storage?.storage_backend || null,
+      storage?.storage_key || null,
+      storage?.storage_etag || null,
+      storage?.storage_size ?? null,
+      storage?.storage_content_type || null,
+    );
   return Number(res.lastInsertRowid);
 }
 
@@ -152,18 +220,68 @@ export async function streamPhoto(
 
     if (kind === 'thumbnail') {
       let thumbRel = photo.thumbnail_path ?? null;
+      if (thumbRel) {
+        try {
+          const thumbObject = await openStoredMedia(photo.storage_key ? thumbRel : null, thumbRel);
+          if (thumbObject) {
+            await sendMediaObject(res, thumbObject, {
+              contentType: thumbObject.contentType || 'image/jpeg',
+              cacheControl: 'public, max-age=86400, immutable',
+            });
+            return;
+          }
+        } catch {
+          // Fall through and try to regenerate below.
+        }
+      }
       if (!thumbRel) {
-        const result = await ensureLocalThumbnail(uploadsRoot, photo.file_path);
+        let result = await ensureLocalThumbnail(uploadsRoot, photo.file_path);
+        if (!result && photo.storage_key) {
+          const original = await readStoredMediaBuffer(photo.storage_key, photo.file_path);
+          if (original) {
+            const generated = await createThumbnailFromBuffer(original, photo.file_path);
+            if (generated) {
+              await getMediaStorage().putObject({
+                key: generated.thumbnailRelPath,
+                body: generated.buffer,
+                contentType: 'image/jpeg',
+              });
+              result = generated;
+            }
+          }
+        }
         if (result) {
           thumbRel = result.thumbnailRelPath;
-          await asyncDb.prepare(
-            'UPDATE trippi_photos SET thumbnail_path = ?, width = COALESCE(width, ?), height = COALESCE(height, ?) WHERE id = ?',
-          ).run(thumbRel, result.width, result.height, photo.id);
+          await asyncDb
+            .prepare(
+              'UPDATE trippi_photos SET thumbnail_path = ?, width = COALESCE(width, ?), height = COALESCE(height, ?) WHERE id = ?',
+            )
+            .run(thumbRel, result.width, result.height, photo.id);
+          const thumbnailBuffer = 'buffer' in result && Buffer.isBuffer(result.buffer) ? result.buffer : null;
+          if (thumbnailBuffer) {
+            await sendMediaBuffer(res, thumbnailBuffer, {
+              contentType: 'image/jpeg',
+              cacheControl: 'public, max-age=86400, immutable',
+            });
+            return;
+          }
         }
       }
       if (thumbRel) {
+        try {
+          const thumbObject = await openStoredMedia(photo.storage_key ? thumbRel : null, thumbRel);
+          if (thumbObject) {
+            await sendMediaObject(res, thumbObject, {
+              contentType: thumbObject.contentType || 'image/jpeg',
+              cacheControl: 'public, max-age=86400, immutable',
+            });
+            return;
+          }
+        } catch {
+          // Fall through to original if thumbnail unavailable.
+        }
         const thumbAbs = path.join(uploadsRoot, thumbRel);
-        if (fs.existsSync(thumbAbs)) {
+        if (!photo.storage_key && fs.existsSync(thumbAbs)) {
           res.set('Cache-Control', 'public, max-age=86400, immutable');
           res.sendFile(thumbAbs);
           return;
@@ -172,11 +290,17 @@ export async function streamPhoto(
       // Fall through to original if thumbnail unavailable.
     }
 
-    const localPath = path.join(uploadsRoot, photo.file_path);
-    if (fs.existsSync(localPath)) {
-      res.set('Cache-Control', 'public, max-age=86400');
-      res.sendFile(localPath);
-      return;
+    try {
+      const object = await openStoredMedia(photo.storage_key, photo.file_path);
+      if (object) {
+        await sendMediaObject(res, object, {
+          contentType: object.contentType || photo.storage_content_type || undefined,
+          cacheControl: 'public, max-age=86400',
+        });
+        return;
+      }
+    } catch {
+      // Invalid legacy path or storage key falls through to 404/provider path.
     }
   }
 

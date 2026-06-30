@@ -3,6 +3,7 @@ import { db } from '../db/database';
 import { CollabNote, CollabPoll, CollabMessage, TripFile } from '../types';
 import { checkSsrf, createPinnedDispatcher } from '../utils/ssrfGuard';
 import { avatarUrl } from './avatarUrl';
+import { deleteStoredMedia, tripFileLegacyKey, type StoredMediaMetadata } from './mediaStorage';
 
 import fs from 'fs';
 import path from 'path';
@@ -31,6 +32,7 @@ export interface NoteFileRow {
   original_name?: string;
   file_size?: number;
   mime_type?: string;
+  storage_key?: string | null;
 }
 
 export interface GroupedReaction {
@@ -402,13 +404,12 @@ export async function deleteNoteAsync(tripId: string | number, noteId: string | 
   if (!existing) return false;
 
   const noteFiles = await asyncDb
-    .prepare('SELECT id, filename FROM trip_files WHERE note_id = ?')
+    .prepare('SELECT id, filename, storage_key FROM trip_files WHERE note_id = ?')
     .all<NoteFileRow>(noteId);
   await Promise.all(
     noteFiles.map(async (f) => {
-      const filePath = path.join(__dirname, '../../uploads', f.filename);
       try {
-        await fs.promises.rm(filePath, { force: true });
+        await deleteStoredMedia(f.storage_key, tripFileLegacyKey(f.filename));
       } catch {
         /* ignore */
       }
@@ -426,16 +427,34 @@ export async function deleteNoteAsync(tripId: string | number, noteId: string | 
 export function addNoteFile(
   tripId: string | number,
   noteId: string | number,
-  file: { filename: string; originalname: string; size: number; mimetype: string },
+  file: { filename: string; originalname: string; size: number; mimetype: string } & Partial<StoredMediaMetadata>,
 ): { file: TripFile & { url: string } } | null {
   const note = db.prepare('SELECT id FROM collab_notes WHERE id = ? AND trip_id = ?').get(noteId, tripId);
   if (!note) return null;
 
   const result = db
     .prepare(
-      'INSERT INTO trip_files (trip_id, note_id, filename, original_name, file_size, mime_type) VALUES (?, ?, ?, ?, ?, ?)',
+      `
+      INSERT INTO trip_files (
+        trip_id, note_id, filename, original_name, file_size, mime_type,
+        storage_backend, storage_key, storage_etag, storage_size, storage_content_type
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
     )
-    .run(tripId, noteId, `files/${file.filename}`, file.originalname, file.size, file.mimetype);
+    .run(
+      tripId,
+      noteId,
+      `files/${file.filename}`,
+      file.originalname,
+      file.size,
+      file.mimetype,
+      file.storage_backend || null,
+      file.storage_key || null,
+      file.storage_etag || null,
+      file.storage_size ?? file.size ?? null,
+      file.storage_content_type || file.mimetype || null,
+    );
 
   const saved = db.prepare('SELECT * FROM trip_files WHERE id = ?').get(result.lastInsertRowid) as TripFile;
   return { file: { ...saved, url: `/api/trips/${tripId}/files/${saved.id}/download` } };
@@ -444,7 +463,7 @@ export function addNoteFile(
 export async function addNoteFileAsync(
   tripId: string | number,
   noteId: string | number,
-  file: { filename: string; originalname: string; size: number; mimetype: string },
+  file: { filename: string; originalname: string; size: number; mimetype: string } & Partial<StoredMediaMetadata>,
 ): Promise<{ file: TripFile & { url: string } } | null> {
   const note = await asyncDb
     .prepare('SELECT id FROM collab_notes WHERE id = ? AND trip_id = ?')
@@ -453,9 +472,27 @@ export async function addNoteFileAsync(
 
   const result = await asyncDb
     .prepare(
-      'INSERT INTO trip_files (trip_id, note_id, filename, original_name, file_size, mime_type) VALUES (?, ?, ?, ?, ?, ?)',
+      `
+      INSERT INTO trip_files (
+        trip_id, note_id, filename, original_name, file_size, mime_type,
+        storage_backend, storage_key, storage_etag, storage_size, storage_content_type
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
     )
-    .run(tripId, noteId, `files/${file.filename}`, file.originalname, file.size, file.mimetype);
+    .run(
+      tripId,
+      noteId,
+      `files/${file.filename}`,
+      file.originalname,
+      file.size,
+      file.mimetype,
+      file.storage_backend || null,
+      file.storage_key || null,
+      file.storage_etag || null,
+      file.storage_size ?? file.size ?? null,
+      file.storage_content_type || file.mimetype || null,
+    );
 
   const saved = (await asyncDb.prepare('SELECT * FROM trip_files WHERE id = ?').get<TripFile>(result.lastInsertRowid))!;
   return { file: { ...saved, url: `/api/trips/${tripId}/files/${saved.id}/download` } };
@@ -498,9 +535,8 @@ export async function deleteNoteFileAsync(noteId: string | number, fileId: strin
     .get<TripFile>(fileId, noteId);
   if (!file) return false;
 
-  const filePath = path.join(__dirname, '../../uploads', file.filename);
   try {
-    await fs.promises.rm(filePath, { force: true });
+    await deleteStoredMedia(file.storage_key, tripFileLegacyKey(file.filename));
   } catch {
     /* ignore */
   }

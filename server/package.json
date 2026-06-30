@@ -27,9 +27,11 @@
     "oracle:native:schema": "tsx scripts/oracle-native-schema.ts",
     "oracle:native:import": "tsx scripts/oracle-native-import.ts",
     "oracle:restore": "tsx scripts/oracle-restore-sqlite.ts",
-    "oracle:mirror": "tsx scripts/oracle-mirror-sqlite.ts"
+    "oracle:mirror": "tsx scripts/oracle-mirror-sqlite.ts",
+    "media:backfill": "tsx scripts/media-backfill.ts"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.21.0",
     "@modelcontextprotocol/sdk": "^1.28.0",
     "@nestjs/common": "^11.1.24",
     "@nestjs/core": "^11.1.24",

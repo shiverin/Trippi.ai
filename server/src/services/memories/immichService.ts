@@ -3,6 +3,7 @@ import { db } from '../../db/database';
 import { checkSsrf, safeFetch } from '../../utils/ssrfGuard';
 import { maybe_encrypt_api_key, decrypt_api_key } from '../apiKeyCrypto';
 import { writeAuditAsync } from '../auditLog';
+import { readMediaBufferWithLocalFallback } from '../mediaStorage';
 import { getAlbumIdFromLink, updateSyncTimeForAlbumLinkAsync, Selection, pipeAsset } from './helpersService';
 import { addTripPhotos } from './unifiedService';
 
@@ -425,14 +426,11 @@ export async function uploadToImmich(userId: number, filePath: string, fileName:
   const creds = await getImmichCredentialsAsync(userId);
   if (!creds) return null;
 
-  const fs = await import('node:fs');
   const path = await import('node:path');
 
-  const fullPath = path.join(__dirname, '../../../uploads', filePath);
-  if (!fs.existsSync(fullPath)) return null;
-
   try {
-    const fileBuffer = fs.readFileSync(fullPath);
+    const fileBuffer = await readMediaBufferWithLocalFallback(filePath);
+    if (!fileBuffer) return null;
     const boundary = '----ImmichUpload' + Date.now();
     const ext = path.extname(fileName).toLowerCase();
     const mimeTypes: Record<string, string> = {

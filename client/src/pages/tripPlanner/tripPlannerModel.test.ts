@@ -118,10 +118,12 @@ describe('booking route visibility', () => {
   it('returns every eligible transport id when the global toggle is on', () => {
     const reservations = [
       buildReservation({ id: 1, type: 'flight', endpoints, day_id: 10 }),
-      buildReservation({ id: 2, type: 'taxi', endpoints, day_id: 20 }),
-      buildReservation({ id: 3, type: 'ferry', endpoints, day_id: 30 }),
+      buildReservation({ id: 2, type: 'train', endpoints, day_id: 20 }),
+      buildReservation({ id: 3, type: 'subway', endpoints, day_id: 30 }),
+      buildReservation({ id: 4, type: 'car', endpoints, day_id: 40 }),
+      buildReservation({ id: 5, type: 'ferry', endpoints, day_id: 50 }),
     ]
-    expect(visibleBookingRouteIds(reservations, true, {})).toEqual([1, 2, 3])
+    expect(visibleBookingRouteIds(reservations, true, {})).toEqual([1, 2, 3, 4, 5])
   })
 
   it('removes hidden per-transport exceptions while global stays on', () => {

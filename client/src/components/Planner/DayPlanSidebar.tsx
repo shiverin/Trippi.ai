@@ -77,7 +77,7 @@ import { RES_ICONS, getNoteIcon } from './DayPlanSidebar.constants';
 import { DayPlanSidebarFooter } from './DayPlanSidebarFooter';
 import { MobileAddPlaceButton } from './DayPlanSidebarMobileAddPlaceButton';
 import { DayPlanSidebarNoteModal } from './DayPlanSidebarNoteModal';
-import { HotelRouteConnector, RouteConnector } from './DayPlanSidebarRouteConnector';
+import { HotelRouteConnector, RouteConnector, RouteSuggestionConnector } from './DayPlanSidebarRouteConnector';
 import { DayPlanSidebarTimeConfirmModal } from './DayPlanSidebarTimeConfirmModal';
 import { DayPlanSidebarToolbar } from './DayPlanSidebarToolbar';
 import { DayPlanSidebarTransportDetailModal } from './DayPlanSidebarTransportDetailModal';
@@ -140,6 +140,8 @@ interface DayPlanSidebarProps {
 type RouteConnectorItem = {
   seg: RouteSegment;
   label?: string;
+  kind?: 'transport' | 'suggestion';
+  sameCity?: boolean;
 };
 
 function LazyWeatherWidget(props: React.ComponentProps<typeof WeatherWidget>) {
@@ -173,6 +175,26 @@ function LazyWeatherWidget(props: React.ComponentProps<typeof WeatherWidget>) {
     </div>
   );
 }
+
+function getAddressRegion(address?: string | null): string | null {
+  if (!address) return null;
+  const parts = address
+    .split(',')
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+  if (parts.length < 2) return null;
+  const cityLike = parts.slice(-4, -1).find((part) => !/\d{4,}/.test(part) && /[\p{L}]/u.test(part));
+  return cityLike || null;
+}
+
+function isLikelySameCity(from: RouteWaypointMeta, to: RouteWaypointMeta, distanceMeters: number): boolean {
+  if (distanceMeters <= 35000) return true;
+  const fromRegion = getAddressRegion(from.address);
+  const toRegion = getAddressRegion(to.address);
+  return !!fromRegion && fromRegion === toRegion;
+}
+
+type RouteWaypointMeta = { address?: string | null };
 
 /**
  * Day-plan state + behaviour: expand/collapse, inline title edit, route legs +
@@ -277,6 +299,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
   // Recompute the hotel/route legs when the user flips km↔mi so the connector
   // distances refresh instead of showing stale cached text (#1300).
   const distanceUnit = useSettingsStore((s) => s.settings.distance_unit);
+  const transportConnectorRoutesShown = routeShown || bookingRoutesGlobalShown;
   const legsAbortRef = useRef<AbortController | null>(null);
   const [draggingId, setDraggingId] = useState(null);
   const [lockedIds, setLockedIds] = useState(new Set());
@@ -533,13 +556,20 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
   // the start place's assignment id. Shares RouteCalculator's cache with the map.
   useEffect(() => {
     if (legsAbortRef.current) legsAbortRef.current.abort();
-    if (!selectedDayId || !routeShown) {
+    if (!selectedDayId || !transportConnectorRoutesShown) {
       setRouteLegs({});
       setHotelLegs({});
       return;
     }
     const merged = mergedItemsMap[selectedDayId] || [];
-    type RouteWaypoint = { id: number; lat: number; lng: number; kind: 'place' | 'transport'; name?: string };
+    type RouteWaypoint = {
+      id: number;
+      lat: number;
+      lng: number;
+      kind: 'place' | 'transport';
+      name?: string;
+      address?: string | null;
+    };
     const runs: RouteWaypoint[][] = [];
     let cur: RouteWaypoint[] = [];
     for (const it of merged) {
@@ -550,6 +580,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
           lng: it.data.place.lng,
           kind: 'place',
           name: it.data.place.name,
+          address: it.data.place.address,
         });
       } else if (it.type === 'transport') {
         const r = it.data;
@@ -622,11 +653,16 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
             const to = run[i + 1];
             if (!from || !to) return;
             if (to.kind === 'transport') {
-              addLeg(to.id, { seg: leg, label: 'To departure' });
+              addLeg(to.id, { seg: leg, label: 'To departure', kind: 'transport' });
             } else if (from.kind === 'transport') {
-              addLeg(from.id, { seg: leg, label: 'From arrival' });
+              addLeg(from.id, { seg: leg, label: 'From arrival', kind: 'transport' });
             } else {
-              addLeg(from.id, { seg: leg, label: `${moveVerb} ${to.name || 'next stop'}` });
+              addLeg(from.id, {
+                seg: leg,
+                label: `${moveVerb} ${to.name || 'next stop'}`,
+                kind: 'suggestion',
+                sameCity: isLikelySameCity(from, to, leg.distance),
+              });
             }
           });
         } catch (err) {
@@ -669,7 +705,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     })();
   }, [
     selectedDayId,
-    routeShown,
+    transportConnectorRoutesShown,
     routeProfile,
     mergedItemsMap,
     accommodations,
@@ -1209,7 +1245,9 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     onAddPlaceToDay,
     onNavigateToFiles,
     routeShown,
+    transportConnectorRoutesShown,
     routeProfile,
+    distanceUnit,
     onToggleRoute,
     onSetRouteProfile,
     onExpandedDaysChange,
@@ -1363,7 +1401,9 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
     onAddPlaceToDay,
     onNavigateToFiles,
     routeShown,
+    transportConnectorRoutesShown,
     routeProfile,
+    distanceUnit,
     onToggleRoute,
     onSetRouteProfile,
     onExpandedDaysChange,
@@ -2059,7 +2099,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                       handleMergedDrop(day.id, 'note', Number(noteId), lastItem.type, lastItem.data.id, true);
                   }}
                 >
-                  {isSelected && hotelLegs.top && (
+                  {isSelected && routeShown && hotelLegs.top && (
                     <HotelRouteConnector
                       seg={hotelLegs.top.seg}
                       name={hotelLegs.top.name}
@@ -2743,14 +2783,24 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                 </button>
                               )}
                             </div>
-                            {routeLegs[assignment.id]?.map((item, legIdx) => (
-                              <RouteConnector
-                                key={`assignment-leg-${assignment.id}-${legIdx}`}
-                                seg={item.seg}
-                                profile={routeProfile}
-                                label={item.label}
-                              />
-                            ))}
+                            {transportConnectorRoutesShown &&
+                              routeLegs[assignment.id]?.map((item, legIdx) =>
+                                item.kind === 'suggestion' ? (
+                                  <RouteSuggestionConnector
+                                    key={`assignment-leg-${assignment.id}-${legIdx}`}
+                                    seg={item.seg}
+                                    sameCity={item.sameCity !== false}
+                                    distanceUnit={distanceUnit || 'metric'}
+                                  />
+                                ) : (
+                                  <RouteConnector
+                                    key={`assignment-leg-${assignment.id}-${legIdx}`}
+                                    seg={item.seg}
+                                    profile={routeProfile}
+                                    label={item.label}
+                                  />
+                                )
+                              )}
                           </React.Fragment>
                         );
                       }
@@ -3094,14 +3144,15 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                   );
                                 })()}
                             </div>
-                            {routeLegs[res.id]?.map((item, legIdx) => (
-                              <RouteConnector
-                                key={`transport-leg-${res.id}-${legIdx}`}
-                                seg={item.seg}
-                                profile={routeProfile}
-                                label={item.label}
-                              />
-                            ))}
+                            {transportConnectorRoutesShown &&
+                              routeLegs[res.id]?.map((item, legIdx) => (
+                                <RouteConnector
+                                  key={`transport-leg-${res.id}-${legIdx}`}
+                                  seg={item.seg}
+                                  profile={routeProfile}
+                                  label={item.label}
+                                />
+                              ))}
                           </React.Fragment>
                         );
                       }
@@ -3405,7 +3456,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                       );
                     })
                   )}
-                  {isSelected && hotelLegs.bottom && (
+                  {isSelected && routeShown && hotelLegs.bottom && (
                     <HotelRouteConnector
                       seg={hotelLegs.bottom.seg}
                       name={hotelLegs.bottom.name}

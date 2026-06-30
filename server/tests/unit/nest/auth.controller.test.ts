@@ -4,6 +4,20 @@ import type { Request, Response } from 'express';
 
 vi.mock('../../../src/services/auditLog', () => ({ writeAudit: vi.fn(), getClientIp: vi.fn(() => '1.2.3.4') }));
 vi.mock('../../../src/services/demo', () => ({ isDemoEmail: vi.fn(() => false) }));
+vi.mock('../../../src/services/mediaStorage', () => ({
+  storeUploadedMedia: vi.fn(async (_namespace: string, file: Express.Multer.File) => ({
+    filename: file.filename ?? file.originalname ?? 'avatar.jpg',
+    key: `avatars/${file.filename ?? file.originalname ?? 'avatar.jpg'}`,
+    metadata: {
+      storage_backend: 'local',
+      storage_key: `avatars/${file.filename ?? file.originalname ?? 'avatar.jpg'}`,
+      storage_etag: null,
+      storage_size: file.size ?? file.buffer?.length ?? null,
+      storage_content_type: file.mimetype ?? 'image/jpeg',
+    },
+  })),
+  deleteMediaBestEffort: vi.fn(async () => undefined),
+}));
 
 import { AuthPublicController } from '../../../src/nest/auth/auth-public.controller';
 import { AuthController } from '../../../src/nest/auth/auth.controller';

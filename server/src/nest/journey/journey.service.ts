@@ -81,8 +81,9 @@ export class JourneyService {
     filePath: string,
     thumbnailPath: string | undefined,
     caption: string | undefined,
+    storage?: Parameters<typeof svc.addPhoto>[5],
   ) {
-    return svc.addPhoto(entryId, userId, filePath, thumbnailPath, caption);
+    return svc.addPhoto(entryId, userId, filePath, thumbnailPath, caption, storage);
   }
   setPhotoProvider(photoId: number, provider: string, assetId: string, ownerId: number) {
     return svc.setPhotoProvider(photoId, provider, assetId, ownerId);

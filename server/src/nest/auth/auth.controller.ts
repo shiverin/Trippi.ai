@@ -1,5 +1,6 @@
 import { writeAudit, getClientIp } from '../../services/auditLog';
 import { isDemoEmail } from '../../services/demo';
+import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
 import type { User } from '../../types';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
@@ -24,22 +25,13 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 
 import type { Request, Response } from 'express';
-import fs from 'fs';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import path from 'path';
-import { v4 as uuid } from 'uuid';
 
 const WINDOW = 15 * 60 * 1000;
-const avatarDir = path.join(__dirname, '../../../uploads/avatars');
 const ALLOWED_AVATAR_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const AVATAR_UPLOAD = {
-  storage: diskStorage({
-    destination: (_req, _file, cb) => {
-      if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
-      cb(null, avatarDir);
-    },
-    filename: (_req, file, cb) => cb(null, uuid() + path.extname(file.originalname)),
-  }),
+  storage: memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req: unknown, file: Express.Multer.File, cb: (err: Error | null, accept: boolean) => void) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -153,7 +145,13 @@ export class AuthController {
     if (!file) {
       throw new HttpException({ error: 'No image uploaded' }, 400);
     }
-    return this.auth.saveAvatar(user.id, file.filename);
+    const stored = await storeUploadedMedia('avatars', file, '.jpg');
+    try {
+      return await this.auth.saveAvatar(user.id, stored.filename);
+    } catch (err) {
+      await deleteMediaBestEffort(stored.key);
+      throw err;
+    }
   }
 
   @Delete('avatar')

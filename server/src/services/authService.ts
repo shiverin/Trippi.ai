@@ -15,6 +15,7 @@ import { validatePassword } from './passwordPolicy';
 import { getAllPermissions, getAllPermissionsAsync } from './permissions';
 import { deleteUserCompletely } from './userCleanupService';
 import { isPasskeyConfigured, isPasskeyConfiguredAsync, resolveWebauthnConfigAsync } from './webauthnConfig';
+import { deleteMediaBestEffort, mediaKey } from './mediaStorage';
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -26,10 +27,8 @@ import {
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { randomBytes, createHash } from 'crypto';
-import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import { authenticator } from 'otplib';
-import path from 'path';
 import QRCode from 'qrcode';
 
 export { avatarUrl };
@@ -94,9 +93,6 @@ const ADMIN_SETTINGS_KEYS = [
   'webauthn_rp_id',
   'webauthn_origins',
 ];
-
-const avatarDir = path.join(__dirname, '../../uploads/avatars');
-if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
 
 const KNOWN_COUNTRIES = new Set([
   'Japan',
@@ -1770,16 +1766,15 @@ export async function getSettingsAsync(
 
 export async function saveAvatar(userId: number, filename: string) {
   const current = await asyncDb.prepare('SELECT avatar FROM users WHERE id = ?').get<{ avatar: string | null }>(userId);
-  if (current && current.avatar) {
-    // Fire-and-forget: leftover files are harmless; the DB update is
-    // the source of truth for which avatar is current.
-    const oldPath = path.join(avatarDir, current.avatar);
-    await fs.promises.rm(oldPath, { force: true }).catch(() => {});
-  }
-
   await asyncDb
     .prepare('UPDATE users SET avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(filename, userId);
+
+  if (current?.avatar) {
+    // Fire-and-forget after the DB points at the replacement: the DB is the
+    // source of truth, and leftover bytes can be cleaned later.
+    await deleteMediaBestEffort(mediaKey('avatars', current.avatar));
+  }
 
   const updated = await asyncDb
     .prepare('SELECT id, username, email, role, avatar FROM users WHERE id = ?')
@@ -1789,11 +1784,10 @@ export async function saveAvatar(userId: number, filename: string) {
 
 export async function deleteAvatar(userId: number) {
   const current = await asyncDb.prepare('SELECT avatar FROM users WHERE id = ?').get<{ avatar: string | null }>(userId);
-  if (current && current.avatar) {
-    const filePath = path.join(avatarDir, current.avatar);
-    await fs.promises.rm(filePath, { force: true }).catch(() => {});
-  }
   await asyncDb.prepare('UPDATE users SET avatar = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(userId);
+  if (current?.avatar) {
+    await deleteMediaBestEffort(mediaKey('avatars', current.avatar));
+  }
   return { success: true };
 }
 

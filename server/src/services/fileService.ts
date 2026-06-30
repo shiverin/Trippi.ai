@@ -3,9 +3,9 @@ import { db } from '../db/database';
 import { verifyJwtAndLoadUser } from '../middleware/auth';
 import { TripFile } from '../types';
 import { consumeEphemeralToken } from './ephemeralTokens';
+import { deleteStoredMedia, tripFileLegacyKey, type StoredMediaMetadata } from './mediaStorage';
 
 import type { Request } from 'express';
-import fs from 'fs';
 import path from 'path';
 
 // ---------------------------------------------------------------------------
@@ -148,6 +148,13 @@ export interface FileLink {
   place_id: number | null;
 }
 
+type FileUploadInput = {
+  filename: string;
+  originalname: string;
+  size: number;
+  mimetype: string;
+} & Partial<StoredMediaMetadata>;
+
 export function getFileById(id: string | number, tripId: string | number): TripFile | undefined {
   return db.prepare('SELECT * FROM trip_files WHERE id = ? AND trip_id = ?').get(id, tripId) as TripFile | undefined;
 }
@@ -234,15 +241,18 @@ export async function listFilesAsync(tripId: string | number, showTrash: boolean
 
 export function createFile(
   tripId: string | number,
-  file: { filename: string; originalname: string; size: number; mimetype: string },
+  file: FileUploadInput,
   uploadedBy: number,
   opts: { place_id?: string | null; reservation_id?: string | null; description?: string | null },
 ) {
   const result = db
     .prepare(
       `
-    INSERT INTO trip_files (trip_id, place_id, reservation_id, filename, original_name, file_size, mime_type, description, uploaded_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO trip_files (
+      trip_id, place_id, reservation_id, filename, original_name, file_size, mime_type, description, uploaded_by,
+      storage_backend, storage_key, storage_etag, storage_size, storage_content_type
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
     )
     .run(
@@ -255,6 +265,11 @@ export function createFile(
       file.mimetype,
       opts.description || null,
       uploadedBy,
+      file.storage_backend || null,
+      file.storage_key || null,
+      file.storage_etag || null,
+      file.storage_size ?? file.size ?? null,
+      file.storage_content_type || file.mimetype || null,
     );
 
   const created = db.prepare(`${FILE_SELECT} WHERE f.id = ?`).get(result.lastInsertRowid) as TripFile;
@@ -263,15 +278,18 @@ export function createFile(
 
 export async function createFileAsync(
   tripId: string | number,
-  file: { filename: string; originalname: string; size: number; mimetype: string },
+  file: FileUploadInput,
   uploadedBy: number,
   opts: { place_id?: string | null; reservation_id?: string | null; description?: string | null },
 ) {
   const result = await asyncDb
     .prepare(
       `
-    INSERT INTO trip_files (trip_id, place_id, reservation_id, filename, original_name, file_size, mime_type, description, uploaded_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO trip_files (
+      trip_id, place_id, reservation_id, filename, original_name, file_size, mime_type, description, uploaded_by,
+      storage_backend, storage_key, storage_etag, storage_size, storage_content_type
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
     )
     .run(
@@ -284,6 +302,11 @@ export async function createFileAsync(
       file.mimetype,
       opts.description || null,
       uploadedBy,
+      file.storage_backend || null,
+      file.storage_key || null,
+      file.storage_etag || null,
+      file.storage_size ?? file.size ?? null,
+      file.storage_content_type || file.mimetype || null,
     );
 
   const created = (await asyncDb.prepare(`${FILE_SELECT} WHERE f.id = ?`).get<TripFile>(result.lastInsertRowid))!;
@@ -377,14 +400,13 @@ export async function restoreFileAsync(id: string | number) {
 }
 
 export async function permanentDeleteFile(file: TripFile): Promise<void> {
-  const { resolved } = resolveFilePath(file.filename);
   // `force: true` swallows ENOENT, replacing the prior existsSync+unlink
   // double-call that blocked the event loop twice per deletion. Only
   // drop the DB row when the on-disk unlink either succeeded or the
   // file was already gone — otherwise a permission / ENOSPC failure
   // would orphan the bytes on disk with no DB pointer left to clean it.
   try {
-    await fs.promises.rm(resolved, { force: true });
+    await deleteStoredMedia(file.storage_key, tripFileLegacyKey(file.filename));
   } catch (e) {
     console.error(`[files] unlink failed for ${file.filename}, keeping DB row:`, e);
     throw e;
@@ -402,9 +424,8 @@ export async function emptyTrash(tripId: string | number): Promise<number> {
   const successfullyUnlinked: number[] = [];
   await Promise.all(
     trashed.map(async (file) => {
-      const { resolved } = resolveFilePath(file.filename);
       try {
-        await fs.promises.rm(resolved, { force: true });
+        await deleteStoredMedia(file.storage_key, tripFileLegacyKey(file.filename));
         successfullyUnlinked.push(Number(file.id));
       } catch (e) {
         console.error(`[files] unlink failed for ${file.filename}, keeping DB row:`, e);

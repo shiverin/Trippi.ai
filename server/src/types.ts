@@ -215,6 +215,11 @@ export interface TripFile {
   created_at?: string;
   reservation_title?: string;
   url?: string;
+  storage_backend?: 'local' | 'gcs' | string | null;
+  storage_key?: string | null;
+  storage_etag?: string | null;
+  storage_size?: number | null;
+  storage_content_type?: string | null;
 }
 
 export interface TripMember {
@@ -390,6 +395,11 @@ export interface TrippiPhoto {
   width?: number | null;
   height?: number | null;
   passphrase?: string | null;
+  storage_backend?: 'local' | 'gcs' | string | null;
+  storage_key?: string | null;
+  storage_etag?: string | null;
+  storage_size?: number | null;
+  storage_content_type?: string | null;
   created_at: string;
 }
 
@@ -409,6 +419,11 @@ export interface JourneyPhoto {
   thumbnail_path?: string | null;
   width?: number | null;
   height?: number | null;
+  storage_backend?: 'local' | 'gcs' | string | null;
+  storage_key?: string | null;
+  storage_etag?: string | null;
+  storage_size?: number | null;
+  storage_content_type?: string | null;
 }
 
 export interface GalleryPhoto {

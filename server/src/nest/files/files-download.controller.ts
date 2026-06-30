@@ -1,8 +1,8 @@
 import { FilesService } from './files.service';
 import { Controller, Get, HttpException, Param, Req, Res } from '@nestjs/common';
+import { openStoredMedia, sendMediaObject, tripFileLegacyKey } from '../../services/mediaStorage';
 
 import type { Request, Response } from 'express';
-import fs from 'fs';
 import path from 'path';
 
 /**
@@ -39,26 +39,24 @@ export class FilesDownloadController {
       throw new HttpException({ error: 'File not found' }, 404);
     }
 
-    const { resolved, safe } = this.files.resolveFilePath(file.filename);
-    if (!safe) {
+    let legacyKey: string;
+    let object;
+    try {
+      legacyKey = tripFileLegacyKey(file.filename);
+      object = await openStoredMedia(file.storage_key, legacyKey);
+    } catch {
       throw new HttpException({ error: 'Forbidden' }, 403);
     }
-    if (!fs.existsSync(resolved)) {
+    if (!object) {
       throw new HttpException({ error: 'File not found' }, 404);
     }
 
     // Serve Apple Wallet passes inline with the canonical MIME type so Safari
     // (iOS/macOS) hands them to Wallet instead of downloading as a blob.
-    if (path.extname(resolved).toLowerCase() === '.pkpass') {
-      res.setHeader('Content-Type', 'application/vnd.apple.pkpass');
-      res.setHeader('Content-Disposition', `inline; filename="${path.basename(file.original_name || resolved)}"`);
-    }
-
-    // Serve with an explicit { root } + basename rather than an absolute path:
-    // under the Nest ExpressAdapter, res.sendFile(absolutePath) resolves the
-    // file relative to the (rewritten) req.url and fails with a spurious
-    // "Not Found", whereas the root-relative form streams correctly. The
-    // resolveFilePath guard above already pins this to the uploads dir.
-    res.sendFile(path.basename(resolved), { root: path.dirname(resolved) });
+    const isPkpass = path.extname(file.original_name || file.filename).toLowerCase() === '.pkpass';
+    await sendMediaObject(res, object, {
+      contentType: isPkpass ? 'application/vnd.apple.pkpass' : file.mime_type,
+      contentDisposition: isPkpass ? `inline; filename="${path.basename(file.original_name || file.filename)}"` : null,
+    });
   }
 }

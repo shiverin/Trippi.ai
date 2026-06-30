@@ -3,6 +3,7 @@ import PageShell from '../components/Layout/PageShell';
 import { TransHtml, useTranslation } from '../i18n';
 import type { Journey } from '../store/journeyStore';
 import { computeJourneyLifecycle } from '../utils/journeyLifecycle';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 import { useJourney } from './journey/useJourney';
 
 const GRADIENTS = [
@@ -407,6 +408,7 @@ export default function JourneyPage() {
                     active: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
                     upcoming: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
                   };
+                  const coverImageUrl = resolveMediaUrl(trip.cover_image);
 
                   return (
                     <div
@@ -438,8 +440,15 @@ export default function JourneyPage() {
                         className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg"
                         style={{ background: pickGradient(trip.id) }}
                       >
-                        {trip.cover_image && (
-                          <img src={trip.cover_image} className="h-full w-full object-cover" alt="" />
+                        {coverImageUrl && (
+                          <img
+                            src={coverImageUrl}
+                            className="h-full w-full object-cover"
+                            alt=""
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none';
+                            }}
+                          />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">

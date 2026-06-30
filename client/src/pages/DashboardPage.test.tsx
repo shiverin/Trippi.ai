@@ -67,6 +67,33 @@ describe('DashboardPage', () => {
       // At least the first trip name should be visible
       expect(screen.getAllByText('Paris Adventure')[0]).toBeVisible();
     });
+
+    it('normalizes bare media storage keys for trip cover images', async () => {
+      const trip = buildTrip({
+        title: 'Yunnan Cover',
+        start_date: '2026-08-01',
+        end_date: '2026-08-10',
+        cover_image: 'covers/yunnan.jpg',
+      });
+
+      server.use(
+        http.get('/api/trips', ({ request }) => {
+          const url = new URL(request.url);
+          if (url.searchParams.get('archived')) return HttpResponse.json({ trips: [] });
+          return HttpResponse.json({ trips: [trip] });
+        })
+      );
+
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByAltText('Yunnan Cover').length).toBeGreaterThan(0);
+      });
+
+      const srcs = screen.getAllByAltText('Yunnan Cover').map((img) => img.getAttribute('src'));
+      expect(srcs).toContain('/uploads/covers/yunnan.jpg');
+      expect(srcs).not.toContain('covers/yunnan.jpg');
+    });
   });
 
   describe('FE-PAGE-DASH-004: Empty state when no trips', () => {

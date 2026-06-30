@@ -9,10 +9,20 @@ import path from 'path';
 const THUMB_MAX = 800;
 const THUMB_QUALITY = 80;
 
+export interface ThumbnailResult {
+  thumbnailRelPath: string;
+  width: number;
+  height: number;
+}
+
+export interface ThumbnailBufferResult extends ThumbnailResult {
+  buffer: Buffer;
+}
+
 export async function ensureLocalThumbnail(
   uploadsRoot: string,
   originalRelPath: string,
-): Promise<{ thumbnailRelPath: string; width: number; height: number } | null> {
+): Promise<ThumbnailResult | null> {
   if (!isAddonEnabled(ADDON_IDS.JOURNEY)) return null;
 
   const originalAbs = path.join(uploadsRoot, originalRelPath);
@@ -47,6 +57,32 @@ export async function ensureLocalThumbnail(
     return { thumbnailRelPath: thumbRel, width: img.bitmap.width, height: img.bitmap.height };
   } catch {
     // Unsupported format, corrupt file, etc. — fall back to original in caller.
+    return null;
+  }
+}
+
+export async function createThumbnailFromBuffer(
+  originalBytes: Buffer,
+  originalRelPath: string,
+): Promise<ThumbnailBufferResult | null> {
+  if (!isAddonEnabled(ADDON_IDS.JOURNEY)) return null;
+
+  try {
+    const hash = crypto.createHash('sha1').update(originalRelPath).digest('hex').slice(0, 16);
+    const thumbRel = `journey/thumbs/${hash}.jpg`;
+    const img = await Jimp.read(originalBytes);
+    const { width: w, height: h } = img.bitmap;
+    if (w > THUMB_MAX || h > THUMB_MAX) {
+      img.scaleToFit({ w: THUMB_MAX, h: THUMB_MAX });
+    }
+    const buffer = await img.getBuffer('image/jpeg', { quality: THUMB_QUALITY });
+    return {
+      thumbnailRelPath: thumbRel,
+      width: img.bitmap.width,
+      height: img.bitmap.height,
+      buffer,
+    };
+  } catch {
     return null;
   }
 }

@@ -8,6 +8,7 @@ import { listDays, listAccommodations } from './dayService';
 import { listItems as listPackingItems } from './packingService';
 import { listReservations, loadEndpointsByTrip, resyncReservationDays } from './reservationService';
 import { shiftOwnerEntriesForTripWindow } from './vacayService';
+import { deleteMediaBestEffort, uploadUrlToMediaKey } from './mediaStorage';
 
 import fs from 'fs';
 import path from 'path';
@@ -537,6 +538,16 @@ export function deleteOldCover(coverImage: string | null | undefined) {
   if (resolvedPath.startsWith(coversDir + path.sep) && fs.existsSync(resolvedPath)) {
     fs.unlinkSync(resolvedPath);
   }
+}
+
+export async function deleteOldCoverAsync(coverImage: string | null | undefined): Promise<void> {
+  if (!coverImage) return;
+  const key = uploadUrlToMediaKey(coverImage);
+  if (key?.startsWith('covers/')) {
+    await deleteMediaBestEffort(key);
+    return;
+  }
+  deleteOldCover(coverImage);
 }
 
 export function updateCoverImage(tripId: string | number, coverUrl: string) {

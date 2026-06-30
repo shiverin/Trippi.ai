@@ -7,6 +7,7 @@ import {
   setTrippiPhotoProviderAsync,
   deleteTrippiPhotoIfOrphanAsync,
 } from './memories/photoResolverService';
+import type { StoredMediaMetadata } from './mediaStorage';
 
 function ts(): number {
   return Date.now();
@@ -16,7 +17,8 @@ function ts(): number {
 // id = gp.id (gallery photo id) — used by clients for linkPhoto/updatePhoto/unlink/delete.
 const JP_SELECT = `
   gp.id, jep.entry_id, gp.photo_id, gp.caption, jep.sort_order, gp.shared, gp.created_at,
-  tp.provider, tp.asset_id, tp.owner_id, tp.file_path, tp.thumbnail_path, tp.width, tp.height
+  tp.provider, tp.asset_id, tp.owner_id, tp.file_path, tp.thumbnail_path, tp.width, tp.height,
+  tp.storage_backend, tp.storage_key, tp.storage_etag, tp.storage_size, tp.storage_content_type
 `;
 const JP_JOIN = `journey_entry_photos jep
   JOIN journey_photos gp ON gp.id  = jep.journey_photo_id
@@ -25,7 +27,8 @@ const JP_JOIN = `journey_entry_photos jep
 // Per-journey gallery view: journey_photos → trippi_photos (no entry context).
 const GALLERY_SELECT = `
   gp.id, gp.journey_id, gp.photo_id, gp.caption, gp.shared, gp.sort_order, gp.created_at,
-  tp.provider, tp.asset_id, tp.owner_id, tp.file_path, tp.thumbnail_path, tp.width, tp.height
+  tp.provider, tp.asset_id, tp.owner_id, tp.file_path, tp.thumbnail_path, tp.width, tp.height,
+  tp.storage_backend, tp.storage_key, tp.storage_etag, tp.storage_size, tp.storage_content_type
 `;
 const GALLERY_JOIN = 'journey_photos gp JOIN trippi_photos tp ON tp.id = gp.photo_id';
 
@@ -897,12 +900,13 @@ export async function addPhoto(
   filePath: string,
   thumbnailPath?: string,
   caption?: string,
+  storage?: Partial<StoredMediaMetadata>,
 ): Promise<JourneyPhoto | null> {
   const entry = await asyncDb.prepare('SELECT * FROM journey_entries WHERE id = ?').get<JourneyEntry>(entryId);
   if (!entry) return null;
   if (!(await canEdit(entry.journey_id, userId))) return null;
 
-  const trippiPhotoId = await getOrCreateLocalTrippiPhotoAsync(filePath, thumbnailPath);
+  const trippiPhotoId = await getOrCreateLocalTrippiPhotoAsync(filePath, thumbnailPath, undefined, undefined, storage);
   const galleryId = await asyncDb.transaction(async () => ensureInGallery(entry.journey_id, trippiPhotoId, caption))();
   const result = await linkGalleryPhotoToEntry(galleryId, entryId);
   await promoteSkeletonIfNeeded(entry);
@@ -966,7 +970,7 @@ export async function linkPhotoToEntry(
 export async function uploadGalleryPhotos(
   journeyId: number,
   userId: number,
-  filePaths: { path: string; thumbnail?: string }[],
+  filePaths: { path: string; thumbnail?: string; storage?: Partial<StoredMediaMetadata> }[],
 ): Promise<JourneyPhoto[]> {
   if (!(await canEdit(journeyId, userId))) return [];
   const results: JourneyPhoto[] = [];
@@ -977,7 +981,7 @@ export async function uploadGalleryPhotos(
   let nextOrder = (maxOrderRow?.m ?? -1) + 1;
 
   for (const f of filePaths) {
-    const trippiPhotoId = await getOrCreateLocalTrippiPhotoAsync(f.path, f.thumbnail);
+    const trippiPhotoId = await getOrCreateLocalTrippiPhotoAsync(f.path, f.thumbnail, undefined, undefined, f.storage);
     await asyncDb
       .prepare(
         `
@@ -1028,7 +1032,12 @@ export async function unlinkPhotoFromEntry(entryId: number, journeyPhotoId: numb
 export async function deleteGalleryPhoto(
   journeyPhotoId: number,
   userId: number,
-): Promise<{ photo_id: number; file_path?: string | null } | null> {
+): Promise<{
+  photo_id: number;
+  file_path?: string | null;
+  storage_key?: string | null;
+  delete_media?: boolean;
+} | null> {
   const row = await asyncDb
     .prepare('SELECT * FROM journey_photos WHERE id = ?')
     .get<{ id: number; journey_id: number; photo_id: number }>(journeyPhotoId);
@@ -1036,14 +1045,29 @@ export async function deleteGalleryPhoto(
   if (!(await canEdit(row.journey_id, userId))) return null;
 
   const trippiRow = await asyncDb
-    .prepare('SELECT file_path, provider FROM trippi_photos WHERE id = ?')
-    .get<{ file_path?: string; provider?: string }>(row.photo_id);
+    .prepare('SELECT file_path, provider, storage_key FROM trippi_photos WHERE id = ?')
+    .get<{ file_path?: string; provider?: string; storage_key?: string | null }>(row.photo_id);
 
   // cascade on journey_entry_photos.journey_photo_id handles junction cleanup
   await asyncDb.prepare('DELETE FROM journey_photos WHERE id = ?').run(journeyPhotoId);
   await deleteTrippiPhotoIfOrphanAsync(row.photo_id);
+  const stillUsed = await asyncDb
+    .prepare(
+      `
+      SELECT 1 FROM trip_photos WHERE photo_id = ?
+      UNION ALL
+      SELECT 1 FROM journey_photos WHERE photo_id = ?
+      LIMIT 1
+    `,
+    )
+    .get(row.photo_id, row.photo_id);
 
-  return { photo_id: row.photo_id, file_path: trippiRow?.file_path ?? null };
+  return {
+    photo_id: row.photo_id,
+    file_path: trippiRow?.file_path ?? null,
+    storage_key: trippiRow?.storage_key ?? null,
+    delete_media: !stillUsed && trippiRow?.provider === 'local',
+  };
 }
 
 export async function setPhotoProvider(
@@ -1095,7 +1119,14 @@ export async function updatePhoto(
 export async function deletePhoto(
   photoId: number,
   userId: number,
-): Promise<{ id: number; photo_id: number; file_path?: string | null; journey_id: number } | null> {
+): Promise<{
+  id: number;
+  photo_id: number;
+  file_path?: string | null;
+  storage_key?: string | null;
+  journey_id: number;
+  delete_media?: boolean;
+} | null> {
   const row = await asyncDb
     .prepare('SELECT id, journey_id, photo_id FROM journey_photos WHERE id = ?')
     .get<{ id: number; journey_id: number; photo_id: number }>(photoId);
@@ -1103,13 +1134,30 @@ export async function deletePhoto(
   if (!(await canEdit(row.journey_id, userId))) return null;
 
   const trippiRow = await asyncDb
-    .prepare('SELECT file_path, provider FROM trippi_photos WHERE id = ?')
-    .get<{ file_path?: string; provider?: string }>(row.photo_id);
+    .prepare('SELECT file_path, provider, storage_key FROM trippi_photos WHERE id = ?')
+    .get<{ file_path?: string; provider?: string; storage_key?: string | null }>(row.photo_id);
 
   await asyncDb.prepare('DELETE FROM journey_photos WHERE id = ?').run(photoId);
   await deleteTrippiPhotoIfOrphanAsync(row.photo_id);
+  const stillUsed = await asyncDb
+    .prepare(
+      `
+      SELECT 1 FROM trip_photos WHERE photo_id = ?
+      UNION ALL
+      SELECT 1 FROM journey_photos WHERE photo_id = ?
+      LIMIT 1
+    `,
+    )
+    .get(row.photo_id, row.photo_id);
 
-  return { id: row.id, photo_id: row.photo_id, file_path: trippiRow?.file_path ?? null, journey_id: row.journey_id };
+  return {
+    id: row.id,
+    photo_id: row.photo_id,
+    file_path: trippiRow?.file_path ?? null,
+    storage_key: trippiRow?.storage_key ?? null,
+    journey_id: row.journey_id,
+    delete_media: !stillUsed && trippiRow?.provider === 'local',
+  };
 }
 
 // ── Contributors ─────────────────────────────────────────────────────────

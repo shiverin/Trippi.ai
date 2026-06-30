@@ -269,8 +269,8 @@ export class TripsService {
     return { tripId: Number(tripId), title: trip.title, ownerId: trip.user_id, isAdminDelete, ownerEmail };
   }
 
-  deleteOldCover(coverImage: string | null | undefined): void {
-    tripSvc.deleteOldCover(coverImage as never);
+  deleteOldCover(coverImage: string | null | undefined): Promise<void> {
+    return tripSvc.deleteOldCoverAsync(coverImage as never);
   }
 
   async updateCoverImage(tripId: string, url: string): Promise<void> {

@@ -1,4 +1,5 @@
 import { BLOCKED_EXTENSIONS } from '../../services/fileService';
+import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -21,21 +22,12 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 
-import fs from 'fs';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
 const MAX_NOTE_FILE_SIZE = 50 * 1024 * 1024;
-const filesDir = path.join(__dirname, '../../../uploads/files');
 const NOTE_UPLOAD = {
-  storage: diskStorage({
-    destination: (_req, _file, cb) => {
-      if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
-      cb(null, filesDir);
-    },
-    filename: (_req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
-  }),
+  storage: memoryStorage(),
   limits: { fileSize: MAX_NOTE_FILE_SIZE },
   defParamCharset: 'utf8', // parity with legacy routes/collab.ts — preserve non-ASCII original filenames
   fileFilter: (_req: unknown, file: Express.Multer.File, cb: (err: Error | null, accept: boolean) => void) => {
@@ -179,8 +171,16 @@ export class CollabController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
-    const result = await this.collab.addNoteFile(tripId, id, file);
+    const stored = await storeUploadedMedia('files', file);
+    let result;
+    try {
+      result = await this.collab.addNoteFile(tripId, id, { ...file, filename: stored.filename, ...stored.metadata });
+    } catch (err) {
+      await deleteMediaBestEffort(stored.key);
+      throw err;
+    }
     if (!result) {
+      await deleteMediaBestEffort(stored.key);
       throw new HttpException({ error: 'Note not found' }, 404);
     }
     this.collab.broadcast(

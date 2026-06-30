@@ -244,7 +244,9 @@ describe('tripStore', () => {
 
   describe('hydrateActiveTrip', () => {
     const loadHandlers = (places: unknown[] = [], budget: unknown[] = []) => [
-      http.get('/api/trips/1', () => HttpResponse.json({ trip: buildTrip({ id: 1 }) })),
+      http.get('/api/trips/1/bundle', () =>
+        HttpResponse.json(tripBundle(1, { places, budgetItems: budget }))
+      ),
       http.get('/api/trips/1/days', () => HttpResponse.json({ days: [] })),
       http.get('/api/trips/1/places', () => HttpResponse.json({ places })),
       http.get('/api/trips/1/packing', () => HttpResponse.json({ items: [] })),

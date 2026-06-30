@@ -1,11 +1,34 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { HttpException } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import os from 'os';
 import path from 'path';
-import fs from 'fs';
 
 vi.mock('../../../src/services/demo', () => ({ isDemoEmail: vi.fn(() => false) }));
+vi.mock('../../../src/services/mediaStorage', () => ({
+  deleteMediaBestEffort: vi.fn(async () => undefined),
+  storeUploadedMedia: vi.fn(async (_namespace: string, file: Express.Multer.File) => ({
+    filename: 'stored.bin',
+    key: 'files/stored.bin',
+    metadata: {
+      storage_backend: 'local',
+      storage_key: 'files/stored.bin',
+      storage_etag: null,
+      storage_size: file.size ?? file.buffer?.length ?? null,
+      storage_content_type: file.mimetype ?? 'application/octet-stream',
+    },
+  })),
+  tripFileLegacyKey: vi.fn((filename: string) => {
+    if (filename.includes('..')) throw new Error('Invalid media key');
+    const base = filename.split(/[\\/]/).pop() || filename;
+    return filename.startsWith('files/') ? filename : `files/${base}`;
+  }),
+  openStoredMedia: vi.fn(async () => ({ stream: {}, contentType: 'application/pdf', size: 1 })),
+  sendMediaObject: vi.fn(async (res: Response, object: { contentType?: string; size?: number }, opts: { contentType?: string | null; contentDisposition?: string | null } = {}) => {
+    if (opts.contentType || object.contentType) res.setHeader('Content-Type', opts.contentType || object.contentType!);
+    if (opts.contentDisposition) res.setHeader('Content-Disposition', opts.contentDisposition);
+    if (object.size != null) res.setHeader('Content-Length', String(object.size));
+  }),
+}));
 
 import { FilesController } from '../../../src/nest/files/files.controller';
 import { FilesDownloadController } from '../../../src/nest/files/files-download.controller';
@@ -13,6 +36,7 @@ import { PhotosController } from '../../../src/nest/photos/photos.controller';
 import type { FilesService } from '../../../src/nest/files/files.service';
 import type { PhotosService } from '../../../src/nest/photos/photos.service';
 import { isDemoEmail } from '../../../src/services/demo';
+import { openStoredMedia, sendMediaObject, storeUploadedMedia } from '../../../src/services/mediaStorage';
 import type { User } from '../../../src/types';
 
 const user = { id: 1, username: 'u', role: 'user', email: 'u@example.test' } as User;
@@ -49,7 +73,13 @@ describe('FilesController (parity with the legacy /api/trips/:tripId/files route
   });
 
   describe('POST / (upload)', () => {
-    const file = { filename: 'a.pdf' } as Express.Multer.File;
+    const file = {
+      filename: 'a.pdf',
+      originalname: 'a.pdf',
+      mimetype: 'application/pdf',
+      size: 1,
+      buffer: Buffer.from('x'),
+    } as Express.Multer.File;
     it('403 in demo mode for a demo email', async () => {
       process.env.DEMO_MODE = 'true';
       vi.mocked(isDemoEmail).mockReturnValue(true);
@@ -62,7 +92,18 @@ describe('FilesController (parity with the legacy /api/trips/:tripId/files route
       const broadcast = vi.fn();
       const s = fsvc({ createFile, broadcast } as Partial<FilesService>);
       expect(await new FilesController(s).upload(user, '5', file, { description: 'd' }, 'sock')).toEqual({ file: { id: 9 } });
-      expect(createFile).toHaveBeenCalledWith('5', file, 1, { place_id: undefined, description: 'd', reservation_id: undefined });
+      expect(storeUploadedMedia).toHaveBeenCalledWith('files', file);
+      expect(createFile).toHaveBeenCalledWith(
+        '5',
+        expect.objectContaining({
+          filename: 'stored.bin',
+          storage_backend: 'local',
+          storage_key: 'files/stored.bin',
+          storage_content_type: 'application/pdf',
+        }),
+        1,
+        { place_id: undefined, description: 'd', reservation_id: undefined },
+      );
       expect(broadcast).toHaveBeenCalledWith('5', 'file:created', { file: { id: 9 } }, 'sock');
     });
   });
@@ -148,78 +189,61 @@ describe('FilesDownloadController', () => {
     return {
       authenticateDownload: vi.fn().mockReturnValue({ userId: 1 }),
       verifyTripAccess: vi.fn().mockReturnValue({ user_id: 1 }),
-      getFileById: vi.fn().mockReturnValue({ filename: 'x.pdf', original_name: 'x.pdf' }),
-      resolveFilePath: vi.fn().mockReturnValue({ resolved: 'C:/nope/x.pdf', safe: true }),
+      getFileById: vi.fn().mockReturnValue({ filename: 'x.pdf', original_name: 'x.pdf', mime_type: 'application/pdf' }),
       ...o,
     } as unknown as FilesService;
   }
   const req = { headers: {}, query: {} } as Request;
-  const res = { setHeader: vi.fn(), sendFile: vi.fn() } as unknown as Response;
+  const res = { setHeader: vi.fn() } as unknown as Response;
 
   it('maps the auth error from authenticateDownload', async () => {
     const s = dsvc({ authenticateDownload: vi.fn().mockReturnValue({ error: 'Authentication required', status: 401 }) });
     expect(await thrown(() => new FilesDownloadController(s).download(req, res, '5', '9'))).toEqual({ status: 401, body: { error: 'Authentication required' } });
+    expect(openStoredMedia).not.toHaveBeenCalled();
   });
   it('404 without trip access, 404 unknown file, 403 on an unsafe path', async () => {
     expect(await thrown(() => new FilesDownloadController(dsvc({ verifyTripAccess: vi.fn().mockReturnValue(undefined) })).download(req, res, '5', '9'))).toEqual({ status: 404, body: { error: 'Trip not found' } });
     expect(await thrown(() => new FilesDownloadController(dsvc({ getFileById: vi.fn().mockReturnValue(undefined) })).download(req, res, '5', '9'))).toEqual({ status: 404, body: { error: 'File not found' } });
-    expect(await thrown(() => new FilesDownloadController(dsvc({ resolveFilePath: vi.fn().mockReturnValue({ resolved: '/x', safe: false }) })).download(req, res, '5', '9'))).toEqual({ status: 403, body: { error: 'Forbidden' } });
+    expect(await thrown(() => new FilesDownloadController(dsvc({ getFileById: vi.fn().mockReturnValue({ filename: '../secret.pdf', original_name: 'secret.pdf' }) })).download(req, res, '5', '9'))).toEqual({ status: 403, body: { error: 'Forbidden' } });
   });
 
-  it('404 when the safe path is gone from disk', async () => {
-    const missing = path.join(os.tmpdir(), `trippi-no-such-${Date.now()}.pdf`);
-    const s = dsvc({ resolveFilePath: vi.fn().mockReturnValue({ resolved: missing, safe: true }) });
+  it('404 when storage has no object', async () => {
+    vi.mocked(openStoredMedia).mockResolvedValueOnce(null);
+    const s = dsvc();
     expect(await thrown(() => new FilesDownloadController(s).download(req, res, '5', '9'))).toEqual({ status: 404, body: { error: 'File not found' } });
   });
 
-  it('streams a regular file via sendFile with an explicit root', async () => {
-    const real = path.join(os.tmpdir(), `trippi-dl-${Date.now()}.pdf`);
-    fs.writeFileSync(real, 'x');
-    try {
-      const sendFile = vi.fn();
-      const localRes = { setHeader: vi.fn(), sendFile } as unknown as Response;
-      const s = dsvc({ resolveFilePath: vi.fn().mockReturnValue({ resolved: real, safe: true }) });
-      await new FilesDownloadController(s).download(req, localRes, '5', '9');
-      expect(sendFile).toHaveBeenCalledWith(path.basename(real), { root: path.dirname(real) });
-      expect(localRes.setHeader).not.toHaveBeenCalled();
-    } finally {
-      fs.unlinkSync(real);
-    }
+  it('streams a regular file through backend media storage', async () => {
+    const localRes = { setHeader: vi.fn() } as unknown as Response;
+    const s = dsvc();
+    await new FilesDownloadController(s).download(req, localRes, '5', '9');
+    expect(openStoredMedia).toHaveBeenCalledWith(undefined, 'files/x.pdf');
+    expect(sendMediaObject).toHaveBeenCalledWith(
+      localRes,
+      expect.objectContaining({ contentType: 'application/pdf' }),
+      { contentType: 'application/pdf', contentDisposition: null },
+    );
   });
 
   it('serves a .pkpass inline with the Wallet MIME type and the original name', async () => {
-    const real = path.join(os.tmpdir(), `trippi-pass-${Date.now()}.pkpass`);
-    fs.writeFileSync(real, 'x');
-    try {
-      const setHeader = vi.fn();
-      const localRes = { setHeader, sendFile: vi.fn() } as unknown as Response;
-      const s = dsvc({
-        getFileById: vi.fn().mockReturnValue({ filename: 'pass.pkpass', original_name: 'BoardingPass.pkpass' }),
-        resolveFilePath: vi.fn().mockReturnValue({ resolved: real, safe: true }),
-      });
-      await new FilesDownloadController(s).download(req, localRes, '5', '9');
-      expect(setHeader).toHaveBeenCalledWith('Content-Type', 'application/vnd.apple.pkpass');
-      expect(setHeader).toHaveBeenCalledWith('Content-Disposition', 'inline; filename="BoardingPass.pkpass"');
-    } finally {
-      fs.unlinkSync(real);
-    }
+    const setHeader = vi.fn();
+    const localRes = { setHeader } as unknown as Response;
+    const s = dsvc({
+      getFileById: vi.fn().mockReturnValue({ filename: 'pass.pkpass', original_name: 'BoardingPass.pkpass', mime_type: 'application/octet-stream' }),
+    });
+    await new FilesDownloadController(s).download(req, localRes, '5', '9');
+    expect(setHeader).toHaveBeenCalledWith('Content-Type', 'application/vnd.apple.pkpass');
+    expect(setHeader).toHaveBeenCalledWith('Content-Disposition', 'inline; filename="BoardingPass.pkpass"');
   });
 
-  it('falls back to the resolved basename when a .pkpass has no original name', async () => {
-    const real = path.join(os.tmpdir(), `trippi-pass-${Date.now()}.pkpass`);
-    fs.writeFileSync(real, 'x');
-    try {
-      const setHeader = vi.fn();
-      const localRes = { setHeader, sendFile: vi.fn() } as unknown as Response;
-      const s = dsvc({
-        getFileById: vi.fn().mockReturnValue({ filename: 'pass.pkpass', original_name: null }),
-        resolveFilePath: vi.fn().mockReturnValue({ resolved: real, safe: true }),
-      });
-      await new FilesDownloadController(s).download(req, localRes, '5', '9');
-      expect(setHeader).toHaveBeenCalledWith('Content-Disposition', `inline; filename="${path.basename(real)}"`);
-    } finally {
-      fs.unlinkSync(real);
-    }
+  it('falls back to the stored basename when a .pkpass has no original name', async () => {
+    const setHeader = vi.fn();
+    const localRes = { setHeader } as unknown as Response;
+    const s = dsvc({
+      getFileById: vi.fn().mockReturnValue({ filename: 'files/generated.pkpass', original_name: null, mime_type: 'application/octet-stream' }),
+    });
+    await new FilesDownloadController(s).download(req, localRes, '5', '9');
+    expect(setHeader).toHaveBeenCalledWith('Content-Disposition', `inline; filename="${path.basename('files/generated.pkpass')}"`);
   });
 });
 

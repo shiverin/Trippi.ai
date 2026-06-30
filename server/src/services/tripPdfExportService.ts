@@ -4,6 +4,7 @@ import { createPerfTrace, type PerfTrace } from './perfTrace';
 import * as placePhotoCache from './placePhotoCache';
 import { listPlacesAsync } from './placeService';
 import { getTripSummary } from './tripService';
+import { getMediaConfig, putMediaBuffer } from './mediaStorage';
 import {
   buildTripPdfHtml,
   type TripPdfAccommodation,
@@ -351,6 +352,13 @@ export async function exportTripPdf(tripId: number): Promise<{ filename: string;
 
     const stat = await perf.measure('pdf.stat_file', () => fs.stat(filePath));
     bytes = stat.size;
+    if (getMediaConfig().backend === 'gcs') {
+      const buffer = await perf.measure('pdf.read_export_for_media_storage', () => fs.readFile(filePath));
+      await perf.measure('pdf.store_export_media', () =>
+        putMediaBuffer('exports', filename!, buffer, 'application/pdf'),
+      );
+      await fs.rm(filePath, { force: true }).catch(() => {});
+    }
     return {
       filename,
       url: `${origin}/uploads/exports/${encodeURIComponent(filename)}`,

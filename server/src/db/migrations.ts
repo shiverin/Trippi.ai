@@ -3096,6 +3096,76 @@ function runMigrations(db: Database.Database): void {
       )
         .run('Misc', '#64748b', 'FileText', 'Misc');
     },
+    () => {
+      // Rebrand compatibility: some live DBs reached the current schema version
+      // with the old TREK table names, while runtime code now reads trippi_*.
+      const tableExists = (name: string) =>
+        !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
+
+      if (!tableExists('trippi_photos') && tableExists('trek_photos')) {
+        db.exec('ALTER TABLE trek_photos RENAME TO trippi_photos');
+      }
+
+      if (!tableExists('trippi_photos')) {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS trippi_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            provider TEXT NOT NULL,
+            asset_id TEXT,
+            owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            file_path TEXT,
+            thumbnail_path TEXT,
+            width INTEGER,
+            height INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            passphrase TEXT DEFAULT NULL
+          )
+        `);
+      }
+
+      if (!tableExists('trippi_photo_cache_meta') && tableExists('trek_photo_cache_meta')) {
+        db.exec('ALTER TABLE trek_photo_cache_meta RENAME TO trippi_photo_cache_meta');
+      }
+
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_trippi_photos_provider_asset
+          ON trippi_photos(provider, asset_id, owner_id)
+          WHERE asset_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_trippi_photos_owner ON trippi_photos(owner_id);
+        CREATE TABLE IF NOT EXISTS trippi_photo_cache_meta (
+          cache_key TEXT PRIMARY KEY,
+          content_type TEXT NOT NULL DEFAULT 'image/jpeg',
+          fetched_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_trippi_photo_cache_meta_fetched_at
+          ON trippi_photo_cache_meta (fetched_at);
+      `);
+    },
+    () => {
+      // Production media storage metadata. Bytes may live in local uploads for
+      // legacy/self-hosted installs or in private GCS for production; Oracle/DB
+      // keeps only object identity and access metadata.
+      const addColumn = (table: string, column: string, definition: string) => {
+        try {
+          db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+        } catch (err: any) {
+          if (!err.message?.includes('duplicate column name')) throw err;
+        }
+      };
+
+      for (const table of ['trip_files', 'trippi_photos']) {
+        addColumn(table, 'storage_backend', 'TEXT');
+        addColumn(table, 'storage_key', 'TEXT');
+        addColumn(table, 'storage_etag', 'TEXT');
+        addColumn(table, 'storage_size', 'INTEGER');
+        addColumn(table, 'storage_content_type', 'TEXT');
+      }
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_trip_files_storage_key ON trip_files(storage_backend, storage_key);
+        CREATE INDEX IF NOT EXISTS idx_trippi_photos_storage_key ON trippi_photos(storage_backend, storage_key);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

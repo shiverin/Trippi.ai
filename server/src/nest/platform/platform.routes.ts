@@ -5,6 +5,7 @@ import { trippiOAuthProvider, trippiClientsStore } from '../../mcp/oauthProvider
 import { ALL_SCOPES } from '../../mcp/scopes';
 import { verifyJwtAndLoadUser } from '../../middleware/auth';
 import { isAddonEnabled } from '../../services/adminService';
+import { getMediaConfig, openMediaWithLocalFallback, sendMediaObject } from '../../services/mediaStorage';
 import { getMcpSafeUrl } from '../../services/notifications';
 import { authorizationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize';
 import { clientRegistrationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/register';
@@ -30,6 +31,37 @@ import path from 'node:path';
 const UPLOADS_DIR = path.join(__dirname, '../../../uploads');
 export const PUBLIC_DIR = path.join(__dirname, '../../../public');
 
+function uploadContentType(key: string): string | null {
+  const ext = path.extname(key).toLowerCase();
+  if (ext === '.png') return 'image/png';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.gif') return 'image/gif';
+  if (ext === '.webp') return 'image/webp';
+  if (ext === '.heic') return 'image/heic';
+  if (ext === '.pdf') return 'application/pdf';
+  return null;
+}
+
+function mountMediaCompatRoute(app: express.Application, route: string, namespace: string): void {
+  app.get(route, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tail = String(req.params[0] || req.params.filename || '');
+      const key = `${namespace}/${tail}`;
+      const object = await openMediaWithLocalFallback(key);
+      if (!object) return res.status(404).send('Not found');
+      await sendMediaObject(res, object, {
+        contentType: object.contentType || uploadContentType(key),
+        cacheControl: 'public, max-age=86400',
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('Invalid media key')) {
+        return res.status(403).send('Forbidden');
+      }
+      next(err);
+    }
+  });
+}
+
 /**
  * Static + guarded /uploads/* routes. Must be applied BEFORE the API route mounts
  * (identical to its original position near the top of createApp).
@@ -53,10 +85,17 @@ export function applyPlatformUploads(app: express.Application): void {
   // not embedded in unauthenticated UI contexts, so that endpoint IS
   // gated (session JWT with pv, or a share token scoped to the photo's
   // trip).
-  app.use('/uploads/avatars', express.static(path.join(UPLOADS_DIR, 'avatars')));
-  app.use('/uploads/covers', express.static(path.join(UPLOADS_DIR, 'covers')));
-  app.use('/uploads/journey', express.static(path.join(UPLOADS_DIR, 'journey')));
-  app.use('/uploads/exports', express.static(path.join(UPLOADS_DIR, 'exports')));
+  if (getMediaConfig().backend === 'gcs') {
+    mountMediaCompatRoute(app, '/uploads/avatars/:filename', 'avatars');
+    mountMediaCompatRoute(app, '/uploads/covers/:filename', 'covers');
+    mountMediaCompatRoute(app, '/uploads/journey/*', 'journey');
+    mountMediaCompatRoute(app, '/uploads/exports/:filename', 'exports');
+  } else {
+    app.use('/uploads/avatars', express.static(path.join(UPLOADS_DIR, 'avatars')));
+    app.use('/uploads/covers', express.static(path.join(UPLOADS_DIR, 'covers')));
+    app.use('/uploads/journey', express.static(path.join(UPLOADS_DIR, 'journey')));
+    app.use('/uploads/exports', express.static(path.join(UPLOADS_DIR, 'exports')));
+  }
 
   // Photos require either a valid logged-in session (via JWT with the
   // password_version gate) OR a share token that covers the SPECIFIC

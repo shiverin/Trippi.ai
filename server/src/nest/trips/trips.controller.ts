@@ -1,5 +1,6 @@
 import { writeAudit, getClientIp, logInfo } from '../../services/auditLog';
 import { isDemoEmail } from '../../services/demo';
+import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
 import { NotFoundError, ValidationError } from '../../services/tripService';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -26,21 +27,12 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 
 import type { Request, Response } from 'express';
-import fs from 'fs';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
 const MAX_COVER_SIZE = 20 * 1024 * 1024;
-const coversDir = path.join(__dirname, '../../../uploads/covers');
 const COVER_UPLOAD = {
-  storage: diskStorage({
-    destination: (_req, _file, cb) => {
-      if (!fs.existsSync(coversDir)) fs.mkdirSync(coversDir, { recursive: true });
-      cb(null, coversDir);
-    },
-    filename: (_req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
-  }),
+  storage: memoryStorage(),
   limits: { fileSize: MAX_COVER_SIZE },
   fileFilter: (_req: Request, file: Express.Multer.File, cb: (err: Error | null, accept: boolean) => void) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -213,9 +205,15 @@ export class TripsController {
     if (!file) {
       throw new HttpException({ error: 'No image uploaded' }, 400);
     }
-    this.trips.deleteOldCover(trip.cover_image);
-    const coverUrl = `/uploads/covers/${file.filename}`;
-    await this.trips.updateCoverImage(id, coverUrl);
+    const stored = await storeUploadedMedia('covers', file, '.jpg');
+    const coverUrl = `/uploads/covers/${stored.filename}`;
+    try {
+      await this.trips.updateCoverImage(id, coverUrl);
+    } catch (err) {
+      await deleteMediaBestEffort(stored.key);
+      throw err;
+    }
+    await this.trips.deleteOldCover(trip.cover_image);
     return { cover_image: coverUrl };
   }
 

@@ -1,6 +1,7 @@
 import { db, closeDb, reinitialize } from '../db/database';
 import { resolveDbProvider } from '../db/providerMode';
 import * as scheduler from '../scheduler';
+import { getMediaConfig } from './mediaStorage';
 import { invalidatePermissionsCache } from './permissions';
 
 import archiver from 'archiver';
@@ -110,6 +111,57 @@ function assertSqliteBackupSupported(): void {
   }
 }
 
+function buildMediaManifest(): Record<string, unknown> {
+  const config = getMediaConfig();
+  const tripFiles = db
+    .prepare(
+      `
+      SELECT id, trip_id, filename, original_name, storage_backend, storage_key, storage_etag, storage_size, storage_content_type
+      FROM trip_files
+      WHERE storage_key IS NOT NULL
+      ORDER BY id
+    `,
+    )
+    .all();
+  const trippiPhotos = db
+    .prepare(
+      `
+      SELECT id, provider, file_path, thumbnail_path, storage_backend, storage_key, storage_etag, storage_size, storage_content_type
+      FROM trippi_photos
+      WHERE storage_key IS NOT NULL
+      ORDER BY id
+    `,
+    )
+    .all();
+  const avatars = db
+    .prepare("SELECT id, avatar FROM users WHERE avatar IS NOT NULL AND avatar != '' ORDER BY id")
+    .all();
+  const tripCovers = db
+    .prepare("SELECT id, cover_image FROM trips WHERE cover_image IS NOT NULL AND cover_image != '' ORDER BY id")
+    .all();
+  const journeyCovers = db
+    .prepare("SELECT id, cover_image FROM journeys WHERE cover_image IS NOT NULL AND cover_image != '' ORDER BY id")
+    .all();
+  return {
+    generated_at: new Date().toISOString(),
+    media_backend: config.backend,
+    media_delivery: config.delivery,
+    gcs_bucket: config.backend === 'gcs' ? config.gcsBucket : undefined,
+    gcs_prefix: config.backend === 'gcs' ? config.gcsPrefix : undefined,
+    note:
+      config.backend === 'gcs'
+        ? 'Media bytes are stored outside this backup. Restore the DB with the same GCS bucket/prefix or run media backfill.'
+        : 'Local media bytes are included separately under uploads/.',
+    references: {
+      trip_files: tripFiles,
+      trippi_photos: trippiPhotos,
+      avatars,
+      trip_covers: tripCovers,
+      journey_covers: journeyCovers,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Rate limiter state (shared across requests)
 // ---------------------------------------------------------------------------
@@ -204,7 +256,10 @@ export async function createBackup(): Promise<BackupInfo> {
         archive.file(encKeyPath, { name: '.encryption_key' });
       }
 
-      if (fs.existsSync(uploadsDir)) {
+      const mediaConfig = getMediaConfig();
+      if (mediaConfig.backend === 'gcs') {
+        archive.append(JSON.stringify(buildMediaManifest(), null, 2), { name: 'media-manifest.json' });
+      } else if (fs.existsSync(uploadsDir)) {
         // Exclude the place-photo and trippi-memory caches: both are re-derivable
         // (re-fetched on demand, keyed on stable ids) and would otherwise dominate
         // backup size. Restores self-heal — the cache dirs are recreated at startup.

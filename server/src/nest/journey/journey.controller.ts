@@ -1,4 +1,10 @@
 import { getAllowedExtensionsAsync } from '../../services/fileService';
+import {
+  deleteMediaBestEffort,
+  deleteStoredMedia,
+  storeUploadedMedia,
+  type StoredMediaMetadata,
+} from '../../services/mediaStorage';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,21 +29,11 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 
-import { diskStorage } from 'multer';
-import crypto from 'node:crypto';
-import fs from 'node:fs';
+import { memoryStorage } from 'multer';
 import path from 'node:path';
 
-const uploadsBase = path.join(__dirname, '../../../uploads/journey');
 const IMAGE_UPLOAD = {
-  storage: diskStorage({
-    destination: (_req, _file, cb) => {
-      if (!fs.existsSync(uploadsBase)) fs.mkdirSync(uploadsBase, { recursive: true });
-      cb(null, uploadsBase);
-    },
-    filename: (_req, file, cb) =>
-      cb(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase() || '.jpg'}`),
-  }),
+  storage: memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req: unknown, file: Express.Multer.File, cb: (err: Error | null, accept: boolean) => void) => {
     if (!file.mimetype.startsWith('image/') || file.mimetype.includes('svg')) {
@@ -144,9 +140,26 @@ export class JourneyController {
     }
     const results: unknown[] = [];
     for (const file of files) {
-      const relativePath = `journey/${file.filename}`;
-      const photo = await this.journey.addPhoto(Number(entryId), user.id, relativePath, undefined, body?.caption);
-      if (!photo) continue;
+      const stored = await storeUploadedMedia('journey', file, '.jpg');
+      const relativePath = stored.key;
+      let photo;
+      try {
+        photo = await this.journey.addPhoto(
+          Number(entryId),
+          user.id,
+          relativePath,
+          undefined,
+          body?.caption,
+          stored.metadata,
+        );
+      } catch (err) {
+        await deleteMediaBestEffort(stored.key);
+        throw err;
+      }
+      if (!photo) {
+        await deleteMediaBestEffort(stored.key);
+        continue;
+      }
       // Mirror to Immich only when the user explicitly opted in (#730).
       if (await this.journey.immichAutoUploadEnabled(user.id)) {
         try {
@@ -255,12 +268,8 @@ export class JourneyController {
     if (!photo) {
       throw new HttpException({ error: 'Photo not found' }, 404);
     }
-    if (photo.file_path) {
-      try {
-        fs.unlinkSync(path.join(__dirname, '../../../uploads', photo.file_path));
-      } catch {
-        /* file already gone */
-      }
+    if (photo.delete_media && photo.file_path) {
+      await deleteStoredMedia(photo.storage_key, photo.file_path).catch(() => {});
     }
     return { success: true };
   }
@@ -276,12 +285,21 @@ export class JourneyController {
     if (!files?.length) {
       throw new HttpException({ error: 'No files uploaded' }, 400);
     }
-    const filePaths = files.map((f) => ({ path: `journey/${f.filename}` }));
-    const photos = await this.journey.uploadGalleryPhotos(Number(id), user.id, filePaths);
-    if (!photos.length) {
-      throw new HttpException({ error: 'Not allowed' }, 403);
+    const storedFiles: { path: string; storage: StoredMediaMetadata }[] = [];
+    try {
+      for (const file of files) {
+        const stored = await storeUploadedMedia('journey', file, '.jpg');
+        storedFiles.push({ path: stored.key, storage: stored.metadata });
+      }
+      const photos = await this.journey.uploadGalleryPhotos(Number(id), user.id, storedFiles);
+      if (!photos.length) {
+        throw new HttpException({ error: 'Not allowed' }, 403);
+      }
+      return { photos };
+    } catch (err) {
+      await Promise.all(storedFiles.map((file) => deleteMediaBestEffort(file.path)));
+      throw err;
     }
-    return { photos };
   }
 
   @Post(':id/gallery/provider-photos')
@@ -330,12 +348,8 @@ export class JourneyController {
     if (!photo) {
       throw new HttpException({ error: 'Photo not found or not allowed' }, 404);
     }
-    if (photo.file_path) {
-      try {
-        fs.unlinkSync(path.join(__dirname, '../../../uploads', photo.file_path));
-      } catch {
-        /* file already gone */
-      }
+    if (photo.delete_media && photo.file_path) {
+      await deleteStoredMedia(photo.storage_key, photo.file_path).catch(() => {});
     }
   }
 
@@ -369,8 +383,16 @@ export class JourneyController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
-    const result = await this.journey.updateJourney(Number(id), user.id, { cover_image: `journey/${file.filename}` });
+    const stored = await storeUploadedMedia('journey', file, '.jpg');
+    let result;
+    try {
+      result = await this.journey.updateJourney(Number(id), user.id, { cover_image: stored.key });
+    } catch (err) {
+      await deleteMediaBestEffort(stored.key);
+      throw err;
+    }
     if (!result) {
+      await deleteMediaBestEffort(stored.key);
       throw new HttpException({ error: 'Journey not found' }, 404);
     }
     return result;

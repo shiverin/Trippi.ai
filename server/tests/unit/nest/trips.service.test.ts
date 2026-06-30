@@ -34,6 +34,7 @@ const { tripSvc } = vi.hoisted(() => ({
     getTripRaw: vi.fn(),
     getTripOwner: vi.fn(),
     deleteOldCover: vi.fn(),
+    deleteOldCoverAsync: vi.fn(),
     updateCoverImage: vi.fn(),
     listMembers: vi.fn(() => ({ owner: { id: 1 }, members: [] })),
     addMember: vi.fn(),
@@ -81,8 +82,8 @@ describe('TripsService (wrapper delegation + bundle/copy/notify helpers)', () =>
     expect(asyncDbMock.prepare).toHaveBeenCalledWith(expect.stringContaining('UPDATE trips SET'));
     await s.remove('9', 1, 'user');
     expect(asyncDbMock.prepare).toHaveBeenCalledWith('DELETE FROM trips WHERE id = ?');
-    s.deleteOldCover('/old.jpg');
-    expect(tripSvc.deleteOldCover).toHaveBeenCalledWith('/old.jpg');
+    await s.deleteOldCover('/old.jpg');
+    expect(tripSvc.deleteOldCoverAsync).toHaveBeenCalledWith('/old.jpg');
     await s.updateCoverImage('9', '/n.jpg');
     expect(asyncDbMock.prepare).toHaveBeenCalledWith('UPDATE trips SET cover_image=?, updated_at=CURRENT_TIMESTAMP WHERE id=?');
     s.copy('9', 1, 'C');

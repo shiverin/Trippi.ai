@@ -1,6 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HttpException } from '@nestjs/common';
 
+vi.mock('../../../src/services/mediaStorage', () => ({
+  storeUploadedMedia: vi.fn(async (_namespace: string, file: Express.Multer.File) => ({
+    filename: file.filename ?? file.originalname ?? 'note-file.bin',
+    key: `files/${file.filename ?? file.originalname ?? 'note-file.bin'}`,
+    metadata: {
+      storage_backend: 'local',
+      storage_key: `files/${file.filename ?? file.originalname ?? 'note-file.bin'}`,
+      storage_etag: null,
+      storage_size: file.size ?? file.buffer?.length ?? null,
+      storage_content_type: file.mimetype ?? 'application/octet-stream',
+    },
+  })),
+  deleteMediaBestEffort: vi.fn(async () => undefined),
+}));
+
 import { CollabController } from '../../../src/nest/collab/collab.controller';
 import type { CollabService } from '../../../src/nest/collab/collab.service';
 import type { User } from '../../../src/types';

@@ -1,5 +1,6 @@
 import { isDemoEmail } from '../../services/demo';
-import { MAX_FILE_SIZE, BLOCKED_EXTENSIONS, filesDir, getAllowedExtensionsAsync } from '../../services/fileService';
+import { MAX_FILE_SIZE, BLOCKED_EXTENSIONS, getAllowedExtensionsAsync } from '../../services/fileService';
+import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,19 +24,11 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 
-import fs from 'fs';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
 const UPLOAD = {
-  storage: diskStorage({
-    destination: (_req, _file, cb) => {
-      if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
-      cb(null, filesDir);
-    },
-    filename: (_req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
-  }),
+  storage: memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
   defParamCharset: 'utf8', // parity with legacy routes/files.ts — preserve non-ASCII original filenames
   fileFilter: (_req: unknown, file: Express.Multer.File, cb: (err: Error | null, accept: boolean) => void) => {
@@ -109,11 +102,23 @@ export class FilesController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
-    const created = await this.files.createFile(tripId, file, user.id, {
-      place_id: body.place_id,
-      description: body.description,
-      reservation_id: body.reservation_id,
-    });
+    const stored = await storeUploadedMedia('files', file);
+    let created;
+    try {
+      created = await this.files.createFile(
+        tripId,
+        { ...file, filename: stored.filename, ...stored.metadata },
+        user.id,
+        {
+          place_id: body.place_id,
+          description: body.description,
+          reservation_id: body.reservation_id,
+        },
+      );
+    } catch (err) {
+      await deleteMediaBestEffort(stored.key);
+      throw err;
+    }
     this.files.broadcast(tripId, 'file:created', { file: created }, socketId);
     return { file: created };
   }

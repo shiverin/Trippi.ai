@@ -35,6 +35,7 @@ import { useTranslation } from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
 import '../styles/dashboard.css';
 import { formatTime, splitReservationDateTime } from '../utils/formatters';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 import { convertDistance, getDistanceUnitLabel } from '../utils/units';
 import {
   type DashboardTrip,
@@ -374,6 +375,7 @@ function BoardingPassHero({
   const status = getTripStatus(trip);
   const start = splitDate(trip.start_date, locale);
   const end = splitDate(trip.end_date, locale);
+  const coverImageUrl = resolveMediaUrl(trip.cover_image);
 
   // Countdown cell — plain text in the same style as the trip-dates cell:
   // days remaining while the trip runs, days until departure before it starts.
@@ -521,10 +523,16 @@ function BoardingPassHero({
   return (
     <>
       <section className="hero-trip" onClick={onOpen}>
-        {trip.cover_image ? (
-          <img className="bg" src={trip.cover_image} alt={trip.title} />
-        ) : (
-          <div className="bg" style={{ background: tripGradient(trip.id) }} />
+        <div className="bg" style={{ background: tripGradient(trip.id) }} />
+        {coverImageUrl && (
+          <img
+            className="bg"
+            src={coverImageUrl}
+            alt={trip.title}
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
+            }}
+          />
         )}
         <div className="scrim" />
         <div className="hero-content">
@@ -694,6 +702,7 @@ function TripCard({
   const start = splitDate(trip.start_date, locale);
   const end = splitDate(trip.end_date, locale);
   const until = daysUntil(trip.start_date);
+  const coverImageUrl = resolveMediaUrl(trip.cover_image);
 
   const statusClass =
     status === 'ongoing'
@@ -725,11 +734,15 @@ function TripCard({
 
   return (
     <article className="trip-card" onClick={onOpen}>
-      <div className="trip-cover">
-        {trip.cover_image ? (
-          <img src={trip.cover_image} alt={trip.title} />
-        ) : (
-          <div style={{ width: '100%', height: '100%', background: tripGradient(trip.id) }} />
+      <div className="trip-cover" style={{ background: tripGradient(trip.id) }}>
+        {coverImageUrl && (
+          <img
+            src={coverImageUrl}
+            alt={trip.title}
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
+            }}
+          />
         )}
         <div className={`trip-status ${statusClass}`}>
           <span className="indicator" /> {statusLabel}

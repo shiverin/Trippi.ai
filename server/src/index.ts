@@ -120,6 +120,8 @@ async function bootstrap(): Promise<void> {
   // order; it is shared with the integration-test harness so they can't drift.
   const { prepareOracleBackedMode } = await import('./db/oracleMirrorRuntime');
   await prepareOracleBackedMode();
+  const { ensureMediaStorageSchema } = await import('./services/mediaSchema');
+  await ensureMediaStorageSchema();
   const { buildApp } = await import('./bootstrap');
   nestApp = await buildApp();
   server = http.createServer(nestApp.getHttpAdapter().getInstance());

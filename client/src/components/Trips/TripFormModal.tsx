@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useCanDo } from '../../store/permissionsStore';
 import type { Trip } from '../../types';
 import { normalizeImageFile } from '../../utils/convertHeic';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { CustomDatePicker } from '../shared/CustomDateTimePicker';
 import CustomSelect from '../shared/CustomSelect';
 import Modal from '../shared/Modal';
@@ -65,7 +66,7 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
         day_count: trip.day_count || 7,
       });
       setCustomReminder(![0, 1, 3, 9].includes(rd));
-      setCoverPreview(trip.cover_image || null);
+      setCoverPreview(resolveMediaUrl(trip.cover_image));
     } else {
       setFormData({
         title: '',
@@ -198,7 +199,7 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
       const fd = new FormData();
       fd.append('cover', file);
       const data = await tripsApi.uploadCover(trip.id, fd);
-      setCoverPreview(data.cover_image);
+      setCoverPreview(resolveMediaUrl(data.cover_image));
       onCoverUpdate?.(trip.id, data.cover_image);
       toast.success(t('dashboard.coverSaved'));
     } catch {
@@ -310,7 +311,12 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
             />
             {coverPreview ? (
               <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', height: 130 }}>
-                <img src={coverPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img
+                  src={coverPreview}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={() => setCoverPreview(null)}
+                />
                 <div style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 6 }}>
                   <button
                     type="button"

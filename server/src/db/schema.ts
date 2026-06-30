@@ -204,6 +204,11 @@ function createTables(db: Database.Database): void {
       file_size INTEGER,
       mime_type TEXT,
       description TEXT,
+      storage_backend TEXT,
+      storage_key TEXT,
+      storage_etag TEXT,
+      storage_size INTEGER,
+      storage_content_type TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 

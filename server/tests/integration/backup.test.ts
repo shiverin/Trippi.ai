@@ -97,6 +97,28 @@ import os from 'os';
 let nestApp: INestApplication;
 let app: Application;
 
+function resetBackupServiceMocks(): void {
+  vi.mocked(backupService.createBackup).mockReset().mockResolvedValue({
+    filename: 'backup-2026-04-03T06-00-00.zip',
+    size: 1024,
+    sizeText: '1.0 KB',
+    created_at: new Date().toISOString(),
+  });
+  vi.mocked(backupService.updateAutoSettings).mockReset().mockReturnValue({
+    enabled: false,
+    interval: 'daily',
+    keep_days: 7,
+    hour: 2,
+    day_of_week: 0,
+    day_of_month: 1,
+  });
+  vi.mocked(backupService.restoreFromZip).mockReset().mockResolvedValue({ success: true });
+  vi.mocked(backupService.deleteBackup).mockReset().mockReturnValue(undefined);
+  vi.mocked(backupService.backupFileExists).mockReset().mockReturnValue(false);
+  vi.mocked(backupService.backupFilePath).mockReset().mockReturnValue('/tmp/test-backup.zip');
+  vi.mocked(backupService.checkRateLimit).mockReset().mockReturnValue(true);
+}
+
 beforeAll(async () => {
   createTables(testDb);
   runMigrations(testDb);
@@ -107,6 +129,7 @@ beforeAll(async () => {
 beforeEach(() => {
   resetTestDb(testDb);
   resetRateLimits(nestApp);
+  resetBackupServiceMocks();
 });
 
 afterAll(async () => {

@@ -545,7 +545,7 @@ describe('DayPlanSidebar', () => {
     expect(onToggleBookingRoutesGlobal).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['train', 'bus', 'taxi'] as const)(
+  it.each(['train', 'subway', 'bus', 'car', 'taxi'] as const)(
     'FE-PLANNER-DAYPLAN-031b: %s transport rows render route buttons when endpoints exist',
     (type) => {
       const day = buildDay({ id: 10, date: '2025-06-01', title: 'Travel Day' });
@@ -633,9 +633,59 @@ describe('DayPlanSidebar', () => {
         })}
       />
     );
-    expect(
-      screen.getByRole('button', { name: 'Turn on all booking routes to use this route toggle' })
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Turn on all booking routes to use this route toggle' })).toBeDisabled();
+  });
+
+  it('FE-PLANNER-DAYPLAN-031e: global booking routes show selected-day transport distance connectors', async () => {
+    const hotel = buildPlace({
+      id: 1,
+      name: 'Nanjing Hotel',
+      place_time: '08:00',
+      lat: 32.041,
+      lng: 118.784,
+    });
+    const museum = buildPlace({
+      id: 2,
+      name: 'Suzhou Museum',
+      place_time: '10:30',
+      lat: 31.323,
+      lng: 120.625,
+    });
+    const day = buildDay({ id: 10, date: '2025-12-11', title: 'Nanjing to Suzhou' });
+    const train = buildReservation({
+      id: 213,
+      type: 'train',
+      title: 'Train: Nanjing to Suzhou',
+      reservation_time: '2025-12-11T09:30:00',
+      reservation_end_time: '2025-12-11T10:30:00',
+      day_id: 10,
+      endpoints: [
+        { role: 'from', sequence: 0, name: 'Nanjing South Railway Station', lat: 31.97, lng: 118.79 },
+        { role: 'to', sequence: 1, name: 'Suzhou Railway Station', lat: 31.331, lng: 120.606 },
+      ] as any,
+    });
+    const a1 = buildAssignment({ id: 11, day_id: 10, order_index: 0, place: hotel });
+    const a2 = buildAssignment({ id: 22, day_id: 10, order_index: 1, place: museum });
+
+    render(
+      <DayPlanSidebar
+        {...makeDefaultProps({
+          days: [day],
+          places: [hotel, museum],
+          assignments: { '10': [a1, a2] },
+          reservations: [train],
+          selectedDayId: 10,
+          routeShown: false,
+          bookingRoutesGlobalShown: true,
+          visibleConnectionIds: [213],
+          onToggleConnection: vi.fn(),
+        })}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText('To departure')).toBeInTheDocument());
+    expect(screen.getByText('From arrival')).toBeInTheDocument();
+    expect(screen.queryByText('Drive to Suzhou Museum')).not.toBeInTheDocument();
   });
 
   // ── Accommodation badges ────────────────────────────────────────────────
@@ -2349,7 +2399,7 @@ describe('DayPlanSidebar', () => {
     expect(fromArrival.compareDocumentPosition(nextStop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('FE-PLANNER-DAYPLAN-102: activity route connectors name the next stop', async () => {
+  it('FE-PLANNER-DAYPLAN-102: unbooked activity route gaps show transport suggestions', async () => {
     const museum = buildPlace({
       id: 1,
       name: 'Suzhou Museum',
@@ -2382,10 +2432,48 @@ describe('DayPlanSidebar', () => {
 
     const museumTitle = screen.getByText('Suzhou Museum');
     const marketTitle = screen.getByText('Shuangta Market');
-    await waitFor(() => expect(screen.getByText('Drive to Shuangta Market')).toBeInTheDocument());
-    const connectorLabel = screen.getByText('Drive to Shuangta Market');
+    await waitFor(() => expect(screen.getByText('Suggested transfer')).toBeInTheDocument());
+    const connectorLabel = screen.getByText('Suggested transfer');
 
     expect(museumTitle.compareDocumentPosition(connectorLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(connectorLabel.compareDocumentPosition(marketTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText('Taxi')).toBeInTheDocument();
+    expect(screen.getByText('Subway')).toBeInTheDocument();
+    expect(screen.getByText('Walk')).toBeInTheDocument();
+  });
+
+  it('FE-PLANNER-DAYPLAN-103: unbooked transfer suggestions stay hidden until route mode is active', () => {
+    const museum = buildPlace({
+      id: 1,
+      name: 'Suzhou Museum',
+      place_time: '14:00',
+      lat: 31.323,
+      lng: 120.625,
+    });
+    const market = buildPlace({
+      id: 2,
+      name: 'Shuangta Market',
+      place_time: '15:30',
+      lat: 31.301,
+      lng: 120.633,
+    });
+    const day = buildDay({ id: 10, date: '2025-12-11', title: 'Suzhou afternoon' });
+    const a1 = buildAssignment({ id: 11, day_id: 10, order_index: 0, place: museum });
+    const a2 = buildAssignment({ id: 22, day_id: 10, order_index: 1, place: market });
+
+    render(
+      <DayPlanSidebar
+        {...makeDefaultProps({
+          days: [day],
+          places: [museum, market],
+          assignments: { '10': [a1, a2] },
+          selectedDayId: 10,
+          routeShown: false,
+          bookingRoutesGlobalShown: false,
+        })}
+      />
+    );
+
+    expect(screen.queryByText('Suggested transfer')).not.toBeInTheDocument();
   });
 });

@@ -4,10 +4,27 @@ import type { Response } from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
 
+vi.mock('../../../src/services/mediaStorage', () => ({
+  deleteMediaBestEffort: vi.fn(async () => undefined),
+  deleteStoredMedia: vi.fn(async () => undefined),
+  storeUploadedMedia: vi.fn(async (namespace: string, file: Express.Multer.File) => ({
+    filename: `stored-${file.originalname || file.filename || 'upload.jpg'}`,
+    key: `${namespace}/stored-${file.originalname || file.filename || 'upload.jpg'}`,
+    metadata: {
+      storage_backend: 'local',
+      storage_key: `${namespace}/stored-${file.originalname || file.filename || 'upload.jpg'}`,
+      storage_etag: null,
+      storage_size: file.size ?? file.buffer?.length ?? null,
+      storage_content_type: file.mimetype ?? 'image/jpeg',
+    },
+  })),
+}));
+
 import { JourneyController } from '../../../src/nest/journey/journey.controller';
 import { JourneyPublicController } from '../../../src/nest/journey/journey-public.controller';
 import { JourneyAddonGuard } from '../../../src/nest/journey/journey-addon.guard';
 import type { JourneyService } from '../../../src/nest/journey/journey.service';
+import { deleteMediaBestEffort, deleteStoredMedia, storeUploadedMedia } from '../../../src/services/mediaStorage';
 import type { User } from '../../../src/types';
 
 const user = { id: 1, username: 'u', role: 'user', email: 'u@example.test' } as User;
@@ -89,8 +106,12 @@ describe('JourneyController', () => {
 
   it('gallery upload 400 no files / 403 not allowed, else returns photos', async () => {
     expect(await thrown(() => new JourneyController(svc()).uploadGalleryPhotos(user, '3', undefined))).toEqual({ status: 400, body: { error: 'No files uploaded' } });
-    expect(await thrown(() => new JourneyController(svc({ uploadGalleryPhotos: vi.fn().mockReturnValue([]) } as Partial<JourneyService>)).uploadGalleryPhotos(user, '3', [{ filename: 'a.jpg' } as Express.Multer.File]))).toEqual({ status: 403, body: { error: 'Not allowed' } });
-    expect(await new JourneyController(svc({ uploadGalleryPhotos: vi.fn().mockReturnValue([{ id: 1 }]) } as Partial<JourneyService>)).uploadGalleryPhotos(user, '3', [{ filename: 'a.jpg' } as Express.Multer.File])).toEqual({ photos: [{ id: 1 }] });
+    expect(await thrown(() => new JourneyController(svc({ uploadGalleryPhotos: vi.fn().mockReturnValue([]) } as Partial<JourneyService>)).uploadGalleryPhotos(user, '3', [{ filename: 'a.jpg', originalname: 'a.jpg' } as Express.Multer.File]))).toEqual({ status: 403, body: { error: 'Not allowed' } });
+    const uploadGalleryPhotos = vi.fn().mockReturnValue([{ id: 1 }]);
+    expect(await new JourneyController(svc({ uploadGalleryPhotos } as Partial<JourneyService>)).uploadGalleryPhotos(user, '3', [{ filename: 'a.jpg', originalname: 'a.jpg' } as Express.Multer.File])).toEqual({ photos: [{ id: 1 }] });
+    expect(uploadGalleryPhotos).toHaveBeenCalledWith(3, 1, [
+      expect.objectContaining({ path: 'journey/stored-a.jpg', storage: expect.objectContaining({ storage_key: 'journey/stored-a.jpg' }) }),
+    ]);
   });
 
   it('GET/PATCH/DELETE /:id map 404', async () => {
@@ -139,6 +160,8 @@ describe('JourneyController', () => {
     const s = svc({ addPhoto, immichAutoUploadEnabled: vi.fn().mockReturnValue(true), uploadToImmich, setPhotoProvider } as Partial<JourneyService>);
     const res = await new JourneyController(s).uploadEntryPhotos(user, '3', [{ filename: 'a.jpg', originalname: 'a.jpg' } as Express.Multer.File], {});
     expect(setPhotoProvider).toHaveBeenCalledWith(5, 'immich', 'immich-1', 1);
+    expect(addPhoto).toHaveBeenCalledWith(3, 1, 'journey/stored-a.jpg', undefined, undefined, expect.objectContaining({ storage_key: 'journey/stored-a.jpg' }));
+    expect(uploadToImmich).toHaveBeenCalledWith(1, 'journey/stored-a.jpg', 'a.jpg');
     expect(res).toEqual({ photos: [{ id: 5, provider: 'immich', asset_id: 'immich-1', owner_id: 1 }] });
 
     const noOptIn = svc({ addPhoto: vi.fn().mockReturnValue({ id: 6 }), immichAutoUploadEnabled: vi.fn().mockReturnValue(false), uploadToImmich } as Partial<JourneyService>);
@@ -175,16 +198,10 @@ describe('JourneyController', () => {
   });
 
   it('DELETE photo unlinks the file when a path exists', async () => {
-    const unlinkSpy = vi.spyOn(fs, 'unlinkSync').mockImplementation(() => undefined);
-    try {
-      expect(await new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 7, file_path: 'journey/a.jpg' }) } as Partial<JourneyService>)).deletePhoto(user, '7')).toEqual({ success: true });
-      expect(unlinkSpy).toHaveBeenCalledTimes(1);
-      // a vanished file is swallowed
-      unlinkSpy.mockImplementationOnce(() => { throw new Error('ENOENT'); });
-      expect(await new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 8, file_path: 'journey/b.jpg' }) } as Partial<JourneyService>)).deletePhoto(user, '8')).toEqual({ success: true });
-    } finally {
-      unlinkSpy.mockRestore();
-    }
+    expect(await new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 7, file_path: 'journey/a.jpg', storage_key: 'journey/a.jpg', delete_media: true }) } as Partial<JourneyService>)).deletePhoto(user, '7')).toEqual({ success: true });
+    expect(deleteStoredMedia).toHaveBeenCalledWith('journey/a.jpg', 'journey/a.jpg');
+    vi.mocked(deleteStoredMedia).mockRejectedValueOnce(new Error('missing'));
+    expect(await new JourneyController(svc({ deletePhoto: vi.fn().mockReturnValue({ id: 8, file_path: 'journey/b.jpg', storage_key: null, delete_media: true }) } as Partial<JourneyService>)).deletePhoto(user, '8')).toEqual({ success: true });
   });
 
   it('gallery provider-photos: batch (with passphrase), single 400/403, success', async () => {
@@ -201,15 +218,10 @@ describe('JourneyController', () => {
     expect(await thrown(() => new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '7'))).toEqual({ status: 404, body: { error: 'Photo not found or not allowed' } });
     // no file_path → nothing to unlink, returns void
     await expect(new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 7, file_path: null }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '7')).resolves.toBeUndefined();
-    const unlinkSpy = vi.spyOn(fs, 'unlinkSync').mockImplementation(() => undefined);
-    try {
-      await new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 8, file_path: 'journey/g.jpg' }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '8');
-      expect(unlinkSpy).toHaveBeenCalledTimes(1);
-      unlinkSpy.mockImplementationOnce(() => { throw new Error('ENOENT'); });
-      await expect(new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 9, file_path: 'journey/h.jpg' }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '9')).resolves.toBeUndefined();
-    } finally {
-      unlinkSpy.mockRestore();
-    }
+    await new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 8, file_path: 'journey/g.jpg', storage_key: 'journey/g.jpg', delete_media: true }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '8');
+    expect(deleteStoredMedia).toHaveBeenCalledWith('journey/g.jpg', 'journey/g.jpg');
+    vi.mocked(deleteStoredMedia).mockRejectedValueOnce(new Error('gone'));
+    await expect(new JourneyController(svc({ deleteGalleryPhoto: vi.fn().mockReturnValue({ id: 9, file_path: 'journey/h.jpg', storage_key: null, delete_media: true }) } as Partial<JourneyService>)).deleteGalleryPhoto(user, '9')).resolves.toBeUndefined();
   });
 
   it('PATCH /:id returns the updated journey on success', async () => {
@@ -219,9 +231,11 @@ describe('JourneyController', () => {
   it('cover upload: 400 without file, 404 when the journey is gone, else returns the journey', async () => {
     expect(await thrown(() => new JourneyController(svc()).cover(user, '9', undefined))).toEqual({ status: 400, body: { error: 'No file uploaded' } });
     expect(await thrown(() => new JourneyController(svc({ updateJourney: vi.fn().mockReturnValue(null) } as Partial<JourneyService>)).cover(user, '9', { filename: 'c.jpg' } as Express.Multer.File))).toEqual({ status: 404, body: { error: 'Journey not found' } });
-    const updateJourney = vi.fn().mockReturnValue({ id: 9, cover_image: 'journey/c.jpg' });
-    expect(await new JourneyController(svc({ updateJourney } as Partial<JourneyService>)).cover(user, '9', { filename: 'c.jpg' } as Express.Multer.File)).toEqual({ id: 9, cover_image: 'journey/c.jpg' });
-    expect(updateJourney).toHaveBeenCalledWith(9, 1, { cover_image: 'journey/c.jpg' });
+    expect(deleteMediaBestEffort).toHaveBeenCalledWith('journey/stored-c.jpg');
+    const updateJourney = vi.fn().mockReturnValue({ id: 9, cover_image: 'journey/stored-c.jpg' });
+    expect(await new JourneyController(svc({ updateJourney } as Partial<JourneyService>)).cover(user, '9', { filename: 'c.jpg' } as Express.Multer.File)).toEqual({ id: 9, cover_image: 'journey/stored-c.jpg' });
+    expect(storeUploadedMedia).toHaveBeenCalledWith('journey', expect.objectContaining({ filename: 'c.jpg' }), '.jpg');
+    expect(updateJourney).toHaveBeenCalledWith(9, 1, { cover_image: 'journey/stored-c.jpg' });
   });
 
   it('DELETE /:id and trips/contributors success paths', async () => {

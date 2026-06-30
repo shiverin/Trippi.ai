@@ -286,13 +286,15 @@
   transform: translateY(-4px);
   box-shadow: var(--sh-xl, 0 24px 60px oklch(0 0 0 / 0.28));
 }
-.trek-dash .hero-trip img.bg {
+.trek-dash .hero-trip .bg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
   z-index: 0;
+}
+.trek-dash .hero-trip img.bg {
+  object-fit: cover;
   transition: transform 12s ease-out;
 }
 .trek-dash .hero-trip:hover img.bg {

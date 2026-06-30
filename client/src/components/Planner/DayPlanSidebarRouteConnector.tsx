@@ -72,6 +72,7 @@ export function RouteSuggestionConnector({
   distanceUnit: 'metric' | 'imperial';
 }) {
   const distanceKm = Math.max(0, (seg.distance || 0) / 1000);
+  const walkingMinutes = Math.round((distanceKm / 5) * 60);
   const subwayMinutes = formatSuggestionDuration((distanceKm / 28) * 60 + 8);
   const trainMinutes = formatSuggestionDuration((distanceKm / 180) * 60 + 25);
   const flightMinutes = formatSuggestionDuration((distanceKm / 750) * 60 + 110);
@@ -79,7 +80,9 @@ export function RouteSuggestionConnector({
     ? [
         { label: 'Taxi', time: seg.drivingText || seg.durationText, Icon: CarTaxiFront },
         { label: 'Subway', time: subwayMinutes, Icon: Train },
-        { label: 'Walk', time: seg.walkingText, Icon: Footprints },
+        ...(walkingMinutes > 0 && walkingMinutes <= 60
+          ? [{ label: 'Walk', time: seg.walkingText, Icon: Footprints }]
+          : []),
       ]
     : [
         { label: 'Train', time: trainMinutes, Icon: Train },

@@ -24,4 +24,18 @@ describe('RouteSuggestionConnector', () => {
     expect(screen.getByText('Flight')).toBeInTheDocument();
     expect(screen.getByText('Car')).toBeInTheDocument();
   });
+
+  it('hides walking suggestions when the walk is longer than an hour', () => {
+    render(
+      <RouteSuggestionConnector
+        seg={{ ...segment, distance: 7300, distanceText: '7.3 km', walkingText: '1h 27m' }}
+        sameCity={true}
+        distanceUnit="metric"
+      />
+    );
+
+    expect(screen.getByText('Taxi')).toBeInTheDocument();
+    expect(screen.getByText('Subway')).toBeInTheDocument();
+    expect(screen.queryByText('Walk')).not.toBeInTheDocument();
+  });
 });

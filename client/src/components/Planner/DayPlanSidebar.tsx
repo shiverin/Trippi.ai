@@ -588,8 +588,19 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     const runs: RouteWaypoint[][] = [];
     let cur: RouteWaypoint[] = [];
     for (const it of merged) {
-      if (it.type === 'place' && it.data.place?.lat && it.data.place?.lng) {
+      if (it.type === 'place') {
         const category = categories.find((c) => c.id === it.data.place.category_id);
+        if (!it.data.place?.lat || !it.data.place?.lng) {
+          if (isTransportCategory(category) && cur.length > 0) {
+            cur[cur.length - 1] = {
+              ...cur[cur.length - 1],
+              id: it.data.id,
+              name: it.data.place.name,
+              isTransportPlace: true,
+            };
+          }
+          continue;
+        }
         cur.push({
           id: it.data.id,
           lat: it.data.place.lat,
@@ -673,6 +684,13 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
               addLeg(to.id, { seg: leg, label: 'To departure', kind: 'transport' });
             } else if (from.kind === 'transport') {
               addLeg(from.id, { seg: leg, label: 'From arrival', kind: 'transport' });
+            } else if (from.isTransportPlace) {
+              addLeg(from.id, {
+                seg: leg,
+                label: `${moveVerb} ${to.name || 'next stop'}`,
+                kind: 'suggestion',
+                sameCity: isLikelySameCity(from, to, leg.distance),
+              });
             } else if (to.isTransportPlace) {
               addLeg(to.id, {
                 seg: leg,
@@ -2181,7 +2199,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                         const isDraggingThis = draggingId === assignment.id;
                         const placeIdx = placeItems.findIndex((i) => i.data.id === assignment.id);
                         const isTransportPlace = isTransportCategory(cat);
-                        const hasTransportPlaceRouteToggle = isTransportPlace && place.lat != null && place.lng != null;
+                        const hasTransportPlaceRouteToggle = isTransportPlace;
                         const transportPlaceRouteActive =
                           routeShown && !hiddenAssignmentRouteIds.has(assignment.id);
                         const transportPlaceRouteLabel = !bookingRoutesGlobalShown

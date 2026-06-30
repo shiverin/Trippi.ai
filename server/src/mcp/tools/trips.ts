@@ -11,13 +11,13 @@ import { createOrUpdateShareLinkAsync, deleteShareLinkAsync, getShareLinkAsync }
 import { listItems as listTodoItems } from '../../services/todoService';
 import { exportTripPdf } from '../../services/tripPdfExportService';
 import {
-  listTrips,
+  listTripsAsync,
   createTrip,
   updateTrip,
   deleteTrip,
   getTripSummary,
-  listMembers as listTripMembers,
-  getTripOwner,
+  listMembersAsync as listTripMembers,
+  getTripOwnerAsync,
   addMember as addTripMember,
   removeMember as removeTripMember,
   copyTripById,
@@ -378,7 +378,7 @@ export function registerTripTools(
     },
     async ({ include_archived }) => {
       const notice = getDeprecationNotice();
-      const trips = listTrips(userId, include_archived ? null : 0);
+      const trips = await listTripsAsync(userId, include_archived ? null : 0);
       if (notice)
         return {
           isError: true as const,
@@ -476,9 +476,9 @@ export function registerTripTools(
       },
       async ({ tripId }) => {
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        const ownerRow = getTripOwner(tripId);
+        const ownerRow = await getTripOwnerAsync(tripId);
         if (!ownerRow) return noAccess();
-        const { owner, members } = listTripMembers(tripId, ownerRow.user_id);
+        const { owner, members } = await listTripMembers(tripId, ownerRow.user_id);
         return ok({ owner, members });
       },
     );
@@ -497,7 +497,7 @@ export function registerTripTools(
       async ({ tripId, identifier }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        const ownerRow = getTripOwner(tripId);
+        const ownerRow = await getTripOwnerAsync(tripId);
         if (!ownerRow || ownerRow.user_id !== userId)
           return { content: [{ type: 'text' as const, text: 'Only the trip owner can add members.' }], isError: true };
         try {
@@ -526,7 +526,7 @@ export function registerTripTools(
       async ({ tripId, memberId }) => {
         if (isDemoUser(userId)) return demoDenied();
         if (!(await canAccessTrip(tripId, userId))) return noAccess();
-        const ownerRow = getTripOwner(tripId);
+        const ownerRow = await getTripOwnerAsync(tripId);
         if (!ownerRow || ownerRow.user_id !== userId)
           return {
             content: [{ type: 'text' as const, text: 'Only the trip owner can remove members.' }],

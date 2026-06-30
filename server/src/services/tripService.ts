@@ -336,6 +336,55 @@ export function listTrips(userId: number, archived: number | null) {
   }
 }
 
+export async function listTripsAsync(userId: number, archived: number | null) {
+  const startedAt = Date.now();
+  try {
+    if (archived === null) {
+      return asyncDb
+        .prepare(
+          `
+      SELECT t.id, t.user_id, t.title, t.description, t.start_date, t.end_date, t.currency, t.cover_image,
+        t.is_archived, t.reminder_days, t.created_at, t.updated_at,
+        (SELECT COUNT(*) FROM days d WHERE d.trip_id = t.id) as day_count,
+        (SELECT COUNT(*) FROM places p WHERE p.trip_id = t.id) as place_count,
+        CASE WHEN t.user_id = ? THEN 1 ELSE 0 END as is_owner,
+        u.username as owner_username,
+        (SELECT COUNT(*) FROM trip_members tm WHERE tm.trip_id = t.id) as shared_count
+      FROM trips t
+      JOIN users u ON u.id = t.user_id
+      LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = ?
+      WHERE (t.user_id = ? OR m.user_id IS NOT NULL)
+      ORDER BY t.created_at DESC
+    `,
+        )
+        .all(userId, userId, userId);
+    }
+    return asyncDb
+      .prepare(
+        `
+    SELECT t.id, t.user_id, t.title, t.description, t.start_date, t.end_date, t.currency, t.cover_image,
+      t.is_archived, t.reminder_days, t.created_at, t.updated_at,
+      (SELECT COUNT(*) FROM days d WHERE d.trip_id = t.id) as day_count,
+      (SELECT COUNT(*) FROM places p WHERE p.trip_id = t.id) as place_count,
+      CASE WHEN t.user_id = ? THEN 1 ELSE 0 END as is_owner,
+      u.username as owner_username,
+      (SELECT COUNT(*) FROM trip_members tm WHERE tm.trip_id = t.id) as shared_count
+    FROM trips t
+    JOIN users u ON u.id = t.user_id
+    LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = ?
+    WHERE (t.user_id = ? OR m.user_id IS NOT NULL) AND t.is_archived = ?
+    ORDER BY t.created_at DESC
+  `,
+      )
+      .all(userId, userId, userId, archived);
+  } finally {
+    const ms = Date.now() - startedAt;
+    if (ms >= 1000) {
+      logWarn(`[perf] listTripsAsync archived=${archived ?? 'all'} took ${ms}ms`);
+    }
+  }
+}
+
 interface CreateTripData {
   title: string;
   description?: string | null;
@@ -388,6 +437,26 @@ export function getTrip(tripId: string | number, userId: number) {
   `,
     )
     .get({ userId, tripId }) as Trip | undefined;
+}
+
+export async function getTripAsync(tripId: string | number, userId: number) {
+  return asyncDb
+    .prepare(
+      `
+    SELECT t.id, t.user_id, t.title, t.description, t.start_date, t.end_date, t.currency, t.cover_image,
+      t.is_archived, t.reminder_days, t.created_at, t.updated_at,
+      (SELECT COUNT(*) FROM days d WHERE d.trip_id = t.id) as day_count,
+      (SELECT COUNT(*) FROM places p WHERE p.trip_id = t.id) as place_count,
+      CASE WHEN t.user_id = ? THEN 1 ELSE 0 END as is_owner,
+      u.username as owner_username,
+      (SELECT COUNT(*) FROM trip_members tm WHERE tm.trip_id = t.id) as shared_count
+    FROM trips t
+    JOIN users u ON u.id = t.user_id
+    LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = ?
+    WHERE t.id = ? AND (t.user_id = ? OR m.user_id IS NOT NULL)
+  `,
+    )
+    .get<Trip>(userId, userId, tripId, userId);
 }
 
 interface UpdateTripData {
@@ -562,6 +631,10 @@ export function getTripOwner(tripId: string | number): { user_id: number } | und
   return db.prepare('SELECT user_id FROM trips WHERE id = ?').get(tripId) as { user_id: number } | undefined;
 }
 
+export async function getTripOwnerAsync(tripId: string | number): Promise<{ user_id: number } | undefined> {
+  return asyncDb.prepare('SELECT user_id FROM trips WHERE id = ?').get<{ user_id: number }>(tripId);
+}
+
 // ── Members ───────────────────────────────────────────────────────────────
 
 export function listMembers(tripId: string | number, tripOwnerId: number) {
@@ -593,6 +666,43 @@ export function listMembers(tripId: string | number, tripOwnerId: number) {
     User,
     'id' | 'username' | 'email' | 'avatar'
   >;
+
+  return {
+    owner: { ...owner, role: 'owner', avatar_url: owner.avatar ? `/uploads/avatars/${owner.avatar}` : null },
+    members: members.map((m) => ({ ...m, avatar_url: m.avatar ? `/uploads/avatars/${m.avatar}` : null })),
+  };
+}
+
+export async function listMembersAsync(tripId: string | number, tripOwnerId: number) {
+  const members = await asyncDb
+    .prepare(
+      `
+    SELECT u.id, u.username, u.email, u.avatar,
+      CASE WHEN u.id = ? THEN 'owner' ELSE 'member' END as role,
+      m.added_at,
+      ib.username as invited_by_username
+    FROM trip_members m
+    JOIN users u ON u.id = m.user_id
+    LEFT JOIN users ib ON ib.id = m.invited_by
+    WHERE m.trip_id = ?
+    ORDER BY m.added_at ASC
+  `,
+    )
+    .all<{
+      id: number;
+      username: string;
+      email: string;
+      avatar: string | null;
+      role: string;
+      added_at: string;
+      invited_by_username: string | null;
+    }>(tripOwnerId, tripId);
+
+  const owner = await asyncDb.prepare('SELECT id, username, email, avatar FROM users WHERE id = ?').get<
+    Pick<User, 'id' | 'username' | 'email' | 'avatar'>
+  >(tripOwnerId);
+
+  if (!owner) return { owner: null, members: [] };
 
   return {
     owner: { ...owner, role: 'owner', avatar_url: owner.avatar ? `/uploads/avatars/${owner.avatar}` : null },

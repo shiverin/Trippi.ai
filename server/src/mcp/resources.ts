@@ -20,7 +20,7 @@ import { listItems as listPackingItems, listBags } from '../services/packingServ
 import { listPlacesAsync } from '../services/placeService';
 import { listReservations } from '../services/reservationService';
 import { listItems as listTodoItems } from '../services/todoService';
-import { listTrips, getTrip, getTripOwner, listMembers } from '../services/tripService';
+import { listTripsAsync, getTripAsync, getTripOwnerAsync, listMembersAsync } from '../services/tripService';
 import {
   getActivePlanId,
   getActivePlan,
@@ -95,7 +95,7 @@ export async function registerResources(
       'trippi://trips',
       { description: 'All trips the user owns or is a member of', mimeType: 'application/json' },
       async (uri) => {
-        const trips = listTrips(userId, 0);
+        const trips = await listTripsAsync(userId, 0);
         return jsonContent(uri.href, trips);
       },
     );
@@ -109,7 +109,7 @@ export async function registerResources(
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const trip = getTrip(id, userId);
+        const trip = await getTripAsync(id, userId);
         return jsonContent(uri.href, trip);
       },
     );
@@ -231,9 +231,9 @@ export async function registerResources(
       async (uri, { tripId }) => {
         const id = parseId(tripId);
         if (id === null || !(await canAccessTrip(id, userId))) return accessDenied(uri.href);
-        const ownerRow = getTripOwner(id);
+        const ownerRow = await getTripOwnerAsync(id);
         if (!ownerRow) return accessDenied(uri.href);
-        const { owner, members } = listMembers(id, ownerRow.user_id);
+        const { owner, members } = await listMembersAsync(id, ownerRow.user_id);
         return jsonContent(uri.href, { owner, members });
       },
     );

@@ -40,6 +40,7 @@ describe('async DB access guardrails', () => {
       'mcp/tools/notifications.ts',
       'mcp/tools/packing.ts',
       'mcp/tools/places.ts',
+      'mcp/tools/trips.ts',
       'nest/auth/auth-public.controller.ts',
       'nest/auth/auth.controller.ts',
       'nest/auth/auth.service.ts',
@@ -96,6 +97,16 @@ describe('async DB access guardrails', () => {
     const offenders = convertedEntryPoints.filter((file) => {
       const source = readFileSync(src(file), 'utf8');
       return /from ['"][^'"]*db\/database['"]/.test(source);
+    });
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps MCP trip discovery off sync tripService helpers', () => {
+    const files = ['mcp/resources.ts', 'mcp/tools/trips.ts'];
+    const offenders = files.filter((file) => {
+      const source = readFileSync(src(file), 'utf8');
+      return /\b(listTrips|getTrip|getTripOwner|listMembers)\b/.test(source);
     });
 
     expect(offenders).toEqual([]);

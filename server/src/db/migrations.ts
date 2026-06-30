@@ -3204,6 +3204,18 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_status ON billing_subscriptions(status);
       `);
     },
+    () => {
+      // Stripe webhook event receipts make repeated deliveries idempotent.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS billing_webhook_events (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          stripe_created INTEGER,
+          processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_billing_webhook_events_processed_at ON billing_webhook_events(processed_at);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

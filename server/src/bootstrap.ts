@@ -1,5 +1,6 @@
 import { applyGlobalMiddleware } from './middleware/globalMiddleware';
 import { AppModule } from './nest/app.module';
+import { applyStripeWebhookRawBody } from './nest/billing/stripe-webhook.raw-body';
 import { applyPlatformUploads, applyPlatformTransport, applyPlatformStatic } from './nest/platform/platform.routes';
 import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -37,6 +38,7 @@ export async function buildApp(): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule, new ExpressAdapter());
   const instance = app.getHttpAdapter().getInstance();
   applyGlobalMiddleware(instance, { bodyParser: false });
+  applyStripeWebhookRawBody(instance);
   applyPlatformUploads(instance);
   applyPlatformTransport(instance);
   applyPlatformStatic(instance);

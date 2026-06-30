@@ -45,6 +45,13 @@ export interface BillingSubscriptionState extends BillingSubscription {
   customer: BillingCustomer;
 }
 
+export interface BillingWebhookEvent {
+  id: string;
+  type: string;
+  stripe_created: number | null;
+  processed_at: string;
+}
+
 export interface UpsertStripeSubscriptionInput {
   userId: number;
   stripeCustomerId: string;
@@ -84,7 +91,17 @@ async function getBillingCustomerByUserId(userId: number): Promise<BillingCustom
   return asyncDb.prepare('SELECT * FROM billing_customers WHERE user_id = ?').get<BillingCustomer>(userId);
 }
 
-async function upsertBillingCustomer(userId: number, stripeCustomerId: string): Promise<BillingCustomer> {
+export async function getBillingCustomerByStripeId(stripeCustomerId: string): Promise<BillingCustomer | undefined> {
+  return asyncDb
+    .prepare('SELECT * FROM billing_customers WHERE stripe_customer_id = ?')
+    .get<BillingCustomer>(stripeCustomerId);
+}
+
+export async function userExists(userId: number): Promise<boolean> {
+  return !!(await asyncDb.prepare('SELECT id FROM users WHERE id = ?').get<{ id: number }>(userId));
+}
+
+export async function upsertBillingCustomer(userId: number, stripeCustomerId: string): Promise<BillingCustomer> {
   await asyncDb
     .prepare(
       `
@@ -100,6 +117,25 @@ async function upsertBillingCustomer(userId: number, stripeCustomerId: string): 
   const customer = await getBillingCustomerByUserId(userId);
   if (!customer) throw new Error('Failed to persist billing customer.');
   return customer;
+}
+
+export async function getProcessedStripeWebhookEvent(eventId: string): Promise<BillingWebhookEvent | undefined> {
+  return asyncDb.prepare('SELECT * FROM billing_webhook_events WHERE id = ?').get<BillingWebhookEvent>(eventId);
+}
+
+export async function recordProcessedStripeWebhookEvent(input: {
+  eventId: string;
+  type: string;
+  stripeCreated?: number | null;
+}): Promise<void> {
+  await asyncDb
+    .prepare(
+      `
+      INSERT OR IGNORE INTO billing_webhook_events (id, type, stripe_created, processed_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    `,
+    )
+    .run(input.eventId, input.type, input.stripeCreated ?? null);
 }
 
 export function freeBillingState(userId: number): FreeBillingState {
@@ -185,6 +221,56 @@ export async function getBillingSubscriptionByStripeId(
   return asyncDb
     .prepare('SELECT * FROM billing_subscriptions WHERE stripe_subscription_id = ?')
     .get<BillingSubscription>(stripeSubscriptionId);
+}
+
+export async function getBillingUserIdByStripeSubscriptionId(
+  stripeSubscriptionId: string,
+): Promise<number | undefined> {
+  return (await getBillingSubscriptionByStripeId(stripeSubscriptionId))?.user_id;
+}
+
+export async function getBillingUserIdByStripeCustomerId(stripeCustomerId: string): Promise<number | undefined> {
+  return (await getBillingCustomerByStripeId(stripeCustomerId))?.user_id;
+}
+
+export async function markStripeSubscriptionPaymentFailed(
+  stripeSubscriptionId: string,
+): Promise<BillingSubscription | undefined> {
+  const existing = await getBillingSubscriptionByStripeId(stripeSubscriptionId);
+  if (!existing) return undefined;
+
+  const terminalOrAlreadyFailed = new Set(['canceled', 'unpaid', 'incomplete', 'incomplete_expired']);
+  const nextStatus = terminalOrAlreadyFailed.has(existing.status) ? existing.status : 'past_due';
+  await asyncDb
+    .prepare(
+      `
+      UPDATE billing_subscriptions
+      SET status = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE stripe_subscription_id = ?
+    `,
+    )
+    .run(nextStatus, stripeSubscriptionId);
+  return getBillingSubscriptionByStripeId(stripeSubscriptionId);
+}
+
+export async function markStripeCustomerSubscriptionsCanceled(
+  stripeCustomerId: string,
+  canceledAt?: string | Date | null,
+): Promise<number> {
+  const result = await asyncDb
+    .prepare(
+      `
+      UPDATE billing_subscriptions
+      SET
+        status = 'canceled',
+        canceled_at = COALESCE(canceled_at, ?),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE stripe_customer_id = ?
+        AND status <> 'canceled'
+    `,
+    )
+    .run(isoOrNull(canceledAt ?? new Date()), stripeCustomerId);
+  return result.changes;
 }
 
 export async function upsertStripeSubscriptionState(

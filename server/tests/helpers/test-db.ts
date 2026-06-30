@@ -99,6 +99,7 @@ const RESET_TABLES = [
   // System notices
   'user_notice_dismissals',
   // Billing
+  'billing_webhook_events',
   'billing_subscriptions',
   'billing_customers',
   // User data

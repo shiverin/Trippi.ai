@@ -41,6 +41,8 @@ describe('async DB access guardrails', () => {
       'nest/auth/optional-jwt.guard.ts',
       'nest/admin/admin.controller.ts',
       'nest/admin/admin.service.ts',
+      'nest/billing/stripe-webhook.controller.ts',
+      'nest/billing/stripe-webhook.service.ts',
       'nest/notifications/notifications.controller.ts',
       'nest/notifications/notifications.service.ts',
       'nest/oauth/oauth-api.controller.ts',

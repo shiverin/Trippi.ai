@@ -291,6 +291,14 @@ function createTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_customer ON billing_subscriptions(stripe_customer_id);
     CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_status ON billing_subscriptions(status);
 
+    CREATE TABLE IF NOT EXISTS billing_webhook_events (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      stripe_created INTEGER,
+      processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_billing_webhook_events_processed_at ON billing_webhook_events(processed_at);
+
     CREATE TABLE IF NOT EXISTS budget_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,

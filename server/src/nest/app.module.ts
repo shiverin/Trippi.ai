@@ -5,6 +5,7 @@ import { AssignmentsModule } from './assignments/assignments.module';
 import { AtlasModule } from './atlas/atlas.module';
 import { AuthModule } from './auth/auth.module';
 import { BackupModule } from './backup/backup.module';
+import { BillingModule } from './billing/billing.module';
 import { BookingImportModule } from './booking-import/booking-import.module';
 import { BudgetModule } from './budget/budget.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -79,6 +80,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
     OidcModule,
     OauthModule,
     AdminModule,
+    BillingModule,
     AddonsModule,
     BookingImportModule,
   ],

@@ -43,6 +43,10 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       MCP_RATE_LIMIT: ${MCP_RATE_LIMIT:-300}
       MCP_MAX_SESSION_PER_USER: ${MCP_MAX_SESSION_PER_USER:-200}
+      TRIPPI_MEDIA_BACKEND: ${TRIPPI_MEDIA_BACKEND:-local}
+      TRIPPI_GCS_BUCKET: ${TRIPPI_GCS_BUCKET:-}
+      TRIPPI_GCS_PREFIX: ${TRIPPI_GCS_PREFIX:-prod}
+      TRIPPI_MEDIA_DELIVERY: ${TRIPPI_MEDIA_DELIVERY:-backend}
     volumes:
       - ${TRIPPI_DATA_DIR:-/opt/trippi/data}:/app/data
       - ${TRIPPI_UPLOADS_DIR:-/opt/trippi/uploads}:/app/uploads

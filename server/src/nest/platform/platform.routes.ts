@@ -88,7 +88,7 @@ export function applyPlatformUploads(app: express.Application): void {
   if (getMediaConfig().backend === 'gcs') {
     mountMediaCompatRoute(app, '/uploads/avatars/:filename', 'avatars');
     mountMediaCompatRoute(app, '/uploads/covers/:filename', 'covers');
-    mountMediaCompatRoute(app, '/uploads/journey/*', 'journey');
+    mountMediaCompatRoute(app, '/uploads/journey/*path', 'journey');
     mountMediaCompatRoute(app, '/uploads/exports/:filename', 'exports');
   } else {
     app.use('/uploads/avatars', express.static(path.join(UPLOADS_DIR, 'avatars')));

@@ -28,6 +28,7 @@ import {
   getCountries as getHolidayCountries,
   getHolidays,
 } from '../../services/vacayService';
+import type { McpFeatureFlags } from '../featureFlags';
 import { canRead, canWrite } from '../scopes';
 import {
   TOOL_ANNOTATIONS_READONLY,
@@ -41,11 +42,16 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export async function registerVacayTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
+export async function registerVacayTools(
+  server: McpServer,
+  userId: number,
+  scopes: string[] | null,
+  featureFlags?: McpFeatureFlags,
+): Promise<void> {
   const R = canRead(scopes, 'vacay');
   const W = canWrite(scopes, 'vacay');
 
-  if (await isAddonEnabledAsync(ADDON_IDS.VACAY)) {
+  if (featureFlags?.vacay ?? (await isAddonEnabledAsync(ADDON_IDS.VACAY))) {
     if (R)
       server.registerTool(
         'get_vacay_plan',

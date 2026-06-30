@@ -1,3 +1,4 @@
+import type { McpFeatureFlags } from './featureFlags';
 import { registerAssignmentTools } from './tools/assignments';
 import { registerAtlasTools } from './tools/atlas';
 import { registerBookingIntentTools } from './tools/bookingIntents';
@@ -25,15 +26,16 @@ export function registerTools(
   scopes: string[] | null,
   isStaticToken = false,
   getDeprecationNotice: () => string | null = () => null,
+  featureFlags?: McpFeatureFlags,
 ): Promise<void> {
   return (async () => {
     registerTripTools(server, userId, scopes, getDeprecationNotice);
 
     registerPlaceTools(server, userId, scopes);
 
-    await registerBudgetTools(server, userId, scopes);
+    await registerBudgetTools(server, userId, scopes, featureFlags);
 
-    await registerPackingTools(server, userId, scopes);
+    await registerPackingTools(server, userId, scopes, featureFlags);
 
     registerReservationTools(server, userId, scopes);
 
@@ -49,20 +51,20 @@ export function registerTools(
 
     registerNotificationTools(server, userId, scopes);
 
-    await registerAtlasTools(server, userId, scopes);
+    await registerAtlasTools(server, userId, scopes, featureFlags);
 
-    await registerCollabTools(server, userId, scopes);
+    await registerCollabTools(server, userId, scopes, featureFlags);
 
     registerDecisionTools(server, userId, scopes);
 
     registerTransportTools(server, userId, scopes);
 
-    await registerJourneyTools(server, userId, scopes);
+    await registerJourneyTools(server, userId, scopes, featureFlags);
 
-    await registerVacayTools(server, userId, scopes);
+    await registerVacayTools(server, userId, scopes, featureFlags);
 
-    await registerTodoTools(server, userId, scopes);
+    await registerTodoTools(server, userId, scopes, featureFlags);
 
-    await registerMcpPrompts(server, userId, isStaticToken);
+    await registerMcpPrompts(server, userId, isStaticToken, featureFlags);
   })();
 }

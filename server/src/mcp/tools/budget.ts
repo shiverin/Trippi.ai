@@ -16,6 +16,7 @@ import {
   deleteSettlement,
 } from '../../services/budgetService';
 import { getRates } from '../../services/exchangeRateService';
+import type { McpFeatureFlags } from '../featureFlags';
 import { canRead, canWrite } from '../scopes';
 import {
   safeBroadcast,
@@ -59,11 +60,16 @@ async function resolveMemberIds(tripId: number, member_ids?: number[]): Promise<
   return Array.from(new Set([owner.user_id, ...members.map((m) => m.user_id)]));
 }
 
-export async function registerBudgetTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
+export async function registerBudgetTools(
+  server: McpServer,
+  userId: number,
+  scopes: string[] | null,
+  featureFlags?: McpFeatureFlags,
+): Promise<void> {
   const R = canRead(scopes, 'budget');
   const W = canWrite(scopes, 'budget');
 
-  if (await isAddonEnabledAsync(ADDON_IDS.BUDGET)) {
+  if (featureFlags?.budget ?? (await isAddonEnabledAsync(ADDON_IDS.BUDGET))) {
     // --- BUDGET ---
 
     if (W)

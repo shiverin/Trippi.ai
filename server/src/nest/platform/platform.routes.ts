@@ -1,10 +1,9 @@
-import { ADDON_IDS } from '../../addons';
 import { asyncDb } from '../../db/asyncDatabase';
 import { mcpHandler } from '../../mcp';
+import { isMcpAddonEnabledFast } from '../../mcp/featureFlags';
 import { trippiOAuthProvider, trippiClientsStore } from '../../mcp/oauthProvider';
 import { ALL_SCOPES } from '../../mcp/scopes';
 import { verifyJwtAndLoadUser } from '../../middleware/auth';
-import { isAddonEnabledAsync } from '../../services/adminService';
 import {
   getMediaConfig,
   openMediaWithLocalFallback,
@@ -182,7 +181,7 @@ export function applyPlatformTransport(app: express.Application): void {
   // Gate: 404 when MCP addon is disabled (M2 — prevents feature fingerprinting)
   const mcpAddonGate = async (_req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!(await isAddonEnabledAsync(ADDON_IDS.MCP))) return res.status(404).end();
+      if (!(await isMcpAddonEnabledFast())) return res.status(404).end();
       next();
     } catch (err) {
       next(err);
@@ -233,7 +232,7 @@ export function applyPlatformTransport(app: express.Application): void {
   app.use(async (req: Request, res: Response, next: NextFunction) => {
     if (!req.path.startsWith('/.well-known/')) return next();
     try {
-      if (!(await isAddonEnabledAsync(ADDON_IDS.MCP))) return res.status(404).end();
+      if (!(await isMcpAddonEnabledFast())) return res.status(404).end();
       getMetaRouter()(req, res, next);
     } catch (err) {
       next(err);
@@ -259,7 +258,7 @@ export function applyPlatformTransport(app: express.Application): void {
   // the trippi.ai home page instead of the consent form.
   app.get('/.well-known/oauth-protected-resource', async (_req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!(await isAddonEnabledAsync(ADDON_IDS.MCP))) return res.status(404).end();
+      if (!(await isMcpAddonEnabledFast())) return res.status(404).end();
     } catch (err) {
       next(err);
       return;

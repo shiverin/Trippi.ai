@@ -1,3 +1,4 @@
+import type { McpAutomationLimits } from '../services/entitlementService';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp';
 
@@ -11,6 +12,8 @@ export interface McpSession {
   clientId: string | null;
   /** true when authenticated via static trippi_ token — triggers deprecation prompt */
   isStaticToken: boolean;
+  /** MCP entitlement limits captured at session creation for fast established calls. */
+  mcpLimits: McpAutomationLimits;
   lastActivity: number;
 }
 

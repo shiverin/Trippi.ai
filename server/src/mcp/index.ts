@@ -1,13 +1,17 @@
-import { ADDON_IDS } from '../addons';
-import { isAddonEnabledAsync } from '../services/adminService';
 import { writeAudit, getClientIp } from '../services/auditLog';
 import { verifyMcpTokenAsync, verifyJwtToken } from '../services/authService';
-import { getEntitlementsForUser, limitAllows, type EntitlementLimit } from '../services/entitlementService';
+import {
+  getEntitlementsForUser,
+  limitAllows,
+  type EntitlementLimit,
+  type McpAutomationLimits,
+} from '../services/entitlementService';
 import { getMcpSafeUrl } from '../services/notifications';
 import { getUserByAccessTokenAsync } from '../services/oauthService';
 import { User } from '../types';
+import { clearMcpFeatureFlagCache, getMcpFeatureFlags, isMcpAddonEnabledFast } from './featureFlags';
 import { registerResources } from './resources';
-import { McpSession, sessions, revokeUserSessions, revokeUserSessionsForClient } from './sessionManager';
+import { sessions, revokeUserSessions, revokeUserSessionsForClient } from './sessionManager';
 import { registerTools } from './tools';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp';
@@ -44,6 +48,8 @@ You are connected to trippi.ai, a travel planning application. Below is a compac
 - **Journey** — cross-trip travel narrative with dated entries, contributors, and share links. Requires the Journey addon.
 
 ## Key workflows
+
+**Fast-turnaround policy:** Minimize tool round trips. Prefer one rich read or one compound write over several narrow calls; reuse data from the latest \`get_trip_summary\` result unless the user asks for a refresh or a write has changed that section.
 
 **Discovering trips:** Always call \`list_trips\` first when no trip ID has been provided. Never assume a trip ID.
 
@@ -106,12 +112,40 @@ const STATIC_TOKEN_DEPRECATION_NOTICE =
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const DEFAULT_MCP_RATE_LIMIT = 300;
+const DEFAULT_MCP_MAX_SESSIONS_PER_USER = 200;
 
 interface RateLimitEntry {
   count: number;
   windowStart: number;
 }
 const rateLimitMap = new Map<string, RateLimitEntry>();
+
+function parseRuntimeLimit(value: string | undefined, fallback: EntitlementLimit): EntitlementLimit {
+  if (value === undefined) return fallback;
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (['unlimited', 'infinite', 'infinity', 'none', '-1'].includes(normalized)) return null;
+
+  const parsed = Number.parseInt(normalized, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return parsed < 0 ? null : parsed;
+}
+
+function resolveMcpRuntimeLimits(limits: McpAutomationLimits): McpAutomationLimits {
+  return {
+    ...limits,
+    maxConcurrentSessions:
+      limits.maxConcurrentSessions === 0
+        ? parseRuntimeLimit(process.env.MCP_MAX_SESSION_PER_USER, DEFAULT_MCP_MAX_SESSIONS_PER_USER)
+        : limits.maxConcurrentSessions,
+    requestsPerMinute:
+      limits.requestsPerMinute === 0
+        ? parseRuntimeLimit(process.env.MCP_RATE_LIMIT, DEFAULT_MCP_RATE_LIMIT)
+        : limits.requestsPerMinute,
+  };
+}
 
 function isRateLimited(userId: number, clientId: string | null, maxRequests: EntitlementLimit): boolean {
   if (maxRequests === null) return false;
@@ -238,7 +272,7 @@ function logToolCallAudit(req: Request, userId: number, clientId: string | null)
 }
 
 export async function mcpHandler(req: Request, res: Response): Promise<void> {
-  if (!(await isAddonEnabledAsync(ADDON_IDS.MCP))) {
+  if (!(await isMcpAddonEnabledFast())) {
     res.status(403).json({ error: 'MCP is not enabled' });
     return;
   }
@@ -250,13 +284,6 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
     return;
   }
   const { user, scopes, clientId, isStaticToken } = tokenResult;
-  const entitlements = await getEntitlementsForUser(user.id);
-  const mcpLimits = entitlements.limits.mcpAutomation;
-
-  if (isRateLimited(user.id, clientId, mcpLimits.requestsPerMinute)) {
-    res.status(429).json({ error: 'Too many requests. Please slow down.' });
-    return;
-  }
 
   const sessionId = req.headers['mcp-session-id'] as string | undefined;
 
@@ -277,6 +304,10 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
       res.status(403).json({ error: 'Session was created with a different OAuth client' });
       return;
     }
+    if (isRateLimited(user.id, clientId, session.mcpLimits.requestsPerMinute)) {
+      res.status(429).json({ error: 'Too many requests. Please slow down.' });
+      return;
+    }
     session.lastActivity = Date.now();
     logToolCallAudit(req, user.id, clientId);
     try {
@@ -287,6 +318,14 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
         res.status(500).json({ error: 'Internal MCP error' });
       }
     }
+    return;
+  }
+
+  const entitlements = await getEntitlementsForUser(user.id);
+  const mcpLimits = resolveMcpRuntimeLimits(entitlements.limits.mcpAutomation);
+
+  if (isRateLimited(user.id, clientId, mcpLimits.requestsPerMinute)) {
+    res.status(429).json({ error: 'Too many requests. Please slow down.' });
     return;
   }
 
@@ -325,9 +364,10 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
     _noticeEmitted = true;
     return STATIC_TOKEN_DEPRECATION_NOTICE;
   };
+  const featureFlags = await getMcpFeatureFlags();
 
-  await registerResources(server, user.id, scopes);
-  await registerTools(server, user.id, scopes, isStaticToken, getDeprecationNotice);
+  await registerResources(server, user.id, scopes, featureFlags);
+  await registerTools(server, user.id, scopes, isStaticToken, getDeprecationNotice, featureFlags);
 
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
@@ -339,6 +379,7 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
         scopes,
         clientId,
         isStaticToken,
+        mcpLimits,
         lastActivity: Date.now(),
       });
       const authMethod = isStaticToken ? 'static-token' : scopes ? `oauth(${scopes.join(',')})` : 'jwt';
@@ -369,6 +410,7 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
 
 /** Invalidate all active MCP sessions (call when addon state changes so sessions re-create with updated tools). */
 export function invalidateMcpSessions(): void {
+  clearMcpFeatureFlagCache();
   for (const [sid, session] of sessions) {
     try {
       session.server.close();
@@ -388,6 +430,7 @@ export function invalidateMcpSessions(): void {
 /** Close all active MCP sessions (call during graceful shutdown). */
 export function closeMcpSessions(): void {
   clearInterval(sessionSweepInterval);
+  clearMcpFeatureFlagCache();
   for (const [, session] of sessions) {
     try {
       session.server.close();

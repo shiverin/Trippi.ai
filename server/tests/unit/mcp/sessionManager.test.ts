@@ -2,8 +2,9 @@
  * Unit tests for MCP sessionManager — SESS-001 to SESS-010.
  * Covers revokeUserSessions and revokeUserSessionsForClient.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { sessions, revokeUserSessions, revokeUserSessionsForClient, McpSession } from '../../../src/mcp/sessionManager';
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 function makeSession(overrides: Partial<McpSession> = {}): McpSession {
   return {
@@ -13,6 +14,7 @@ function makeSession(overrides: Partial<McpSession> = {}): McpSession {
     scopes: null,
     clientId: null,
     isStaticToken: false,
+    mcpLimits: { maxTokens: null, maxConcurrentSessions: null, requestsPerMinute: null },
     lastActivity: Date.now(),
     ...overrides,
   };
@@ -60,7 +62,9 @@ describe('revokeUserSessions', () => {
 
   it('SESS-005: tolerates server.close() throwing (swallows error)', () => {
     const s = makeSession({ userId: 1 });
-    (s.server.close as ReturnType<typeof vi.fn>).mockImplementation(() => { throw new Error('close failed'); });
+    (s.server.close as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error('close failed');
+    });
     sessions.set('sid-1', s);
 
     expect(() => revokeUserSessions(1)).not.toThrow();
@@ -69,7 +73,9 @@ describe('revokeUserSessions', () => {
 
   it('SESS-006: tolerates transport.close() throwing (swallows error)', () => {
     const s = makeSession({ userId: 1 });
-    (s.transport.close as ReturnType<typeof vi.fn>).mockImplementation(() => { throw new Error('transport error'); });
+    (s.transport.close as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error('transport error');
+    });
     sessions.set('sid-1', s);
 
     expect(() => revokeUserSessions(1)).not.toThrow();
@@ -112,7 +118,9 @@ describe('revokeUserSessionsForClient', () => {
 
   it('SESS-010: tolerates close() throwing for matched sessions', () => {
     const s = makeSession({ userId: 1, clientId: 'c' });
-    (s.server.close as ReturnType<typeof vi.fn>).mockImplementation(() => { throw new Error('x'); });
+    (s.server.close as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error('x');
+    });
     sessions.set('sid-1', s);
 
     expect(() => revokeUserSessionsForClient(1, 'c')).not.toThrow();

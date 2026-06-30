@@ -28,6 +28,7 @@ describe('async DB access guardrails', () => {
       'services/tripAccess.ts',
       'services/subscriptionService.ts',
       'websocket.ts',
+      'mcp/featureFlags.ts',
       'mcp/index.ts',
       'mcp/oauthProvider.ts',
       'mcp/resources.ts',

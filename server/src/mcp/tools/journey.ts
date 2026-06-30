@@ -27,6 +27,7 @@ import {
   deleteJourneyShareLink,
   getJourneyShareLink,
 } from '../../services/journeyShareService';
+import type { McpFeatureFlags } from '../featureFlags';
 import { canRead, canShareJourneys, canWrite } from '../scopes';
 import {
   TOOL_ANNOTATIONS_DELETE,
@@ -44,8 +45,13 @@ function notFound(msg: string) {
   return { content: [{ type: 'text' as const, text: msg }], isError: true };
 }
 
-export async function registerJourneyTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
-  if (!(await isAddonEnabledAsync(ADDON_IDS.JOURNEY))) return;
+export async function registerJourneyTools(
+  server: McpServer,
+  userId: number,
+  scopes: string[] | null,
+  featureFlags?: McpFeatureFlags,
+): Promise<void> {
+  if (!(featureFlags?.journey ?? (await isAddonEnabledAsync(ADDON_IDS.JOURNEY)))) return;
 
   const R = canRead(scopes, 'journey');
   const W = canWrite(scopes, 'journey');

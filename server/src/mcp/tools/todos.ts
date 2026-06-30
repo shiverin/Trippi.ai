@@ -11,6 +11,7 @@ import {
   getCategoryAssignees as getTodoCategoryAssignees,
   updateCategoryAssignees as updateTodoCategoryAssignees,
 } from '../../services/todoService';
+import type { McpFeatureFlags } from '../featureFlags';
 import { canRead, canWrite } from '../scopes';
 import {
   safeBroadcast,
@@ -28,11 +29,16 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export async function registerTodoTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
+export async function registerTodoTools(
+  server: McpServer,
+  userId: number,
+  scopes: string[] | null,
+  featureFlags?: McpFeatureFlags,
+): Promise<void> {
   const R = canRead(scopes, 'todos');
   const W = canWrite(scopes, 'todos');
 
-  if (!(await isAddonEnabledAsync(ADDON_IDS.PACKING))) return;
+  if (!(featureFlags?.packing ?? (await isAddonEnabledAsync(ADDON_IDS.PACKING)))) return;
 
   // --- TODOS ---
 

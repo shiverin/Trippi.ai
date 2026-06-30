@@ -3,11 +3,17 @@ import { canAccessTripAsync as canAccessTrip } from '../../db/asyncDatabase';
 import { isAddonEnabledAsync } from '../../services/adminService';
 import { listItems as listPackingItems } from '../../services/packingService';
 import { getTripSummary } from '../../services/tripService';
+import type { McpFeatureFlags } from '../featureFlags';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export async function registerMcpPrompts(server: McpServer, _userId: number, isStaticToken = false): Promise<void> {
+export async function registerMcpPrompts(
+  server: McpServer,
+  _userId: number,
+  isStaticToken = false,
+  featureFlags?: McpFeatureFlags,
+): Promise<void> {
   if (isStaticToken) {
     server.registerPrompt(
       'token_auth_notice',
@@ -67,7 +73,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
     },
   );
 
-  if (await isAddonEnabledAsync(ADDON_IDS.PACKING))
+  if (featureFlags?.packing ?? (await isAddonEnabledAsync(ADDON_IDS.PACKING)))
     server.registerPrompt(
       'packing-list',
       {
@@ -115,7 +121,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
       },
     );
 
-  if (await isAddonEnabledAsync(ADDON_IDS.BUDGET))
+  if (featureFlags?.budget ?? (await isAddonEnabledAsync(ADDON_IDS.BUDGET)))
     server.registerPrompt(
       'budget-overview',
       {
@@ -135,7 +141,7 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
         }
         const { trip, budget } = summary;
         const currency = trip?.currency || 'EUR';
-        const byCategory = (budget?.items || []).reduce(
+        const byCategory: Record<string, number> = (budget?.items || []).reduce(
           (acc: Record<string, number>, item: any) => {
             const cat = item.category || 'Uncategorized';
             acc[cat] = (acc[cat] || 0) + (item.total_price || 0);

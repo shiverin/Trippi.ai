@@ -1,6 +1,4 @@
-import { ADDON_IDS } from '../addons';
 import { canAccessTripAsync as canAccessTrip } from '../db/asyncDatabase';
-import { getCollabFeaturesAsync, isAddonEnabledAsync } from '../services/adminService';
 import {
   listBucketListAsync as listBucketList,
   listVisitedCountriesAsync as listVisitedCountries,
@@ -30,6 +28,7 @@ import {
   getEntries as getVacayEntries,
   getHolidays,
 } from '../services/vacayService';
+import { getMcpFeatureFlags, type McpFeatureFlags } from './featureFlags';
 import { canRead, canReadTrips } from './scopes';
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp';
 
@@ -68,20 +67,26 @@ function jsonContent(uri: string, data: unknown) {
       {
         uri,
         mimeType: 'application/json',
-        text: JSON.stringify(data, null, 2),
+        text: JSON.stringify(data),
       },
     ],
   };
 }
 
-export async function registerResources(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
-  const budgetEnabled = await isAddonEnabledAsync(ADDON_IDS.BUDGET);
-  const packingEnabled = await isAddonEnabledAsync(ADDON_IDS.PACKING);
-  const atlasEnabled = await isAddonEnabledAsync(ADDON_IDS.ATLAS);
-  const collabEnabled = await isAddonEnabledAsync(ADDON_IDS.COLLAB);
-  const vacayEnabled = await isAddonEnabledAsync(ADDON_IDS.VACAY);
-  const journeyEnabled = await isAddonEnabledAsync(ADDON_IDS.JOURNEY);
-  const collabFeatures = collabEnabled ? await getCollabFeaturesAsync() : null;
+export async function registerResources(
+  server: McpServer,
+  userId: number,
+  scopes: string[] | null,
+  featureFlags?: McpFeatureFlags,
+): Promise<void> {
+  const flags = featureFlags ?? (await getMcpFeatureFlags());
+  const budgetEnabled = flags.budget;
+  const packingEnabled = flags.packing;
+  const atlasEnabled = flags.atlas;
+  const collabEnabled = flags.collab;
+  const vacayEnabled = flags.vacay;
+  const journeyEnabled = flags.journey;
+  const collabFeatures = flags.collabFeatures;
 
   // List all accessible trips
   if (canReadTrips(scopes))

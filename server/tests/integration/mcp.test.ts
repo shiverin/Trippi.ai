@@ -332,7 +332,7 @@ describe('MCP session management', () => {
 });
 
 describe('MCP rate limiting', () => {
-  it('MCP-005 — requests below limit succeed', async () => {
+  it('MCP-005 — requests below limit succeed and the next request is rejected', async () => {
     const { user } = createUser(testDb);
     testDb.prepare("UPDATE addons SET enabled = 1 WHERE id = 'mcp'").run();
     const token = generateToken(user.id);
@@ -353,10 +353,21 @@ describe('MCP rate limiting', () => {
             id: i + 1,
             params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
           });
-        // Each should pass (no rate limit hit yet since limit is read at module init,
-        // but we can verify that the responses are not 429)
         expect(res.status).not.toBe(429);
       }
+
+      const res = await request(app)
+        .post('/mcp')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Accept', 'application/json, text/event-stream')
+        .send({
+          jsonrpc: '2.0',
+          method: 'initialize',
+          id: 4,
+          params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'test', version: '1' } },
+        });
+      expect(res.status).toBe(429);
+      expect(res.body.error).toMatch(/too many requests/i);
     } finally {
       if (originalLimit === undefined) delete process.env.MCP_RATE_LIMIT;
       else process.env.MCP_RATE_LIMIT = originalLimit;

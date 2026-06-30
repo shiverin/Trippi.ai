@@ -1,6 +1,4 @@
-import { ADDON_IDS } from '../../addons';
 import { canAccessTripAsync as canAccessTrip, isOwnerAsync as isOwner } from '../../db/asyncDatabase';
-import { getCollabFeaturesAsync, isAddonEnabledAsync } from '../../services/adminService';
 import { isDemoUser } from '../../services/authService';
 import { countMessagesAsync, listPollsAsync } from '../../services/collabService';
 import {
@@ -27,6 +25,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../../services/tripService';
+import { getMcpFeatureFlags } from '../featureFlags';
 import { canRead, canReadTrips, canWrite, canDeleteTrips, canShareTrips } from '../scopes';
 import {
   safeBroadcast,
@@ -281,7 +280,7 @@ export function registerTripTools(
               content: [
                 {
                   type: 'text' as const,
-                  text: JSON.stringify({ error: 'itinerary_import_failed', issues: err.issues }, null, 2),
+                  text: JSON.stringify({ error: 'itinerary_import_failed', issues: err.issues }),
                 },
               ],
               isError: true,
@@ -385,7 +384,7 @@ export function registerTripTools(
           isError: true as const,
           content: [
             { type: 'text' as const, text: notice },
-            { type: 'text' as const, text: JSON.stringify({ trips }, null, 2) },
+            { type: 'text' as const, text: JSON.stringify({ trips }) },
           ],
         };
       return ok({ trips });
@@ -407,10 +406,11 @@ export function registerTripTools(
     async ({ tripId }) => {
       if (!(await canAccessTrip(tripId, userId))) return noAccess();
       // Addon availability gates
-      const packingEnabled = await isAddonEnabledAsync(ADDON_IDS.PACKING);
-      const budgetEnabled = await isAddonEnabledAsync(ADDON_IDS.BUDGET);
-      const collabEnabled = await isAddonEnabledAsync(ADDON_IDS.COLLAB);
-      const collabFeatures = collabEnabled ? await getCollabFeaturesAsync() : null;
+      const featureFlags = await getMcpFeatureFlags();
+      const packingEnabled = featureFlags.packing;
+      const budgetEnabled = featureFlags.budget;
+      const collabEnabled = featureFlags.collab;
+      const collabFeatures = featureFlags.collabFeatures;
       // Scope gates — sections not covered by the client's OAuth scopes are omitted.
       // Core trip data (metadata, days, members, accommodations) is always included
       // because this tool is always registered and needed for navigation.
@@ -419,20 +419,26 @@ export function registerTripTools(
       const canReadCollab = collabEnabled && canRead(scopes, 'collab');
       const canReadTodos = packingEnabled && canRead(scopes, 'todos');
       const canReadRes = canRead(scopes, 'reservations');
-      const summary = await getTripSummary(tripId, {
+      const summaryPromise = getTripSummary(tripId, {
         includeBudget: canReadBudget,
         includePacking: canReadPacking,
         includeReservations: canReadRes,
         includeCollabNotes: canReadCollab && Boolean(collabFeatures?.notes),
       });
+      const todosPromise = canReadTodos ? listTodoItems(tripId) : Promise.resolve([]);
+      const pollCountPromise =
+        canReadCollab && collabFeatures?.polls
+          ? listPollsAsync(tripId).then((polls) => polls.length)
+          : Promise.resolve(0);
+      const messageCountPromise =
+        canReadCollab && collabFeatures?.chat ? countMessagesAsync(tripId) : Promise.resolve(0);
+      const [summary, todos, pollCount, messageCount] = await Promise.all([
+        summaryPromise,
+        todosPromise,
+        pollCountPromise,
+        messageCountPromise,
+      ]);
       if (!summary) return noAccess();
-      const todos = canReadTodos ? await listTodoItems(tripId) : [];
-      let pollCount = 0;
-      let messageCount = 0;
-      if (canReadCollab) {
-        if (collabFeatures?.polls) pollCount = (await listPollsAsync(tripId)).length;
-        if (collabFeatures?.chat) messageCount = await countMessagesAsync(tripId);
-      }
       const notice = getDeprecationNotice();
       const summaryData = {
         ...summary,
@@ -449,7 +455,7 @@ export function registerTripTools(
           isError: true as const,
           content: [
             { type: 'text' as const, text: notice },
-            { type: 'text' as const, text: JSON.stringify(summaryData, null, 2) },
+            { type: 'text' as const, text: JSON.stringify(summaryData) },
           ],
         };
       return ok(summaryData);

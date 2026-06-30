@@ -5,10 +5,10 @@ import { logWarn } from './auditLog';
 import { listBudgetItems } from './budgetService';
 import { listNotesAsync as listCollabNotes } from './collabService';
 import { listDays, listAccommodations } from './dayService';
+import { deleteMediaBestEffort, uploadUrlToMediaKey } from './mediaStorage';
 import { listItems as listPackingItems } from './packingService';
 import { listReservations, loadEndpointsByTrip, resyncReservationDays } from './reservationService';
 import { shiftOwnerEntriesForTripWindow } from './vacayService';
-import { deleteMediaBestEffort, uploadUrlToMediaKey } from './mediaStorage';
 
 import fs from 'fs';
 import path from 'path';
@@ -1131,9 +1131,10 @@ export async function getTripSummary(tripId: number, options: TripSummaryOptions
   const trip = await asyncDb.prepare('SELECT * FROM trips WHERE id = ?').get<Record<string, unknown>>(tripId);
   if (!trip) return null;
 
-  const ownerRow = await asyncDb.prepare('SELECT user_id FROM trips WHERE id = ?').get<{ user_id: number }>(tripId);
-  if (!ownerRow) return null;
-  const members = await asyncDb
+  const ownerId = Number(trip.user_id);
+  if (!Number.isInteger(ownerId) || ownerId <= 0) return null;
+
+  const membersPromise = asyncDb
     .prepare(
       `
     SELECT u.id, u.username, u.email, u.avatar,
@@ -1155,11 +1156,42 @@ export async function getTripSummary(tripId: number, options: TripSummaryOptions
       role: string;
       added_at: string;
       invited_by_username: string | null;
-    }>(ownerRow.user_id, tripId);
+    }>(ownerId, tripId);
 
-  const owner = await asyncDb
+  const ownerPromise = asyncDb
     .prepare('SELECT id, username, email, avatar FROM users WHERE id = ?')
-    .get<Pick<User, 'id' | 'username' | 'email' | 'avatar'>>(ownerRow.user_id);
+    .get<Pick<User, 'id' | 'username' | 'email' | 'avatar'>>(ownerId);
+
+  const [{ days: rawDays }, accommodations, budget, packing, reservations, collab_notes, members, owner] =
+    await Promise.all([
+      listDays(tripId),
+      listAccommodations(tripId),
+      summaryOptions.includeBudget
+        ? (async () => {
+            const budgetItems = await listBudgetItems(tripId);
+            return {
+              items: budgetItems,
+              item_count: budgetItems.length,
+              total: budgetItems.reduce((sum, i) => sum + (i.total_price || 0), 0),
+              currency: trip.currency,
+            };
+          })()
+        : Promise.resolve(undefined),
+      summaryOptions.includePacking
+        ? (async () => {
+            const packingItems = await listPackingItems(tripId);
+            return {
+              items: packingItems,
+              total: packingItems.length,
+              checked: (packingItems as { checked: number }[]).filter((i) => i.checked).length,
+            };
+          })()
+        : Promise.resolve(undefined),
+      summaryOptions.includeReservations ? listReservations(tripId) : Promise.resolve(undefined),
+      summaryOptions.includeCollabNotes ? listCollabNotes(tripId) : Promise.resolve(undefined),
+      membersPromise,
+      ownerPromise,
+    ]);
 
   if (!owner) return null;
   const hydratedOwner = {
@@ -1169,36 +1201,7 @@ export async function getTripSummary(tripId: number, options: TripSummaryOptions
   };
   const hydratedMembers = members.map((m) => ({ ...m, avatar_url: m.avatar ? `/uploads/avatars/${m.avatar}` : null }));
 
-  const { days: rawDays } = await listDays(tripId);
   const days = rawDays.map(({ notes_items, ...day }) => ({ ...day, notes: notes_items }));
-
-  const accommodations = await listAccommodations(tripId);
-
-  const budget = summaryOptions.includeBudget
-    ? await (async () => {
-        const budgetItems = await listBudgetItems(tripId);
-        return {
-          items: budgetItems,
-          item_count: budgetItems.length,
-          total: budgetItems.reduce((sum, i) => sum + (i.total_price || 0), 0),
-          currency: trip.currency,
-        };
-      })()
-    : undefined;
-
-  const packing = summaryOptions.includePacking
-    ? await (async () => {
-        const packingItems = await listPackingItems(tripId);
-        return {
-          items: packingItems,
-          total: packingItems.length,
-          checked: (packingItems as { checked: number }[]).filter((i) => i.checked).length,
-        };
-      })()
-    : undefined;
-
-  const reservations = summaryOptions.includeReservations ? await listReservations(tripId) : undefined;
-  const collab_notes = summaryOptions.includeCollabNotes ? await listCollabNotes(tripId) : undefined;
 
   return {
     trip,

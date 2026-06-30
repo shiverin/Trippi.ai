@@ -16,6 +16,7 @@ import {
   updateNoteAsync as updateCollabNote,
   votePollAsync as votePoll,
 } from '../../services/collabService';
+import type { McpFeatureFlags } from '../featureFlags';
 import { canRead, canWrite } from '../scopes';
 import {
   safeBroadcast,
@@ -33,13 +34,18 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export async function registerCollabTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
+export async function registerCollabTools(
+  server: McpServer,
+  userId: number,
+  scopes: string[] | null,
+  featureFlags?: McpFeatureFlags,
+): Promise<void> {
   const R = canRead(scopes, 'collab');
   const W = canWrite(scopes, 'collab');
 
-  if (!(await isAddonEnabledAsync(ADDON_IDS.COLLAB))) return;
+  if (!(featureFlags?.collab ?? (await isAddonEnabledAsync(ADDON_IDS.COLLAB)))) return;
 
-  const features = await getCollabFeaturesAsync();
+  const features = featureFlags?.collabFeatures ?? (await getCollabFeaturesAsync());
 
   // --- COLLAB NOTES ---
 

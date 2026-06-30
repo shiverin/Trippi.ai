@@ -19,6 +19,7 @@ import {
   listTemplates,
   bulkImport,
 } from '../../services/packingService';
+import type { McpFeatureFlags } from '../featureFlags';
 import { canRead, canWrite } from '../scopes';
 import {
   safeBroadcast,
@@ -38,11 +39,16 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export async function registerPackingTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
+export async function registerPackingTools(
+  server: McpServer,
+  userId: number,
+  scopes: string[] | null,
+  featureFlags?: McpFeatureFlags,
+): Promise<void> {
   const R = canRead(scopes, 'packing');
   const W = canWrite(scopes, 'packing');
 
-  if (!(await isAddonEnabledAsync(ADDON_IDS.PACKING))) return;
+  if (!(featureFlags?.packing ?? (await isAddonEnabledAsync(ADDON_IDS.PACKING)))) return;
 
   // --- PACKING ---
 

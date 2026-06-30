@@ -13,6 +13,7 @@ import {
   updateBucketItemAsync as updateBucketItem,
 } from '../../services/atlasService';
 import { isDemoUser } from '../../services/authService';
+import type { McpFeatureFlags } from '../featureFlags';
 import { canRead, canWrite } from '../scopes';
 import {
   TOOL_ANNOTATIONS_WRITE,
@@ -26,11 +27,16 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
 
-export async function registerAtlasTools(server: McpServer, userId: number, scopes: string[] | null): Promise<void> {
+export async function registerAtlasTools(
+  server: McpServer,
+  userId: number,
+  scopes: string[] | null,
+  featureFlags?: McpFeatureFlags,
+): Promise<void> {
   const R = canRead(scopes, 'atlas');
   const W = canWrite(scopes, 'atlas');
 
-  if (!(await isAddonEnabledAsync(ADDON_IDS.ATLAS))) return;
+  if (!(featureFlags?.atlas ?? (await isAddonEnabledAsync(ADDON_IDS.ATLAS)))) return;
 
   // --- BUCKET LIST ---
 

@@ -17,7 +17,9 @@ import { server } from '../../tests/helpers/msw/server';
 import { act, fireEvent, render, screen, waitFor } from '../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../tests/helpers/store';
 import { useAuthStore } from '../store/authStore';
+import { usePermissionsStore } from '../store/permissionsStore';
 import { useTripStore } from '../store/tripStore';
+import type { GroupDecision } from '../components/Decisions/groupDecisionModel';
 import type { Place } from '../types';
 import TripPlannerPage from './TripPlannerPage';
 
@@ -236,6 +238,47 @@ function renderPlannerPage(tripId: number | string) {
     </Routes>,
     { initialEntries: [`/trips/${tripId}`] }
   );
+}
+
+function buildGroupDecision(overrides: Partial<GroupDecision> = {}): GroupDecision {
+  return {
+    id: 900,
+    trip_id: 42,
+    created_by: 1,
+    created_by_username: 'Maya',
+    created_by_avatar: null,
+    title: 'Pick a plan',
+    description: null,
+    deadline: null,
+    state: 'open',
+    final_option_id: null,
+    final_option: null,
+    options: [
+      {
+        id: 901,
+        decision_id: 900,
+        label: 'Option A',
+        description: null,
+        sort_order: 0,
+        metadata: null,
+        created_at: '2026-06-30T00:00:00Z',
+      },
+      {
+        id: 902,
+        decision_id: 900,
+        label: 'Option B',
+        description: null,
+        sort_order: 1,
+        metadata: null,
+        created_at: '2026-06-30T00:00:00Z',
+      },
+    ],
+    responses: [],
+    links: [],
+    created_at: '2026-06-30T00:00:00Z',
+    updated_at: '2026-06-30T00:00:00Z',
+    ...overrides,
+  };
 }
 
 beforeEach(() => {
@@ -613,6 +656,90 @@ describe('TripPlannerPage', () => {
     });
   });
 
+  describe('FE-PAGE-PLANNER-014B: Linked decisions', () => {
+    it('creates a decision linked to a selected place from the planner modal', async () => {
+      const tripId = 909;
+      const { day } = seedTripStore({ id: tripId, tripName: 'Lisbon Crew' });
+      const place = buildPlace({ id: 44, trip_id: tripId, name: 'Tile museum' });
+      mockPlaceSelectionState.selectedPlaceId = place.id;
+      seedStore(useTripStore, {
+        places: [place],
+        assignments: {
+          [String(day.id)]: [buildAssignment({ id: 55, day_id: day.id, place })],
+        },
+      } as any);
+
+      let postedPayload: Record<string, any> | null = null;
+      server.use(
+        http.post('/api/trips/:id/decisions', async ({ params, request }) => {
+          postedPayload = (await request.json()) as Record<string, any>;
+          const links = (postedPayload.links || []).map(
+            (link: { target_type: string; target_id: number }, index: number) => ({
+              id: index + 1,
+              decision_id: 900,
+              target_type: link.target_type,
+              target_id: link.target_id,
+              created_at: '2026-06-30T00:00:00Z',
+            })
+          );
+          return HttpResponse.json({
+            decision: buildGroupDecision({
+              trip_id: Number(params.id),
+              title: postedPayload.title,
+              description: postedPayload.description ?? null,
+              links,
+            }),
+          });
+        })
+      );
+
+      renderPlannerPage(tripId);
+
+      await waitFor(() => {
+        expect(capturedPlaceInspectorProps.current.place?.id).toBe(place.id);
+      });
+
+      act(() => {
+        capturedPlaceInspectorProps.current.onCreateDecision({
+          targetLabel: place.name,
+          title: `Decision for ${place.name}`,
+          links: [{ target_type: 'place', target_id: place.id }],
+        });
+      });
+
+      fireEvent.change(screen.getByLabelText(/Decision title/i), { target: { value: 'Pick museum window' } });
+      fireEvent.change(screen.getByPlaceholderText('Option 1'), { target: { value: 'Morning' } });
+      fireEvent.change(screen.getByPlaceholderText('Option 2'), { target: { value: 'Afternoon' } });
+      fireEvent.click(screen.getByRole('button', { name: /Create decision/i }));
+
+      await waitFor(() => {
+        expect(postedPayload).toMatchObject({
+          title: 'Pick museum window',
+          options: ['Morning', 'Afternoon'],
+          links: [{ target_type: 'place', target_id: place.id }],
+        });
+      });
+
+      await waitFor(() => {
+        expect(capturedPlaceInspectorProps.current.decisions?.[0]?.title).toBe('Pick museum window');
+      });
+    });
+
+    it('passes trip_edit permission state to linked decision surfaces', async () => {
+      seedStore(useAuthStore, { user: buildUser({ id: 50, role: 'user' }) });
+      seedStore(usePermissionsStore, { permissions: { trip_edit: 'trip_owner' } });
+      seedTripStore({ id: 42, tripName: 'Member Trip' });
+
+      renderPlannerPage(42);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('day-plan-sidebar')).toBeInTheDocument();
+      });
+
+      expect(capturedDayPlanSidebarProps.current.canManageDecisions).toBe(false);
+    });
+  });
+
   describe('FE-PAGE-PLANNER-015: Tab state persists in sessionStorage', () => {
     it('saves the active tab ID to sessionStorage on tab change', async () => {
       vi.useFakeTimers();
@@ -673,7 +800,7 @@ describe('TripPlannerPage', () => {
         days: [],
         places: [],
         assignments: {},
-        loadTrip: vi.fn().mockRejectedValue(new Error('Not found')),
+        loadTrip: vi.fn().mockRejectedValue({ response: { status: 404 } }),
         loadFiles: vi.fn().mockResolvedValue(undefined),
         loadReservations: vi.fn().mockResolvedValue(undefined),
       } as any);

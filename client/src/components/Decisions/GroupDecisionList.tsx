@@ -6,7 +6,11 @@ import type {
   GroupDecisionMember,
   GroupDecisionResponseState,
 } from './groupDecisionModel';
-import { filterDecisionsByLinkedTarget, getDecisionDisplayState } from './groupDecisionModel';
+import {
+  filterDecisionsByLinkedTarget,
+  filterDecisionsByLinkedTargets,
+  getDecisionDisplayState,
+} from './groupDecisionModel';
 
 type DecisionAction = void | Promise<void>;
 
@@ -21,6 +25,8 @@ interface GroupDecisionListProps {
   emptyText?: string;
   maxItems?: number;
   linkedTarget?: GroupDecisionLinkedTarget | null;
+  linkedTargets?: GroupDecisionLinkedTarget[] | null;
+  matchAllLinkedTargets?: boolean;
   busyDecisionId?: number | null;
   onCreate?: () => DecisionAction;
   onRespond?: (decisionId: number, optionId: number | null, response: GroupDecisionResponseState) => DecisionAction;
@@ -57,13 +63,19 @@ export default function GroupDecisionList({
   emptyText = 'Create a decision when the group needs to choose, close voting, or approve a final option.',
   maxItems,
   linkedTarget = null,
+  linkedTargets = null,
+  matchAllLinkedTargets = false,
   busyDecisionId = null,
   onCreate,
   onRespond,
   onClose,
   onFinalize,
 }: GroupDecisionListProps) {
-  const scoped = sortDecisions(filterDecisionsByLinkedTarget(decisions, linkedTarget));
+  const scoped = sortDecisions(
+    linkedTargets?.length
+      ? filterDecisionsByLinkedTargets(decisions, linkedTargets, { matchAll: matchAllLinkedTargets })
+      : filterDecisionsByLinkedTarget(decisions, linkedTarget)
+  );
   const visible = maxItems ? scoped.slice(0, maxItems) : scoped;
   const hiddenCount = Math.max(0, scoped.length - visible.length);
   const counts = scoped.reduce(

@@ -35,6 +35,7 @@ import CostsPanel, { ExpenseModal, type ExpensePrefill } from '../components/Bud
 import CollabPanel from '../components/Collab/CollabPanel';
 import type { CommandCenterAction } from '../components/CommandCenter/commandCenterModel';
 import CommandCenterPanel from '../components/CommandCenter/CommandCenterPanel';
+import GroupDecisionCreateModal from '../components/Decisions/GroupDecisionCreateModal';
 import FileManager from '../components/Files/FileManager';
 import Navbar from '../components/Layout/Navbar';
 import PoiCategoryPill from '../components/Map/PoiCategoryPill';
@@ -283,6 +284,10 @@ export default function TripPlannerPage(): React.ReactElement | null {
     setTripMembers,
     groupDecisions,
     groupDecisionBusyId,
+    linkedDecisionContext,
+    groupDecisionCreateBusy,
+    setLinkedDecisionContext,
+    handleLinkedDecisionCreate,
     handleGroupDecisionRespond,
     handleGroupDecisionClose,
     handleGroupDecisionFinalize,
@@ -804,6 +809,15 @@ export default function TripPlannerPage(): React.ReactElement | null {
                   canUndo={canUndo}
                   lastActionLabel={lastActionLabel}
                   onUndo={handleUndo}
+                  decisions={groupDecisions}
+                  decisionMembers={tripMembers}
+                  currentUserId={meId > 0 ? meId : null}
+                  canManageDecisions={can('trip_edit', trip)}
+                  decisionBusyId={groupDecisionBusyId}
+                  onCreateDecision={setLinkedDecisionContext}
+                  onDecisionRespond={handleGroupDecisionRespond}
+                  onDecisionClose={handleGroupDecisionClose}
+                  onDecisionFinalize={handleGroupDecisionFinalize}
                   onRouteRefresh={() => {
                     if (selectedDayId) updateRouteForDay(selectedDayId);
                   }}
@@ -1022,6 +1036,15 @@ export default function TripPlannerPage(): React.ReactElement | null {
                     collapsed={dayDetailCollapsed}
                     onToggleCollapse={() => setDayDetailCollapsed((c) => !c)}
                     mobile={isMobile}
+                    decisions={groupDecisions}
+                    decisionMembers={tripMembers}
+                    currentUserId={meId > 0 ? meId : null}
+                    canManageDecisions={can('trip_edit', trip)}
+                    decisionBusyId={groupDecisionBusyId}
+                    onCreateDecision={setLinkedDecisionContext}
+                    onDecisionRespond={handleGroupDecisionRespond}
+                    onDecisionClose={handleGroupDecisionClose}
+                    onDecisionFinalize={handleGroupDecisionFinalize}
                   />
                 );
               })()}
@@ -1065,6 +1088,15 @@ export default function TripPlannerPage(): React.ReactElement | null {
                     toast.error(err instanceof Error ? err.message : t('common.unknownError'));
                   }
                 }}
+                decisions={groupDecisions}
+                decisionMembers={tripMembers}
+                currentUserId={meId > 0 ? meId : null}
+                canManageDecisions={can('trip_edit', trip)}
+                decisionBusyId={groupDecisionBusyId}
+                onCreateDecision={setLinkedDecisionContext}
+                onDecisionRespond={handleGroupDecisionRespond}
+                onDecisionClose={handleGroupDecisionClose}
+                onDecisionFinalize={handleGroupDecisionFinalize}
                 leftWidth={isMobile || window.innerWidth < 900 ? 0 : leftCollapsed ? 0 : leftWidth}
                 rightWidth={isMobile || window.innerWidth < 900 ? 0 : rightCollapsed ? 0 : rightWidth}
               />
@@ -1131,6 +1163,15 @@ export default function TripPlannerPage(): React.ReactElement | null {
                           toast.error(err instanceof Error ? err.message : t('common.unknownError'));
                         }
                       }}
+                      decisions={groupDecisions}
+                      decisionMembers={tripMembers}
+                      currentUserId={meId > 0 ? meId : null}
+                      canManageDecisions={can('trip_edit', trip)}
+                      decisionBusyId={groupDecisionBusyId}
+                      onCreateDecision={setLinkedDecisionContext}
+                      onDecisionRespond={handleGroupDecisionRespond}
+                      onDecisionClose={handleGroupDecisionClose}
+                      onDecisionFinalize={handleGroupDecisionFinalize}
                       leftWidth={0}
                       rightWidth={0}
                     />
@@ -1299,6 +1340,15 @@ export default function TripPlannerPage(): React.ReactElement | null {
                           onScrollTopChange={(top) => {
                             mobilePlanScrollTopRef.current = top;
                           }}
+                          decisions={groupDecisions}
+                          decisionMembers={tripMembers}
+                          currentUserId={meId > 0 ? meId : null}
+                          canManageDecisions={can('trip_edit', trip)}
+                          decisionBusyId={groupDecisionBusyId}
+                          onCreateDecision={setLinkedDecisionContext}
+                          onDecisionRespond={handleGroupDecisionRespond}
+                          onDecisionClose={handleGroupDecisionClose}
+                          onDecisionFinalize={handleGroupDecisionFinalize}
                           showRouteToolsWhenExpanded
                         />
                       ) : (
@@ -1501,6 +1551,12 @@ export default function TripPlannerPage(): React.ReactElement | null {
         tripId={tripId}
         categories={categories}
         onCategoryCreated={(cat) => tripActions.addCategory?.(cat)}
+      />
+      <GroupDecisionCreateModal
+        context={linkedDecisionContext}
+        busy={groupDecisionCreateBusy}
+        onClose={() => setLinkedDecisionContext(null)}
+        onSubmit={handleLinkedDecisionCreate}
       />
       <TripFormModal
         isOpen={showTripForm}

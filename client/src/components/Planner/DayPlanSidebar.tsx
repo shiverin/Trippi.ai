@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  ClipboardList,
   Clock,
   ExternalLink,
   FileText,
@@ -67,6 +68,14 @@ import {
 import { getAccommodationAnchors, getDayBookendHotels, isDayInAccommodationRange } from '../../utils/dayOrder';
 import { dayTotalCost, formatDate, formatTime, splitReservationDateTime } from '../../utils/formatters';
 import { calculateRoute, calculateRouteWithLegs, generateGoogleMapsUrl, optimizeRoute } from '../Map/RouteCalculator';
+import GroupDecisionList from '../Decisions/GroupDecisionList';
+import type {
+  GroupDecision,
+  GroupDecisionCreateContext,
+  GroupDecisionMember,
+  GroupDecisionResponseState,
+} from '../Decisions/groupDecisionModel';
+import { filterDecisionsByLinkedTarget, filterDecisionsByLinkedTargets } from '../Decisions/groupDecisionModel';
 import WeatherWidget from '../Weather/WeatherWidget';
 import ConfirmDialog from '../shared/ConfirmDialog';
 import { ContextMenu, useContextMenu } from '../shared/ContextMenu';
@@ -135,6 +144,15 @@ interface DayPlanSidebarProps {
   onEditTransport?: (reservation: Reservation) => void;
   onEditReservation?: (reservation: Reservation) => void;
   onAddBookingToAssignment?: (dayId: number, assignmentId: number) => void;
+  decisions?: GroupDecision[];
+  decisionMembers?: GroupDecisionMember[];
+  currentUserId?: number | null;
+  canManageDecisions?: boolean;
+  decisionBusyId?: number | null;
+  onCreateDecision?: (context: GroupDecisionCreateContext) => void;
+  onDecisionRespond?: (decisionId: number, optionId: number | null, response: GroupDecisionResponseState) => void;
+  onDecisionClose?: (decisionId: number) => void;
+  onDecisionFinalize?: (decisionId: number, optionId: number) => void;
   initialScrollTop?: number;
   onScrollTopChange?: (top: number) => void;
   /** Mobile: show the route tools footer (Route toggle / Optimize / travel profile) on expanded days, since selecting a day closes the sheet */
@@ -267,6 +285,15 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     onEditTransport,
     onEditReservation,
     onAddBookingToAssignment,
+    decisions = [],
+    decisionMembers = [],
+    currentUserId = null,
+    canManageDecisions = false,
+    decisionBusyId = null,
+    onCreateDecision,
+    onDecisionRespond,
+    onDecisionClose,
+    onDecisionFinalize,
     initialScrollTop,
     onScrollTopChange,
     showRouteToolsWhenExpanded = false,
@@ -1310,6 +1337,15 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     onEditTransport,
     onEditReservation,
     onAddBookingToAssignment,
+    decisions,
+    decisionMembers,
+    currentUserId,
+    canManageDecisions,
+    decisionBusyId,
+    onCreateDecision,
+    onDecisionRespond,
+    onDecisionClose,
+    onDecisionFinalize,
     initialScrollTop,
     onScrollTopChange,
     showRouteToolsWhenExpanded,
@@ -1470,6 +1506,15 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
     onEditTransport,
     onEditReservation,
     onAddBookingToAssignment,
+    decisions,
+    decisionMembers,
+    currentUserId,
+    canManageDecisions,
+    decisionBusyId,
+    onCreateDecision,
+    onDecisionRespond,
+    onDecisionClose,
+    onDecisionFinalize,
     initialScrollTop,
     onScrollTopChange,
     showRouteToolsWhenExpanded,
@@ -1639,6 +1684,8 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
           const merged = mergedItemsMap[day.id] || [];
           const dayNoteUi = noteUi[day.id];
           const placeItems = merged.filter((i) => i.type === 'place');
+          const dayDecisionTarget = { target_type: 'day' as const, target_id: day.id };
+          const dayDecisionCount = filterDecisionsByLinkedTarget(decisions, dayDecisionTarget).length;
 
           return (
             <div
@@ -1804,6 +1851,25 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                               {formattedDate}
                             </span>
                           </>
+                        )}
+                        {dayDecisionCount > 0 && (
+                          <span
+                            className="bg-surface-hover text-content-muted"
+                            title={`${dayDecisionCount} linked decision${dayDecisionCount === 1 ? '' : 's'}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 3,
+                              flexShrink: 0,
+                              borderRadius: 7,
+                              padding: '2px 6px',
+                              fontSize: 10,
+                              fontWeight: 600,
+                            }}
+                          >
+                            <ClipboardList size={10} />
+                            {dayDecisionCount}
+                          </span>
                         )}
                       </div>
                       {(() => {
@@ -2221,6 +2287,24 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                           ? visibleConnectionIds.includes(routeableAssignmentReservation.id)
                           : hasAdHocTransportRouteToggle && visibleAssignmentRouteIds[String(assignment.id)] === true;
                         const assignmentRouteLabel = t(assignmentRouteActive ? 'map.hideConnections' : 'map.showConnections');
+                        const placeDecisionTarget = { target_type: 'place' as const, target_id: place.id };
+                        const assignmentDecisionTargets = [dayDecisionTarget, placeDecisionTarget];
+                        const assignmentDecisionCount = filterDecisionsByLinkedTargets(
+                          decisions,
+                          assignmentDecisionTargets,
+                          {
+                            matchAll: true,
+                          }
+                        ).length;
+                        const assignmentDecisionLabel = `${place.name} on ${
+                          day.title || formattedDate || t('dayplan.dayN', { n: index + 1 })
+                        }`;
+                        const createAssignmentDecision = () =>
+                          onCreateDecision?.({
+                            targetLabel: assignmentDecisionLabel,
+                            title: `Decision for ${place.name}`,
+                            links: assignmentDecisionTargets,
+                          });
 
                         const arrowMove = (direction: 'up' | 'down') => {
                           const m = getMergedItems(day.id);
@@ -2395,6 +2479,12 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                       label: t('common.edit'),
                                       icon: Pencil,
                                       onClick: () => onEditPlace(place, assignment.id),
+                                    },
+                                  canManageDecisions &&
+                                    onCreateDecision && {
+                                      label: 'Create decision',
+                                      icon: ClipboardList,
+                                      onClick: createAssignmentDecision,
                                     },
                                   canEditDays &&
                                     onRemoveAssignment && {
@@ -2802,6 +2892,33 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                 </button>
                               )}
                               {hasAssignmentRouteToggle && (
+                              {canManageDecisions && onCreateDecision && hoveredAssignmentId === assignment.id && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    createAssignmentDecision();
+                                  }}
+                                  title="Create decision"
+                                  style={{
+                                    flexShrink: 0,
+                                    background: 'none',
+                                    border: '1px solid var(--border-primary)',
+                                    borderRadius: 5,
+                                    padding: '2px 6px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    fontSize: 10,
+                                    fontWeight: 500,
+                                    color: 'var(--text-muted)',
+                                    fontFamily: 'inherit',
+                                  }}
+                                >
+                                  <ClipboardList size={11} strokeWidth={2} />
+                                </button>
+                              )}
+                              {hasAssignmentRouteToggle && (
                                 <button
                                   type="button"
                                   disabled={!assignmentRouteEnabled}
@@ -2842,6 +2959,27 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                 </button>
                               )}
                             </div>
+                            {assignmentDecisionCount > 0 && (
+                              <div style={{ margin: '4px 8px 8px 42px' }} onClick={(event) => event.stopPropagation()}>
+                                <GroupDecisionList
+                                  decisions={decisions}
+                                  currentUserId={currentUserId}
+                                  members={decisionMembers}
+                                  canEdit={canManageDecisions}
+                                  compact
+                                  maxItems={2}
+                                  title="Item decisions"
+                                  emptyTitle="No item decisions yet"
+                                  emptyText="Create a linked decision from this itinerary item when the group needs to choose."
+                                  linkedTargets={assignmentDecisionTargets}
+                                  matchAllLinkedTargets
+                                  busyDecisionId={decisionBusyId}
+                                  onRespond={onDecisionRespond}
+                                  onClose={onDecisionClose}
+                                  onFinalize={onDecisionFinalize}
+                                />
+                              </div>
+                            )}
                             {transportConnectorRoutesShown &&
                               !hiddenAssignmentRouteIds[String(assignment.id)] &&
                               routeLegs[assignment.id]?.map((item, legIdx) =>

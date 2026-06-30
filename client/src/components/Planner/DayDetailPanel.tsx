@@ -38,6 +38,14 @@ import { useTripStore } from '../../store/tripStore';
 import type { AssignmentsMap, Category, Day, Place, Reservation } from '../../types';
 import { isDayInAccommodationRange } from '../../utils/dayOrder';
 import { splitReservationDateTime } from '../../utils/formatters';
+import GroupDecisionList from '../Decisions/GroupDecisionList';
+import type {
+  GroupDecision,
+  GroupDecisionCreateContext,
+  GroupDecisionMember,
+  GroupDecisionResponseState,
+} from '../Decisions/groupDecisionModel';
+import { filterDecisionsByLinkedTarget } from '../Decisions/groupDecisionModel';
 import CustomSelect from '../shared/CustomSelect';
 import CustomTimePicker from '../shared/CustomTimePicker';
 import { useDayDetail } from './useDayDetail';
@@ -120,6 +128,15 @@ interface DayDetailPanelProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   mobile?: boolean;
+  decisions?: GroupDecision[];
+  decisionMembers?: GroupDecisionMember[];
+  currentUserId?: number | null;
+  canManageDecisions?: boolean;
+  decisionBusyId?: number | null;
+  onCreateDecision?: (context: GroupDecisionCreateContext) => void;
+  onDecisionRespond?: (decisionId: number, optionId: number | null, response: GroupDecisionResponseState) => void;
+  onDecisionClose?: (decisionId: number) => void;
+  onDecisionFinalize?: (decisionId: number, optionId: number) => void;
 }
 
 export default function DayDetailPanel({
@@ -139,6 +156,15 @@ export default function DayDetailPanel({
   collapsed: collapsedProp = false,
   onToggleCollapse,
   mobile = false,
+  decisions = [],
+  decisionMembers = [],
+  currentUserId = null,
+  canManageDecisions = false,
+  decisionBusyId = null,
+  onCreateDecision,
+  onDecisionRespond,
+  onDecisionClose,
+  onDecisionFinalize,
 }: DayDetailPanelProps) {
   const { t, language, locale } = useTranslation();
   const can = useCanDo();
@@ -189,6 +215,9 @@ export default function DayDetailPanel({
         timeZone: 'UTC',
       })
     : null;
+  const dayLabel = day.title || formattedDate || 'this day';
+  const dayDecisionTarget = { target_type: 'day' as const, target_id: day.id };
+  const showDayDecisions = canManageDecisions || filterDecisionsByLinkedTarget(decisions, dayDecisionTarget).length > 0;
 
   const placesWithCoords = places.filter((p) => p.lat && p.lng);
   const font = { fontFamily: 'var(--font-system)' };
@@ -604,6 +633,37 @@ export default function DayDetailPanel({
               onAccommodationChange={onAccommodationChange}
             />
           </div>
+
+          {showDayDecisions && (
+            <div style={{ marginTop: 14 }}>
+              <GroupDecisionList
+                decisions={decisions}
+                currentUserId={currentUserId}
+                members={decisionMembers}
+                canEdit={canManageDecisions}
+                compact
+                maxItems={3}
+                title="Day decisions"
+                emptyTitle="No day decisions yet"
+                emptyText="Create a linked decision when the group needs to choose something for this day."
+                linkedTarget={dayDecisionTarget}
+                busyDecisionId={decisionBusyId}
+                onCreate={
+                  canManageDecisions && onCreateDecision
+                    ? () =>
+                        onCreateDecision({
+                          targetLabel: dayLabel,
+                          title: `Decision for ${dayLabel}`,
+                          links: [dayDecisionTarget],
+                        })
+                    : undefined
+                }
+                onRespond={onDecisionRespond}
+                onClose={onDecisionClose}
+                onFinalize={onDecisionFinalize}
+              />
+            </div>
+          )}
         </div>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>

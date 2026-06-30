@@ -67,6 +67,20 @@ export interface GroupDecisionLinkedTarget {
   target_id: number;
 }
 
+export interface GroupDecisionCreateContext {
+  targetLabel: string;
+  title?: string;
+  description?: string | null;
+  links: GroupDecisionLinkedTarget[];
+}
+
+export interface GroupDecisionCreateValues {
+  title: string;
+  description: string | null;
+  deadline: string | null;
+  options: string[];
+}
+
 export interface GroupDecisionOptionStats {
   option: GroupDecisionOption;
   selectedCount: number;
@@ -172,4 +186,18 @@ export function filterDecisionsByLinkedTarget<T extends Pick<GroupDecision, 'lin
       (link) => link.target_type === target.target_type && Number(link.target_id) === Number(target.target_id)
     )
   );
+}
+
+export function filterDecisionsByLinkedTargets<T extends Pick<GroupDecision, 'links'>>(
+  decisions: T[],
+  targets: GroupDecisionLinkedTarget[] | null | undefined,
+  options: { matchAll?: boolean } = {}
+): T[] {
+  if (!targets?.length) return decisions;
+  const matcher = (target: GroupDecisionLinkedTarget) => (link: GroupDecisionLink) =>
+    link.target_type === target.target_type && Number(link.target_id) === Number(target.target_id);
+  return decisions.filter((decision) => {
+    const matches = targets.map((target) => decision.links.some(matcher(target)));
+    return options.matchAll ? matches.every(Boolean) : matches.some(Boolean);
+  });
 }

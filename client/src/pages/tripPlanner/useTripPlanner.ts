@@ -11,8 +11,14 @@ import {
   healthApi,
   tripsApi,
 } from '../../api/client';
+import { addListener, removeListener } from '../../api/websocket';
 import { buildTripCommandCenter } from '../../components/CommandCenter/commandCenterModel';
-import type { GroupDecision, GroupDecisionResponseState } from '../../components/Decisions/groupDecisionModel';
+import type {
+  GroupDecision,
+  GroupDecisionCreateContext,
+  GroupDecisionCreateValues,
+  GroupDecisionResponseState,
+} from '../../components/Decisions/groupDecisionModel';
 import { useToast } from '../../components/shared/Toast';
 import { offlineDb } from '../../db/offlineDb';
 import { useAirtrailConnection } from '../../hooks/useAirtrailConnection';
@@ -166,6 +172,8 @@ export function useTripPlanner() {
   const [tripMembers, setTripMembers] = useState<TripMember[]>([]);
   const [groupDecisions, setGroupDecisions] = useState<GroupDecision[]>([]);
   const [groupDecisionBusyId, setGroupDecisionBusyId] = useState<number | null>(null);
+  const [linkedDecisionContext, setLinkedDecisionContext] = useState<GroupDecisionCreateContext | null>(null);
+  const [groupDecisionCreateBusy, setGroupDecisionCreateBusy] = useState(false);
 
   const loadAccommodations = useCallback(() => {
     if (tripId) {
@@ -615,6 +623,50 @@ export function useTripPlanner() {
         : [decision, ...prev]
     );
   }, []);
+
+  useEffect(() => {
+    if (!tripId) return;
+    const handleDecisionEvent = (event: Record<string, unknown>) => {
+      if (Number(event.tripId) !== Number(tripId)) return;
+      if (event.type === 'joined') {
+        decisionsApi
+          .list(tripId)
+          .then((data) => setGroupDecisions(Array.isArray(data.decisions) ? data.decisions : []))
+          .catch(() => {});
+        return;
+      }
+      if (event.type !== 'decision:created' && event.type !== 'decision:updated') return;
+      const decision = event.decision as GroupDecision | undefined;
+      if (decision?.id) replaceGroupDecision(decision);
+    };
+
+    addListener(handleDecisionEvent);
+    return () => removeListener(handleDecisionEvent);
+  }, [tripId, replaceGroupDecision]);
+
+  const handleLinkedDecisionCreate = useCallback(
+    async (values: GroupDecisionCreateValues) => {
+      if (!tripId || !linkedDecisionContext) return;
+      setGroupDecisionCreateBusy(true);
+      try {
+        const result = await decisionsApi.create(tripId, {
+          title: values.title,
+          description: values.description,
+          deadline: values.deadline,
+          options: values.options,
+          links: linkedDecisionContext.links,
+        });
+        replaceGroupDecision(result.decision);
+        setLinkedDecisionContext(null);
+        toast.success('Decision created');
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : t('common.unknownError'));
+      } finally {
+        setGroupDecisionCreateBusy(false);
+      }
+    },
+    [tripId, linkedDecisionContext, replaceGroupDecision, toast, t]
+  );
 
   const handleGroupDecisionRespond = useCallback(
     async (decisionId: number, optionId: number | null, response: GroupDecisionResponseState) => {
@@ -1275,6 +1327,10 @@ export function useTripPlanner() {
     setTripMembers,
     groupDecisions,
     groupDecisionBusyId,
+    linkedDecisionContext,
+    groupDecisionCreateBusy,
+    setLinkedDecisionContext,
+    handleLinkedDecisionCreate,
     handleGroupDecisionRespond,
     handleGroupDecisionClose,
     handleGroupDecisionFinalize,

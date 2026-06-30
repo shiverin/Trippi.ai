@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   ChevronUp,
+  ClipboardList,
   Clock,
   Edit2,
   Euro,
@@ -32,6 +33,14 @@ import type { AssignmentsMap, Category, Day, Place, Reservation, TripFile } from
 import { openFile } from '../../utils/fileDownload';
 import { formatTime, splitReservationDateTime } from '../../utils/formatters';
 import { formatDistance, formatElevation } from '../../utils/units';
+import GroupDecisionList from '../Decisions/GroupDecisionList';
+import type {
+  GroupDecision,
+  GroupDecisionCreateContext,
+  GroupDecisionMember,
+  GroupDecisionResponseState,
+} from '../Decisions/groupDecisionModel';
+import { filterDecisionsByLinkedTarget } from '../Decisions/groupDecisionModel';
 import { getCategoryIcon } from '../shared/categoryIcons';
 import PlaceAvatar from '../shared/PlaceAvatar';
 import { useToast } from '../shared/Toast';
@@ -150,6 +159,15 @@ interface PlaceInspectorProps {
   tripMembers?: TripMember[];
   onSetParticipants: (assignmentId: number, dayId: number, participantIds: number[]) => void;
   onUpdatePlace: (placeId: number, data: Partial<Place>) => void;
+  decisions?: GroupDecision[];
+  decisionMembers?: GroupDecisionMember[];
+  currentUserId?: number | null;
+  canManageDecisions?: boolean;
+  decisionBusyId?: number | null;
+  onCreateDecision?: (context: GroupDecisionCreateContext) => void;
+  onDecisionRespond?: (decisionId: number, optionId: number | null, response: GroupDecisionResponseState) => void;
+  onDecisionClose?: (decisionId: number) => void;
+  onDecisionFinalize?: (decisionId: number, optionId: number) => void;
   leftWidth?: number;
   rightWidth?: number;
 }
@@ -172,6 +190,15 @@ export default function PlaceInspector({
   tripMembers = [],
   onSetParticipants,
   onUpdatePlace,
+  decisions = [],
+  decisionMembers = [],
+  currentUserId = null,
+  canManageDecisions = false,
+  decisionBusyId = null,
+  onCreateDecision,
+  onDecisionRespond,
+  onDecisionClose,
+  onDecisionFinalize,
   leftWidth = 0,
   rightWidth = 0,
 }: PlaceInspectorProps) {
@@ -213,6 +240,8 @@ export default function PlaceInspector({
 
   if (!place) return null;
 
+  const placeDecisionTarget = { target_type: 'place' as const, target_id: place.id };
+  const showPlaceDecisions = filterDecisionsByLinkedTarget(decisions, placeDecisionTarget).length > 0;
   const category = categories?.find((c) => c.id === place.category_id);
   const dayAssignments = selectedDayId ? assignments[String(selectedDayId)] || [] : [];
   const assignmentInDay = selectedDayId
@@ -450,6 +479,25 @@ export default function PlaceInspector({
             isUploading={isUploading}
             distanceUnit={distanceUnit}
           />
+
+          {showPlaceDecisions && (
+            <GroupDecisionList
+              decisions={decisions}
+              currentUserId={currentUserId}
+              members={decisionMembers}
+              canEdit={canManageDecisions}
+              compact
+              maxItems={3}
+              title="Place decisions"
+              emptyTitle="No place decisions yet"
+              emptyText="Create a linked decision when the group needs to choose something for this place."
+              linkedTarget={placeDecisionTarget}
+              busyDecisionId={decisionBusyId}
+              onRespond={onDecisionRespond}
+              onClose={onDecisionClose}
+              onFinalize={onDecisionFinalize}
+            />
+          )}
         </div>
 
         {/* Footer actions */}
@@ -499,6 +547,20 @@ export default function PlaceInspector({
               variant="ghost"
               icon={<ExternalLink size={13} />}
               label={<span className="hidden sm:inline">{t('inspector.website')}</span>}
+            />
+          )}
+          {canManageDecisions && onCreateDecision && (
+            <ActionButton
+              onClick={() =>
+                onCreateDecision({
+                  targetLabel: place.name,
+                  title: `Decision for ${place.name}`,
+                  links: [placeDecisionTarget],
+                })
+              }
+              variant="ghost"
+              icon={<ClipboardList size={13} />}
+              label={<span className="hidden sm:inline">Decision</span>}
             />
           )}
           <div style={{ flex: 1 }} />

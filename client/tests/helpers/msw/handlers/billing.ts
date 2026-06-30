@@ -15,7 +15,7 @@ export const billingHandlers = [
           priceWatches: 0,
           mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
           activeTrips: 5,
-          groupSize: null,
+          groupSize: 1,
         },
       },
       billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false },

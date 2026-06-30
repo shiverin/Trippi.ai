@@ -443,6 +443,7 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
                   description={`Your ${entitlementState.entitlements?.planKey ?? 'current'} plan has reached this trip's member limit.`}
                   upgradeAvailable={!!entitlementState.billing?.checkoutAvailable}
                   upgradePending={entitlementState.checkoutLoading}
+                  actionLabel="Upgrade to invite"
                   onUpgrade={startUpgrade}
                   testId="group-size-locked-state"
                 />

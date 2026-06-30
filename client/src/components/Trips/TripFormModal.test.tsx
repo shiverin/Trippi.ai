@@ -17,8 +17,30 @@ const defaultProps = {
   onCoverUpdate: vi.fn(),
 };
 
+function proEntitlements() {
+  return {
+    entitlements: {
+      userId: 1,
+      planKey: 'pro',
+      billingPlanKey: 'pro',
+      billingStatus: 'active',
+      subscribed: true,
+      trialing: false,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: 100,
+        groupSize: null,
+      },
+    },
+    billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false },
+  };
+}
+
 beforeEach(() => {
   resetAllStores();
+  server.use(http.get('/api/billing/entitlements', () => HttpResponse.json(proEntitlements())));
   seedStore(useAuthStore, { user: buildUser(), isAuthenticated: true });
   seedStore(useTripStore, { trip: buildTrip({ id: 1 }) });
 });

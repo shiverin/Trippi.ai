@@ -641,6 +641,7 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
                 description={`Your ${entitlementState.entitlements?.planKey ?? 'current'} plan has reached this trip's member limit.`}
                 upgradeAvailable={!!entitlementState.billing?.checkoutAvailable}
                 upgradePending={entitlementState.checkoutLoading}
+                actionLabel="Upgrade to invite"
                 onUpgrade={startUpgrade}
               />
             ) : (

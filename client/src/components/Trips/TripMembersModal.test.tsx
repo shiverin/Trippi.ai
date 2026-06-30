@@ -20,9 +20,32 @@ const defaultProps = {
 const ownerUser = buildUser({ id: 1, username: 'owner' });
 const memberUser = buildUser({ id: 2, username: 'alice' });
 
+function proEntitlements(overrides: any = {}) {
+  return {
+    entitlements: {
+      userId: ownerUser.id,
+      planKey: 'pro',
+      billingPlanKey: 'pro',
+      billingStatus: 'active',
+      subscribed: true,
+      trialing: false,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: 100,
+        groupSize: null,
+      },
+      ...(overrides.entitlements ?? {}),
+    },
+    billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false, ...(overrides.billing ?? {}) },
+  };
+}
+
 beforeEach(() => {
   resetAllStores();
   server.use(
+    http.get('/api/billing/entitlements', () => HttpResponse.json(proEntitlements())),
     http.get('/api/trips/1/members', () =>
       HttpResponse.json({
         owner: { id: ownerUser.id, username: ownerUser.username, avatar_url: null },
@@ -436,10 +459,10 @@ describe('TripMembersModal', () => {
               priceWatches: 0,
               mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
               activeTrips: 5,
-              groupSize: 2,
+              groupSize: 1,
             },
           },
-          billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false },
+          billing: { checkoutAvailable: true, defaultPlanId: 'pro', portalAvailable: false },
         })
       ),
       http.get('/api/trips/1/members', () =>
@@ -454,7 +477,8 @@ describe('TripMembersModal', () => {
     render(<TripMembersModal {...defaultProps} />);
 
     await screen.findByTestId('group-size-locked-state');
-    expect(screen.getByText('2/2 members')).toBeInTheDocument();
+    expect(screen.getByText('2/1 members')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Upgrade to invite/i })).toBeInTheDocument();
     expect(screen.getByText('owner')).toBeInTheDocument();
     expect(screen.getByText('alice')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Invite$/i })).not.toBeInTheDocument();

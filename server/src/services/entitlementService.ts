@@ -103,7 +103,7 @@ function defaultPlans(): Record<string, EntitlementPlanLimits> {
       priceWatches: 0,
       mcpAutomation: { ...noMcp },
       activeTrips: 5,
-      groupSize: null,
+      groupSize: 1,
     },
     trial: {
       aiWorkers: 0,

@@ -89,7 +89,7 @@ describe('entitlementService', () => {
 
     expect(plans.free).toMatchObject({
       activeTrips: 5,
-      groupSize: null,
+      groupSize: 1,
       mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
     });
     expect(plans.trial).toMatchObject({

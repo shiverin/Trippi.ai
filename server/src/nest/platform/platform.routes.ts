@@ -4,7 +4,7 @@ import { mcpHandler } from '../../mcp';
 import { trippiOAuthProvider, trippiClientsStore } from '../../mcp/oauthProvider';
 import { ALL_SCOPES } from '../../mcp/scopes';
 import { verifyJwtAndLoadUser } from '../../middleware/auth';
-import { isAddonEnabled } from '../../services/adminService';
+import { isAddonEnabledAsync } from '../../services/adminService';
 import {
   getMediaConfig,
   openMediaWithLocalFallback,
@@ -180,9 +180,13 @@ export function applyPlatformTransport(app: express.Application): void {
 
   // OAuth 2.1 — public endpoints
   // Gate: 404 when MCP addon is disabled (M2 — prevents feature fingerprinting)
-  const mcpAddonGate = (_req: Request, res: Response, next: NextFunction) => {
-    if (!isAddonEnabled(ADDON_IDS.MCP)) return res.status(404).end();
-    next();
+  const mcpAddonGate = async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!(await isAddonEnabledAsync(ADDON_IDS.MCP))) return res.status(404).end();
+      next();
+    } catch (err) {
+      next(err);
+    }
   };
 
   // SDK metadata router — built lazily on first request so getAppUrl() (which queries the DB)
@@ -226,9 +230,14 @@ export function applyPlatformTransport(app: express.Application): void {
   // Only invoke the SDK metadata router for /.well-known/* paths.
   // Calling getMetaRouter() on every request triggers lazy init (new URL(...)) which
   // throws "Invalid URL" when APP_URL lacks a protocol — breaking all page loads.
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.startsWith('/.well-known/') && !isAddonEnabled(ADDON_IDS.MCP)) return res.status(404).end();
-    getMetaRouter()(req, res, next);
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.path.startsWith('/.well-known/')) return next();
+    try {
+      if (!(await isAddonEnabledAsync(ADDON_IDS.MCP))) return res.status(404).end();
+      getMetaRouter()(req, res, next);
+    } catch (err) {
+      next(err);
+    }
   });
 
   // ChatGPT (and other OIDC-first clients) bootstrap OAuth discovery via
@@ -248,8 +257,13 @@ export function applyPlatformTransport(app: express.Application): void {
   // fresh discovery. Without this, they get 404, fall back to the issuer URL as the resource
   // parameter, and the authorize handler rejects them with invalid_target — showing the user
   // the trippi.ai home page instead of the consent form.
-  app.get('/.well-known/oauth-protected-resource', (_req: Request, res: Response) => {
-    if (!isAddonEnabled(ADDON_IDS.MCP)) return res.status(404).end();
+  app.get('/.well-known/oauth-protected-resource', async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!(await isAddonEnabledAsync(ADDON_IDS.MCP))) return res.status(404).end();
+    } catch (err) {
+      next(err);
+      return;
+    }
     const meta = getOAuthMetadata();
     res.json({
       resource: `${meta.issuer}/mcp`,

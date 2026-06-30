@@ -20,7 +20,7 @@ vi.mock('../../../src/middleware/auth', () => ({ verifyJwtAndLoadUser: h.verifyJ
 vi.mock('../../../src/db/asyncDatabase', () => ({ asyncDb: { prepare: h.dbPrepare } }));
 vi.mock('../../../src/mcp', () => ({ mcpHandler: h.mcpHandler }));
 vi.mock('../../../src/mcp/oauthProvider', () => ({ trippiOAuthProvider: {}, trippiClientsStore: {} }));
-vi.mock('../../../src/services/adminService', () => ({ isAddonEnabled: h.isAddonEnabled }));
+vi.mock('../../../src/services/adminService', () => ({ isAddonEnabledAsync: h.isAddonEnabled }));
 vi.mock('../../../src/services/notifications', () => ({ getMcpSafeUrl: h.getMcpSafeUrl }));
 
 // SDK router/handler factories return distinct tagged middleware so we never hit
@@ -251,18 +251,19 @@ describe('applyPlatformTransport', () => {
       const mw = wellKnownMw(build());
       const res = makeRes();
       const next = vi.fn();
-      mw({ path: '/.well-known/oauth-authorization-server' }, res, next);
+      await mw({ path: '/.well-known/oauth-authorization-server' }, res, next);
       expect(res.statusCode).toBe(404);
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('delegates to the SDK meta router for a non-well-known path', async () => {
+    it('skips the SDK meta router for a non-well-known path', async () => {
       h.isAddonEnabled.mockReturnValue(true);
       const mw = wellKnownMw(build());
       const res = makeRes();
       const next = vi.fn();
-      mw({ path: '/anything' }, res, next);
-      expect(h.metaRouter).toHaveBeenCalled();
+      await mw({ path: '/anything' }, res, next);
+      expect(h.metaRouter).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
     });
 
     it('delegates to the SDK meta router for a well-known path when MCP is enabled', async () => {
@@ -270,7 +271,7 @@ describe('applyPlatformTransport', () => {
       const mw = wellKnownMw(build());
       const res = makeRes();
       const next = vi.fn();
-      mw({ path: '/.well-known/oauth-authorization-server' }, res, next);
+      await mw({ path: '/.well-known/oauth-authorization-server' }, res, next);
       expect(h.metaRouter).toHaveBeenCalled();
     });
   });
@@ -302,14 +303,14 @@ describe('applyPlatformTransport', () => {
     it('404 when MCP is disabled', async () => {
       h.isAddonEnabled.mockReturnValue(false);
       const res = makeRes();
-      handler()({}, res);
+      await handler()({}, res, vi.fn());
       expect(res.statusCode).toBe(404);
     });
 
     it('returns the PRM document when MCP is enabled', async () => {
       h.isAddonEnabled.mockReturnValue(true);
       const res = makeRes();
-      handler()({}, res);
+      await handler()({}, res, vi.fn());
       const body = res.body as { resource: string; authorization_servers: string[] };
       expect(body.resource).toBe('https://trippi.example.test/mcp');
       expect(body.authorization_servers).toEqual(['https://trippi.example.test']);
@@ -326,7 +327,7 @@ describe('applyPlatformTransport', () => {
       h.isAddonEnabled.mockReturnValue(false);
       const res = makeRes();
       const next = vi.fn();
-      gate()({}, res, next);
+      await gate()({}, res, next);
       expect(res.statusCode).toBe(404);
       expect(next).not.toHaveBeenCalled();
     });
@@ -335,7 +336,7 @@ describe('applyPlatformTransport', () => {
       h.isAddonEnabled.mockReturnValue(true);
       const res = makeRes();
       const next = vi.fn();
-      gate()({}, res, next);
+      await gate()({}, res, next);
       expect(next).toHaveBeenCalled();
     });
   });
@@ -401,11 +402,15 @@ describe('applyPlatformTransport', () => {
     // getMcpSafeUrl is only consulted on the first lazy build of the metadata.
     expect(h.getMcpSafeUrl).toHaveBeenCalledTimes(1);
 
-    // Trigger the meta router lazy build twice; the SDK factory runs once.
+    // Non-well-known routes do not hit the SDK metadata router.
     const metaMw = calls.find((c) => c.method === 'use' && c.path === undefined)!.handlers[0];
     h.isAddonEnabled.mockReturnValue(true);
-    metaMw({ path: '/x' }, makeRes(), vi.fn());
-    metaMw({ path: '/y' }, makeRes(), vi.fn());
+    await metaMw({ path: '/x' }, makeRes(), vi.fn());
+    expect(router.mcpAuthMetadataRouter).not.toHaveBeenCalled();
+
+    // Trigger the meta router lazy build twice; the SDK factory runs once.
+    await metaMw({ path: '/.well-known/oauth-authorization-server' }, makeRes(), vi.fn());
+    await metaMw({ path: '/.well-known/oauth-protected-resource/mcp' }, makeRes(), vi.fn());
     expect(router.mcpAuthMetadataRouter).toHaveBeenCalledTimes(1);
   });
 });

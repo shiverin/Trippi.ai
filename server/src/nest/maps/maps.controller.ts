@@ -16,6 +16,7 @@ import type {
 
 import type { Response } from 'express';
 import { createReadStream } from 'node:fs';
+import { sendMediaObject } from '../../services/mediaStorage';
 
 type LocationBias = { low: { lat: number; lng: number }; high: { lat: number; lng: number } };
 
@@ -166,7 +167,16 @@ export class MapsController {
   }
 
   @Get('place-photo/:placeId/bytes')
-  placePhotoBytes(@Param('placeId') placeId: string, @Res() res: Response): void {
+  async placePhotoBytes(@Param('placeId') placeId: string, @Res() res: Response): Promise<void> {
+    const object = await this.maps.photoBytesObject(placeId);
+    if (object) {
+      await sendMediaObject(res, object, {
+        contentType: 'image/jpeg',
+        cacheControl: 'public, max-age=2592000, immutable',
+      });
+      return;
+    }
+
     const fp = this.maps.photoBytesPath(placeId);
     if (!fp) {
       res.status(404).json({ error: 'Photo not cached' });

@@ -9,7 +9,8 @@ import {
   resolveGoogleMapsUrl,
   searchOverpassPois,
 } from '../../services/mapsService';
-import { serveFilePath } from '../../services/placePhotoCache';
+import { serveFilePath, serveObject } from '../../services/placePhotoCache';
+import type { MediaObject } from '../../services/mediaStorage';
 import { DatabaseService } from '../database/database.service';
 import { Injectable } from '@nestjs/common';
 import type {
@@ -92,6 +93,10 @@ export class MapsService {
 
   photoBytesPath(placeId: string): string | null {
     return serveFilePath(placeId);
+  }
+
+  photoBytesObject(placeId: string): Promise<MediaObject | null> {
+    return serveObject(placeId);
   }
 
   reverse(lat: string, lng: string, lang?: string): Promise<MapsReverseResult> {

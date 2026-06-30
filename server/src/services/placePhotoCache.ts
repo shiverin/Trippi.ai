@@ -1,10 +1,10 @@
 import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
+import { getMediaStorage, openStoredMedia, type MediaObject } from './mediaStorage';
 
 import { Jimp, JimpMime } from 'jimp';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 
 // Overridable for tests (mirrors the TRIPPI_DB_FILE seam) so the suite never touches
@@ -37,6 +37,11 @@ function filePath(placeId: string): string {
   // collapse identically under sanitization (e.g. ':' and '.' both → '_')
   const hash = crypto.createHash('sha1').update(placeId).digest('hex');
   return path.join(GOOGLE_PHOTO_DIR, `${hash}.jpg`);
+}
+
+function storageKey(placeId: string): string {
+  const hash = crypto.createHash('sha1').update(placeId).digest('hex');
+  return `photos/google/${hash}.jpg`;
 }
 
 function proxyUrl(placeId: string): string {
@@ -79,11 +84,14 @@ export async function getAsync(placeId: string): Promise<CachedPhoto | null> {
   if (!row) return null;
 
   const fp = filePath(placeId);
+  const key = storageKey(placeId);
 
   if (!knownOnDisk.has(placeId)) {
-    // First time this placeId is checked this session — verify the file exists on disk.
-    // (Guards against volume wipes or manual deletion between server restarts.)
-    if (!fs.existsSync(fp)) {
+    // First time this placeId is checked this session — verify the file exists in
+    // the configured media backend. Production stores these under GCS; legacy
+    // local files still work through the fallback key.
+    const exists = (await getMediaStorage().exists(key)) || fs.existsSync(fp);
+    if (!exists) {
       await asyncDb.prepare('DELETE FROM google_place_photo_meta WHERE place_id = ?').run(placeId);
       return null;
     }
@@ -144,11 +152,10 @@ async function downscale(bytes: Buffer): Promise<Buffer> {
 
 export async function put(placeId: string, bytes: Buffer, attribution: string | null): Promise<CachedPhoto> {
   const fp = filePath(placeId);
-  const tmp = fp + '.tmp';
+  const key = storageKey(placeId);
 
   const resized = await downscale(bytes);
-  await fsPromises.writeFile(tmp, resized);
-  await fsPromises.rename(tmp, fp);
+  await getMediaStorage().putObject({ key, body: resized, contentType: 'image/jpeg' });
 
   knownOnDisk.add(placeId);
 
@@ -185,6 +192,13 @@ export function serveFilePath(placeId: string): string | null {
   if (!fs.existsSync(fp)) return null;
   knownOnDisk.add(placeId);
   return fp;
+}
+
+export async function serveObject(placeId: string): Promise<MediaObject | null> {
+  const key = storageKey(placeId);
+  const object = await openStoredMedia(key, key);
+  if (object) knownOnDisk.add(placeId);
+  return object;
 }
 
 // A cache entry is "referenced" while any place still points at it — either by the

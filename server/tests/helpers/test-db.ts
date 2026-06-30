@@ -98,6 +98,9 @@ const RESET_TABLES = [
   'audit_log',
   // System notices
   'user_notice_dismissals',
+  // Billing
+  'billing_subscriptions',
+  'billing_customers',
   // User data
   'settings',
   'mcp_tokens',

@@ -3166,6 +3166,44 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_trippi_photos_storage_key ON trippi_photos(storage_backend, storage_key);
       `);
     },
+    () => {
+      // Stripe Billing subscription state. Checkout and webhook handlers are
+      // separate follow-up work; this migration stores customer/subscription facts.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS billing_customers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          stripe_customer_id TEXT NOT NULL UNIQUE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_billing_customers_user ON billing_customers(user_id);
+        CREATE INDEX IF NOT EXISTS idx_billing_customers_stripe ON billing_customers(stripe_customer_id);
+
+        CREATE TABLE IF NOT EXISTS billing_subscriptions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          billing_customer_id INTEGER NOT NULL REFERENCES billing_customers(id) ON DELETE CASCADE,
+          stripe_customer_id TEXT NOT NULL,
+          stripe_subscription_id TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL,
+          plan_key TEXT NOT NULL DEFAULT 'free',
+          stripe_price_id TEXT,
+          current_period_start TEXT,
+          current_period_end TEXT,
+          trial_start TEXT,
+          trial_end TEXT,
+          cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+          canceled_at TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_user ON billing_subscriptions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_customer ON billing_subscriptions(stripe_customer_id);
+        CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_status ON billing_subscriptions(status);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

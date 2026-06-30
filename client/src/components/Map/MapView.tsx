@@ -296,7 +296,7 @@ function MapContextMenuHandler({ onContextMenu }: { onContextMenu: ((e: L.Leafle
 
 // Module-level photo cache shared with PlaceAvatar
 import { useGeolocation } from '../../hooks/useGeolocation';
-import { fetchPhoto, getAllThumbs, getCached, isLoading, onThumbReady } from '../../services/photoService';
+import { getAllThumbs, getCached, onThumbReady } from '../../services/photoService';
 import { useAuthStore } from '../../store/authStore';
 import LocationButton from './LocationButton';
 
@@ -535,16 +535,6 @@ export const MapView = memo(function MapView({
 
       cleanups.push(onThumbReady(cacheKey, (thumb) => setThumb(cacheKey, thumb)));
 
-      if (!cached && !isLoading(cacheKey)) {
-        const photoId =
-          (place.image_url?.startsWith('/api/maps/place-photo/') ? place.image_url : null) ||
-          place.google_place_id ||
-          place.osm_id ||
-          place.image_url;
-        if (photoId || (place.lat && place.lng)) {
-          fetchPhoto(cacheKey, photoId || `coords:${place.lat}:${place.lng}`, place.lat, place.lng, place.name);
-        }
-      }
     }
 
     return () => {

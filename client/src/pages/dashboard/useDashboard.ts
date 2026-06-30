@@ -87,14 +87,42 @@ export function useDashboard() {
 
   const loadTrips = async () => {
     setIsLoading(true);
+    let showedCachedTrips = false;
+    let showedFreshTrips = false;
+    const freshTripsPromise = tripRepo.list();
+    freshTripsPromise.catch(() => {});
+    const cachedTripsPromise = tripRepo.listCached().catch(() => null);
+
+    cachedTripsPromise.then((cachedTrips) => {
+      if (!cachedTrips || showedFreshTrips) return;
+      setTrips(sortTrips(cachedTrips.trips));
+      setArchivedTrips(sortTrips(cachedTrips.archivedTrips));
+      setLoadError(false);
+      setIsLoading(false);
+      showedCachedTrips = true;
+    });
+
     try {
-      const { trips, archivedTrips } = await tripRepo.list();
+      const { trips, archivedTrips } = await freshTripsPromise;
+      showedFreshTrips = true;
       setTrips(sortTrips(trips));
       setArchivedTrips(sortTrips(archivedTrips));
       setLoadError(false);
     } catch {
-      setLoadError(true);
-      toast.error(t('dashboard.toast.loadError'));
+      if (!showedCachedTrips) {
+        const cachedTrips = await cachedTripsPromise;
+        if (cachedTrips) {
+          setTrips(sortTrips(cachedTrips.trips));
+          setArchivedTrips(sortTrips(cachedTrips.archivedTrips));
+          setLoadError(false);
+          showedCachedTrips = true;
+          return;
+        }
+      }
+      if (!showedCachedTrips) {
+        setLoadError(true);
+        toast.error(t('dashboard.toast.loadError'));
+      }
     } finally {
       setIsLoading(false);
     }

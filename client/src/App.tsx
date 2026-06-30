@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { lazy, ReactNode, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { authApi } from './api/client';
 import BottomNav from './components/Layout/BottomNav';
@@ -7,23 +7,14 @@ import { ToastContainer } from './components/shared/Toast';
 import { SystemNoticeHost } from './components/SystemNotices/SystemNoticeHost.js';
 import { useInAppNotificationListener } from './hooks/useInAppNotificationListener.ts';
 import { TranslationProvider, useTranslation } from './i18n';
-import AdminPage from './pages/AdminPage';
-import AtlasPage from './pages/AtlasPage';
 import DashboardPage from './pages/DashboardPage';
-import FilesPage from './pages/FilesPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import InAppNotificationsPage from './pages/InAppNotificationsPage.tsx';
-import JourneyDetailPage from './pages/JourneyDetailPage';
-import JourneyPage from './pages/JourneyPage';
 import JourneyPublicPage from './pages/JourneyPublicPage';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import OAuthAuthorizePage from './pages/OAuthAuthorizePage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
-import SettingsPage from './pages/SettingsPage';
 import SharedTripPage from './pages/SharedTripPage';
-import TripPlannerPage from './pages/TripPlannerPage';
-import VacayPage from './pages/VacayPage';
 import { useAddonStore } from './store/addonStore';
 import { useAuthStore } from './store/authStore';
 import { PermissionLevel, usePermissionsStore } from './store/permissionsStore';
@@ -32,10 +23,36 @@ import { registerSyncTriggers, unregisterSyncTriggers } from './sync/syncTrigger
 // Notice action registrations (side-effect imports):
 import './pages/Trips/noticeActions.js';
 
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const AtlasPage = lazy(() => import('./pages/AtlasPage'));
+const FilesPage = lazy(() => import('./pages/FilesPage'));
+const InAppNotificationsPage = lazy(() => import('./pages/InAppNotificationsPage.tsx'));
+const JourneyDetailPage = lazy(() => import('./pages/JourneyDetailPage'));
+const JourneyPage = lazy(() => import('./pages/JourneyPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const TripPlannerPage = lazy(() => import('./pages/TripPlannerPage'));
+const VacayPage = lazy(() => import('./pages/VacayPage'));
+
 interface ProtectedRouteProps {
   children: ReactNode;
   adminRequired?: boolean;
   addonId?: string;
+}
+
+function RouteFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
+        <p className="text-sm text-slate-500">{t('common.loading')}</p>
+      </div>
+    </div>
+  );
+}
+
+function DeferredRoute({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
 }
 
 function ProtectedRoute({ children, adminRequired = false, addonId }: ProtectedRouteProps) {
@@ -270,7 +287,9 @@ export default function App() {
           path="/trips/:id"
           element={
             <ProtectedRoute>
-              <TripPlannerPage />
+              <DeferredRoute>
+                <TripPlannerPage />
+              </DeferredRoute>
             </ProtectedRoute>
           }
         />
@@ -278,7 +297,9 @@ export default function App() {
           path="/trips/:id/files"
           element={
             <ProtectedRoute>
-              <FilesPage />
+              <DeferredRoute>
+                <FilesPage />
+              </DeferredRoute>
             </ProtectedRoute>
           }
         />
@@ -286,7 +307,9 @@ export default function App() {
           path="/admin"
           element={
             <ProtectedRoute adminRequired>
-              <AdminPage />
+              <DeferredRoute>
+                <AdminPage />
+              </DeferredRoute>
             </ProtectedRoute>
           }
         />
@@ -294,7 +317,9 @@ export default function App() {
           path="/settings"
           element={
             <ProtectedRoute>
-              <SettingsPage />
+              <DeferredRoute>
+                <SettingsPage />
+              </DeferredRoute>
             </ProtectedRoute>
           }
         />
@@ -302,7 +327,9 @@ export default function App() {
           path="/vacay"
           element={
             <ProtectedRoute>
-              <VacayPage />
+              <DeferredRoute>
+                <VacayPage />
+              </DeferredRoute>
             </ProtectedRoute>
           }
         />
@@ -310,7 +337,9 @@ export default function App() {
           path="/atlas"
           element={
             <ProtectedRoute>
-              <AtlasPage />
+              <DeferredRoute>
+                <AtlasPage />
+              </DeferredRoute>
             </ProtectedRoute>
           }
         />
@@ -318,7 +347,9 @@ export default function App() {
           path="/journey"
           element={
             <ProtectedRoute addonId="journey">
-              <JourneyPage />
+              <DeferredRoute>
+                <JourneyPage />
+              </DeferredRoute>
             </ProtectedRoute>
           }
         />
@@ -326,7 +357,9 @@ export default function App() {
           path="/journey/:id"
           element={
             <ProtectedRoute addonId="journey">
-              <JourneyDetailPage />
+              <DeferredRoute>
+                <JourneyDetailPage />
+              </DeferredRoute>
             </ProtectedRoute>
           }
         />
@@ -334,7 +367,9 @@ export default function App() {
           path="/notifications"
           element={
             <ProtectedRoute>
-              <InAppNotificationsPage />
+              <DeferredRoute>
+                <InAppNotificationsPage />
+              </DeferredRoute>
             </ProtectedRoute>
           }
         />

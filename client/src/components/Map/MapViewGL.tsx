@@ -6,7 +6,7 @@ import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import type { TransportRouteMap } from '../../hooks/useTransportRoutes';
-import { fetchPhoto, getAllThumbs, getCached, isLoading, onThumbReady } from '../../services/photoService';
+import { getAllThumbs, getCached, onThumbReady } from '../../services/photoService';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { Place, Reservation } from '../../types';
@@ -491,16 +491,6 @@ export function MapViewGL({
         continue;
       }
       cleanups.push(onThumbReady(cacheKey, (thumb) => setThumb(cacheKey, thumb)));
-      if (!cached && !isLoading(cacheKey)) {
-        const photoId =
-          (place.image_url?.startsWith('/api/maps/place-photo/') ? place.image_url : null) ||
-          place.google_place_id ||
-          place.osm_id ||
-          place.image_url;
-        if (photoId || (place.lat && place.lng)) {
-          fetchPhoto(cacheKey, photoId || `coords:${place.lat}:${place.lng}`, place.lat, place.lng, place.name);
-        }
-      }
     }
 
     return () => {

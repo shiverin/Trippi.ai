@@ -75,6 +75,11 @@ interface TripBundleResponse extends TripLoadExtras {
   files: TripFile[];
 }
 
+interface CachedTripBundleResponse extends TripBundleResponse {
+  tags: Tag[];
+  categories: Category[];
+}
+
 function buildDayMaps(days: Day[]): { assignments: AssignmentsMap; dayNotes: DayNotesMap } {
   const assignments: AssignmentsMap = {};
   const dayNotes: DayNotesMap = {};
@@ -98,6 +103,78 @@ async function cacheTripBundle(bundle: TripBundleResponse): Promise<void> {
     upsertAccommodations(bundle.accommodations || []),
     upsertTripMembers(bundle.trip.id, bundle.members || []),
   ]);
+}
+
+async function readCachedTripBundle(tripId: number | string): Promise<CachedTripBundleResponse | null> {
+  const numericTripId = Number(tripId);
+  const [
+    trip,
+    days,
+    places,
+    packingItems,
+    todoItems,
+    budgetItems,
+    reservations,
+    files,
+    accommodations,
+    members,
+    tags,
+    categories,
+  ] = await Promise.all([
+    offlineDb.trips.get(numericTripId),
+    offlineDb.days.where('trip_id').equals(numericTripId).sortBy('position'),
+    offlineDb.places.where('trip_id').equals(numericTripId).toArray(),
+    offlineDb.packingItems.where('trip_id').equals(numericTripId).toArray(),
+    offlineDb.todoItems.where('trip_id').equals(numericTripId).toArray(),
+    offlineDb.budgetItems.where('trip_id').equals(numericTripId).toArray(),
+    offlineDb.reservations.where('trip_id').equals(numericTripId).toArray(),
+    offlineDb.tripFiles.where('trip_id').equals(numericTripId).toArray(),
+    offlineDb.accommodations.where('trip_id').equals(numericTripId).toArray(),
+    offlineDb.tripMembers.where('tripId').equals(numericTripId).toArray(),
+    offlineDb.tags.toArray(),
+    offlineDb.categories.toArray(),
+  ]);
+
+  if (!trip) return null;
+
+  return {
+    trip,
+    days,
+    places,
+    packingItems,
+    todoItems,
+    budgetItems,
+    reservations,
+    files,
+    accommodations,
+    members,
+    tags,
+    categories,
+  };
+}
+
+function applyTripBundle(
+  set: (partial: Partial<TripStoreState>) => void,
+  bundle: TripBundleResponse,
+  tags: Tag[],
+  categories: Category[]
+): void {
+  const { assignments, dayNotes } = buildDayMaps(bundle.days);
+  set({
+    trip: bundle.trip,
+    days: bundle.days,
+    places: bundle.places,
+    assignments,
+    dayNotes,
+    packingItems: bundle.packingItems,
+    todoItems: bundle.todoItems,
+    budgetItems: bundle.budgetItems,
+    reservations: bundle.reservations,
+    files: bundle.files,
+    tags,
+    categories,
+    isLoading: false,
+  });
 }
 
 export interface TripStoreState
@@ -183,29 +260,27 @@ export const useTripStore = create<TripStoreState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       if (navigator.onLine) {
-        const [bundle, tagsData, categoriesData] = await Promise.all([
-          tripsApi.bundle(tripId) as Promise<TripBundleResponse>,
-          tagsApi.list().catch(() => offlineDb.tags.toArray().then((tags) => ({ tags }))),
-          categoriesApi.list().catch(() => offlineDb.categories.toArray().then((categories) => ({ categories }))),
-        ]);
-        await cacheTripBundle(bundle);
-        const { assignments, dayNotes } = buildDayMaps(bundle.days);
+        const bundlePromise = tripsApi.bundle(tripId) as Promise<TripBundleResponse>;
+        const tagsPromise = tagsApi.list().catch(() => offlineDb.tags.toArray().then((tags) => ({ tags })));
+        const categoriesPromise = categoriesApi
+          .list()
+          .catch(() => offlineDb.categories.toArray().then((categories) => ({ categories })));
 
-        set({
-          trip: bundle.trip,
-          days: bundle.days,
-          places: bundle.places,
-          assignments,
-          dayNotes,
-          packingItems: bundle.packingItems,
-          todoItems: bundle.todoItems,
-          budgetItems: bundle.budgetItems,
-          reservations: bundle.reservations,
-          files: bundle.files,
-          tags: tagsData.tags,
-          categories: categoriesData.categories,
-          isLoading: false,
+        let appliedFreshBundle = false;
+        readCachedTripBundle(tripId)
+          .then((cachedBundle) => {
+            if (!cachedBundle || appliedFreshBundle) return;
+            applyTripBundle(set, cachedBundle, cachedBundle.tags, cachedBundle.categories);
+          })
+          .catch(() => {});
+
+        const [bundle, tagsData, categoriesData] = await Promise.all([bundlePromise, tagsPromise, categoriesPromise]);
+        appliedFreshBundle = true;
+        applyTripBundle(set, bundle, tagsData.tags, categoriesData.categories);
+        cacheTripBundle(bundle).catch((err) => {
+          console.warn('[tripStore] failed to cache trip bundle', err);
         });
+
         return { accommodations: bundle.accommodations || [], members: bundle.members || [] };
       }
 

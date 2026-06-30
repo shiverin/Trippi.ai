@@ -21,7 +21,6 @@ import { useTransportRoutes } from '../../hooks/useTransportRoutes';
 import { useTripWebSocket } from '../../hooks/useTripWebSocket';
 import { useTranslation } from '../../i18n';
 import { accommodationRepo } from '../../repo/accommodationRepo';
-import { fetchPhoto, getCached } from '../../services/photoService';
 import { useAuthStore } from '../../store/authStore';
 import { useCanDo } from '../../store/permissionsStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -346,20 +345,6 @@ export function useTripPlanner() {
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
-
-  // Start photo fetches during splash screen so images are ready when map mounts
-  useEffect(() => {
-    if (isLoading || !places || places.length === 0 || !placesPhotosEnabled) return;
-    for (const p of places) {
-      if (p.image_url) continue;
-      const cacheKey = p.google_place_id || p.osm_id || `${p.lat},${p.lng}`;
-      if (!cacheKey || getCached(cacheKey)) continue;
-      const photoId = p.google_place_id || p.osm_id;
-      if (photoId || (p.lat && p.lng)) {
-        fetchPhoto(cacheKey, photoId || `coords:${p.lat}:${p.lng}`, p.lat, p.lng, p.name);
-      }
-    }
-  }, [isLoading, places]);
 
   // Load the trip. loadTrip hydrates every trip-scoped slice (days, places,
   // packing, todo, budget, reservations, files) so offline hydration is uniform
@@ -953,14 +938,9 @@ export function useTripPlanner() {
 
   const fontStyle = { fontFamily: 'var(--font-system)' };
 
-  // Splash screen — show for initial load + a brief moment for photos to start loading
-  const [splashDone, setSplashDone] = useState(false);
-  useEffect(() => {
-    if (!isLoading && trip) {
-      const timer = setTimeout(() => setSplashDone(true), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, trip]);
+  // Show the splash only while trip data is genuinely loading. Place photos are
+  // lazy-loaded by visible avatars, so the planner must not wait on photo work.
+  const splashDone = !isLoading && !!trip;
 
   return {
     tripId,

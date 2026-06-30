@@ -3,17 +3,25 @@ import { offlineDb, upsertTrip } from '../db/offlineDb'
 import { onlineThenCache } from './withOfflineFallback'
 import type { Trip } from '../types'
 
+async function readCachedTrips(): Promise<{ trips: Trip[]; archivedTrips: Trip[] } | null> {
+  const all = await offlineDb.trips.toArray()
+  const cached = {
+    trips: all.filter(t => !t.is_archived),
+    archivedTrips: all.filter(t => t.is_archived),
+  }
+  if (cached.trips.length === 0 && cached.archivedTrips.length === 0) return null
+  return cached
+}
+
 export const tripRepo = {
+  async listCached(): Promise<{ trips: Trip[]; archivedTrips: Trip[] } | null> {
+    return readCachedTrips()
+  },
+
   async list(): Promise<{ trips: Trip[]; archivedTrips: Trip[] }> {
     const readCachedTrips = async () => {
-      const all = await offlineDb.trips.toArray()
-      const cached = {
-        trips: all.filter(t => !t.is_archived),
-        archivedTrips: all.filter(t => t.is_archived),
-      }
-      if (cached.trips.length === 0 && cached.archivedTrips.length === 0) {
-        throw new Error('No cached trips available')
-      }
+      const cached = await tripRepo.listCached()
+      if (!cached) throw new Error('No cached trips available')
       return cached
     }
 

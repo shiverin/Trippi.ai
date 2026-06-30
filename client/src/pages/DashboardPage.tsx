@@ -154,6 +154,10 @@ export default function DashboardPage(): React.ReactElement {
     overlaysDisabled,
   } = useDashboard();
 
+  useEffect(() => {
+    void import('./TripPlannerPage');
+  }, []);
+
   const openDashboardTodo = (todo: DashboardTodo) => {
     sessionStorage.setItem(`trip-tab-${todo.trip_id}`, 'listen');
     sessionStorage.setItem(`trip-lists-subtab-${todo.trip_id}`, 'todo');

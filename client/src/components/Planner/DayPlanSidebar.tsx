@@ -142,6 +142,38 @@ type RouteConnectorItem = {
   label?: string;
 };
 
+function LazyWeatherWidget(props: React.ComponentProps<typeof WeatherWidget>) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    if (shouldRender) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setShouldRender(true);
+      return;
+    }
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '120px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [shouldRender]);
+
+  return (
+    <div ref={ref} style={{ minWidth: 14, minHeight: 18, display: 'grid', placeItems: 'center' }}>
+      {shouldRender ? <WeatherWidget {...props} /> : null}
+    </div>
+  );
+}
+
 /**
  * Day-plan state + behaviour: expand/collapse, inline title edit, route legs +
  * optimisation, day notes, and the drag-and-drop reorder/move machinery across
@@ -1515,7 +1547,16 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
           const placeItems = merged.filter((i) => i.type === 'place');
 
           return (
-            <div key={day.id} style={{ borderBottom: '1px solid var(--border-faint)' }}>
+            <div
+              key={day.id}
+              style={
+                {
+                  borderBottom: '1px solid var(--border-faint)',
+                  contentVisibility: 'auto',
+                  containIntrinsicSize: '96px 520px',
+                } as React.CSSProperties
+              }
+            >
               {/* Tages-Header — akzeptiert Drops aus der PlacesSidebar */}
               <div
                 className="dp-day-header"
@@ -1602,7 +1643,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                         <>
                           <div style={{ width: '64%', height: 1, background: 'currentColor', opacity: 0.25 }} />
                           <div style={{ padding: '3px 0 4px' }}>
-                            <WeatherWidget lat={wLat} lng={wLng} date={day.date} stacked />
+                            <LazyWeatherWidget lat={wLat} lng={wLng} date={day.date} stacked />
                           </div>
                         </>
                       )}

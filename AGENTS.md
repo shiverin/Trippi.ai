@@ -21,6 +21,18 @@ Required pre-push checks:
 
 Do not report a push as done until local parity checks pass and the triggered GitHub Actions have been checked. If a workflow is intentionally skipped by path filters, say so explicitly.
 
+## Chrome verification
+
+Any claim that the production app works, loads fast, feels fixed, or that a
+user-facing bug is resolved must be verified in the user's actual Chrome
+browser before reporting it as true. API probes, curl, server logs, unit tests,
+and local-only browser checks are useful supporting evidence, but they are not
+enough for user-facing or performance claims.
+
+When reporting those claims, include the Chrome-tested URL or flow and the
+observed timing or error state. If Chrome testing was not possible, say so
+plainly and do not present the claim as verified.
+
 ## Async database contract
 
 The backend is being migrated to async database access. New runtime/request code

@@ -11,9 +11,11 @@ Agents may push directly to `main` when the user asks for a push. Prefer running
 focused checks for the files or feature touched, but do not block a requested
 push on the full local parity gate unless the user explicitly asks for it.
 
-After pushing, it is helpful but not mandatory to inspect GitHub Actions with
-`gh run list --repo shiverin/Trippi.ai --branch main --limit 10`. If checks were
-not run locally or CI was not watched, say that plainly in the handoff.
+After a requested push to `main`, treat the task as complete once the push
+succeeds unless the user explicitly asks you to watch CI, Vercel, or GitHub
+Actions. Do not spend context polling long-running checks by default. It is fine
+to run a quick `gh run list --repo shiverin/Trippi.ai --branch main --limit 10`
+snapshot if useful, but report it as a snapshot and return.
 
 ## Testing/Dev Docker setup
 
@@ -39,18 +41,6 @@ Reset this local testing environment with:
 ```bash
 docker compose -f deploy/testing-dev/docker-compose.yml down -v
 ```
-
-## Chrome verification
-
-Any claim that the production app works, loads fast, feels fixed, or that a
-user-facing bug is resolved must be verified in the user's actual Chrome
-browser before reporting it as true. API probes, curl, server logs, unit tests,
-and local-only browser checks are useful supporting evidence, but they are not
-enough for user-facing or performance claims.
-
-When reporting those claims, include the Chrome-tested URL or flow and the
-observed timing or error state. If Chrome testing was not possible, say so
-plainly and do not present the claim as verified.
 
 ## Chrome verification
 

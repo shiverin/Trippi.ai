@@ -258,7 +258,8 @@ describe('MapView', () => {
     const dataUrl = 'data:image/jpeg;base64,/9j/4AA';
     const places = [buildMapPlace({ id: 10, lat: 48.0, lng: 2.0, image_url: dataUrl })];
     render(<MapView places={places} />);
-    const iconOptions = vi.mocked(L.divIcon).mock.calls.at(-1)?.[0] as { className?: string; html?: string };
+    const divIconCalls = vi.mocked(L.divIcon).mock.calls;
+    const iconOptions = divIconCalls[divIconCalls.length - 1]?.[0] as { className?: string; html?: string };
     expect(iconOptions.className).toBe('trippi-photo-marker');
     expect(iconOptions.html).toContain('data-marker-photo-layer');
     expect(iconOptions.html).toContain('width:44px;height:44px');
@@ -279,7 +280,8 @@ describe('MapView', () => {
       buildMapPlace({ id: 215, lat: 48.0, lng: 2.0, image_url: imageUrl, google_place_id: 'gplace_215' }),
     ];
     render(<MapView places={places} />);
-    const iconOptions = vi.mocked(L.divIcon).mock.calls.at(-1)?.[0] as { className?: string; html?: string };
+    const divIconCalls = vi.mocked(L.divIcon).mock.calls;
+    const iconOptions = divIconCalls[divIconCalls.length - 1]?.[0] as { className?: string; html?: string };
     expect(iconOptions.className).toBe('trippi-photo-marker');
     expect(iconOptions.html).toContain(imageUrl);
     expect(photoService.fetchPhoto).not.toHaveBeenCalled();
@@ -288,7 +290,8 @@ describe('MapView', () => {
   it('FE-COMP-MAPVIEW-015c: keeps true non-photo places as category markers', () => {
     const places = [buildMapPlace({ id: 216, lat: 48.0, lng: 2.0, category_color: '#8b5cf6', image_url: null })];
     render(<MapView places={places} />);
-    const iconOptions = vi.mocked(L.divIcon).mock.calls.at(-1)?.[0] as { className?: string; html?: string };
+    const divIconCalls = vi.mocked(L.divIcon).mock.calls;
+    const iconOptions = divIconCalls[divIconCalls.length - 1]?.[0] as { className?: string; html?: string };
     expect(iconOptions.className || '').toBe('');
     expect(iconOptions.html).not.toContain('data-marker-photo-layer');
     expect(iconOptions.html).toContain('width:36px;height:36px');

@@ -80,6 +80,9 @@ describe('AdminPage', () => {
         // Users tab is the default active tab
         expect(screen.getByRole('button', { name: /^users$/i })).toBeInTheDocument();
       });
+
+      expect(screen.getByText('admin · cloud SaaS')).toBeInTheDocument();
+      expect(screen.queryByText(/self-hosted/i)).not.toBeInTheDocument();
     });
   });
 

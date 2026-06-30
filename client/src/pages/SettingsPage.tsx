@@ -47,7 +47,7 @@ export default function SettingsPage(): React.ReactElement {
           tabs={tabs}
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          footer={appVersion ? `v${appVersion} · self-hosted` : 'self-hosted'}
+          footer={appVersion ? `v${appVersion} · cloud SaaS` : 'cloud SaaS'}
         >
           {activeTab === 'display' && <DisplaySettingsTab />}
           {activeTab === 'map' && <MapSettingsTab />}

@@ -135,7 +135,7 @@ export default function AdminPage(): React.ReactElement {
           tabs={TABS}
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          footer="admin · self-hosted"
+          footer="admin · cloud SaaS"
         >
           {/* Tab content */}
           {activeTab === 'users' && <AdminUsersTab admin={admin} t={t} locale={locale} />}

@@ -14,7 +14,7 @@ interface PageSidebarProps {
   activeTab: string;
   onTabChange: (id: string) => void;
   children: React.ReactNode;
-  /** Small text at the very bottom of the sidebar (e.g. "v3.0 · self-hosted"). */
+  /** Small text at the very bottom of the sidebar (e.g. "v3.0 · cloud SaaS"). */
   footer?: React.ReactNode;
 }
 

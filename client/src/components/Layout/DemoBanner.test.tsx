@@ -91,9 +91,10 @@ describe('DemoBanner', () => {
   });
 
   // FE-COMP-DEMOBANNER-012
-  it('self-host link points to GitHub', () => {
+  it('source link points to GitHub', () => {
     render(<DemoBanner />);
-    const link = screen.getByText('self-host it').closest('a')!;
+    expect(screen.queryByText(/self-host/i)).not.toBeInTheDocument();
+    const link = screen.getByText('View source').closest('a')!;
     expect(link).toHaveAttribute('href', 'https://github.com/shiverin/Trippi.ai');
     expect(link).toHaveAttribute('target', '_blank');
   });

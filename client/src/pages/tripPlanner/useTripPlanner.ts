@@ -1321,6 +1321,7 @@ export function useTripPlanner() {
             packingBags,
             packingCategoryAssignees,
             todoItems,
+            files,
             tripMembers,
             groupDecisions,
           })
@@ -1335,6 +1336,7 @@ export function useTripPlanner() {
       packingBags,
       packingCategoryAssignees,
       todoItems,
+      files,
       tripMembers,
       groupDecisions,
     ]

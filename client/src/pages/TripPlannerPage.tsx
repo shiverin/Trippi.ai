@@ -445,6 +445,10 @@ export default function TripPlannerPage(): React.ReactElement | null {
       handleTabChange(enabledAddons.packing ? 'listen' : 'plan');
       return;
     }
+    if (action === 'files') {
+      handleTabChange(enabledAddons.documents ? 'dateien' : 'plan');
+      return;
+    }
     if (action === 'decisions' || action === 'deadlines') {
       sessionStorage.setItem(`trip-lists-subtab-${tripId}`, 'todo');
       handleTabChange(enabledAddons.packing ? 'listen' : 'plan');

@@ -11,6 +11,7 @@ import {
   buildReservation,
   buildTodoItem,
   buildTrip,
+  buildTripFile,
   buildUser,
 } from '../../tests/helpers/factories';
 import { server } from '../../tests/helpers/msw/server';
@@ -587,6 +588,18 @@ describe('TripPlannerPage', () => {
 
   describe('FE-PAGE-PLANNER-014A: Command tab renders command center', () => {
     it('shows the group trip command center modules after clicking Command', async () => {
+      server.use(
+        http.get('/api/addons', () =>
+          HttpResponse.json({
+            addons: [
+              { id: 'budget', type: 'budget' },
+              { id: 'documents', type: 'documents' },
+              { id: 'packing', type: 'packing' },
+            ],
+          })
+        )
+      );
+
       vi.useFakeTimers();
 
       const tripId = 808;
@@ -619,17 +632,27 @@ describe('TripPlannerPage', () => {
             day_id: day.id,
             title: 'Casa check-in',
             type: 'hotel',
-            status: 'pending',
+            status: 'confirmed',
             confirmation_number: null,
             reservation_time: '2026-07-02T15:00:00',
           }),
         ],
-        budgetItems: [buildBudgetItem({ id: 61, trip_id: tripId, name: 'Hotel deposit', payers: [] })],
+        budgetItems: [
+          buildBudgetItem({
+            id: 61,
+            trip_id: tripId,
+            name: 'Hotel deposit',
+            payers: [{ user_id: 1, amount: 100, username: 'Alice' }],
+            members: [{ user_id: 2, paid: 0, username: 'Bob' }],
+          }),
+        ],
         packingItems: [buildPackingItem({ id: 71, trip_id: tripId, name: 'Shared charger', checked: 0 })],
         todoItems: [
           buildTodoItem({ id: 81, trip_id: tripId, name: 'Vote on Fado night', category: 'Decision' }),
           buildTodoItem({ id: 82, trip_id: tripId, name: 'Book airport transfer', category: 'Booking' }),
+          buildTodoItem({ id: 83, trip_id: tripId, name: 'Upload passport copies', category: 'Documents' }),
         ],
+        files: [buildTripFile({ id: 91, trip_id: tripId, original_name: 'insurance.pdf' })],
       } as any);
 
       renderPlannerPage(tripId);
@@ -640,6 +663,7 @@ describe('TripPlannerPage', () => {
 
       vi.useRealTimers();
 
+      await screen.findByTitle('Files');
       const commandTab = await screen.findByTitle('Command');
       fireEvent.click(commandTab);
 
@@ -647,12 +671,24 @@ describe('TripPlannerPage', () => {
         expect(screen.getByText('Lisbon Crew command center')).toBeInTheDocument();
       });
 
+      expect(screen.getByText('Trip readiness checklist')).toBeInTheDocument();
+      expect(screen.getByText('Resolve group decisions')).toBeInTheDocument();
+      expect(screen.getByText('Settle unpaid balances')).toBeInTheDocument();
+      expect(screen.getByText('Confirm missing bookings')).toBeInTheDocument();
+      expect(screen.getByText('Pack remaining items')).toBeInTheDocument();
+      expect(screen.getByText('Attach missing documents')).toBeInTheDocument();
       expect(screen.getByText('Pending decisions')).toBeInTheDocument();
       expect(screen.getByText('Budget health')).toBeInTheDocument();
       expect(screen.getByText('Booking tasks')).toBeInTheDocument();
       expect(screen.getByText('Packing assignments')).toBeInTheDocument();
       expect(screen.getByText('Itinerary conflicts')).toBeInTheDocument();
       expect(screen.getByText('Upcoming deadlines')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Attach missing documents/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('file-manager')).toBeInTheDocument();
+      });
     });
   });
 

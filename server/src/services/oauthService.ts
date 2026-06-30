@@ -1,6 +1,8 @@
 import { ADDON_IDS } from '../addons';
 import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
+import { resolveDbProvider } from '../db/providerMode';
+import type { TrippiDbProvider } from '../db/providerMode';
 import { validateScopes } from '../mcp/scopes';
 import { revokeUserSessionsForClient } from '../mcp/sessionManager';
 import { User } from '../types';
@@ -130,6 +132,13 @@ function generateAccessToken(): string {
 
 function generateRefreshToken(): string {
   return 'trippirf_' + randomBytes(32).toString('hex');
+}
+
+export function oauthTimestampForStorage(
+  date: Date,
+  provider: TrippiDbProvider = resolveDbProvider(),
+): Date | string {
+  return provider === 'oracle-async' ? date : date.toISOString();
 }
 
 // ---------------------------------------------------------------------------
@@ -671,8 +680,8 @@ export async function issueTokensAsync(
       refreshHash,
       JSON.stringify(scopes),
       audience,
-      accessExpiry.toISOString(),
-      refreshExpiry.toISOString(),
+      oauthTimestampForStorage(accessExpiry),
+      oauthTimestampForStorage(refreshExpiry),
       parentTokenId,
     );
 
@@ -762,8 +771,8 @@ export async function issueClientCredentialsTokenAsync(
       placeholderHash,
       JSON.stringify(scopes),
       audience,
-      accessExpiry.toISOString(),
-      now.toISOString(),
+      oauthTimestampForStorage(accessExpiry),
+      oauthTimestampForStorage(now),
       null,
     );
 

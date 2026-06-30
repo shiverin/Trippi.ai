@@ -65,6 +65,7 @@ import {
   revokeToken,
   listOAuthSessions,
   revokeSession,
+  oauthTimestampForStorage,
   validateAuthorizeRequest,
   verifyPKCE,
   authenticateClient,
@@ -398,6 +399,14 @@ describe('issueTokens + getUserByAccessToken', () => {
     expect(accessDeltaMs).toBeLessThan(expectedMs + 5_000);
     expect(refreshDeltaMs).toBeGreaterThan(expectedMs - 5_000);
     expect(refreshDeltaMs).toBeLessThan(expectedMs + 5_000);
+  });
+
+  it('binds native Date values for async Oracle token expiry storage', () => {
+    const expiry = new Date('2026-06-30T12:05:20.000Z');
+
+    expect(oauthTimestampForStorage(expiry, 'oracle-async')).toBe(expiry);
+    expect(oauthTimestampForStorage(expiry, 'sqlite')).toBe('2026-06-30T12:05:20.000Z');
+    expect(oauthTimestampForStorage(expiry, 'oracle-backed')).toBe('2026-06-30T12:05:20.000Z');
   });
 
   it('getUserByAccessToken returns user and scopes for a valid token', () => {

@@ -14,6 +14,7 @@ import { TrippiExceptionFilter } from './common/trippi-exception.filter';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { DaysModule } from './days/days.module';
+import { DecisionsModule } from './decisions/decisions.module';
 import { FilesModule } from './files/files.module';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
@@ -62,6 +63,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
     TodoModule,
     BudgetModule,
     ReservationsModule,
+    DecisionsModule,
     DaysModule,
     AssignmentsModule,
     PlacesModule,

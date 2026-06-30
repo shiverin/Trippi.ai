@@ -36,6 +36,11 @@ const RESET_TABLES = [
   'collab_messages',
   'collab_polls',
   'collab_notes',
+  // Decisions
+  'group_decision_links',
+  'group_decision_responses',
+  'group_decision_options',
+  'group_decisions',
   // Day content
   'day_notes',
   'todo_category_assignees',

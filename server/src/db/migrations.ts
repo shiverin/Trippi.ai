@@ -3166,6 +3166,60 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_trippi_photos_storage_key ON trippi_photos(storage_backend, storage_key);
       `);
     },
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_decisions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT,
+          deadline TEXT,
+          state TEXT NOT NULL DEFAULT 'open' CHECK(state IN ('open', 'closed', 'decided', 'cancelled')),
+          final_option_id INTEGER REFERENCES group_decision_options(id) ON DELETE SET NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS group_decision_options (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          decision_id INTEGER NOT NULL REFERENCES group_decisions(id) ON DELETE CASCADE,
+          label TEXT NOT NULL,
+          description TEXT,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          metadata TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS group_decision_responses (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          decision_id INTEGER NOT NULL REFERENCES group_decisions(id) ON DELETE CASCADE,
+          option_id INTEGER REFERENCES group_decision_options(id) ON DELETE SET NULL,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          response TEXT NOT NULL DEFAULT 'selected' CHECK(response IN ('selected', 'maybe', 'declined', 'abstain')),
+          comment TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(decision_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS group_decision_links (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          decision_id INTEGER NOT NULL REFERENCES group_decisions(id) ON DELETE CASCADE,
+          target_type TEXT NOT NULL CHECK(target_type IN ('trip', 'day', 'place', 'reservation', 'booking_intent', 'packing_item')),
+          target_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(decision_id, target_type, target_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_group_decisions_trip ON group_decisions(trip_id, state, deadline);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_options_decision ON group_decision_options(decision_id, sort_order);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_responses_decision ON group_decision_responses(decision_id);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_responses_user ON group_decision_responses(user_id);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_links_decision ON group_decision_links(decision_id);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_links_target ON group_decision_links(target_type, target_id);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

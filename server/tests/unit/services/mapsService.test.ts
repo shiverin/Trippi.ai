@@ -91,9 +91,12 @@ vi.mock('../../../src/config', () => ({
 
 vi.mock('../../../src/services/placePhotoCache', () => ({
   get: (placeId: string) => mockCacheGet(placeId),
+  getAsync: (placeId: string) => Promise.resolve(mockCacheGet(placeId)),
   getErrored: (placeId: string) => mockCacheGetErrored(placeId),
+  getErroredAsync: (placeId: string) => Promise.resolve(mockCacheGetErrored(placeId)),
   put: (placeId: string, bytes: Buffer, attribution: string | null) => mockCachePut(placeId, bytes, attribution),
   markError: vi.fn(),
+  markErrorAsync: vi.fn(async () => undefined),
   getInFlight: (placeId: string) => mockCacheGetInFlight(placeId),
   setInFlight: (placeId: string, p: Promise<any>) => mockCacheSetInFlight(placeId, p),
   serveFilePath: vi.fn(() => null),

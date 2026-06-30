@@ -1400,14 +1400,14 @@ export async function getPlacePhoto(
   name?: string,
 ): Promise<{ photoUrl: string; attribution: string | null }> {
   // Disk cache hit — serve immediately, no Google call
-  const diskHit = placePhotoCache.get(placeId);
+  const diskHit = await placePhotoCache.getAsync(placeId);
   if (diskHit) {
     await persistPlacePhotoUrl(placeId, diskHit.photoUrl, lat, lng, name);
     return { photoUrl: diskHit.photoUrl, attribution: diskHit.attribution };
   }
 
   // Recent error — don't hammer the API
-  if (placePhotoCache.getErrored(placeId)) {
+  if (await placePhotoCache.getErroredAsync(placeId)) {
     throw Object.assign(new Error('(Cache) No photo available'), { status: 404 });
   }
 
@@ -1509,7 +1509,7 @@ export async function getPlacePhoto(
       const fallback = await fetchWikimediaFallback();
       if (fallback) return fallback;
 
-      placePhotoCache.markError(placeId);
+      await placePhotoCache.markErrorAsync(placeId);
       return null;
     } finally {
       releasePhotoFetchSlot();

@@ -1,3 +1,4 @@
+import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 
 import { Jimp, JimpMime } from 'jimp';
@@ -70,10 +71,41 @@ export function get(placeId: string): CachedPhoto | null {
   return { photoUrl: proxyUrl(placeId), filePath: fp, attribution: row.attribution };
 }
 
+export async function getAsync(placeId: string): Promise<CachedPhoto | null> {
+  const row = (await asyncDb
+    .prepare('SELECT attribution FROM google_place_photo_meta WHERE place_id = ? AND error_at IS NULL')
+    .get(placeId)) as { attribution: string | null } | undefined;
+
+  if (!row) return null;
+
+  const fp = filePath(placeId);
+
+  if (!knownOnDisk.has(placeId)) {
+    // First time this placeId is checked this session — verify the file exists on disk.
+    // (Guards against volume wipes or manual deletion between server restarts.)
+    if (!fs.existsSync(fp)) {
+      await asyncDb.prepare('DELETE FROM google_place_photo_meta WHERE place_id = ?').run(placeId);
+      return null;
+    }
+    knownOnDisk.add(placeId);
+  }
+
+  return { photoUrl: proxyUrl(placeId), filePath: fp, attribution: row.attribution };
+}
+
 export function getErrored(placeId: string): boolean {
   const row = db
     .prepare('SELECT error_at FROM google_place_photo_meta WHERE place_id = ? AND error_at IS NOT NULL')
     .get(placeId) as { error_at: number } | undefined;
+
+  if (!row) return false;
+  return Date.now() - row.error_at < ERROR_TTL;
+}
+
+export async function getErroredAsync(placeId: string): Promise<boolean> {
+  const row = (await asyncDb
+    .prepare('SELECT error_at FROM google_place_photo_meta WHERE place_id = ? AND error_at IS NOT NULL')
+    .get(placeId)) as { error_at: number } | undefined;
 
   if (!row) return false;
   return Date.now() - row.error_at < ERROR_TTL;
@@ -84,6 +116,15 @@ export function markError(placeId: string): void {
   db.prepare(
     'INSERT OR REPLACE INTO google_place_photo_meta (place_id, attribution, fetched_at, error_at) VALUES (?, NULL, ?, ?)',
   ).run(placeId, Date.now(), Date.now());
+}
+
+export async function markErrorAsync(placeId: string): Promise<void> {
+  knownOnDisk.delete(placeId);
+  await asyncDb
+    .prepare(
+      'INSERT OR REPLACE INTO google_place_photo_meta (place_id, attribution, fetched_at, error_at) VALUES (?, NULL, ?, ?)',
+    )
+    .run(placeId, Date.now(), Date.now());
 }
 
 // Downscale oversized images to MAX_DIM before caching, re-encoding to JPEG.
@@ -111,9 +152,11 @@ export async function put(placeId: string, bytes: Buffer, attribution: string | 
 
   knownOnDisk.add(placeId);
 
-  db.prepare(
-    'INSERT OR REPLACE INTO google_place_photo_meta (place_id, attribution, fetched_at, error_at) VALUES (?, ?, ?, NULL)',
-  ).run(placeId, attribution, Date.now());
+  await asyncDb
+    .prepare(
+      'INSERT OR REPLACE INTO google_place_photo_meta (place_id, attribution, fetched_at, error_at) VALUES (?, ?, ?, NULL)',
+    )
+    .run(placeId, attribution, Date.now());
 
   return { photoUrl: proxyUrl(placeId), filePath: fp, attribution };
 }

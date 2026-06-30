@@ -93,6 +93,17 @@ const onListen = () => {
   startOracleBackedSync();
   const { startTokenCleanup } = require('./services/ephemeralTokens');
   startTokenCleanup();
+  void import('./services/authService')
+    .then(({ getAppConfigAsync }) =>
+      Promise.all([
+        getAppConfigAsync(null),
+        // The authenticated config only differs by global permissions today;
+        // warming it prevents the first logged-in browser tab after a deploy
+        // from paying several Oracle round trips.
+        getAppConfigAsync({ id: 0 }),
+      ]),
+    )
+    .catch((err) => sLogWarn(`App config cache warmup failed: ${err instanceof Error ? err.message : String(err)}`));
   import('./websocket').then(({ setupWebSocket }) => {
     setupWebSocket(server);
   });

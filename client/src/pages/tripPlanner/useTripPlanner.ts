@@ -366,27 +366,49 @@ export function useTripPlanner() {
   // and there's no cross-trip bleed; members/accommodations load alongside.
   useEffect(() => {
     if (tripId) {
-      tripActions.loadTrip(tripId).catch(() => {
-        toast.error(t('trip.toast.loadError'));
-        navigate('/dashboard');
-      });
-      loadAccommodations();
-      if (!navigator.onLine) {
-        offlineDb.tripMembers
-          .where('tripId')
-          .equals(Number(tripId))
-          .toArray()
-          .then((rows) => setTripMembers(rows))
-          .catch(() => {});
-      } else {
-        tripsApi
-          .getMembers(tripId)
-          .then((d) => {
-            const all = [d.owner, ...(d.members || [])].filter(Boolean);
-            setTripMembers(all);
-          })
-          .catch(() => {});
-      }
+      let cancelled = false;
+      const loadMembersAndAccommodations = () => {
+        loadAccommodations();
+        if (!navigator.onLine) {
+          offlineDb.tripMembers
+            .where('tripId')
+            .equals(Number(tripId))
+            .toArray()
+            .then((rows) => {
+              if (!cancelled) setTripMembers(rows);
+            })
+            .catch(() => {});
+        } else {
+          tripsApi
+            .getMembers(tripId)
+            .then((d) => {
+              const all = [d.owner, ...(d.members || [])].filter(Boolean);
+              if (!cancelled) setTripMembers(all);
+            })
+            .catch(() => {});
+        }
+      };
+
+      tripActions
+        .loadTrip(tripId)
+        .then((extras) => {
+          if (cancelled) return;
+          if (extras) {
+            setTripAccommodations(extras.accommodations || []);
+            setTripMembers(extras.members || []);
+          } else {
+            loadMembersAndAccommodations();
+          }
+        })
+        .catch(() => {
+          if (cancelled) return;
+          toast.error(t('trip.toast.loadError'));
+          navigate('/dashboard');
+        });
+
+      return () => {
+        cancelled = true;
+      };
     }
   }, [tripId]);
 

@@ -54,7 +54,7 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync('__trippi_no_such_user__', BCRYPT_CO
 const MFA_SETUP_TTL_MS = 15 * 60 * 1000;
 const mfaSetupPending = new Map<number, { secret: string; exp: number }>();
 const MFA_BACKUP_CODE_COUNT = 10;
-const APP_CONFIG_CACHE_TTL_MS = Number(process.env.APP_CONFIG_CACHE_TTL_MS || 15_000);
+const APP_CONFIG_CACHE_TTL_MS = Number(process.env.APP_CONFIG_CACHE_TTL_MS || 60_000);
 
 type AppConfigCacheKey = 'anonymous' | 'authenticated';
 

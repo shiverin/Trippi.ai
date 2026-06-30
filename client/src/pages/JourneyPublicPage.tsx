@@ -81,6 +81,7 @@ function formatDate(d: string, locale?: string): { weekday: string; month: strin
 
 export default function JourneyPublicPage() {
   const { t } = useTranslation();
+  const setLanguageTransient = useSettingsStore((s) => s.setLanguageTransient);
   // Page = wiring container: the share fetch, view state and all timeline/map
   // derivations live in the hook; the render helpers below stay next to the JSX.
   const {
@@ -539,7 +540,7 @@ export default function JourneyPublicPage() {
                 <button
                   key={lang.value}
                   onClick={() => {
-                    useSettingsStore.setState((s) => ({ settings: { ...s.settings, language: lang.value } }));
+                    setLanguageTransient(lang.value);
                     setShowLangPicker(false);
                   }}
                   style={{

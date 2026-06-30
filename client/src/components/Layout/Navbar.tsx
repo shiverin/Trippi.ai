@@ -21,6 +21,7 @@ import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useToast } from '../shared/Toast';
 import InAppNotificationBell from './InAppNotificationBell.tsx';
 
 const ADDON_ICONS: Record<string, LucideIcon> = { CalendarDays, Briefcase, Globe, Compass };
@@ -46,6 +47,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
   const { settings, updateSetting } = useSettingsStore();
   const { addons: allAddons, loadAddons } = useAddonStore();
   const { t, locale } = useTranslation();
+  const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
@@ -98,7 +100,9 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
 
   const toggleDarkMode = () => {
     document.documentElement.classList.add('trek-theme-transitioning');
-    updateSetting('dark_mode', dark ? 'light' : 'dark').catch(() => {});
+    void updateSetting('dark_mode', dark ? 'light' : 'dark').catch((err: unknown) => {
+      toast.error(err instanceof Error ? err.message : t('common.error'));
+    });
     if (themeTransitionTimer.current !== null) window.clearTimeout(themeTransitionTimer.current);
     themeTransitionTimer.current = window.setTimeout(() => {
       document.documentElement.classList.remove('trek-theme-transitioning');

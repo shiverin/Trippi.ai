@@ -80,9 +80,17 @@ export default React.memo(function PlaceAvatar({ place, size = 32, category }: P
       return onThumbReady(cacheKey, (thumb) => setPhotoSrc(thumb));
     }
 
-    fetchPhoto(cacheKey, photoId || `coords:${place.lat}:${place.lng}`, place.lat, place.lng, place.name, (entry) => {
-      setPhotoSrc(entry.thumbDataUrl || entry.photoUrl);
-    });
+    fetchPhoto(
+      cacheKey,
+      photoId || `coords:${place.lat}:${place.lng}`,
+      place.lat,
+      place.lng,
+      place.name,
+      (entry) => {
+        setPhotoSrc(entry.thumbDataUrl || entry.photoUrl);
+      },
+      'high'
+    );
     return onThumbReady(cacheKey, (thumb) => setPhotoSrc(thumb));
   }, [visible, place.id, place.image_url, place.google_place_id, place.osm_id]);
 
@@ -115,9 +123,17 @@ export default React.memo(function PlaceAvatar({ place, size = 32, category }: P
               imageUrlFailed.current = true;
               const photoId = place.google_place_id || place.osm_id!;
               const cacheKey = `refetch:${photoId}`;
-              fetchPhoto(cacheKey, photoId, place.lat ?? undefined, place.lng ?? undefined, place.name, (entry) => {
-                setPhotoSrc(entry.thumbDataUrl || entry.photoUrl);
-              });
+              fetchPhoto(
+                cacheKey,
+                photoId,
+                place.lat ?? undefined,
+                place.lng ?? undefined,
+                place.name,
+                (entry) => {
+                  setPhotoSrc(entry.thumbDataUrl || entry.photoUrl);
+                },
+                'high'
+              );
             } else {
               setPhotoSrc(null);
             }

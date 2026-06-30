@@ -14,16 +14,19 @@ const thumbListeners = new Map<string, Set<(thumb: string) => void>>()
 
 // Concurrency limiter — at most N photo API requests in flight at once.
 // Prevents flooding the server (and external APIs it calls) when many places appear at once.
-const MAX_CONCURRENT = 5
+const MAX_CONCURRENT = 8
 let activeRequests = 0
 const requestQueue: Array<() => void> = []
 
-function acquireRequestSlot(): Promise<void> {
+function acquireRequestSlot(priority: 'high' | 'normal' = 'normal'): Promise<void> {
   if (activeRequests < MAX_CONCURRENT) {
     activeRequests++
     return Promise.resolve()
   }
-  return new Promise(resolve => requestQueue.push(resolve))
+  return new Promise(resolve => {
+    if (priority === 'high') requestQueue.unshift(resolve)
+    else requestQueue.push(resolve)
+  })
 }
 
 function releaseRequestSlot(): void {
@@ -98,7 +101,8 @@ export function fetchPhoto(
   lat?: number,
   lng?: number,
   name?: string,
-  callback?: (entry: PhotoEntry) => void
+  callback?: (entry: PhotoEntry) => void,
+  priority: 'high' | 'normal' = 'normal'
 ) {
   const cached = cache.get(cacheKey)
   if (cached) { callback?.(cached); return }
@@ -122,9 +126,9 @@ export function fetchPhoto(
   }
 
   inFlight.add(cacheKey)
-  acquireRequestSlot().then(() =>
+  acquireRequestSlot(priority).then(() =>
     mapsApi.placePhoto(photoId, lat, lng, name)
-      .then(async (data: { photoUrl?: string }) => {
+      .then((data: { photoUrl?: string }) => {
         const photoUrl = data.photoUrl || null
         if (!photoUrl) {
           const entry: PhotoEntry = { photoUrl: null, thumbDataUrl: null }
@@ -140,12 +144,11 @@ export function fetchPhoto(
         callback?.(entry)
         notify(cacheKey, entry)
 
-        // Generate base64 thumb in background
-        const thumb = await urlToBase64(photoUrl)
-        if (thumb) {
-          entry.thumbDataUrl = thumb
-          notifyThumb(cacheKey, thumb)
-        }
+        // Generate base64 thumb in background. Do not hold a request slot while
+        // the browser downloads/decodes/canvas-converts the image.
+        urlToBase64(photoUrl).then(thumb => {
+          if (thumb) { entry.thumbDataUrl = thumb; notifyThumb(cacheKey, thumb) }
+        })
       })
       .catch(() => {
         const entry: PhotoEntry = { photoUrl: null, thumbDataUrl: null }
@@ -160,7 +163,8 @@ export function fetchPhoto(
 export function getAllThumbs(): Record<string, string> {
   const r: Record<string, string> = {}
   for (const [k, v] of cache.entries()) {
-    if (v.thumbDataUrl) r[k] = v.thumbDataUrl
+    const url = v.thumbDataUrl || v.photoUrl
+    if (url) r[k] = url
   }
   return r
 }

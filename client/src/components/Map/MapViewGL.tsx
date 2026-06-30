@@ -505,6 +505,7 @@ export function MapViewGL({
       return true;
     });
   }, [dayPlaces, places]);
+  const dayPlaceIds = useMemo(() => new Set(dayPlaces.map((place) => place.id)), [dayPlaces]);
   const photoHydrationIds = useMemo(() => photoHydrationPlaces.map((p) => p.id).join(','), [photoHydrationPlaces]);
   useEffect(() => {
     if (!photoHydrationPlaces || photoHydrationPlaces.length === 0 || !placesPhotosEnabled) return;
@@ -547,7 +548,7 @@ export function MapViewGL({
         fetchPhoto(cacheKey, photoId, place.lat, place.lng, place.name, (entry) => {
           const url = entry.thumbDataUrl || entry.photoUrl;
           if (url) setThumb(cacheKey, url);
-        });
+        }, dayPlaceIds.has(place.id) ? 'high' : 'normal');
       }
     }
 
@@ -558,7 +559,7 @@ export function MapViewGL({
         thumbRafRef.current = null;
       }
     };
-  }, [photoHydrationIds, placesPhotosEnabled, photoHydrationPlaces]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dayPlaceIds, photoHydrationIds, placesPhotosEnabled, photoHydrationPlaces]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reconcile markers with places + photos. Rebuilds the DOM node when any
   // visual input changes so photos, selection state and order badges stay

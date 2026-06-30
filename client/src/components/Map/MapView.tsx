@@ -532,6 +532,7 @@ export const MapView = memo(function MapView({
       return true;
     });
   }, [dayPlaces, places]);
+  const dayPlaceIds = useMemo(() => new Set(dayPlaces.map((place) => place.id)), [dayPlaces]);
   const photoHydrationIds = useMemo(() => photoHydrationPlaces.map((p) => p.id).join(','), [photoHydrationPlaces]);
   useEffect(() => {
     if (!photoHydrationPlaces || photoHydrationPlaces.length === 0 || !placesPhotosEnabled) return;
@@ -576,7 +577,7 @@ export const MapView = memo(function MapView({
         fetchPhoto(cacheKey, photoId, place.lat, place.lng, place.name, (entry) => {
           const url = entry.thumbDataUrl || entry.photoUrl;
           if (url) setThumb(cacheKey, url);
-        });
+        }, dayPlaceIds.has(place.id) ? 'high' : 'normal');
       }
 
     }
@@ -588,7 +589,7 @@ export const MapView = memo(function MapView({
         thumbRafRef.current = null;
       }
     };
-  }, [photoHydrationIds, placesPhotosEnabled, photoHydrationPlaces]);
+  }, [dayPlaceIds, photoHydrationIds, placesPhotosEnabled, photoHydrationPlaces]);
 
   const clusterIconCreateFunction = useCallback((cluster) => {
     const count = cluster.getChildCount();

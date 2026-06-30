@@ -350,6 +350,8 @@ export default function TripPlannerPage(): React.ReactElement | null {
     toggleBookingRoutesGlobal,
     toggleConnection,
     hiddenAssignmentRouteIds,
+    visibleAssignmentRouteIds,
+    routeableAssignmentRouteIds,
     toggleAssignmentRoute,
     transportRoutes,
     mapTransportDetail,
@@ -698,6 +700,8 @@ export default function TripPlannerPage(): React.ReactElement | null {
                   onToggleBookingRoutesGlobal={toggleBookingRoutesGlobal}
                   onToggleConnection={toggleConnection}
                   hiddenAssignmentRouteIds={hiddenAssignmentRouteIds}
+                  visibleAssignmentRouteIds={visibleAssignmentRouteIds}
+                  routeableAssignmentRouteIds={routeableAssignmentRouteIds}
                   onToggleAssignmentRoute={toggleAssignmentRoute}
                   externalTransportDetail={mapTransportDetail}
                   onExternalTransportDetailHandled={() => setMapTransportDetail(null)}
@@ -1176,6 +1180,8 @@ export default function TripPlannerPage(): React.ReactElement | null {
                           onToggleBookingRoutesGlobal={toggleBookingRoutesGlobal}
                           onToggleConnection={toggleConnection}
                           hiddenAssignmentRouteIds={hiddenAssignmentRouteIds}
+                          visibleAssignmentRouteIds={visibleAssignmentRouteIds}
+                          routeableAssignmentRouteIds={routeableAssignmentRouteIds}
                           onToggleAssignmentRoute={toggleAssignmentRoute}
                           onAddReservation={(dayId) => {
                             setEditingReservation(null);

@@ -112,6 +112,8 @@ interface DayPlanSidebarProps {
   onToggleBookingRoutesGlobal?: () => void;
   onToggleConnection?: (reservationId: number) => void;
   hiddenAssignmentRouteIds?: Record<string, boolean>;
+  visibleAssignmentRouteIds?: Record<string, boolean>;
+  routeableAssignmentRouteIds?: Record<string, boolean>;
   onToggleAssignmentRoute?: (assignmentId: number) => void;
   externalTransportDetail?: Reservation | null;
   onExternalTransportDetailHandled?: () => void;
@@ -242,6 +244,8 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     onToggleBookingRoutesGlobal,
     onToggleConnection,
     hiddenAssignmentRouteIds = {},
+    visibleAssignmentRouteIds = {},
+    routeableAssignmentRouteIds = {},
     onToggleAssignmentRoute,
     externalTransportDetail,
     onExternalTransportDetailHandled,
@@ -1281,6 +1285,8 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     onToggleBookingRoutesGlobal,
     onToggleConnection,
     hiddenAssignmentRouteIds,
+    visibleAssignmentRouteIds,
+    routeableAssignmentRouteIds,
     onToggleAssignmentRoute,
     externalTransportDetail,
     onExternalTransportDetailHandled,
@@ -1439,6 +1445,8 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
     onToggleBookingRoutesGlobal,
     onToggleConnection,
     hiddenAssignmentRouteIds,
+    visibleAssignmentRouteIds,
+    routeableAssignmentRouteIds,
     onToggleAssignmentRoute,
     externalTransportDetail,
     onExternalTransportDetailHandled,
@@ -2201,35 +2209,18 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                         const routeableAssignmentReservation =
                           reservations.find((r) => r.assignment_id === assignment.id && isRouteableTransportReservation(r)) ||
                           null;
-                        const canResolveAdHocTransportRoute = (() => {
-                          if (!isTransportPlace || !routeShown) return false;
-                          const hasLocatedBefore = merged
-                            .slice(0, idx)
-                            .some((candidate) => candidate.type === 'place' && candidate.data.place?.lat && candidate.data.place?.lng);
-                          const hasLocatedAfter = merged
-                            .slice(idx + 1)
-                            .some((candidate) => candidate.type === 'place' && candidate.data.place?.lat && candidate.data.place?.lng);
-                          return (
-                            (hasLocatedBefore && hasLocatedAfter) ||
-                            (!hasLocatedBefore && hasLocatedAfter && !!hotelLegs.top) ||
-                            (hasLocatedBefore && !hasLocatedAfter && !!hotelLegs.bottom)
-                          );
-                        })();
                         const hasAdHocTransportRouteToggle =
                           !routeableAssignmentReservation &&
                           isTransportPlace &&
                           !!onToggleAssignmentRoute &&
-                          routeShown &&
-                          (canResolveAdHocTransportRoute || (routeLegs[assignment.id]?.length ?? 0) > 0);
+                          routeableAssignmentRouteIds[String(assignment.id)] === true;
                         const hasAssignmentRouteToggle =
                           !!routeableAssignmentReservation || hasAdHocTransportRouteToggle;
-                        const assignmentRouteEnabled = hasAssignmentRouteToggle && bookingRoutesGlobalShown && routeShown;
+                        const assignmentRouteEnabled = hasAssignmentRouteToggle;
                         const assignmentRouteActive = routeableAssignmentReservation
                           ? visibleConnectionIds.includes(routeableAssignmentReservation.id)
-                          : hasAdHocTransportRouteToggle && !hiddenAssignmentRouteIds[String(assignment.id)];
-                        const assignmentRouteLabel = !bookingRoutesGlobalShown
-                          ? t('map.enableAllConnectionsFirst')
-                          : t(assignmentRouteActive ? 'map.hideConnections' : 'map.showConnections');
+                          : hasAdHocTransportRouteToggle && visibleAssignmentRouteIds[String(assignment.id)] === true;
+                        const assignmentRouteLabel = t(assignmentRouteActive ? 'map.hideConnections' : 'map.showConnections');
 
                         const arrowMove = (direction: 'up' | 'down') => {
                           const m = getMergedItems(day.id);
@@ -3166,21 +3157,13 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                 (!res.__leg || res.__leg.index === 0) &&
                                 (res.endpoints || []).length >= 2 &&
                                 (() => {
-                                  const active = routeShown
-                                    ? visibleConnectionIds.includes(res.id)
-                                    : false;
-                                  const routeLabel = !bookingRoutesGlobalShown
-                                    ? t('map.enableAllConnectionsFirst')
-                                    : !routeShown
-                                      ? 'Show this day route first'
-                                    : t(active ? 'map.hideConnections' : 'map.showConnections');
+                                  const active = visibleConnectionIds.includes(res.id);
+                                  const routeLabel = t(active ? 'map.hideConnections' : 'map.showConnections');
                                   return (
                                     <button
                                       type="button"
-                                      disabled={!routeShown}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (!routeShown) return;
                                         onToggleConnection(res.id);
                                       }}
                                       title={routeLabel}
@@ -3194,7 +3177,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                         borderRadius: 6,
                                         display: 'grid',
                                         placeItems: 'center',
-                                        cursor: routeShown ? 'pointer' : 'default',
+                                        cursor: 'pointer',
                                         border: 'none',
                                         background: active ? color : 'transparent',
                                         color: active ? '#fff' : 'var(--text-faint)',
@@ -3202,7 +3185,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                           'color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms cubic-bezier(0.23,1,0.32,1)',
                                       }}
                                       onMouseEnter={(e) => {
-                                        if (!active && routeShown) {
+                                        if (!active) {
                                           e.currentTarget.style.color = 'var(--text-primary)';
                                         }
                                       }}
@@ -3644,8 +3627,6 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                       <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
                         <button
                           onClick={() => onToggleRoute?.()}
-                          disabled={!bookingRoutesGlobalShown}
-                          title={!bookingRoutesGlobalShown ? t('map.enableAllConnectionsFirst') : undefined}
                           className={
                             routeShown ? 'bg-accent text-accent-text' : 'bg-transparent text-content-secondary'
                           }
@@ -3660,9 +3641,8 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                             fontWeight: 600,
                             borderRadius: 8,
                             border: routeShown ? 'none' : '1px solid var(--border-faint)',
-                            cursor: bookingRoutesGlobalShown ? 'pointer' : 'default',
+                            cursor: 'pointer',
                             fontFamily: 'inherit',
-                            opacity: bookingRoutesGlobalShown ? 1 : 0.45,
                           }}
                         >
                           <RouteIcon size={12} strokeWidth={2} />

@@ -41,8 +41,11 @@ interface BookingRoutePrefs {
   storageKey: string | null;
   globalShown: boolean;
   hiddenById: Record<string, boolean>;
+  shownById: Record<string, boolean>;
   hiddenDayIds: Record<string, boolean>;
+  shownDayIds: Record<string, boolean>;
   hiddenAssignmentIds: Record<string, boolean>;
+  shownAssignmentIds: Record<string, boolean>;
 }
 
 function normaliseBooleanRecord(value: unknown): Record<string, boolean> {
@@ -53,7 +56,16 @@ function normaliseBooleanRecord(value: unknown): Record<string, boolean> {
 }
 
 function readBookingRoutePrefs(storageKey: string | null): BookingRoutePrefs {
-  const fallback = { storageKey, globalShown: false, hiddenById: {}, hiddenDayIds: {}, hiddenAssignmentIds: {} };
+  const fallback = {
+    storageKey,
+    globalShown: false,
+    hiddenById: {},
+    shownById: {},
+    hiddenDayIds: {},
+    shownDayIds: {},
+    hiddenAssignmentIds: {},
+    shownAssignmentIds: {},
+  };
   if (typeof window === 'undefined' || !storageKey) return fallback;
   try {
     const stored = window.localStorage.getItem(storageKey);
@@ -61,19 +73,34 @@ function readBookingRoutePrefs(storageKey: string | null): BookingRoutePrefs {
     const parsed = JSON.parse(stored) as {
       globalShown?: unknown;
       hiddenById?: unknown;
+      shownById?: unknown;
       hiddenDayIds?: unknown;
+      shownDayIds?: unknown;
       hiddenAssignmentIds?: unknown;
+      shownAssignmentIds?: unknown;
     };
     return {
       storageKey,
       globalShown: parsed?.globalShown === true,
       hiddenById: normaliseBooleanRecord(parsed?.hiddenById),
+      shownById: normaliseBooleanRecord(parsed?.shownById),
       hiddenDayIds: normaliseBooleanRecord(parsed?.hiddenDayIds),
+      shownDayIds: normaliseBooleanRecord(parsed?.shownDayIds),
       hiddenAssignmentIds: normaliseBooleanRecord(parsed?.hiddenAssignmentIds),
+      shownAssignmentIds: normaliseBooleanRecord(parsed?.shownAssignmentIds),
     };
   } catch {
     return fallback;
   }
+}
+
+function isRouteKeyVisible(
+  globalShown: boolean,
+  hidden: Record<string, boolean>,
+  shown: Record<string, boolean>,
+  key: string
+): boolean {
+  return globalShown ? hidden[key] !== true : shown[key] === true;
 }
 
 /**
@@ -314,89 +341,149 @@ export function useTripPlanner() {
       JSON.stringify({
         globalShown: bookingRoutePrefs.globalShown,
         hiddenById: bookingRoutePrefs.hiddenById,
+        shownById: bookingRoutePrefs.shownById,
         hiddenDayIds: bookingRoutePrefs.hiddenDayIds,
+        shownDayIds: bookingRoutePrefs.shownDayIds,
         hiddenAssignmentIds: bookingRoutePrefs.hiddenAssignmentIds,
+        shownAssignmentIds: bookingRoutePrefs.shownAssignmentIds,
       })
     );
   }, [bookingRoutesStorageKey, bookingRoutePrefs]);
 
   const bookingRoutesGlobalShown = bookingRoutePrefs.globalShown;
   const hiddenBookingRouteIds = bookingRoutePrefs.hiddenById;
+  const shownBookingRouteIds = bookingRoutePrefs.shownById;
   const hiddenDayRouteIds = bookingRoutePrefs.hiddenDayIds;
+  const shownDayRouteIds = bookingRoutePrefs.shownDayIds;
   const hiddenAssignmentRouteIds = bookingRoutePrefs.hiddenAssignmentIds;
+  const shownAssignmentRouteIds = bookingRoutePrefs.shownAssignmentIds;
   const isDayRouteVisible = useCallback(
-    (dayId: number | null | undefined) => dayId == null || hiddenDayRouteIds[String(dayId)] !== true,
-    [hiddenDayRouteIds]
-  );
-  const isReservationRouteDayVisible = useCallback(
-    (reservation: Reservation) => {
-      const relatedDayIds = new Set<number>();
-      if (reservation.day_id != null) relatedDayIds.add(reservation.day_id);
-      if (reservation.end_day_id != null) relatedDayIds.add(reservation.end_day_id);
-      if (reservation.day_id != null && reservation.end_day_id != null && reservation.day_id !== reservation.end_day_id) {
-        const startIdx = days.findIndex((day) => day.id === reservation.day_id);
-        const endIdx = days.findIndex((day) => day.id === reservation.end_day_id);
-        if (startIdx !== -1 && endIdx !== -1) {
-          const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-          days.slice(from, to + 1).forEach((day) => relatedDayIds.add(day.id));
-        }
-      }
-      return Array.from(relatedDayIds).every((dayId) => isDayRouteVisible(dayId));
-    },
-    [days, isDayRouteVisible]
+    (dayId: number | null | undefined) =>
+      dayId != null &&
+      isRouteKeyVisible(bookingRoutesGlobalShown, hiddenDayRouteIds, shownDayRouteIds, String(dayId)),
+    [bookingRoutesGlobalShown, hiddenDayRouteIds, shownDayRouteIds]
   );
   const visibleConnections = useMemo(() => {
-    const visibleIds = new Set(visibleBookingRouteIds(reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds));
-    return reservations
-      .filter((reservation) => visibleIds.has(reservation.id) && isReservationRouteDayVisible(reservation))
-      .map((reservation) => reservation.id);
-  }, [reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds, isReservationRouteDayVisible]);
-  const routeShown = bookingRoutesGlobalShown && selectedDayId != null && isDayRouteVisible(selectedDayId);
+    const visibleIds = new Set(
+      visibleBookingRouteIds(reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds, shownBookingRouteIds)
+    );
+    return reservations.filter((reservation) => visibleIds.has(reservation.id)).map((reservation) => reservation.id);
+  }, [reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds, shownBookingRouteIds]);
+  const transportCategoryIds = useMemo(
+    () =>
+      new Set(
+        categories
+          .filter((category) => category.name?.trim().toLowerCase() === 'transport')
+          .map((category) => category.id)
+      ),
+    [categories]
+  );
+  const assignmentDayIds = useMemo(() => {
+    const map: Record<string, number> = {};
+    Object.entries(assignments).forEach(([dayId, dayAssignments]) => {
+      dayAssignments.forEach((assignment) => {
+        map[String(assignment.id)] = Number(dayId);
+      });
+    });
+    return map;
+  }, [assignments]);
+  const visibleAssignmentRouteIds = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    Object.values(assignments)
+      .flat()
+      .forEach((assignment) => {
+        const key = String(assignment.id);
+        const dayId = assignmentDayIds[key];
+        const place = assignment.place;
+        if (!place?.category_id || !transportCategoryIds.has(place.category_id)) return;
+        const dayDefaultShown = dayId != null && isDayRouteVisible(dayId);
+        const visible = dayDefaultShown
+          ? hiddenAssignmentRouteIds[key] !== true
+          : shownAssignmentRouteIds[key] === true;
+        if (visible) map[key] = true;
+      });
+    return map;
+  }, [
+    assignments,
+    assignmentDayIds,
+    hiddenAssignmentRouteIds,
+    isDayRouteVisible,
+    shownAssignmentRouteIds,
+    transportCategoryIds,
+  ]);
+  const visibleDayRouteIds = useMemo(() => days.filter((day) => isDayRouteVisible(day.id)).map((day) => day.id), [
+    days,
+    isDayRouteVisible,
+  ]);
+  const routeShown = selectedDayId != null && isDayRouteVisible(selectedDayId);
+  const routeMapEnabled = visibleDayRouteIds.length > 0 || Object.keys(visibleAssignmentRouteIds).length > 0;
   const toggleBookingRoutesGlobal = useCallback(() => {
     setBookingRoutePrefs((prev) => ({
       ...prev,
       storageKey: bookingRoutesStorageKey,
       globalShown: !prev.globalShown,
-      hiddenById: prev.globalShown ? prev.hiddenById : {},
-      hiddenDayIds: prev.globalShown ? prev.hiddenDayIds : {},
-      hiddenAssignmentIds: prev.globalShown ? prev.hiddenAssignmentIds : {},
+      hiddenById: {},
+      shownById: {},
+      hiddenDayIds: {},
+      shownDayIds: {},
+      hiddenAssignmentIds: {},
+      shownAssignmentIds: {},
     }));
   }, [bookingRoutesStorageKey]);
   const toggleSelectedDayRoute = useCallback(() => {
-    if (!bookingRoutesGlobalShown || selectedDayId == null) return;
+    if (selectedDayId == null) return;
     setBookingRoutePrefs((prev) => {
       const key = String(selectedDayId);
       const hiddenDayIds = { ...prev.hiddenDayIds };
-      if (hiddenDayIds[key]) delete hiddenDayIds[key];
-      else hiddenDayIds[key] = true;
-      return { ...prev, storageKey: bookingRoutesStorageKey, hiddenDayIds };
+      const shownDayIds = { ...prev.shownDayIds };
+      if (prev.globalShown) {
+        if (hiddenDayIds[key]) delete hiddenDayIds[key];
+        else hiddenDayIds[key] = true;
+      } else {
+        if (shownDayIds[key]) delete shownDayIds[key];
+        else shownDayIds[key] = true;
+      }
+      return { ...prev, storageKey: bookingRoutesStorageKey, hiddenDayIds, shownDayIds };
     });
-  }, [bookingRoutesGlobalShown, bookingRoutesStorageKey, selectedDayId]);
+  }, [bookingRoutesStorageKey, selectedDayId]);
   const toggleConnection = useCallback(
     (id: number) => {
-      if (!bookingRoutesGlobalShown) return;
       setBookingRoutePrefs((prev) => {
         const key = String(id);
         const hiddenById = { ...prev.hiddenById };
-        if (hiddenById[key]) delete hiddenById[key];
-        else hiddenById[key] = true;
-        return { ...prev, storageKey: bookingRoutesStorageKey, hiddenById };
+        const shownById = { ...prev.shownById };
+        if (prev.globalShown) {
+          if (hiddenById[key]) delete hiddenById[key];
+          else hiddenById[key] = true;
+        } else {
+          if (shownById[key]) delete shownById[key];
+          else shownById[key] = true;
+        }
+        return { ...prev, storageKey: bookingRoutesStorageKey, hiddenById, shownById };
       });
     },
-    [bookingRoutesGlobalShown, bookingRoutesStorageKey]
+    [bookingRoutesStorageKey]
   );
   const toggleAssignmentRoute = useCallback(
     (assignmentId: number) => {
-      if (!bookingRoutesGlobalShown) return;
       setBookingRoutePrefs((prev) => {
         const key = String(assignmentId);
+        const dayId = assignmentDayIds[key];
+        const dayDefaultShown =
+          dayId != null && isRouteKeyVisible(prev.globalShown, prev.hiddenDayIds, prev.shownDayIds, String(dayId));
         const hiddenAssignmentIds = { ...prev.hiddenAssignmentIds };
-        if (hiddenAssignmentIds[key]) delete hiddenAssignmentIds[key];
-        else hiddenAssignmentIds[key] = true;
-        return { ...prev, storageKey: bookingRoutesStorageKey, hiddenAssignmentIds };
+        const shownAssignmentIds = { ...prev.shownAssignmentIds };
+        if (dayDefaultShown) {
+          if (hiddenAssignmentIds[key]) delete hiddenAssignmentIds[key];
+          else hiddenAssignmentIds[key] = true;
+        } else {
+          if (shownAssignmentIds[key]) delete shownAssignmentIds[key];
+          else shownAssignmentIds[key] = true;
+        }
+        return { ...prev, storageKey: bookingRoutesStorageKey, hiddenAssignmentIds, shownAssignmentIds };
       });
     },
-    [bookingRoutesGlobalShown, bookingRoutesStorageKey]
+    [assignmentDayIds, bookingRoutesStorageKey]
   );
   const transportRoutes = useTransportRoutes(tripId || null, reservations, visibleConnections);
   const [mapTransportDetail, setMapTransportDetail] = useState<Reservation | null>(null);
@@ -522,13 +609,22 @@ export function useTripPlanner() {
     });
   }, [places, mapCategoryFilter, mapPlacesFilter, assignments, expandedDayIds, selectedDayId, dayRelevantPlaceIds]);
 
-  const { route, routeSegments, routeInfo, setRoute, setRouteInfo, updateRouteForDay } = useRouteCalculation(
+  const {
+    route,
+    routeSegments,
+    routeInfo,
+    setRoute,
+    setRouteInfo,
+    updateRouteForDay,
+    routeableAssignmentRouteIds,
+  } = useRouteCalculation(
     { assignments } as any,
     selectedDayId,
-    routeShown,
+    routeMapEnabled,
     routeProfile,
     tripAccommodations,
-    hiddenAssignmentRouteIds,
+    visibleDayRouteIds,
+    visibleAssignmentRouteIds,
     categories
   );
 
@@ -1116,6 +1212,8 @@ export function useTripPlanner() {
     toggleBookingRoutesGlobal,
     toggleConnection,
     hiddenAssignmentRouteIds,
+    visibleAssignmentRouteIds,
+    routeableAssignmentRouteIds,
     toggleAssignmentRoute,
     transportRoutes,
     mapTransportDetail,

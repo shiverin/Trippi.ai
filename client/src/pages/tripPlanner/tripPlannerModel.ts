@@ -107,7 +107,9 @@ export function visibleBookingRouteIds(
   reservations: RouteableReservation[],
   globalShown: boolean,
   hiddenById: Record<string, boolean>,
+  shownById: Record<string, boolean> = {},
 ): number[] {
-  if (!globalShown) return []
-  return bookingRouteReservationIds(reservations).filter((id) => !hiddenById[String(id)])
+  return bookingRouteReservationIds(reservations).filter((id) =>
+    globalShown ? !hiddenById[String(id)] : shownById[String(id)] === true,
+  )
 }

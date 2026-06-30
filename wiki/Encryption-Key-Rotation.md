@@ -1,5 +1,8 @@
 # Encryption Key Rotation
 
+> **Internal operator documentation:** Hosted trippi.ai secrets are managed by service operators.
+> Use this runbook only for non-public infrastructure, development, or maintenance deployments.
+
 ## What the encryption key protects
 
 trippi.ai encrypts sensitive settings at rest using AES-256-GCM. The following values are stored encrypted in the database:

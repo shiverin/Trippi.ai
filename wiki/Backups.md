@@ -1,5 +1,8 @@
 # Backups
 
+> **Internal operator documentation:** Hosted trippi.ai backups are handled by service operators.
+> This page covers app-level backup tools for non-public infrastructure, development, or maintenance deployments.
+
 trippi.ai stores all data in a single SQLite database (`travel.db`) plus an `uploads/` directory of attachments, cover photos, and avatars. The Backup panel lets you create, download, restore, and schedule backups of both.
 
 ## Where to find it

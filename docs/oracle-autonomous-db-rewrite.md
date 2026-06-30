@@ -1,5 +1,8 @@
 # Oracle Autonomous Database Rewrite Spike
 
+> **Internal operator/developer documentation:** This migration spike is for maintainers and service operators.
+> It is not public product positioning or customer onboarding copy.
+
 For the current switch-over/runbook state, start with
 [`oracle-native-migration-handoff.md`](./oracle-native-migration-handoff.md). This older note records the initial spike and bridge-mode reasoning.
 

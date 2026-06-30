@@ -1,5 +1,8 @@
 # Install: Docker
 
+> **Internal operator documentation:** trippi.ai is positioned publicly as a managed cloud SaaS product.
+> Use this runbook only for non-public infrastructure, development, or maintenance deployments.
+
 Single-container Docker run — suitable for testing or simple personal installs.
 
 ## Run Command

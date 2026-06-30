@@ -1,15 +1,8 @@
 ## Getting Started
 - [[Home]]
 - [[Quick Start|Quick-Start]]
-- [[Install: Docker|Install-Docker]]
-- [[Install: Docker Compose|Install-Docker-Compose]]
-- [[Install: Helm|Install-Helm]]
-- [[Install: Proxmox VE (LXC)|Install-Proxmox]]
-- [[Install: Unraid|Install-Unraid]]
-- [[Install: Portainer|Install-Portainer]]
-- [[Reverse Proxy|Reverse-Proxy]]
-- [[Environment Variables|Environment-Variables]]
-- [[Updating]]
+- [[My Trips Dashboard|My-Trips-Dashboard]]
+- [[Creating a Trip|Creating-a-Trip]]
 
 ## Account & Auth
 - [[Login and Registration|Login-and-Registration]]
@@ -83,7 +76,16 @@
 - [[Admin: MCP Tokens|Admin-MCP-Tokens]]
 - [[Admin: GitHub Releases|Admin-GitHub-Releases]]
 
-## Operations
+## Internal / Operator Docs
+- [[Operator: Docker|Install-Docker]]
+- [[Operator: Docker Compose|Install-Docker-Compose]]
+- [[Operator: Helm|Install-Helm]]
+- [[Operator: Proxmox VE (LXC)|Install-Proxmox]]
+- [[Operator: Unraid|Install-Unraid]]
+- [[Operator: Portainer|Install-Portainer]]
+- [[Operator: Reverse Proxy|Reverse-Proxy]]
+- [[Operator: Environment Variables|Environment-Variables]]
+- [[Operator: Updating|Updating]]
 - [[Backups]]
 - [[Demo Mode|Demo-Mode]]
 - [[Encryption Key Rotation|Encryption-Key-Rotation]]

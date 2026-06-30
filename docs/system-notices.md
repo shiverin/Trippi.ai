@@ -1,5 +1,8 @@
 # System Notices — Technical Documentation & Dev Guide
 
+> **Internal developer documentation:** This guide is for maintainers configuring service notices in code.
+> It is not public product positioning or customer onboarding copy.
+
 System notices are server-evaluated, user-targeted messages shown in the trippi.ai UI as modals, banners, or toasts. They are used for onboarding, upgrade announcements, breaking change warnings, and time-boxed campaigns. Every aspect — targeting, display, copy, and dismissal — is controlled from one place: the server-side registry.
 
 ---

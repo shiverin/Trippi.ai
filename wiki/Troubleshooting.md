@@ -1,5 +1,8 @@
 # Troubleshooting
 
+> **Audience note:** This page includes user-facing checks and internal operator runbooks.
+> Environment, proxy, Docker, and database steps are for operators maintaining non-public or managed-service infrastructure.
+
 ## "Access token required" when changing password on first login
 
 **Cause:** The session cookie has the `Secure` flag set, which means the browser will only send it over HTTPS. When accessing trippi.ai over plain HTTP (e.g. `http://192.168.1.x:3000`), the browser silently drops the cookie and the server sees no session — returning "Access token required".
@@ -75,7 +78,7 @@ If you no longer have access to backup codes and cannot log in, an admin must di
 
 **Cause:** The instance is running with `DEMO_MODE=true`. All write operations are blocked for the demo account by design.
 
-**Fix:** This is intentional behavior for public demo deployments. If you are self-hosting and want full access, remove the `DEMO_MODE` variable (or set it to `false`). See [Demo Mode](Demo-Mode).
+**Fix:** This is intentional behavior for public demo deployments. If this is an internal operator deployment where you need full access, remove the `DEMO_MODE` variable (or set it to `false`). See [Demo Mode](Demo-Mode).
 
 ---
 
@@ -177,7 +180,7 @@ environment:
    docker exec <container> nc -zv <SMTP_HOST> <SMTP_PORT>
    ```
 
-> **Note:** If no SMTP is configured at all, trippi.ai prints the reset link directly to the server logs (`===== PASSWORD RESET LINK =====`). This is useful for initial setup or self-hosted installs without email.
+> **Note:** If no SMTP is configured at all, trippi.ai prints the reset link directly to the server logs (`===== PASSWORD RESET LINK =====`). This is useful for initial operator setup or deployments without email.
 
 ---
 
@@ -229,7 +232,7 @@ If `ALLOWED_ORIGINS` is not set, trippi.ai allows all origins (development defau
 
 1. **HTTP referrer restriction on the API key.** Google Cloud Console lets you restrict a key to specific HTTP referrers. Because trippi.ai calls Google from the server (not the browser), it sends a `Referer` header derived from `APP_URL`. If `APP_URL` is not set, the fallback is `http://localhost:<PORT>`, which will not match any domain whitelist in GCP.
 
-2. **Wrong key restriction type.** API keys restricted by **HTTP referrers** are designed for browser-side JavaScript. For a self-hosted server application, use **IP address** restrictions instead — add the public IP of your trippi.ai server and no `APP_URL` configuration is needed.
+2. **Wrong key restriction type.** API keys restricted by **HTTP referrers** are designed for browser-side JavaScript. For a server-side deployment, use **IP address** restrictions instead — add the public IP of your trippi.ai server and no `APP_URL` configuration is needed.
 
 3. **Places API (New) not enabled.** The key must have **Places API (New)** enabled in Google Cloud Console under APIs & Services → Enabled APIs. Enabling only the legacy Places API is not sufficient.
 

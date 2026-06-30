@@ -1,5 +1,8 @@
 # Install: Proxmox VE (LXC)
 
+> **Internal operator documentation:** trippi.ai is positioned publicly as a managed cloud SaaS product.
+> Use this runbook only for non-public infrastructure, development, or maintenance deployments.
+
 Install trippi.ai on Proxmox VE as an LXC container using the [Proxmox VE Community Scripts](https://community-scripts.org/scripts/trek).
 
 > A big thank you to the members of [community-scripts](https://github.com/community-scripts) for adding trippi.ai to their collection and maintaining the install and update scripts.

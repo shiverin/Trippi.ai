@@ -1,6 +1,9 @@
 # trippi.ai Wiki
 
-trippi.ai is a self-hosted, real-time collaborative travel planner licensed under AGPL-3.0.
+trippi.ai is a hosted cloud travel planner for building, sharing, and managing trips with real-time collaboration.
+
+These docs focus on using the managed trippi.ai service. Infrastructure and deployment runbooks are kept for
+internal operators and maintainers, and are labeled as operator documentation where they appear.
 
 ![Dashboard](assets/DashboardWidgets.png)
 
@@ -9,7 +12,7 @@ trippi.ai is a self-hosted, real-time collaborative travel planner licensed unde
 ### Planning
 - **Drag & Drop Planner** — organize places into day plans with reordering and cross-day moves
 - **Interactive Map** — Leaflet map with photo markers, clustering, route visualization, and customizable tile sources
-- **Place Search** — Google Places (photos, ratings, hours) or OpenStreetMap (free, no API key needed)
+- **Place Search** — Google Places (photos, ratings, hours) or OpenStreetMap (no separate map key needed)
 - **Day Notes** — timestamped, icon-tagged notes per day
 - **Route Optimization** — auto-optimize place order and export to Google Maps
 - **Weather Forecasts** — 16-day forecasts via Open-Meteo (no API key required), historical climate averages as fallback
@@ -54,15 +57,15 @@ trippi.ai is a self-hosted, real-time collaborative travel planner licensed unde
 - Addon management, API key storage, scheduled auto-backups
 - System notices for onboarding and announcements
 
-> **Admin:** Most configuration lives in the Admin Panel. On first boot trippi.ai seeds an admin account automatically — credentials come from `ADMIN_EMAIL` / `ADMIN_PASSWORD` if set, otherwise a random password is printed to the container log.
+> **Admin:** Most workspace configuration lives in the Admin Panel, including user management, addons, categories, API keys, backups, and service notices.
 
 ## Get Started
 
 | | |
 |---|---|
-| [Quick Start](Quick-Start) | Install in minutes with a single Docker command |
+| [Quick Start](Quick-Start) | Create your first trip and invite collaborators |
 | [My Trips Dashboard](My-Trips-Dashboard) | Start planning your first trip |
-| [Admin Panel](Admin-Panel-Overview) | Configure your instance |
+| [Admin Panel](Admin-Panel-Overview) | Configure your workspace |
 | [MCP / AI Integration](MCP-Overview) | Connect Claude, Cursor, or any MCP client |
 | [Contributing](Contributing) | Guidelines for submitting pull requests |
 | [Development Environment](Development-environment) | Set up a local dev environment |

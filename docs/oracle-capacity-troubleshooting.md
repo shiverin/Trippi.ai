@@ -1,5 +1,8 @@
 # Oracle Capacity Troubleshooting
 
+> **Internal operator documentation:** This runbook is for maintainers and service operators working on infrastructure capacity.
+> It is not public product positioning or customer onboarding copy.
+
 This repo is prepared for Oracle Cloud Infrastructure Always Free deployment, but
 OCI can reject valid Always Free shapes when the selected availability domain has
 no host capacity.

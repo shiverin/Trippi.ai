@@ -1,5 +1,8 @@
 # Updating
 
+> **Internal operator documentation:** Hosted updates are handled by service operators.
+> Use this runbook only for non-public infrastructure, development, or maintenance deployments.
+
 How to update trippi.ai to a newer version without losing data.
 
 ## Before You Update

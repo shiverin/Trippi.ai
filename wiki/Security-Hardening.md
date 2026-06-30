@@ -1,5 +1,8 @@
 # Security Hardening
 
+> **Internal operator documentation:** Hosted trippi.ai infrastructure is managed by service operators.
+> This checklist is for non-public infrastructure, development, or maintenance deployments.
+
 A production trippi.ai deployment checklist. All items reference actual trippi.ai configuration options.
 
 ## Encryption & Secrets

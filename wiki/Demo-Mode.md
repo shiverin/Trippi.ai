@@ -1,6 +1,9 @@
 # Demo Mode
 
-Demo mode lets you run a public "try before you install" instance of trippi.ai. A shared demo account is available for visitors, write operations are blocked for that account, and the database resets automatically every hour so the instance stays in a known state.
+> **Internal operator documentation:** Demo mode is for managed preview environments and non-public
+> service operations, not the public SaaS onboarding flow.
+
+Demo mode lets operators run a public preview environment for trippi.ai. A shared demo account is available for visitors, write operations are blocked for that account, and the database resets automatically every hour so the environment stays in a known state.
 
 <!-- TODO: screenshot: demo mode banner or try-demo button on login page -->
 

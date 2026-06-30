@@ -1,5 +1,8 @@
 # Oracle Native Migration Handoff
 
+> **Internal operator/developer documentation:** This handoff is for maintainers and service operators.
+> It is not public product positioning or customer onboarding copy.
+
 Last updated: 2026-06-29
 
 This document hands off the Trippi database migration and Oracle Cloud integration work. It is meant for future Codex agents or maintainers who need to understand what changed, how to run it, how to verify it, and what still needs hardening.

@@ -2,7 +2,7 @@
 
 ## Do I need a Google Maps API key?
 
-No. When no Google Maps key is configured, trippi.ai automatically falls back to OpenStreetMap (Nominatim) for place search — no API key or account required. If you want richer place data (photos, ratings, opening hours), an admin can optionally add a Google Maps key in [User Settings](User-Settings).
+No. Hosted trippi.ai supports place search without each user managing a map key. If a workspace admin enables Google Places, users can also see richer place data such as photos, ratings, and opening hours.
 
 ## Can I use trippi.ai offline?
 
@@ -20,18 +20,11 @@ For OAuth 2.1, each user can register up to **10 OAuth clients**. The default li
 
 ## Where is my data stored?
 
-| Type | Path |
-|------|------|
-| Database | `./data/travel.db` (SQLite) |
-| Uploads | `./uploads/` |
-| Logs | `./data/logs/trippi.log` (auto-rotated) |
-| Backups | `./data/backups/` |
-
-When running in Docker, mount `./data` and `./uploads` as volumes so your data survives container updates. See [Install: Docker Compose](Install-Docker-Compose).
+In the hosted service, trip data, uploads, logs, and backups are stored in managed cloud infrastructure operated for trippi.ai. Internal operator deployments have their own storage configuration; those details are covered in the operator docs for [Backups](Backups), [Environment Variables](Environment-Variables), and [Install: Docker Compose](Install-Docker-Compose).
 
 ## How do I update trippi.ai?
 
-Pull the new image and recreate the container. Your data is in the mounted volumes and is never modified by the update process. See [Updating](Updating) for the exact commands.
+Hosted trippi.ai updates are handled by the service operators. Internal operators maintaining non-public deployments can use [Updating](Updating) for the deployment runbook.
 
 ## Can I restrict who can register?
 

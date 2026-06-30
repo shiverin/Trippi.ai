@@ -15,7 +15,7 @@ trippi.ai supports four delivery channels. Which channels appear depends on what
 | **In-app** | Bell icon in the navigation bar. Always available. Delivered in real time via WebSocket. |
 | **Email** | Delivered to your account email. Requires the admin to configure SMTP. |
 | **Webhook** | trippi.ai POSTs a JSON payload to a URL you specify. Discord and Slack webhook URLs are auto-detected and receive a natively formatted payload. |
-| **ntfy** | Push notifications via [ntfy.sh](https://ntfy.sh) or a self-hosted ntfy server. |
+| **ntfy** | Push notifications via [ntfy.sh](https://ntfy.sh) or a private ntfy server. |
 
 ## Notification events
 

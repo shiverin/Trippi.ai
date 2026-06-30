@@ -1,5 +1,8 @@
 # Install: Docker Compose
 
+> **Internal operator documentation:** trippi.ai is positioned publicly as a managed cloud SaaS product.
+> Use this runbook only for non-public infrastructure, development, or maintenance deployments.
+
 Production-ready setup using Docker Compose with security hardening enabled.
 
 ## Compose File

@@ -1,5 +1,8 @@
 # Install: Unraid
 
+> **Internal operator documentation:** trippi.ai is positioned publicly as a managed cloud SaaS product.
+> Use this runbook only for non-public infrastructure, development, or maintenance deployments.
+
 Install trippi.ai on Unraid via Community Applications or a direct template import.
 
 <!-- TODO: screenshot: Unraid container template settings -->

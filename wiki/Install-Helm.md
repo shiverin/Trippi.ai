@@ -1,5 +1,8 @@
 # Install: Helm
 
+> **Internal operator documentation:** trippi.ai is positioned publicly as a managed cloud SaaS product.
+> Use this runbook only for non-public infrastructure, development, or maintenance deployments.
+
 Deploy trippi.ai on Kubernetes using the official Helm chart.
 
 ## Add the Chart Repository

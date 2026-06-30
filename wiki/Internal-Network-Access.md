@@ -1,5 +1,8 @@
 # Internal Network Access
 
+> **Internal operator documentation:** Hosted trippi.ai network policy is managed by service operators.
+> Use this page when maintaining non-public infrastructure or integrations that require private network access.
+
 trippi.ai makes outbound HTTP requests when you configure integrations such as Immich or Synology Photos. By default, it blocks requests to private and local IP ranges to prevent server-side request forgery (SSRF) attacks. You need to allow internal network access when those services are hosted on your LAN.
 
 ## Default behavior

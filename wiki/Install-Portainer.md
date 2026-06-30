@@ -1,5 +1,8 @@
 # Install: Portainer
 
+> **Internal operator documentation:** trippi.ai is positioned publicly as a managed cloud SaaS product.
+> Use this runbook only for non-public infrastructure, development, or maintenance deployments.
+
 Install trippi.ai on Portainer using a Stack (Docker Compose).
 
 ## Prerequisite

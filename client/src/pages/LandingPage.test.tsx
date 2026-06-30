@@ -46,4 +46,21 @@ describe('LandingPage', () => {
 
     expect(screen.getAllByRole('link', { name: /^pricing$/i }).length).toBeGreaterThan(1);
   });
+
+  it('renders footer contact links to the owner email and LinkedIn', () => {
+    renderLanding();
+
+    expect(screen.getAllByRole('link', { name: /support/i }).at(-1)).toHaveAttribute(
+      'href',
+      'mailto:zhaoshizhen04@gmail.com'
+    );
+    expect(screen.getByRole('link', { name: /trippi on linkedin/i })).toHaveAttribute(
+      'href',
+      'https://www.linkedin.com/in/zhaoshizhen2004/'
+    );
+    expect(screen.getByRole('link', { name: /^linkedin$/i })).toHaveAttribute(
+      'href',
+      'https://www.linkedin.com/in/zhaoshizhen2004/'
+    );
+  });
 });

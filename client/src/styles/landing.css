@@ -78,6 +78,11 @@
   color: #ffffff;
 }
 
+.landing-brand--light .landing-brand__icon {
+  filter: brightness(0) invert(1);
+  opacity: 0.96;
+}
+
 .landing-brand__icon {
   width: 31px;
   height: 31px;

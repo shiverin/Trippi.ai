@@ -240,8 +240,8 @@ export const faqItems: FaqItem[] = [
 
 export const footerLinks: LandingNavItem[] = [
   ...landingNavItems,
-  { label: 'Support', href: 'mailto:support@trippi.ai' },
-  { label: 'GitHub', href: 'https://github.com/shiverin/Trippi.ai' },
+  { label: 'Support', href: 'mailto:zhaoshizhen04@gmail.com' },
+  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/zhaoshizhen2004/' },
 ];
 
 export const heroMetrics = [

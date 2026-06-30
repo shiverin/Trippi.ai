@@ -3,7 +3,7 @@ import {
   Bell,
   ChevronDown,
   Compass,
-  Github,
+  Linkedin,
   Mail,
   Menu,
   Moon,
@@ -376,10 +376,10 @@ function LandingFooter() {
         <Brand light />
         <p>Engineering adventure, one trip at a time.</p>
         <div>
-          <a href="https://github.com/shiverin/Trippi.ai" aria-label="Trippi on GitHub">
-            <Github size={18} />
+          <a href="https://www.linkedin.com/in/zhaoshizhen2004/" aria-label="Trippi on LinkedIn">
+            <Linkedin size={18} />
           </a>
-          <a href="mailto:support@trippi.ai" aria-label="Email Trippi support">
+          <a href="mailto:zhaoshizhen04@gmail.com" aria-label="Email Trippi support">
             <Mail size={18} />
           </a>
         </div>

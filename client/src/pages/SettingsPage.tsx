@@ -1,8 +1,7 @@
-import { Bell, CloudOff, Info, Map, Palette, Plug, Settings, User } from 'lucide-react';
+import { Bell, CloudOff, Map, Palette, Plug, Settings, User } from 'lucide-react';
 import React from 'react';
 import PageShell from '../components/Layout/PageShell';
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar';
-import AboutTab from '../components/Settings/AboutTab';
 import AccountTab from '../components/Settings/AccountTab';
 import DisplaySettingsTab from '../components/Settings/DisplaySettingsTab';
 import IntegrationsTab from '../components/Settings/IntegrationsTab';
@@ -24,7 +23,6 @@ export default function SettingsPage(): React.ReactElement {
     ...(hasIntegrations ? [{ id: 'integrations', label: t('settings.tabs.integrations'), icon: Plug }] : []),
     { id: 'offline', label: t('settings.tabs.offline'), icon: CloudOff },
     { id: 'account', label: t('settings.tabs.account'), icon: User },
-    ...(appVersion ? [{ id: 'about', label: t('settings.tabs.about'), icon: Info }] : []),
   ];
 
   return (
@@ -55,7 +53,6 @@ export default function SettingsPage(): React.ReactElement {
           {activeTab === 'integrations' && hasIntegrations && <IntegrationsTab />}
           {activeTab === 'offline' && <OfflineTab />}
           {activeTab === 'account' && <AccountTab />}
-          {activeTab === 'about' && appVersion && <AboutTab appVersion={appVersion} />}
         </PageSidebar>
       </div>
     </PageShell>

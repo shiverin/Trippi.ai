@@ -27,10 +27,6 @@ vi.mock('../components/Settings/AccountTab', () => ({
   default: () => <div data-testid="account-tab">Account Settings</div>,
 }));
 
-vi.mock('../components/Settings/AboutTab', () => ({
-  default: ({ appVersion }: { appVersion: string }) => <div data-testid="about-tab">About v{appVersion}</div>,
-}));
-
 beforeEach(() => {
   resetAllStores();
   seedStore(useAuthStore, { isAuthenticated: true, user: buildUser() });
@@ -125,8 +121,8 @@ describe('SettingsPage', () => {
     });
   });
 
-  describe('FE-PAGE-SETTINGS-006: About tab shown when version loads', () => {
-    it('About tab appears when app version is returned by API', async () => {
+  describe('FE-PAGE-SETTINGS-006: About tab removed', () => {
+    it('does not show About even when app version is returned by API', async () => {
       const { http, HttpResponse } = await import('msw');
       const { server } = await import('../../tests/helpers/msw/server');
 
@@ -146,8 +142,10 @@ describe('SettingsPage', () => {
       render(<SettingsPage />);
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /about/i })).toBeInTheDocument();
+        expect(screen.getByText('v2.9.10 · cloud SaaS')).toBeInTheDocument();
       });
+      expect(screen.queryByRole('button', { name: /about/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('about-tab')).not.toBeInTheDocument();
     });
 
     it('keeps the version in a cloud SaaS footer when app version is returned by API', async () => {

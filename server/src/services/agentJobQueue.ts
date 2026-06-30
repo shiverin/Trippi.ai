@@ -84,7 +84,7 @@ export interface CancelAgentJobOptions extends FinishAgentJobOptions {
   includeRunning?: boolean;
 }
 
-export interface ArchiveAgentJobOptions extends FinishAgentJobOptions {}
+export type ArchiveAgentJobOptions = FinishAgentJobOptions;
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_STALE_AFTER_MS = 5 * 60 * 1000;

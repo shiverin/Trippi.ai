@@ -125,7 +125,7 @@ function scorePrice(request: TravelSearchRequest, result: TravelSearchResult, st
   const price = result.price;
   const currency = result.currency ?? request.budget?.currency ?? null;
   const lowestPrice = stats.lowestPrice;
-  let score = 90;
+  let score: number;
   const reasons: string[] = [];
 
   if (lowestPrice === null || stats.knownPrices.length === 1 || lowestPrice <= 0) {

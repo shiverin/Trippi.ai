@@ -1,8 +1,10 @@
 import { registerAssignmentTools } from './tools/assignments';
 import { registerAtlasTools } from './tools/atlas';
+import { registerBookingIntentTools } from './tools/bookingIntents';
 import { registerBudgetTools } from './tools/budget';
 import { registerCollabTools } from './tools/collab';
 import { registerDayTools } from './tools/days';
+import { registerDecisionTools } from './tools/decisions';
 import { registerJourneyTools } from './tools/journey';
 import { registerMapsWeatherTools } from './tools/mapsWeather';
 import { registerNotificationTools } from './tools/notifications';
@@ -35,6 +37,8 @@ export function registerTools(
 
     registerReservationTools(server, userId, scopes);
 
+    registerBookingIntentTools(server, userId, scopes);
+
     registerDayTools(server, userId, scopes);
 
     registerAssignmentTools(server, userId, scopes);
@@ -48,6 +52,8 @@ export function registerTools(
     await registerAtlasTools(server, userId, scopes);
 
     await registerCollabTools(server, userId, scopes);
+
+    registerDecisionTools(server, userId, scopes);
 
     registerTransportTools(server, userId, scopes);
 

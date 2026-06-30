@@ -3093,8 +3093,7 @@ function runMigrations(db: Database.Database): void {
       // do not need to behave like pinned map places.
       db.prepare(
         'INSERT INTO categories (name, color, icon) SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = ?)',
-      )
-        .run('Misc', '#64748b', 'FileText', 'Misc');
+      ).run('Misc', '#64748b', 'FileText', 'Misc');
     },
     () => {
       // Rebrand compatibility: some live DBs reached the current schema version
@@ -3164,6 +3163,312 @@ function runMigrations(db: Database.Database): void {
       db.exec(`
         CREATE INDEX IF NOT EXISTS idx_trip_files_storage_key ON trip_files(storage_backend, storage_key);
         CREATE INDEX IF NOT EXISTS idx_trippi_photos_storage_key ON trippi_photos(storage_backend, storage_key);
+      `);
+    },
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS booking_intents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          type TEXT NOT NULL,
+          dates TEXT NOT NULL DEFAULT '{}',
+          origin TEXT,
+          destination TEXT,
+          party_constraints TEXT NOT NULL DEFAULT '{}',
+          budget TEXT NOT NULL DEFAULT '{}',
+          preferences TEXT NOT NULL DEFAULT '{}',
+          status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'pending_checkout', 'booked', 'archived')),
+          checkout_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL,
+          checkout_provider TEXT,
+          checkout_url TEXT,
+          checkout_started_at DATETIME,
+          booked_at DATETIME,
+          reservation_id INTEGER REFERENCES reservations(id) ON DELETE SET NULL,
+          reservation_url TEXT,
+          confirmation_number TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_booking_intents_trip_id ON booking_intents(trip_id);
+        CREATE INDEX IF NOT EXISTS idx_booking_intents_status ON booking_intents(trip_id, status);
+      `);
+    },
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS booking_options (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          booking_intent_id INTEGER NOT NULL REFERENCES booking_intents(id) ON DELETE CASCADE,
+          provider TEXT NOT NULL,
+          external_id TEXT,
+          title TEXT,
+          price REAL,
+          currency TEXT,
+          score REAL,
+          expires_at DATETIME,
+          checkout_url TEXT,
+          metadata TEXT NOT NULL DEFAULT '{}',
+          status TEXT NOT NULL DEFAULT 'current' CHECK(status IN ('current', 'expired', 'archived')),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          archived_at DATETIME
+        );
+        CREATE INDEX IF NOT EXISTS idx_booking_options_intent_id ON booking_options(booking_intent_id);
+        CREATE INDEX IF NOT EXISTS idx_booking_options_status ON booking_options(booking_intent_id, status);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_booking_options_provider_external
+          ON booking_options(booking_intent_id, provider, external_id);
+      `);
+    },
+    () => {
+      // Durable background agent jobs. The optional trip_id lets workers guard
+      // trip-writing jobs against archived/deleted trips, while idempotency_key
+      // dedupes retried enqueue requests without an external queue service.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS agent_jobs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL,
+          payload TEXT NOT NULL DEFAULT '{}',
+          status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled', 'archived')),
+          attempts INTEGER NOT NULL DEFAULT 0,
+          max_attempts INTEGER NOT NULL DEFAULT 3,
+          next_run_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          last_error TEXT,
+          result_metadata TEXT,
+          idempotency_key TEXT,
+          trip_id INTEGER REFERENCES trips(id) ON DELETE CASCADE,
+          locked_by TEXT,
+          locked_at DATETIME,
+          started_at DATETIME,
+          finished_at DATETIME,
+          cancelled_at DATETIME,
+          archived_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          CHECK(attempts >= 0),
+          CHECK(max_attempts >= 1)
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_jobs_idempotency ON agent_jobs(type, idempotency_key);
+        CREATE INDEX IF NOT EXISTS idx_agent_jobs_due ON agent_jobs(status, next_run_at, created_at);
+        CREATE INDEX IF NOT EXISTS idx_agent_jobs_trip ON agent_jobs(trip_id);
+        CREATE INDEX IF NOT EXISTS idx_agent_jobs_locked_at ON agent_jobs(status, locked_at);
+      `);
+    },
+    () => {
+      const columns = new Set(
+        (
+          db.prepare("PRAGMA table_info('booking_intents')").all() as Array<{
+            name: string;
+          }>
+        ).map((column) => column.name),
+      );
+
+      if (!columns.has('watch_status')) {
+        db.exec("ALTER TABLE booking_intents ADD COLUMN watch_status TEXT NOT NULL DEFAULT 'idle'");
+      }
+      if (!columns.has('last_checked_at')) {
+        db.exec('ALTER TABLE booking_intents ADD COLUMN last_checked_at DATETIME');
+      }
+    },
+    // Migration: checkout handoff tracking and pending checkout intent state.
+    // This runs outside the outer migration transaction because the status CHECK
+    // constraint requires a table rebuild and child foreign keys must be paused.
+    {
+      raw: () => {
+        const table = db
+          .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'booking_intents'")
+          .get() as { sql: string } | undefined;
+        if (!table) return;
+
+        const columns = new Set(
+          (
+            db.prepare("PRAGMA table_info('booking_intents')").all() as Array<{
+              name: string;
+            }>
+          ).map((column) => column.name),
+        );
+        const requiredColumns = [
+          'checkout_option_id',
+          'checkout_provider',
+          'checkout_url',
+          'checkout_started_at',
+          'booked_at',
+          'reservation_id',
+          'reservation_url',
+          'confirmation_number',
+        ];
+        const hasPendingCheckoutStatus = table.sql.includes('pending_checkout');
+        const missingColumns = requiredColumns.some((column) => !columns.has(column));
+        if (hasPendingCheckoutStatus && !missingColumns) return;
+
+        const select = (column: string, fallback: string) => (columns.has(column) ? column : fallback);
+
+        db.exec('PRAGMA foreign_keys = OFF');
+        try {
+          db.transaction(() => {
+            db.exec(`
+              CREATE TABLE booking_intents_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+                created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                type TEXT NOT NULL,
+                dates TEXT NOT NULL DEFAULT '{}',
+                origin TEXT,
+                destination TEXT,
+                party_constraints TEXT NOT NULL DEFAULT '{}',
+                budget TEXT NOT NULL DEFAULT '{}',
+                preferences TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'watching', 'options_ready', 'voting', 'approved', 'pending_checkout', 'booked', 'archived')),
+                watch_status TEXT NOT NULL DEFAULT 'idle' CHECK(watch_status IN ('idle', 'queued', 'checking', 'checked', 'failed')),
+                last_checked_at DATETIME,
+                checkout_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL,
+                checkout_provider TEXT,
+                checkout_url TEXT,
+                checkout_started_at DATETIME,
+                booked_at DATETIME,
+                reservation_id INTEGER REFERENCES reservations(id) ON DELETE SET NULL,
+                reservation_url TEXT,
+                confirmation_number TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+              );
+            `);
+            db.exec(`
+              INSERT INTO booking_intents_new (
+                id,
+                trip_id,
+                created_by,
+                type,
+                dates,
+                origin,
+                destination,
+                party_constraints,
+                budget,
+                preferences,
+                status,
+                watch_status,
+                last_checked_at,
+                checkout_option_id,
+                checkout_provider,
+                checkout_url,
+                checkout_started_at,
+                booked_at,
+                reservation_id,
+                reservation_url,
+                confirmation_number,
+                created_at,
+                updated_at
+              )
+              SELECT
+                id,
+                trip_id,
+                created_by,
+                type,
+                dates,
+                origin,
+                destination,
+                party_constraints,
+                budget,
+                preferences,
+                status,
+                ${select('watch_status', "'idle'")},
+                ${select('last_checked_at', 'NULL')},
+                ${select('checkout_option_id', 'NULL')},
+                ${select('checkout_provider', 'NULL')},
+                ${select('checkout_url', 'NULL')},
+                ${select('checkout_started_at', 'NULL')},
+                ${select('booked_at', 'NULL')},
+                ${select('reservation_id', 'NULL')},
+                ${select('reservation_url', 'NULL')},
+                ${select('confirmation_number', 'NULL')},
+                created_at,
+                updated_at
+              FROM booking_intents;
+            `);
+            db.exec('DROP TABLE booking_intents');
+            db.exec('ALTER TABLE booking_intents_new RENAME TO booking_intents');
+            db.exec(`
+              CREATE INDEX IF NOT EXISTS idx_booking_intents_trip_id ON booking_intents(trip_id);
+              CREATE INDEX IF NOT EXISTS idx_booking_intents_status ON booking_intents(trip_id, status);
+            `);
+          })();
+        } finally {
+          db.exec('PRAGMA foreign_keys = ON');
+        }
+      },
+    },
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_decisions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT,
+          deadline TEXT,
+          state TEXT NOT NULL DEFAULT 'open' CHECK(state IN ('open', 'closed', 'decided', 'cancelled')),
+          final_option_id INTEGER REFERENCES group_decision_options(id) ON DELETE SET NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS group_decision_options (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          decision_id INTEGER NOT NULL REFERENCES group_decisions(id) ON DELETE CASCADE,
+          booking_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL,
+          label TEXT NOT NULL,
+          description TEXT,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          metadata TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS group_decision_responses (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          decision_id INTEGER NOT NULL REFERENCES group_decisions(id) ON DELETE CASCADE,
+          option_id INTEGER REFERENCES group_decision_options(id) ON DELETE SET NULL,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          response TEXT NOT NULL DEFAULT 'selected' CHECK(response IN ('selected', 'maybe', 'declined', 'abstain')),
+          comment TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(decision_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS group_decision_links (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          decision_id INTEGER NOT NULL REFERENCES group_decisions(id) ON DELETE CASCADE,
+          target_type TEXT NOT NULL CHECK(target_type IN ('trip', 'day', 'place', 'reservation', 'booking_intent', 'packing_item')),
+          target_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(decision_id, target_type, target_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_group_decisions_trip ON group_decisions(trip_id, state, deadline);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_options_decision ON group_decision_options(decision_id, sort_order);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_options_booking_option ON group_decision_options(booking_option_id);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_responses_decision ON group_decision_responses(decision_id);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_responses_user ON group_decision_responses(user_id);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_links_decision ON group_decision_links(decision_id);
+        CREATE INDEX IF NOT EXISTS idx_group_decision_links_target ON group_decision_links(target_type, target_id);
+      `);
+    },
+    () => {
+      const columns = new Set(
+        (
+          db.prepare("PRAGMA table_info('group_decision_options')").all() as Array<{
+            name: string;
+          }>
+        ).map((column) => column.name),
+      );
+
+      if (!columns.has('booking_option_id')) {
+        db.exec(
+          'ALTER TABLE group_decision_options ADD COLUMN booking_option_id INTEGER REFERENCES booking_options(id) ON DELETE SET NULL',
+        );
+      }
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_group_decision_options_booking_option
+          ON group_decision_options(booking_option_id);
       `);
     },
   ];

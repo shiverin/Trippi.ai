@@ -1,4 +1,4 @@
-import { FolderOpen, Map, PackageCheck, Ticket, Train, Users, Wallet } from 'lucide-react';
+import { ClipboardList, FolderOpen, Map, PackageCheck, Ticket, Train, Users, Wallet } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -7,9 +7,12 @@ import {
   airtrailApi,
   assignmentsApi,
   authApi,
+  decisionsApi,
   healthApi,
   tripsApi,
 } from '../../api/client';
+import { buildTripCommandCenter } from '../../components/CommandCenter/commandCenterModel';
+import type { GroupDecision, GroupDecisionResponseState } from '../../components/Decisions/groupDecisionModel';
 import { useToast } from '../../components/shared/Toast';
 import { offlineDb } from '../../db/offlineDb';
 import { useAirtrailConnection } from '../../hooks/useAirtrailConnection';
@@ -161,6 +164,8 @@ export function useTripPlanner() {
   const [tripAccommodations, setTripAccommodations] = useState<Accommodation[]>([]);
   const [allowedFileTypes, setAllowedFileTypes] = useState<string | null>(null);
   const [tripMembers, setTripMembers] = useState<TripMember[]>([]);
+  const [groupDecisions, setGroupDecisions] = useState<GroupDecision[]>([]);
+  const [groupDecisionBusyId, setGroupDecisionBusyId] = useState<number | null>(null);
 
   const loadAccommodations = useCallback(() => {
     if (tripId) {
@@ -198,6 +203,7 @@ export function useTripPlanner() {
   }, []);
 
   const TRIP_TABS = [
+    { id: 'command', label: 'Command', icon: ClipboardList },
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
     { id: 'transports', label: t('trip.tabs.transports'), icon: Train },
     { id: 'buchungen', label: t('trip.tabs.reservations'), shortLabel: t('trip.tabs.reservationsShort'), icon: Ticket },
@@ -363,12 +369,41 @@ export function useTripPlanner() {
       isRouteKeyVisible(bookingRoutesGlobalShown, hiddenDayRouteIds, shownDayRouteIds, String(dayId)),
     [bookingRoutesGlobalShown, hiddenDayRouteIds, shownDayRouteIds]
   );
+  const isReservationRouteDayVisible = useCallback(
+    (reservation: Reservation) => {
+      const relatedDayIds = new Set<number>();
+      if (reservation.day_id != null) relatedDayIds.add(reservation.day_id);
+      if (reservation.end_day_id != null) relatedDayIds.add(reservation.end_day_id);
+      if (
+        reservation.day_id != null &&
+        reservation.end_day_id != null &&
+        reservation.day_id !== reservation.end_day_id
+      ) {
+        const startIdx = days.findIndex((day) => day.id === reservation.day_id);
+        const endIdx = days.findIndex((day) => day.id === reservation.end_day_id);
+        if (startIdx !== -1 && endIdx !== -1) {
+          const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+          days.slice(from, to + 1).forEach((day) => relatedDayIds.add(day.id));
+        }
+      }
+      return Array.from(relatedDayIds).every((dayId) => isDayRouteVisible(dayId));
+    },
+    [days, isDayRouteVisible]
+  );
   const visibleConnections = useMemo(() => {
     const visibleIds = new Set(
       visibleBookingRouteIds(reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds, shownBookingRouteIds)
     );
-    return reservations.filter((reservation) => visibleIds.has(reservation.id)).map((reservation) => reservation.id);
-  }, [reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds, shownBookingRouteIds]);
+    return reservations
+      .filter((reservation) => visibleIds.has(reservation.id) && isReservationRouteDayVisible(reservation))
+      .map((reservation) => reservation.id);
+  }, [
+    reservations,
+    bookingRoutesGlobalShown,
+    hiddenBookingRouteIds,
+    shownBookingRouteIds,
+    isReservationRouteDayVisible,
+  ]);
   const transportCategoryIds = useMemo(
     () =>
       new Set(
@@ -551,6 +586,86 @@ export function useTripPlanner() {
   }, [tripId]);
 
   useTripWebSocket(tripId);
+
+  useEffect(() => {
+    if (!tripId) {
+      setGroupDecisions([]);
+      return;
+    }
+
+    let cancelled = false;
+    decisionsApi
+      .list(tripId)
+      .then((data) => {
+        if (!cancelled) setGroupDecisions(Array.isArray(data.decisions) ? data.decisions : []);
+      })
+      .catch(() => {
+        if (!cancelled) setGroupDecisions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripId]);
+
+  const replaceGroupDecision = useCallback((decision: GroupDecision) => {
+    setGroupDecisions((prev) =>
+      prev.some((item) => item.id === decision.id)
+        ? prev.map((item) => (item.id === decision.id ? decision : item))
+        : [decision, ...prev]
+    );
+  }, []);
+
+  const handleGroupDecisionRespond = useCallback(
+    async (decisionId: number, optionId: number | null, response: GroupDecisionResponseState) => {
+      if (!tripId) return;
+      setGroupDecisionBusyId(decisionId);
+      try {
+        const result = await decisionsApi.respond(tripId, decisionId, {
+          option_id: optionId,
+          response,
+        });
+        replaceGroupDecision(result.decision);
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : t('common.unknownError'));
+      } finally {
+        setGroupDecisionBusyId(null);
+      }
+    },
+    [tripId, replaceGroupDecision, toast, t]
+  );
+
+  const handleGroupDecisionClose = useCallback(
+    async (decisionId: number) => {
+      if (!tripId) return;
+      setGroupDecisionBusyId(decisionId);
+      try {
+        const result = await decisionsApi.update(tripId, decisionId, { state: 'closed' });
+        replaceGroupDecision(result.decision);
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : t('common.unknownError'));
+      } finally {
+        setGroupDecisionBusyId(null);
+      }
+    },
+    [tripId, replaceGroupDecision, toast, t]
+  );
+
+  const handleGroupDecisionFinalize = useCallback(
+    async (decisionId: number, optionId: number) => {
+      if (!tripId) return;
+      setGroupDecisionBusyId(decisionId);
+      try {
+        const result = await decisionsApi.finalize(tripId, decisionId, optionId);
+        replaceGroupDecision(result.decision);
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : t('common.unknownError'));
+      } finally {
+        setGroupDecisionBusyId(null);
+      }
+    },
+    [tripId, replaceGroupDecision, toast, t]
+  );
 
   const [mapCategoryFilter, setMapCategoryFilter] = useState<Set<string>>(new Set());
   const [mapPlacesFilter, setMapPlacesFilter] = useState<string>('all');
@@ -1105,6 +1220,23 @@ export function useTripPlanner() {
   // Show the splash only while trip data is genuinely loading. Place photos are
   // lazy-loaded by visible avatars, so the planner must not wait on photo work.
   const splashDone = !isLoading && !!trip;
+  const commandCenter = useMemo(
+    () =>
+      trip
+        ? buildTripCommandCenter({
+            trip,
+            days,
+            assignments,
+            reservations,
+            budgetItems,
+            packingItems,
+            todoItems,
+            tripMembers,
+            groupDecisions,
+          })
+        : null,
+    [trip, days, assignments, reservations, budgetItems, packingItems, todoItems, tripMembers, groupDecisions]
+  );
 
   return {
     tripId,
@@ -1141,6 +1273,11 @@ export function useTripPlanner() {
     allowedFileTypes,
     tripMembers,
     setTripMembers,
+    groupDecisions,
+    groupDecisionBusyId,
+    handleGroupDecisionRespond,
+    handleGroupDecisionClose,
+    handleGroupDecisionFinalize,
     loadAccommodations,
     TRANSPORT_TYPES,
     TRIP_TABS,
@@ -1260,5 +1397,6 @@ export function useTripPlanner() {
     defaultZoom,
     fontStyle,
     splashDone,
+    commandCenter,
   };
 }

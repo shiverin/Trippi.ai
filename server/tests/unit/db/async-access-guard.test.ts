@@ -21,13 +21,18 @@ describe('async DB access guardrails', () => {
       'middleware/idempotency.ts',
       'middleware/mfaPolicy.ts',
       'middleware/tripAccess.ts',
+      'services/agentJobQueue.ts',
+      'services/agentJobWorker.ts',
+      'services/bookingPriceWatch.ts',
       'services/tripAccess.ts',
       'websocket.ts',
       'mcp/index.ts',
       'mcp/oauthProvider.ts',
       'mcp/resources.ts',
       'mcp/tools/_shared.ts',
+      'mcp/tools/bookingIntents.ts',
       'mcp/tools/budget.ts',
+      'mcp/tools/decisions.ts',
       'mcp/tools/days.ts',
       'mcp/tools/notifications.ts',
       'mcp/tools/packing.ts',
@@ -51,10 +56,16 @@ describe('async DB access guardrails', () => {
       'nest/system-notices/system-notices.service.ts',
       'nest/files/files-download.controller.ts',
       'nest/addons/addons.service.ts',
+      'nest/booking-intents/booking-intents.controller.ts',
+      'nest/booking-intents/booking-intents.service.ts',
+      'nest/booking-options/booking-options.controller.ts',
+      'nest/booking-options/booking-options.service.ts',
       'nest/categories/categories.controller.ts',
       'nest/categories/categories.service.ts',
       'nest/common/idempotency.interceptor.ts',
       'nest/database/database.service.ts',
+      'nest/decisions/decisions.controller.ts',
+      'nest/decisions/decisions.service.ts',
       'nest/health/health.service.ts',
       'nest/maps/maps.service.ts',
       'nest/platform/platform.routes.ts',
@@ -63,6 +74,13 @@ describe('async DB access guardrails', () => {
       'nest/trips/trips.controller.ts',
       'nest/trips/trips.service.ts',
     ];
+    const bookingCheckoutHandoffEntryPoints = [
+      'nest/booking-intents/booking-intents.controller.ts',
+      'nest/booking-intents/booking-intents.service.ts',
+      'services/bookingPriceWatch.ts',
+    ];
+
+    expect(convertedEntryPoints).toEqual(expect.arrayContaining(bookingCheckoutHandoffEntryPoints));
 
     const offenders = convertedEntryPoints.filter((file) => {
       const source = readFileSync(src(file), 'utf8');

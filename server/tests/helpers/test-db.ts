@@ -36,6 +36,11 @@ const RESET_TABLES = [
   'collab_messages',
   'collab_polls',
   'collab_notes',
+  // Decisions
+  'group_decision_links',
+  'group_decision_responses',
+  'group_decision_options',
+  'group_decisions',
   // Day content
   'day_notes',
   'todo_category_assignees',
@@ -57,6 +62,9 @@ const RESET_TABLES = [
   // Budget
   'budget_item_members',
   'budget_items',
+  // Booking intents
+  'booking_options',
+  'booking_intents',
   // Photos & files
   'trip_photos',
   'trip_album_links',
@@ -71,6 +79,7 @@ const RESET_TABLES = [
   // Trip
   'share_tokens',
   'trip_members',
+  'agent_jobs',
   'trips',
   // Journey
   'journey_share_tokens',

@@ -29,6 +29,7 @@ const FilesPage = lazy(() => import('./pages/FilesPage'));
 const InAppNotificationsPage = lazy(() => import('./pages/InAppNotificationsPage.tsx'));
 const JourneyDetailPage = lazy(() => import('./pages/JourneyDetailPage'));
 const JourneyPage = lazy(() => import('./pages/JourneyPage'));
+const McpConnectPage = lazy(() => import('./pages/McpConnectPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const TripPlannerPage = lazy(() => import('./pages/TripPlannerPage'));
 const VacayPage = lazy(() => import('./pages/VacayPage'));
@@ -319,6 +320,16 @@ export default function App() {
             <ProtectedRoute>
               <DeferredRoute>
                 <SettingsPage />
+              </DeferredRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mcp-connect"
+          element={
+            <ProtectedRoute addonId="mcp">
+              <DeferredRoute>
+                <McpConnectPage />
               </DeferredRoute>
             </ProtectedRoute>
           }

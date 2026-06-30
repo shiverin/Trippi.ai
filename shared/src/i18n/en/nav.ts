@@ -4,6 +4,7 @@ const nav: TranslationStrings = {
   'nav.trip': 'Trip',
   'nav.share': 'Share',
   'nav.settings': 'Settings',
+  'nav.mcpConnect': 'Connect assistant',
   'nav.admin': 'Admin',
   'nav.logout': 'Log out',
   'nav.lightMode': 'Light Mode',

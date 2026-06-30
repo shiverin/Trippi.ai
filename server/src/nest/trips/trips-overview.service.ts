@@ -42,7 +42,7 @@ interface TripRow {
   title: string;
   start_date: string | null;
   end_date: string | null;
-  currency: string;
+  currency: string | null;
 }
 
 interface TodoRow {
@@ -367,29 +367,34 @@ function board(input: Omit<TripOverviewBoard, 'items'> & { items?: TripOverviewI
   return { ...input, items: input.items ?? [] };
 }
 
+function settledValue<T>(result: PromiseSettledResult<T>, fallback: T): T {
+  return result.status === 'fulfilled' ? result.value : fallback;
+}
+
 @Injectable()
 export class TripsOverviewService {
   async getOverview(tripId: string, userId: number, now = new Date()): Promise<TripOverview | null> {
     const access = await canAccessTripAsync(tripId, userId);
     if (!access) return null;
 
+    const trip = await this.getTrip(tripId);
+    if (!trip) return null;
+
     const [
-      trip,
       daysResult,
-      reservations,
-      budgetItems,
-      packingItems,
-      packingBags,
-      packingCategoryAssignees,
-      todoItems,
-      files,
-      decisions,
-      decisionResponseCounts,
-      bookingIntents,
-      tripMemberCount,
-    ] = await Promise.all([
-      this.getTrip(tripId),
-      listDays(tripId),
+      reservationsResult,
+      budgetItemsResult,
+      packingItemsResult,
+      packingBagsResult,
+      packingCategoryAssigneesResult,
+      todoItemsResult,
+      filesResult,
+      decisionsResult,
+      decisionResponseCountsResult,
+      bookingIntentsResult,
+      tripMemberCountResult,
+    ] = await Promise.allSettled([
+      listDays(tripId) as Promise<{ days?: DayWithAssignments[] }>,
       listReservations(tripId) as Promise<Reservation[]>,
       listBudgetItems(tripId) as Promise<BudgetItem[]>,
       listPackingItems(tripId) as Promise<PackingItemForOverview[]>,
@@ -403,9 +408,19 @@ export class TripsOverviewService {
       this.countTripMembers(tripId),
     ]);
 
-    if (!trip) return null;
+    const days = settledValue(daysResult, { days: [] }).days ?? [];
+    const reservations = settledValue(reservationsResult, []);
+    const budgetItems = settledValue(budgetItemsResult, []);
+    const packingItems = settledValue(packingItemsResult, []);
+    const packingBags = settledValue(packingBagsResult, []);
+    const packingCategoryAssignees = settledValue(packingCategoryAssigneesResult, {});
+    const todoItems = settledValue(todoItemsResult, []);
+    const files = settledValue(filesResult, []);
+    const decisions = settledValue(decisionsResult, []);
+    const decisionResponseCounts = settledValue(decisionResponseCountsResult, []);
+    const bookingIntents = settledValue(bookingIntentsResult, []);
+    const tripMemberCount = settledValue(tripMemberCountResult, 1);
 
-    const days = daysResult.days as DayWithAssignments[];
     const openTodos = todoItems.filter(isOpenTodo);
     const decisionTodos = openTodos.filter((todo) => todoCategoryIs(todo, ['decision', 'decisions']));
     const bookingTodos = openTodos.filter((todo) => todoCategoryIs(todo, ['booking', 'bookings']));
@@ -718,7 +733,7 @@ export class TripsOverviewService {
         title: trip.title,
         start_date: trip.start_date,
         end_date: trip.end_date,
-        currency: trip.currency,
+        currency: (trip.currency || 'USD').toUpperCase(),
       },
       summary: {
         phase,

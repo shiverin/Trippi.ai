@@ -21,6 +21,7 @@ import type {
 import { useToast } from '../../components/shared/Toast';
 import { offlineDb } from '../../db/offlineDb';
 import { useAirtrailConnection } from '../../hooks/useAirtrailConnection';
+import { useEntitlements } from '../../hooks/useEntitlements';
 import { usePlaceSelection } from '../../hooks/usePlaceSelection';
 import { usePlannerHistory } from '../../hooks/usePlannerHistory';
 import { useResizablePanels } from '../../hooks/useResizablePanels';
@@ -173,6 +174,8 @@ export function useTripPlanner() {
   const [groupDecisionBusyId, setGroupDecisionBusyId] = useState<number | null>(null);
   const [linkedDecisionContext, setLinkedDecisionContext] = useState<GroupDecisionCreateContext | null>(null);
   const [groupDecisionCreateBusy, setGroupDecisionCreateBusy] = useState(false);
+  const entitlementState = useEntitlements();
+  const overviewUnlocked = !!entitlementState.entitlements?.planKey && entitlementState.entitlements.planKey !== 'free';
 
   const loadAccommodations = useCallback(() => {
     if (tripId) {
@@ -210,7 +213,7 @@ export function useTripPlanner() {
   }, []);
 
   const TRIP_TABS = [
-    { id: 'command', label: t('trip.tabs.overview'), icon: ClipboardList },
+    ...(overviewUnlocked ? [{ id: 'command', label: t('trip.tabs.overview'), icon: ClipboardList }] : []),
     { id: 'plan', label: t('trip.tabs.plan'), icon: Map },
     { id: 'transports', label: t('trip.tabs.transports'), icon: Train },
     { id: 'buchungen', label: t('trip.tabs.reservations'), shortLabel: t('trip.tabs.reservationsShort'), icon: Ticket },
@@ -233,7 +236,7 @@ export function useTripPlanner() {
       setActiveTab('plan');
       sessionStorage.setItem(`trip-tab-${tripId}`, 'plan');
     }
-  }, [enabledAddons]);
+  }, [enabledAddons, overviewUnlocked, activeTab, tripId]);
 
   const handleTabChange = (tabId: string): void => {
     setActiveTab(tabId);
@@ -241,12 +244,12 @@ export function useTripPlanner() {
     if (tabId === 'finanzplan') tripActions.loadBudgetItems?.(tripId);
     if (tabId === 'dateien' && (!files || files.length === 0)) tripActions.loadFiles?.(tripId);
   };
-  const commandTabActive = activeTab === 'command';
+  const commandTabActive = overviewUnlocked && activeTab === 'command';
   const [tripOverview, setTripOverview] = useState<TripOverview | null>(null);
   const [tripOverviewLoading, setTripOverviewLoading] = useState(false);
   const [tripOverviewError, setTripOverviewError] = useState<string | null>(null);
   const loadTripOverview = useCallback(async () => {
-    if (!tripId || Number.isNaN(tripId)) return;
+    if (!overviewUnlocked || !tripId || Number.isNaN(tripId)) return;
     setTripOverviewLoading(true);
     setTripOverviewError(null);
     try {
@@ -258,7 +261,7 @@ export function useTripPlanner() {
     } finally {
       setTripOverviewLoading(false);
     }
-  }, [tripId, t]);
+  }, [overviewUnlocked, tripId, t]);
 
   useEffect(() => {
     setTripOverview(null);

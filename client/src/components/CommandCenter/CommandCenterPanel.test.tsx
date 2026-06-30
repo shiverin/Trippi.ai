@@ -122,6 +122,60 @@ function buildOverview(): TripOverview {
   };
 }
 
+function buildEmptyOverview(): TripOverview {
+  return {
+    generated_at: '2026-06-30T12:00:00.000Z',
+    trip: {
+      id: 809,
+      title: 'Blank Trip',
+      start_date: null,
+      end_date: null,
+      currency: 'USD',
+    },
+    summary: {
+      phase: 'unscheduled',
+      subtitle: 'Trip setup',
+      trip_date_label: 'Dates not set',
+      trip_length_label: 'No days yet',
+      traveler_label: '1 traveler',
+      next_deadline_label: 'No deadlines',
+      flagged_count: 0,
+      clear_count: 1,
+    },
+    readiness: {
+      title: 'Trip readiness checklist',
+      summary: '2/5 checks ready',
+      status: 'attention',
+      completed_count: 2,
+      total_count: 5,
+      caveat: 'Document follow-ups use explicit document tasks and files linked to reservations.',
+      items: [
+        {
+          id: 'decisions',
+          title: 'Resolve group decisions',
+          summary: 'No unresolved decisions',
+          status: 'good',
+          count: 0,
+          action: 'decisions',
+          action_label: 'Review decisions',
+        },
+      ],
+    },
+    boards: [
+      {
+        id: 'decisions',
+        title: 'Pending decisions',
+        summary: 'No open decisions',
+        status: 'empty',
+        count: 0,
+        action: 'decisions',
+        action_label: 'Add decision',
+        items: [],
+      },
+    ],
+  };
+}
+
 describe('CommandCenterPanel overview rendering', () => {
   it('renders backend overview boards and reusable group decisions', () => {
     const decision = buildDecision();
@@ -145,5 +199,18 @@ describe('CommandCenterPanel overview rendering', () => {
     expect(decisionList.getByText('Approve the Fado night plan')).toBeInTheDocument();
     expect(decisionList.getByText('Closed')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Finalize Book Clube de Fado' })).toBeInTheDocument();
+  });
+
+  it('shows a simple empty prompt for a blank trip instead of empty boards', () => {
+    const onNavigate = vi.fn();
+
+    render(<CommandCenterPanel center={buildEmptyOverview()} onNavigate={onNavigate} decisions={[]} />);
+
+    expect(screen.getByText('Blank Trip overview')).toBeInTheDocument();
+    expect(screen.getByText('This looks empty. Plan something?')).toBeInTheDocument();
+    expect(screen.queryByText('Trip readiness checklist')).not.toBeInTheDocument();
+
+    screen.getByRole('button', { name: /Open plan/i }).click();
+    expect(onNavigate).toHaveBeenCalledWith('plan');
   });
 });

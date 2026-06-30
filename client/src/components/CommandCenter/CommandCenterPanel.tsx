@@ -243,6 +243,30 @@ function ReadinessChecklistCard({ center, onNavigate }: CommandCenterPanelProps)
   );
 }
 
+function OverviewEmptyState({ onNavigate }: { onNavigate: (action: CommandCenterAction) => void }) {
+  return (
+    <section className="mt-5 flex min-h-[300px] items-center justify-center rounded-lg border border-dashed border-edge-secondary bg-surface-card px-6 py-12 text-center shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+      <div className="max-w-md">
+        <div className="mx-auto mb-4 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-surface-tertiary text-content-muted">
+          <ClipboardList size={20} strokeWidth={2.3} />
+        </div>
+        <h2 className="text-xl font-semibold text-content">This looks empty. Plan something?</h2>
+        <p className="mt-2 text-sm leading-6 text-content-muted">
+          Add dates, stops, bookings, files, or tasks and Overview will start showing live trip follow-ups.
+        </p>
+        <button
+          type="button"
+          onClick={() => onNavigate('plan')}
+          className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-text hover:opacity-90"
+        >
+          Open plan
+          <ArrowRight size={14} strokeWidth={2.4} />
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function CommandCenterPanel({
   center,
   onNavigate,
@@ -256,6 +280,9 @@ export default function CommandCenterPanel({
   onDecisionFinalize,
 }: CommandCenterPanelProps) {
   const { summary } = center;
+  const isEmptyOverview =
+    center.boards.every((module) => module.count === 0 && module.items.length === 0) &&
+    center.readiness.items.every((item) => item.count === 0);
 
   return (
     <div className="h-full overflow-y-auto overscroll-contain bg-surface-secondary pb-[var(--bottom-nav-h)]">
@@ -329,13 +356,19 @@ export default function CommandCenterPanel({
           </section>
         )}
 
-        <ReadinessChecklistCard center={center} onNavigate={onNavigate} />
+        {isEmptyOverview ? (
+          <OverviewEmptyState onNavigate={onNavigate} />
+        ) : (
+          <>
+            <ReadinessChecklistCard center={center} onNavigate={onNavigate} />
 
-        <section className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {center.boards.map((module) => (
-            <CommandCenterModuleCard key={module.id} module={module} onNavigate={onNavigate} />
-          ))}
-        </section>
+            <section className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {center.boards.map((module) => (
+                <CommandCenterModuleCard key={module.id} module={module} onNavigate={onNavigate} />
+              ))}
+            </section>
+          </>
+        )}
       </div>
     </div>
   );

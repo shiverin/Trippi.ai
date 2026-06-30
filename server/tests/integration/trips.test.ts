@@ -1053,7 +1053,7 @@ describe('Trip overview', () => {
   });
 
   it('OVERVIEW-002 — returns a schema-compatible empty trip overview', async () => {
-    const { user } = createUser(testDb);
+    const { user } = createAdmin(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Empty Trip' });
 
     const res = await request(app).get(`/api/trips/${trip.id}/overview`).set('Cookie', authCookie(user.id));
@@ -1065,9 +1065,19 @@ describe('Trip overview', () => {
     expect(parsed.overview.boards.find((board) => board.id === 'bookings')?.count).toBe(0);
   });
 
+  it('OVERVIEW-002b — blocks free-plan users from the premium overview', async () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id, { title: 'Free Trip' });
+
+    const res = await request(app).get(`/api/trips/${trip.id}/overview`).set('Cookie', authCookie(user.id));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Overview requires Pro or higher');
+  });
+
   it('OVERVIEW-003 — builds boards from explicit backend sources without keyword-only inflation', async () => {
     const { user: owner } = createUser(testDb);
-    const { user: member } = createUser(testDb);
+    const { user: member } = createAdmin(testDb);
     const trip = createTrip(testDb, owner.id, {
       title: 'China Trip',
       start_date: '2026-12-07',

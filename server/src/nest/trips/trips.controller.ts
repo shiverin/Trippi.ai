@@ -1,6 +1,6 @@
 import { writeAudit, getClientIp, logInfo } from '../../services/auditLog';
 import { isDemoEmail } from '../../services/demo';
-import { EntitlementLimitError } from '../../services/entitlementService';
+import { EntitlementLimitError, getEntitlementsForUser } from '../../services/entitlementService';
 import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
 import { NotFoundError, ValidationError } from '../../services/tripService';
 import { assertImageUpload } from '../../services/uploadValidation';
@@ -145,6 +145,10 @@ export class TripsController {
     const overview = await this.tripOverview.getOverview(id, user.id);
     if (!overview) {
       throw new HttpException({ error: 'Trip not found' }, 404);
+    }
+    const entitlements = await getEntitlementsForUser(user.id);
+    if (entitlements.planKey === 'free') {
+      throw new HttpException({ error: 'Overview requires Pro or higher' }, 403);
     }
     return { overview };
   }

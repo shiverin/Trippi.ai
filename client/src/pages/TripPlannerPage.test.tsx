@@ -282,6 +282,28 @@ function buildGroupDecision(overrides: Partial<GroupDecision> = {}): GroupDecisi
   };
 }
 
+function entitlementResponse(planKey: 'free' | 'pro' | 'agency' = 'pro') {
+  const premium = planKey !== 'free';
+  return {
+    entitlements: {
+      userId: 1,
+      planKey,
+      billingPlanKey: planKey,
+      billingStatus: premium ? 'active' : 'free',
+      subscribed: premium,
+      trialing: false,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: premium ? 100 : 5,
+        groupSize: premium ? null : 1,
+      },
+    },
+    billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false },
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   resetAllStores();
@@ -589,6 +611,7 @@ describe('TripPlannerPage', () => {
   describe('FE-PAGE-PLANNER-014A: Overview tab renders backend overview', () => {
     it('shows backend overview boards after clicking Overview', async () => {
       server.use(
+        http.get('/api/billing/entitlements', () => HttpResponse.json(entitlementResponse('pro'))),
         http.get('/api/addons', () =>
           HttpResponse.json({
             addons: [
@@ -859,6 +882,7 @@ describe('TripPlannerPage', () => {
 
     it('shows a retry state when the overview endpoint fails', async () => {
       server.use(
+        http.get('/api/billing/entitlements', () => HttpResponse.json(entitlementResponse('pro'))),
         http.get('/api/addons', () => HttpResponse.json({ addons: [{ id: 'documents', type: 'documents' }] })),
         http.get('/api/trips/:id/overview', () => HttpResponse.json({ error: 'Nope' }, { status: 500 }))
       );
@@ -884,6 +908,27 @@ describe('TripPlannerPage', () => {
         expect(screen.getByText('Overview unavailable')).toBeInTheDocument();
       });
       expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
+    });
+
+    it('does not show Overview for free-plan users', async () => {
+      server.use(http.get('/api/billing/entitlements', () => HttpResponse.json(entitlementResponse('free'))));
+
+      vi.useFakeTimers();
+
+      const tripId = 810;
+      sessionStorage.removeItem(`trip-tab-${tripId}`);
+      seedTripStore({ id: tripId, tripName: 'Free Crew' });
+
+      renderPlannerPage(tripId);
+
+      act(() => {
+        vi.runAllTimers();
+      });
+
+      vi.useRealTimers();
+
+      await screen.findByTitle('Plan');
+      expect(screen.queryByTitle('Overview')).not.toBeInTheDocument();
     });
   });
 

@@ -1,0 +1,195 @@
+import { BillingError, BillingService } from '../../../src/nest/billing/billing.service';
+import type { StripeClient } from '../../../src/nest/billing/stripe-client';
+import { StripeRequestError } from '../../../src/nest/billing/stripe-client';
+import type { BillingCustomer } from '../../../src/services/subscriptionService';
+import type { User } from '../../../src/types';
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { getBillingCustomerForUserMock } = vi.hoisted(() => ({
+  getBillingCustomerForUserMock: vi.fn(),
+}));
+
+vi.mock('../../../src/services/subscriptionService', () => ({
+  getBillingCustomerForUser: getBillingCustomerForUserMock,
+}));
+
+const user = { id: 7, email: 'organizer@example.test', role: 'user' } as User;
+
+async function withEnv<T>(env: NodeJS.ProcessEnv, fn: () => T | Promise<T>): Promise<T> {
+  const original = { ...process.env };
+  process.env = { ...original, ...env };
+  try {
+    return await fn();
+  } finally {
+    process.env = original;
+  }
+}
+
+function service(stripe: Partial<StripeClient>): BillingService {
+  return new BillingService(stripe as StripeClient);
+}
+
+async function billingError(fn: () => Promise<unknown>): Promise<{ status: number; message: string }> {
+  try {
+    await fn();
+  } catch (err) {
+    expect(err).toBeInstanceOf(BillingError);
+    const billing = err as BillingError;
+    return { status: billing.status, message: billing.message };
+  }
+  throw new Error('expected BillingError');
+}
+
+describe('BillingService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getBillingCustomerForUserMock.mockResolvedValue(undefined);
+  });
+
+  it('creates a hosted subscription checkout session for an allowlisted organizer plan', async () => {
+    const createCheckoutSession = vi
+      .fn()
+      .mockResolvedValue({ id: 'cs_test_123', url: 'https://checkout.stripe.test/cs' });
+    const result = await withEnv(
+      {
+        APP_URL: 'https://app.example.test',
+        STRIPE_SECRET_KEY: 'sk_test_123',
+        STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+      },
+      () => service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'pro' }),
+    );
+
+    expect(result).toEqual({ url: 'https://checkout.stripe.test/cs' });
+    expect(createCheckoutSession).toHaveBeenCalledTimes(1);
+    const params = createCheckoutSession.mock.calls[0][0] as URLSearchParams;
+    expect(params.get('mode')).toBe('subscription');
+    expect(params.get('line_items[0][price]')).toBe('price_pro_monthly');
+    expect(params.get('line_items[0][quantity]')).toBe('1');
+    expect(params.get('success_url')).toBe('https://app.example.test/billing/success?session_id={CHECKOUT_SESSION_ID}');
+    expect(params.get('cancel_url')).toBe('https://app.example.test/billing');
+    expect(params.get('client_reference_id')).toBe('7');
+    expect(params.get('metadata[plan_id]')).toBe('pro');
+    expect(params.get('subscription_data[metadata][user_id]')).toBe('7');
+    expect(params.get('customer_email')).toBe('organizer@example.test');
+    expect(params.get('customer')).toBeNull();
+  });
+
+  it('reuses an existing Stripe customer for checkout', async () => {
+    getBillingCustomerForUserMock.mockResolvedValue({
+      stripe_customer_id: 'cus_existing',
+    } as BillingCustomer);
+    const createCheckoutSession = vi
+      .fn()
+      .mockResolvedValue({ id: 'cs_test_123', url: 'https://checkout.stripe.test/cs' });
+
+    await withEnv(
+      {
+        APP_URL: 'https://app.example.test',
+        STRIPE_SECRET_KEY: 'sk_test_123',
+        STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+      },
+      () => service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'pro' }),
+    );
+
+    const params = createCheckoutSession.mock.calls[0][0] as URLSearchParams;
+    expect(params.get('customer')).toBe('cus_existing');
+    expect(params.get('customer_email')).toBeNull();
+  });
+
+  it('does not call Stripe for unknown plans or unsafe redirect URLs', async () => {
+    const createCheckoutSession = vi.fn();
+    const env = {
+      APP_URL: 'https://app.example.test',
+      STRIPE_SECRET_KEY: 'sk_test_123',
+      STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+    };
+
+    await expect(
+      withEnv(env, () =>
+        billingError(() => service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'bad' })),
+      ),
+    ).resolves.toEqual({ status: 400, message: 'Choose a valid billing plan.' });
+    await expect(
+      withEnv(env, () =>
+        billingError(() =>
+          service({ createCheckoutSession }).createCheckoutSession(user, {
+            planId: 'pro',
+            successUrl: 'https://evil.example.test/success',
+          }),
+        ),
+      ),
+    ).resolves.toEqual({ status: 400, message: 'Invalid return URL.' });
+    expect(createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('returns a friendly checkout error when Stripe rejects the request', async () => {
+    const createCheckoutSession = vi.fn().mockRejectedValue(new StripeRequestError('nope', 400));
+
+    await expect(
+      withEnv(
+        {
+          APP_URL: 'https://app.example.test',
+          STRIPE_SECRET_KEY: 'sk_test_123',
+          STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+        },
+        () => billingError(() => service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'pro' })),
+      ),
+    ).resolves.toEqual({ status: 502, message: 'Billing is temporarily unavailable. Please try again later.' });
+  });
+
+  it('creates a billing portal session for an existing customer', async () => {
+    getBillingCustomerForUserMock.mockResolvedValue({
+      stripe_customer_id: 'cus_existing',
+    } as BillingCustomer);
+    const createBillingPortalSession = vi
+      .fn()
+      .mockResolvedValue({ id: 'bps_test_123', url: 'https://billing.stripe.test/session' });
+
+    const result = await withEnv(
+      {
+        APP_URL: 'https://app.example.test',
+        STRIPE_SECRET_KEY: 'sk_test_123',
+        STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+      },
+      () => service({ createBillingPortalSession }).createPortalSession(user, { returnUrl: '/account/billing' }),
+    );
+
+    expect(result).toEqual({ url: 'https://billing.stripe.test/session' });
+    const params = createBillingPortalSession.mock.calls[0][0] as URLSearchParams;
+    expect(params.get('customer')).toBe('cus_existing');
+    expect(params.get('return_url')).toBe('https://app.example.test/account/billing');
+  });
+
+  it('requires an existing billing customer before creating a portal session', async () => {
+    const createBillingPortalSession = vi.fn();
+
+    await expect(
+      withEnv(
+        {
+          APP_URL: 'https://app.example.test',
+          STRIPE_SECRET_KEY: 'sk_test_123',
+          STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+        },
+        () => billingError(() => service({ createBillingPortalSession }).createPortalSession(user, {})),
+      ),
+    ).resolves.toEqual({ status: 400, message: 'No billing customer found for this account.' });
+    expect(createBillingPortalSession).not.toHaveBeenCalled();
+  });
+
+  it('reports a configuration error when Stripe secrets are missing', async () => {
+    await expect(
+      withEnv(
+        {
+          APP_URL: 'https://app.example.test',
+          STRIPE_SECRET_KEY: '',
+          STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+        },
+        () =>
+          billingError(() =>
+            service({ createCheckoutSession: vi.fn() }).createCheckoutSession(user, { planId: 'pro' }),
+          ),
+      ),
+    ).resolves.toEqual({ status: 503, message: 'Billing is not configured.' });
+  });
+});

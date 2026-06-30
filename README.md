@@ -8,27 +8,30 @@
 
 <br />
 
-<p><strong>Your trippi, our troppi.</strong></p>
-
-<p>Planning a trip should be exciting &mdash; not annoying.</p>
+<p><strong>Cloud group travel planning, built for collaboration and AI.</strong></p>
 
 <p>
-  <a href="https://trippi.ai/">trippi.ai</a> helps you turn messy travel ideas into a clear, organized itinerary.
-  No more jumping between maps, notes, booking emails, spreadsheets, and group chats.
+  <a href="https://trippi.ai/">trippi.ai</a> is a hosted travel workspace for friends, families, and teams who want
+  one shared place to turn ideas into itineraries, maps, budgets, reservations, and decisions.
 </p>
 
 <p>
-  Build your adventure in one place: interactive maps,
-  drag-and-drop itineraries, route planning, budgets, reservations, and everything else that keeps your trip on track.
+  No more jumping between maps, notes, booking emails, spreadsheets, and group chats. Plan together in real time
+  with interactive maps, drag-and-drop itineraries, route planning, polls, shared documents, expense tracking, and
+  trip history that stays organized as plans change.
 </p>
 
 <p>
-  Connect with AI agents like ChatGPT, Claude, and Gemini,
-  so they can help plan your trip with you. Simply tell it where you want to go, what kind of experience you want, and let it
-  handle the rest.
+  Connect AI assistants through trippi.ai's OAuth-secured MCP layer, so ChatGPT, Claude, Gemini, and future agent
+  workflows can research options, update trips, and automate travel admin with your permission.
 </p>
 
-<p>Say goodbye to chaotic trip planning.<br />Say hello to your trippi.</p>
+<p>
+  trippi.ai's direction is cloud-first: collaborative trips, AI-assisted planning, and subscription plans for hosted
+  storage, premium automation, and shared workspaces.
+</p>
+
+<p>From first idea to final boarding pass, keep the whole trip in one place.</p>
 
 <br />
 
@@ -73,11 +76,11 @@
 
 - **Drag & drop planner** — organise places into day plans with reordering and cross-day moves
 - **Interactive map** — Leaflet or Mapbox GL with 3D buildings, terrain, photo markers, clustering, route visualization
-- **Place search** — Google Places (photos, ratings, hours) or OpenStreetMap (free, no API key)
+- **Place search** — Google Places with photos, ratings, and hours, plus OpenStreetMap coverage
 - **Place import** — shared Google Maps / Naver Maps lists, plus GPX and KML/KMZ/GeoJSON map files
 - **Day notes** — timestamped, icon-tagged notes with drag-and-drop reordering
 - **Route optimisation** — auto-sort places and export to Google Maps
-- **Weather forecasts** — 16-day via Open-Meteo (no key) + historical climate fallback
+- **Weather forecasts** — 16-day forecasts via Open-Meteo + historical climate fallback
 - **Category filter** — show only matching pins on the map
 
 </td>
@@ -99,12 +102,12 @@
 
 #### 👥 Collaboration
 
-- **Real-time sync** — WebSocket. Changes appear instantly across all connected users
+- **Real-time sync** — changes appear instantly across all connected trip members
 - **Multi-user trips** — invite members with role-based access
 - **Invite links** — one-time or reusable links with expiry
-- **SSO (OIDC)** — Google, Apple, Authentik, Keycloak, or any OIDC provider
+- **SSO (OIDC)** — Google, Apple, and workspace identity providers
 - **2FA** — TOTP + backup codes
-- **Passkeys** — passwordless WebAuthn login (fingerprint / face / PIN / security key), admin-toggleable
+- **Passkeys** — passwordless WebAuthn login (fingerprint / face / PIN / security key), workspace-configurable
 - **Collab suite** — group chat, shared notes, polls, day check-ins
 
 </td>
@@ -112,7 +115,7 @@
 
 #### 📱 Mobile & PWA
 
-- **Installable** — iOS and Android, straight from the browser, no App Store needed
+- **Installable** — iOS and Android, straight from the browser
 - **Offline support** — Service Worker caches tiles, API, uploads via Workbox
 - **Native feel** — fullscreen standalone, themed status bar, splash screen
 - **Touch optimised** — mobile-specific layouts with safe-area handling
@@ -122,7 +125,7 @@
 <tr>
 <td width="50%" valign="top">
 
-#### 🧩 Addons (admin-toggleable)
+#### 🧩 Workspace modules
 
 - **Lists** — packing lists + to-dos with templates, member assignments, optional bag tracking
 - **Costs** — expense tracker with splits and settle-up (who owes whom), multi-currency
@@ -130,33 +133,33 @@
 - **Collab** — chat, notes, polls, day-by-day attendance
 - **Vacay** — personal vacation planner with calendar, 100+ country holidays, carry-over tracking
 - **Atlas** — world map of visited countries, bucket list, travel stats, streak tracking, liquid-glass UI
-- **Journey** — magazine-style travel journal with entries, photos (Immich/Synology), maps, moods
-- **AirTrail** — connect a self-hosted AirTrail instance to import and sync flights into reservations
-- **MCP** — expose trippi.ai to AI assistants via OAuth 2.1
+- **Journey** — magazine-style travel journal with entries, connected photos, maps, moods
+- **AirTrail** — connect AirTrail flight data to import and sync flights into reservations
+- **MCP** — connect trippi.ai to AI assistants via OAuth 2.1
 
 </td>
 <td width="50%" valign="top">
 
 #### 🤖 AI / MCP
 
-- **Built-in MCP server** — OAuth 2.1 authenticated. 150+ tools, 30 resources
+- **OAuth-secured MCP layer** — 150+ tools, 30 resources
 - **Granular scopes** — 27 OAuth scopes across 13 permission groups
 - **Full automation** — AI can create trips, plan days, build packing lists, manage budgets, mark countries visited
 - **Pre-built prompts** — `trip-summary`, `packing-list`, `budget-overview`
-- **Addon-aware** — exposes Atlas, Collab, Vacay when those addons are on
+- **Module-aware** — exposes Atlas, Collab, Vacay when those modules are on
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top">
 
-#### ⚙️ Admin & customisation
+#### ⚙️ Workspace admin & customisation
 
 - **Dashboard views** — card grid or compact list · **Dark mode** — full theme with matching status bar
 - **20 languages** — EN, DE, ES, FR, IT, NL, HU, RU, ZH, ZH-TW, PL, CS, AR (RTL), BR, ID, TR, JA, KO, UK, GR
-- **Admin panel** — users, invites, packing templates, categories, addons, API keys, backups, GitHub history
+- **Admin panel** — users, invites, packing templates, categories, modules, and workspace settings
 - **Notifications** — per-user preferences across email (SMTP), webhook, ntfy, and an in-app notification center
-- **Auto-backups** — scheduled with configurable retention · **Units** — °C/°F, 12h/24h, map tile sources, default coordinates
+- **Data controls** — export and backup workflows with retention policies · **Units** — °C/°F, 12h/24h, map tile sources, default coordinates
 
 </td>
 </tr>
@@ -168,4 +171,4 @@
 
 ## License
 
-trippi.ai is [AGPL v3](LICENSE). Self-host freely for personal or internal company use. If you modify and offer trippi.ai as a network service to third parties, your modifications must be open-sourced under the same licence.
+trippi.ai is licensed under [AGPL v3](LICENSE). See the license file for the complete terms.

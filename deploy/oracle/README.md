@@ -109,8 +109,8 @@ existing local uploads into the bucket:
 
 ```bash
 cd /opt/trippi/app
-sudo docker compose --env-file deploy/oracle/.env -f deploy/oracle/docker-compose.yml exec app \
-  node --require tsconfig-paths/register dist/scripts/mediaBackfill.js --apply
+sudo docker compose --env-file deploy/oracle/.env -f deploy/oracle/docker-compose.yml exec -u node app \
+  sh -lc 'cd /app/server && node --require tsconfig-paths/register dist/scripts/mediaBackfill.js --apply'
 ```
 
 The command writes a manifest to `/opt/trippi/data/media-backfill-*.json`.

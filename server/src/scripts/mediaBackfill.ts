@@ -60,6 +60,19 @@ function addUnique(refs: MediaRef[], seen: Set<string>, ref: MediaRef | null): v
   refs.push(ref);
 }
 
+async function optionalAll<T>(label: string, sql: string): Promise<T[]> {
+  try {
+    return await asyncDb.prepare(sql).all<T>();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (/ORA-00942|no such table|no such column|ORA-00904/i.test(message)) {
+      console.warn(`[media-backfill] skipping ${label}: ${message.split('\n')[0]}`);
+      return [];
+    }
+    throw err;
+  }
+}
+
 async function scanRefs(uploadsRoot: string): Promise<MediaRef[]> {
   const refs: MediaRef[] = [];
   const seen = new Set<string>();
@@ -95,9 +108,10 @@ async function scanRefs(uploadsRoot: string): Promise<MediaRef[]> {
     }
   }
 
-  for (const row of await asyncDb
-    .prepare("SELECT id, cover_image FROM journeys WHERE cover_image IS NOT NULL AND cover_image != ''")
-    .all<{ id: number; cover_image: string }>()) {
+  for (const row of await optionalAll<{ id: number; cover_image: string }>(
+    'journey covers',
+    "SELECT id, cover_image FROM journeys WHERE cover_image IS NOT NULL AND cover_image != ''",
+  )) {
     const key =
       uploadUrlToMediaKey(row.cover_image) || (row.cover_image.startsWith('journey/') ? row.cover_image : null);
     if (key?.startsWith('journey/')) {
@@ -111,15 +125,19 @@ async function scanRefs(uploadsRoot: string): Promise<MediaRef[]> {
     }
   }
 
-  for (const row of await asyncDb
-    .prepare(
-      `
+  for (const row of await optionalAll<{
+    id: number;
+    filename: string;
+    original_name?: string | null;
+    storage_key?: string | null;
+  }>(
+    'trip files',
+    `
       SELECT id, filename, original_name, storage_key
       FROM trip_files
       WHERE filename IS NOT NULL AND filename != ''
     `,
-    )
-    .all<{ id: number; filename: string; original_name?: string | null; storage_key?: string | null }>()) {
+  )) {
     const key = row.storage_key || tripFileLegacyKey(row.filename);
     addUnique(refs, seen, {
       kind: 'trip_file',
@@ -132,15 +150,14 @@ async function scanRefs(uploadsRoot: string): Promise<MediaRef[]> {
     });
   }
 
-  for (const row of await asyncDb
-    .prepare(
-      `
+  for (const row of await optionalAll<{ id: number; file_path: string; storage_key?: string | null }>(
+    'trippi photos',
+    `
       SELECT id, file_path, storage_key
       FROM trippi_photos
       WHERE provider = 'local' AND file_path IS NOT NULL AND file_path != ''
     `,
-    )
-    .all<{ id: number; file_path: string; storage_key?: string | null }>()) {
+  )) {
     const key = row.storage_key || row.file_path;
     addUnique(refs, seen, {
       kind: 'trippi_photo',

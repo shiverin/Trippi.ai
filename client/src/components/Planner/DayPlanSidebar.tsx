@@ -196,6 +196,10 @@ function isLikelySameCity(from: RouteWaypointMeta, to: RouteWaypointMeta, distan
 
 type RouteWaypointMeta = { address?: string | null };
 
+function isTransportCategory(category?: Category | null): boolean {
+  return category?.name?.trim().toLowerCase() === 'transport';
+}
+
 /**
  * Day-plan state + behaviour: expand/collapse, inline title edit, route legs +
  * optimisation, day notes, and the drag-and-drop reorder/move machinery across
@@ -291,6 +295,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
   const [isCalculating, setIsCalculating] = useState(false);
   const [routeInfo, setRouteInfo] = useState(null);
   const [routeLegs, setRouteLegs] = useState<Record<number, RouteConnectorItem[]>>({});
+  const [hiddenAssignmentRouteIds, setHiddenAssignmentRouteIds] = useState<Set<number>>(() => new Set());
   const [hotelLegs, setHotelLegs] = useState<{
     top?: { seg: RouteSegment; name: string };
     bottom?: { seg: RouteSegment; name: string };
@@ -569,11 +574,13 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
       kind: 'place' | 'transport';
       name?: string;
       address?: string | null;
+      isTransportPlace?: boolean;
     };
     const runs: RouteWaypoint[][] = [];
     let cur: RouteWaypoint[] = [];
     for (const it of merged) {
       if (it.type === 'place' && it.data.place?.lat && it.data.place?.lng) {
+        const category = categories.find((c) => c.id === it.data.place.category_id);
         cur.push({
           id: it.data.id,
           lat: it.data.place.lat,
@@ -581,6 +588,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
           kind: 'place',
           name: it.data.place.name,
           address: it.data.place.address,
+          isTransportPlace: isTransportCategory(category),
         });
       } else if (it.type === 'transport') {
         const r = it.data;
@@ -656,6 +664,13 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
               addLeg(to.id, { seg: leg, label: 'To departure', kind: 'transport' });
             } else if (from.kind === 'transport') {
               addLeg(from.id, { seg: leg, label: 'From arrival', kind: 'transport' });
+            } else if (to.isTransportPlace) {
+              addLeg(to.id, {
+                seg: leg,
+                label: `${moveVerb} ${to.name || 'transport stop'}`,
+                kind: 'suggestion',
+                sameCity: isLikelySameCity(from, to, leg.distance),
+              });
             } else {
               addLeg(from.id, {
                 seg: leg,
@@ -710,6 +725,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     mergedItemsMap,
     accommodations,
     days,
+    categories,
     optimizeFromAccommodation,
     distanceUnit,
   ]);
@@ -1296,6 +1312,8 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
     setRouteInfo,
     routeLegs,
     setRouteLegs,
+    hiddenAssignmentRouteIds,
+    setHiddenAssignmentRouteIds,
     hotelLegs,
     setHotelLegs,
     legsAbortRef,
@@ -1452,6 +1470,8 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
     setRouteInfo,
     routeLegs,
     setRouteLegs,
+    hiddenAssignmentRouteIds,
+    setHiddenAssignmentRouteIds,
     hotelLegs,
     setHotelLegs,
     legsAbortRef,
@@ -2151,6 +2171,13 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                           : place.id === selectedPlaceId;
                         const isDraggingThis = draggingId === assignment.id;
                         const placeIdx = placeItems.findIndex((i) => i.data.id === assignment.id);
+                        const isTransportPlace = isTransportCategory(cat);
+                        const hasTransportPlaceRouteToggle = isTransportPlace && place.lat != null && place.lng != null;
+                        const transportPlaceRouteActive =
+                          bookingRoutesGlobalShown && !hiddenAssignmentRouteIds.has(assignment.id);
+                        const transportPlaceRouteLabel = !bookingRoutesGlobalShown
+                          ? t('map.enableAllConnectionsFirst')
+                          : t(transportPlaceRouteActive ? 'map.hideConnections' : 'map.showConnections');
 
                         const arrowMove = (direction: 'up' | 'down') => {
                           const m = getMergedItems(day.id);
@@ -2782,8 +2809,53 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                   <Plus size={11} strokeWidth={2} />
                                 </button>
                               )}
+                              {hasTransportPlaceRouteToggle && (
+                                <button
+                                  type="button"
+                                  disabled={!bookingRoutesGlobalShown}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!bookingRoutesGlobalShown) return;
+                                    setHiddenAssignmentRouteIds((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(assignment.id)) next.delete(assignment.id);
+                                      else next.add(assignment.id);
+                                      return next;
+                                    });
+                                  }}
+                                  title={transportPlaceRouteLabel}
+                                  aria-label={transportPlaceRouteLabel}
+                                  aria-pressed={transportPlaceRouteActive}
+                                  style={{
+                                    flexShrink: 0,
+                                    appearance: 'none',
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: 6,
+                                    display: 'grid',
+                                    placeItems: 'center',
+                                    cursor: bookingRoutesGlobalShown ? 'pointer' : 'default',
+                                    border: 'none',
+                                    background: transportPlaceRouteActive ? '#3b82f6' : 'transparent',
+                                    color: transportPlaceRouteActive ? '#fff' : 'var(--text-faint)',
+                                    transition:
+                                      'color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms cubic-bezier(0.23,1,0.32,1)',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!transportPlaceRouteActive && bookingRoutesGlobalShown) {
+                                      e.currentTarget.style.color = 'var(--text-primary)';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!transportPlaceRouteActive) e.currentTarget.style.color = 'var(--text-faint)';
+                                  }}
+                                >
+                                  <RouteIcon size={13} />
+                                </button>
+                              )}
                             </div>
                             {transportConnectorRoutesShown &&
+                              !hiddenAssignmentRouteIds.has(assignment.id) &&
                               routeLegs[assignment.id]?.map((item, legIdx) =>
                                 item.kind === 'suggestion' ? (
                                   <RouteSuggestionConnector

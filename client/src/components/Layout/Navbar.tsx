@@ -16,6 +16,7 @@ import {
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useDocumentDarkMode } from '../../hooks/useDocumentDarkMode';
 import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
 import { useAuthStore } from '../../store/authStore';
@@ -49,11 +50,13 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
   const [scrolled, setScrolled] = useState<boolean>(false);
+  const documentDark = useDocumentDarkMode();
   const darkMode = settings.dark_mode;
-  const dark =
+  const settingDark =
     darkMode === true ||
     darkMode === 'dark' ||
     (darkMode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const dark = documentDark || settingDark;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8 || (document.body.scrollTop || 0) > 8);

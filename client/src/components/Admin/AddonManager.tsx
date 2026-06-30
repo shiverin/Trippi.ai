@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { adminApi } from '../../api/client';
+import { useDocumentDarkMode } from '../../hooks/useDocumentDarkMode';
 import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -128,8 +129,12 @@ export default function AddonManager({
 }) {
   const { t } = useTranslation();
   const dm = useSettingsStore((s) => s.settings.dark_mode);
-  const dark =
-    dm === true || dm === 'dark' || (dm === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const documentDark = useDocumentDarkMode();
+  const settingDark =
+    dm === true ||
+    dm === 'dark' ||
+    (dm === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const dark = documentDark || settingDark;
   const toast = useToast();
   const refreshGlobalAddons = useAddonStore((s) => s.loadAddons);
   const [addons, setAddons] = useState<Addon[]>([]);

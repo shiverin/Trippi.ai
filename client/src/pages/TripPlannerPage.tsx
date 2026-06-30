@@ -43,6 +43,7 @@ import type { BookingExpenseRequest } from '../components/Planner/BookingCostsSe
 import ReservationsPanel from '../components/Planner/ReservationsPanel';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import TodoListPanel from '../components/Todo/TodoListPanel';
+import { useDocumentDarkMode } from '../hooks/useDocumentDarkMode';
 import { useTranslation } from '../i18n';
 import { useAuthStore } from '../store/authStore';
 import type { BudgetItem, PackingItem, TodoItem } from '../types';
@@ -240,6 +241,7 @@ function ListsContainer({
 }
 
 export default function TripPlannerPage(): React.ReactElement | null {
+  const isDarkMode = useDocumentDarkMode();
   // Page = wiring container: the entire planner state machine (store, tabs,
   // selection, CRUD handlers with undo, map filters, splash) lives in the hook.
   const {
@@ -437,11 +439,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
         `}</style>
         <div style={{ marginBottom: 28 }}>
           <img
-            src={
-              document.documentElement.classList.contains('dark')
-                ? '/brand/trippi-icon-light.png'
-                : '/brand/trippi-icon.png'
-            }
+            src={isDarkMode ? '/brand/trippi-icon-light.png' : '/brand/trippi-icon.png'}
             alt="Loading"
             width={64}
             height={64}

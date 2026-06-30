@@ -102,8 +102,8 @@ describe('TripsService (wrapper delegation + bundle/copy/notify helpers)', () =>
     expect(asyncDbMock.prepare).toHaveBeenCalledWith(
       expect.stringContaining('SELECT u.id, u.username, u.email, u.avatar'),
     );
-    s.removeMember('9', 2);
-    expect(tripSvc.removeMember).toHaveBeenCalledWith('9', 2);
+    await s.removeMember('9', 2);
+    expect(asyncDbMock.prepare).toHaveBeenCalledWith('DELETE FROM trip_members WHERE trip_id = ? AND user_id = ?');
     s.exportICS('9');
     expect(tripSvc.exportICS).toHaveBeenCalledWith('9');
   });

@@ -363,7 +363,7 @@ export class TripsController {
     ) {
       throw new HttpException({ error: 'No permission to remove members' }, 403);
     }
-    this.trips.removeMember(id, targetId);
+    await this.trips.removeMember(id, targetId);
     return { success: true };
   }
 

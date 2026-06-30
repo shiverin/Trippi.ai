@@ -372,8 +372,8 @@ export class TripsService {
     };
   }
 
-  removeMember(tripId: string, targetId: number): void {
-    tripSvc.removeMember(tripId, targetId);
+  async removeMember(tripId: string, targetId: number): Promise<void> {
+    await asyncDb.prepare('DELETE FROM trip_members WHERE trip_id = ? AND user_id = ?').run(tripId, targetId);
   }
 
   exportICS(tripId: string) {

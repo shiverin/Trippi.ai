@@ -535,6 +535,7 @@ describe('IntegrationsTab', () => {
               client_name: 'Claude Desktop',
               scopes: ['trips:read'],
               access_token_expires_at: '2025-12-31T00:00:00Z',
+              refresh_token_expires_at: '2026-06-30T00:00:00Z',
             },
           ],
         })
@@ -544,6 +545,8 @@ describe('IntegrationsTab', () => {
     render(<IntegrationsTab />);
     await screen.findByText('Claude Desktop');
     expect(screen.getByText(/trips:read/)).toBeInTheDocument();
+    expect(screen.getByText(/2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/2025/)).toBeNull();
   });
 
   it('FE-COMP-INTEGRATIONS-024: Create OAuth Client modal opens and shows presets', async () => {
@@ -719,6 +722,7 @@ describe('IntegrationsTab', () => {
               client_name: 'Revoke App',
               scopes: ['trips:read'],
               access_token_expires_at: '2025-12-31T00:00:00Z',
+              refresh_token_expires_at: '2026-06-30T00:00:00Z',
             },
           ],
         })

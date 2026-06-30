@@ -375,7 +375,29 @@ describe('issueTokens + getUserByAccessToken', () => {
     expect(tokens.access_token.startsWith('trippioa_')).toBe(true);
     expect(tokens.refresh_token.startsWith('trippirf_')).toBe(true);
     expect(tokens.token_type).toBe('Bearer');
-    expect(typeof tokens.expires_in).toBe('number');
+    expect(tokens.expires_in).toBe(180 * 24 * 60 * 60);
+  });
+
+  it('stores six-month access and refresh expiries by default', () => {
+    const { user } = createUser(testDb);
+    const created = makeClient(user.id);
+    const clientId = created.client!.client_id as string;
+    const before = Date.now();
+
+    issueTokens(clientId, user.id, ['trips:read']);
+
+    const row = testDb
+      .prepare(
+        'SELECT access_token_expires_at, refresh_token_expires_at FROM oauth_tokens WHERE client_id = ? ORDER BY id DESC LIMIT 1',
+      )
+      .get(clientId) as { access_token_expires_at: string; refresh_token_expires_at: string };
+    const expectedMs = 180 * 24 * 60 * 60 * 1000;
+    const accessDeltaMs = new Date(row.access_token_expires_at).getTime() - before;
+    const refreshDeltaMs = new Date(row.refresh_token_expires_at).getTime() - before;
+    expect(accessDeltaMs).toBeGreaterThan(expectedMs - 5_000);
+    expect(accessDeltaMs).toBeLessThan(expectedMs + 5_000);
+    expect(refreshDeltaMs).toBeGreaterThan(expectedMs - 5_000);
+    expect(refreshDeltaMs).toBeLessThan(expectedMs + 5_000);
   });
 
   it('getUserByAccessToken returns user and scopes for a valid token', () => {

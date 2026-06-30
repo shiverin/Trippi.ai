@@ -728,7 +728,7 @@ function IntegrationsMcpSection(props: any) {
                         {t('settings.oauth.sessionScopes')}: {session.scopes.join(', ')}
                         <span className="ml-3">
                           {t('settings.oauth.sessionExpires')}{' '}
-                          {new Date(session.access_token_expires_at).toLocaleDateString(locale)}
+                          {new Date(session.refresh_token_expires_at).toLocaleDateString(locale)}
                         </span>
                       </p>
                     </div>

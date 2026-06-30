@@ -14,8 +14,19 @@ import crypto, { randomBytes, createHash, randomUUID } from 'crypto';
 // Constants
 // ---------------------------------------------------------------------------
 
-const ACCESS_TOKEN_TTL_S = 60 * 60; // 1 hour
-const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days rolling
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (Number.isFinite(parsed) && parsed > 0) return Math.floor(parsed);
+  logWarn(`[OAuth] Ignoring invalid ${name}="${raw}"; using ${fallback}`);
+  return fallback;
+}
+
+const DAY_S = 24 * 60 * 60;
+const SIX_MONTHS_S = 180 * DAY_S;
+const ACCESS_TOKEN_TTL_S = readPositiveIntEnv('MCP_OAUTH_ACCESS_TOKEN_TTL_SECONDS', SIX_MONTHS_S);
+const REFRESH_TOKEN_TTL_MS = readPositiveIntEnv('MCP_OAUTH_REFRESH_TOKEN_TTL_SECONDS', SIX_MONTHS_S) * 1000; // rolling
 const AUTH_CODE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
 // PKCE format (RFC 7636)

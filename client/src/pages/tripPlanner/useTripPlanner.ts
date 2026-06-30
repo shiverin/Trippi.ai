@@ -41,6 +41,7 @@ interface BookingRoutePrefs {
   storageKey: string | null;
   globalShown: boolean;
   hiddenById: Record<string, boolean>;
+  hiddenDayIds: Record<string, boolean>;
 }
 
 function normaliseBooleanRecord(value: unknown): Record<string, boolean> {
@@ -51,16 +52,17 @@ function normaliseBooleanRecord(value: unknown): Record<string, boolean> {
 }
 
 function readBookingRoutePrefs(storageKey: string | null): BookingRoutePrefs {
-  const fallback = { storageKey, globalShown: false, hiddenById: {} };
+  const fallback = { storageKey, globalShown: false, hiddenById: {}, hiddenDayIds: {} };
   if (typeof window === 'undefined' || !storageKey) return fallback;
   try {
     const stored = window.localStorage.getItem(storageKey);
     if (!stored) return fallback;
-    const parsed = JSON.parse(stored) as { globalShown?: unknown; hiddenById?: unknown };
+    const parsed = JSON.parse(stored) as { globalShown?: unknown; hiddenById?: unknown; hiddenDayIds?: unknown };
     return {
       storageKey,
       globalShown: parsed?.globalShown === true,
       hiddenById: normaliseBooleanRecord(parsed?.hiddenById),
+      hiddenDayIds: normaliseBooleanRecord(parsed?.hiddenDayIds),
     };
   } catch {
     return fallback;
@@ -259,9 +261,9 @@ export function useTripPlanner() {
   const [showTransportModal, setShowTransportModal] = useState<boolean>(false);
   const [editingTransport, setEditingTransport] = useState<Reservation | null>(null);
   const [transportModalDayId, setTransportModalDayId] = useState<number | null>(null);
-  // Manual route planning: off by default, toggled from the day-plan footer. Mode
-  // (driving/walking) is per-session and selects which travel time the connectors show.
-  const [routeShown, setRouteShown] = useState(false);
+  // Route profile is per-session and selects which travel time the connectors show.
+  // Route visibility itself is owned by the global booking-route switch plus per-day
+  // hidden exceptions below, so the toolbar and day footer behave like one light system.
   const [routeProfile, setRouteProfile] = useState<'driving' | 'walking'>('driving');
   const [fitKey, setFitKey] = useState<number>(0);
   const initialFitTripId = useRef<number | null>(null);
@@ -305,23 +307,61 @@ export function useTripPlanner() {
       JSON.stringify({
         globalShown: bookingRoutePrefs.globalShown,
         hiddenById: bookingRoutePrefs.hiddenById,
+        hiddenDayIds: bookingRoutePrefs.hiddenDayIds,
       })
     );
   }, [bookingRoutesStorageKey, bookingRoutePrefs]);
 
   const bookingRoutesGlobalShown = bookingRoutePrefs.globalShown;
   const hiddenBookingRouteIds = bookingRoutePrefs.hiddenById;
-  const visibleConnections = useMemo(
-    () => visibleBookingRouteIds(reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds),
-    [reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds]
+  const hiddenDayRouteIds = bookingRoutePrefs.hiddenDayIds;
+  const isDayRouteVisible = useCallback(
+    (dayId: number | null | undefined) => dayId == null || hiddenDayRouteIds[String(dayId)] !== true,
+    [hiddenDayRouteIds]
   );
+  const isReservationRouteDayVisible = useCallback(
+    (reservation: Reservation) => {
+      const relatedDayIds = new Set<number>();
+      if (reservation.day_id != null) relatedDayIds.add(reservation.day_id);
+      if (reservation.end_day_id != null) relatedDayIds.add(reservation.end_day_id);
+      if (reservation.day_id != null && reservation.end_day_id != null && reservation.day_id !== reservation.end_day_id) {
+        const startIdx = days.findIndex((day) => day.id === reservation.day_id);
+        const endIdx = days.findIndex((day) => day.id === reservation.end_day_id);
+        if (startIdx !== -1 && endIdx !== -1) {
+          const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+          days.slice(from, to + 1).forEach((day) => relatedDayIds.add(day.id));
+        }
+      }
+      return Array.from(relatedDayIds).every((dayId) => isDayRouteVisible(dayId));
+    },
+    [days, isDayRouteVisible]
+  );
+  const visibleConnections = useMemo(() => {
+    const visibleIds = new Set(visibleBookingRouteIds(reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds));
+    return reservations
+      .filter((reservation) => visibleIds.has(reservation.id) && isReservationRouteDayVisible(reservation))
+      .map((reservation) => reservation.id);
+  }, [reservations, bookingRoutesGlobalShown, hiddenBookingRouteIds, isReservationRouteDayVisible]);
+  const routeShown = bookingRoutesGlobalShown && selectedDayId != null && isDayRouteVisible(selectedDayId);
   const toggleBookingRoutesGlobal = useCallback(() => {
     setBookingRoutePrefs((prev) => ({
       ...prev,
       storageKey: bookingRoutesStorageKey,
       globalShown: !prev.globalShown,
+      hiddenById: prev.globalShown ? prev.hiddenById : {},
+      hiddenDayIds: prev.globalShown ? prev.hiddenDayIds : {},
     }));
   }, [bookingRoutesStorageKey]);
+  const toggleSelectedDayRoute = useCallback(() => {
+    if (!bookingRoutesGlobalShown || selectedDayId == null) return;
+    setBookingRoutePrefs((prev) => {
+      const key = String(selectedDayId);
+      const hiddenDayIds = { ...prev.hiddenDayIds };
+      if (hiddenDayIds[key]) delete hiddenDayIds[key];
+      else hiddenDayIds[key] = true;
+      return { ...prev, storageKey: bookingRoutesStorageKey, hiddenDayIds };
+    });
+  }, [bookingRoutesGlobalShown, bookingRoutesStorageKey, selectedDayId]);
   const toggleConnection = useCallback(
     (id: number) => {
       if (!bookingRoutesGlobalShown) return;
@@ -1030,7 +1070,7 @@ export function useTripPlanner() {
     transportModalDayId,
     setTransportModalDayId,
     routeShown,
-    setRouteShown,
+    toggleSelectedDayRoute,
     routeProfile,
     setRouteProfile,
     fitKey,

@@ -296,6 +296,7 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
   const [routeInfo, setRouteInfo] = useState(null);
   const [routeLegs, setRouteLegs] = useState<Record<number, RouteConnectorItem[]>>({});
   const [hiddenAssignmentRouteIds, setHiddenAssignmentRouteIds] = useState<Set<number>>(() => new Set());
+  const previousBookingRoutesGlobalShown = useRef(bookingRoutesGlobalShown);
   const [hotelLegs, setHotelLegs] = useState<{
     top?: { seg: RouteSegment; name: string };
     bottom?: { seg: RouteSegment; name: string };
@@ -304,8 +305,16 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
   // Recompute the hotel/route legs when the user flips km↔mi so the connector
   // distances refresh instead of showing stale cached text (#1300).
   const distanceUnit = useSettingsStore((s) => s.settings.distance_unit);
-  const transportConnectorRoutesShown = routeShown || bookingRoutesGlobalShown;
+  const transportConnectorRoutesShown = routeShown;
   const legsAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (bookingRoutesGlobalShown && !previousBookingRoutesGlobalShown.current) {
+      setHiddenAssignmentRouteIds(new Set());
+    }
+    previousBookingRoutesGlobalShown.current = bookingRoutesGlobalShown;
+  }, [bookingRoutesGlobalShown]);
+
   const [draggingId, setDraggingId] = useState(null);
   const [lockedIds, setLockedIds] = useState(new Set());
   const [lockHoverId, setLockHoverId] = useState(null);
@@ -2174,9 +2183,11 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                         const isTransportPlace = isTransportCategory(cat);
                         const hasTransportPlaceRouteToggle = isTransportPlace && place.lat != null && place.lng != null;
                         const transportPlaceRouteActive =
-                          bookingRoutesGlobalShown && !hiddenAssignmentRouteIds.has(assignment.id);
+                          routeShown && !hiddenAssignmentRouteIds.has(assignment.id);
                         const transportPlaceRouteLabel = !bookingRoutesGlobalShown
                           ? t('map.enableAllConnectionsFirst')
+                          : !routeShown
+                            ? 'Show this day route first'
                           : t(transportPlaceRouteActive ? 'map.hideConnections' : 'map.showConnections');
 
                         const arrowMove = (direction: 'up' | 'down') => {
@@ -2563,11 +2574,13 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                     TRANSPORT_TYPES.has(res.type) &&
                                     (res.endpoints || []).length >= 2;
                                   const active =
-                                    hasRouteToggle && bookingRoutesGlobalShown
+                                    hasRouteToggle && routeShown
                                       ? visibleConnectionIds.includes(res.id)
                                       : false;
                                   const routeLabel = !bookingRoutesGlobalShown
                                     ? t('map.enableAllConnectionsFirst')
+                                    : !routeShown
+                                      ? 'Show this day route first'
                                     : t(active ? 'map.hideConnections' : 'map.showConnections');
                                   return (
                                     <div style={{ marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -2627,10 +2640,10 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                       {hasRouteToggle && (
                                         <button
                                           type="button"
-                                          disabled={!bookingRoutesGlobalShown}
+                                          disabled={!routeShown}
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            if (!bookingRoutesGlobalShown) return;
+                                            if (!routeShown) return;
                                             onToggleConnection?.(res.id);
                                           }}
                                           title={routeLabel}
@@ -2647,13 +2660,13 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                             borderRadius: 4,
                                             display: 'grid',
                                             placeItems: 'center',
-                                            cursor: bookingRoutesGlobalShown ? 'pointer' : 'default',
+                                            cursor: routeShown ? 'pointer' : 'default',
                                             border: 'none',
                                             transition:
                                               'color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms cubic-bezier(0.23,1,0.32,1)',
                                           }}
                                           onMouseEnter={(e) => {
-                                            if (!active && bookingRoutesGlobalShown) {
+                                            if (!active && routeShown) {
                                               e.currentTarget.style.color = 'var(--text-primary)';
                                             }
                                           }}
@@ -2812,10 +2825,10 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                               {hasTransportPlaceRouteToggle && (
                                 <button
                                   type="button"
-                                  disabled={!bookingRoutesGlobalShown}
+                                  disabled={!routeShown}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (!bookingRoutesGlobalShown) return;
+                                    if (!routeShown) return;
                                     setHiddenAssignmentRouteIds((prev) => {
                                       const next = new Set(prev);
                                       if (next.has(assignment.id)) next.delete(assignment.id);
@@ -2834,7 +2847,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                     borderRadius: 6,
                                     display: 'grid',
                                     placeItems: 'center',
-                                    cursor: bookingRoutesGlobalShown ? 'pointer' : 'default',
+                                    cursor: routeShown ? 'pointer' : 'default',
                                     border: 'none',
                                     background: transportPlaceRouteActive ? '#3b82f6' : 'transparent',
                                     color: transportPlaceRouteActive ? '#fff' : 'var(--text-faint)',
@@ -2842,7 +2855,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                       'color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms cubic-bezier(0.23,1,0.32,1)',
                                   }}
                                   onMouseEnter={(e) => {
-                                    if (!transportPlaceRouteActive && bookingRoutesGlobalShown) {
+                                    if (!transportPlaceRouteActive && routeShown) {
                                       e.currentTarget.style.color = 'var(--text-primary)';
                                     }
                                   }}
@@ -3169,19 +3182,21 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                 (!res.__leg || res.__leg.index === 0) &&
                                 (res.endpoints || []).length >= 2 &&
                                 (() => {
-                                  const active = bookingRoutesGlobalShown
+                                  const active = routeShown
                                     ? visibleConnectionIds.includes(res.id)
                                     : false;
                                   const routeLabel = !bookingRoutesGlobalShown
                                     ? t('map.enableAllConnectionsFirst')
+                                    : !routeShown
+                                      ? 'Show this day route first'
                                     : t(active ? 'map.hideConnections' : 'map.showConnections');
                                   return (
                                     <button
                                       type="button"
-                                      disabled={!bookingRoutesGlobalShown}
+                                      disabled={!routeShown}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (!bookingRoutesGlobalShown) return;
+                                        if (!routeShown) return;
                                         onToggleConnection(res.id);
                                       }}
                                       title={routeLabel}
@@ -3195,7 +3210,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                         borderRadius: 6,
                                         display: 'grid',
                                         placeItems: 'center',
-                                        cursor: bookingRoutesGlobalShown ? 'pointer' : 'default',
+                                        cursor: routeShown ? 'pointer' : 'default',
                                         border: 'none',
                                         background: active ? color : 'transparent',
                                         color: active ? '#fff' : 'var(--text-faint)',
@@ -3203,7 +3218,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                           'color 120ms cubic-bezier(0.23,1,0.32,1), background 120ms cubic-bezier(0.23,1,0.32,1)',
                                       }}
                                       onMouseEnter={(e) => {
-                                        if (!active && bookingRoutesGlobalShown) {
+                                        if (!active && routeShown) {
                                           e.currentTarget.style.color = 'var(--text-primary)';
                                         }
                                       }}
@@ -3645,6 +3660,8 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                       <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
                         <button
                           onClick={() => onToggleRoute?.()}
+                          disabled={!bookingRoutesGlobalShown}
+                          title={!bookingRoutesGlobalShown ? t('map.enableAllConnectionsFirst') : undefined}
                           className={
                             routeShown ? 'bg-accent text-accent-text' : 'bg-transparent text-content-secondary'
                           }
@@ -3659,8 +3676,9 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                             fontWeight: 600,
                             borderRadius: 8,
                             border: routeShown ? 'none' : '1px solid var(--border-faint)',
-                            cursor: 'pointer',
+                            cursor: bookingRoutesGlobalShown ? 'pointer' : 'default',
                             fontFamily: 'inherit',
+                            opacity: bookingRoutesGlobalShown ? 1 : 0.45,
                           }}
                         >
                           <RouteIcon size={12} strokeWidth={2} />

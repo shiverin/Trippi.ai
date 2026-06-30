@@ -332,7 +332,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     transportModalDayId,
     setTransportModalDayId,
     routeShown,
-    setRouteShown,
+    toggleSelectedDayRoute,
     routeProfile,
     setRouteProfile,
     fitKey,
@@ -743,7 +743,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                   accommodations={tripAccommodations}
                   routeShown={routeShown}
                   routeProfile={routeProfile}
-                  onToggleRoute={() => setRouteShown((v) => !v)}
+                  onToggleRoute={toggleSelectedDayRoute}
                   onSetRouteProfile={setRouteProfile}
                   onNavigateToFiles={() => handleTabChange('dateien')}
                   onExpandedDaysChange={setExpandedDayIds}
@@ -1208,7 +1208,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                           accommodations={tripAccommodations}
                           routeShown={routeShown}
                           routeProfile={routeProfile}
-                          onToggleRoute={() => setRouteShown((v) => !v)}
+                          onToggleRoute={toggleSelectedDayRoute}
                           onSetRouteProfile={setRouteProfile}
                           onNavigateToFiles={() => {
                             setMobileSidebarOpen(null);

@@ -2891,7 +2891,6 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                                   <Plus size={11} strokeWidth={2} />
                                 </button>
                               )}
-                              {hasAssignmentRouteToggle && (
                               {canManageDecisions && onCreateDecision && hoveredAssignmentId === assignment.id && (
                                 <button
                                   onClick={(e) => {

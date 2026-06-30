@@ -69,6 +69,7 @@ describe('CommandCenterPanel decision embedding', () => {
       budgetItems: [],
       packingItems: [],
       todoItems: [],
+      files: [],
       tripMembers: [{ id: 1, username: 'Maya', avatar_url: null } as any],
       groupDecisions: [decision],
       now: new Date('2026-06-30T12:00:00Z'),

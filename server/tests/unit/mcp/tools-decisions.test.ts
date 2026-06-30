@@ -126,6 +126,9 @@ describe('create_group_decision', () => {
     const place = createPlace(testDb, trip.id, { name: 'Museum' });
     const reservation = createReservation(testDb, trip.id, { title: 'Train' });
     const packingItem = createPackingItem(testDb, trip.id, { name: 'Adapter' });
+    const bookingIntent = testDb
+      .prepare("INSERT INTO booking_intents (trip_id, created_by, type, status) VALUES (?, ?, 'hotel', 'draft')")
+      .run(trip.id, user.id);
 
     await withHarness(user.id, async (h) => {
       const result = await h.client.callTool({
@@ -141,7 +144,7 @@ describe('create_group_decision', () => {
             { target_type: 'day', target_id: day.id },
             { target_type: 'place', target_id: place.id },
             { target_type: 'reservation', target_id: reservation.id },
-            { target_type: 'booking_intent', target_id: 777 },
+            { target_type: 'booking_intent', target_id: Number(bookingIntent.lastInsertRowid) },
             { target_type: 'packing_item', target_id: packingItem.id },
           ],
         },

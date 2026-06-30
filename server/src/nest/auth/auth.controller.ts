@@ -5,7 +5,7 @@ import type { User } from '../../types';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { RateLimitService } from './rate-limit.service';
+import { RateLimitService, rateLimitUserKey } from './rate-limit.service';
 import {
   Body,
   Controller,
@@ -29,6 +29,11 @@ import { memoryStorage } from 'multer';
 import path from 'path';
 
 const WINDOW = 15 * 60 * 1000;
+const LIMITS = {
+  accountSecurityUser: 5,
+  mfaUser: 5,
+  mcpTokenCreateUser: 10,
+};
 const ALLOWED_AVATAR_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const AVATAR_UPLOAD = {
   storage: memoryStorage(),
@@ -45,12 +50,9 @@ const AVATAR_UPLOAD = {
 };
 
 /**
- * Authenticated account endpoints — byte-identical to the legacy Express route
- * (server/src/routes/auth.ts): the same /me/* account ops, avatar upload (with
- * the demo-mode block), settings, key validation, MFA setup/enable/disable, MCP
- * tokens and the short-lived ws/resource tokens. The per-IP rate limits reuse
- * the shared buckets (the inline rateLimiter(5) shares the 'login' bucket, as in
- * the legacy code). create-token answers 201; everything else 200.
+ * Authenticated account endpoints. Security-sensitive operations are rate
+ * limited by authenticated user id instead of only source IP, so shared proxy
+ * edges do not make different users consume one another's buckets.
  */
 @Controller('api/auth')
 @UseGuards(JwtAuthGuard)
@@ -60,8 +62,9 @@ export class AuthController {
     private readonly rl: RateLimitService,
   ) {}
 
-  private limit(bucket: string, req: Request, max: number): void {
-    if (!this.rl.check(bucket, req.ip || 'unknown', max, WINDOW, Date.now())) {
+  private limitUser(bucket: string, user: User, max: number): void {
+    const key = rateLimitUserKey(user.id) ?? 'user:unknown';
+    if (!this.rl.check(bucket, key, max, WINDOW, Date.now())) {
       throw new HttpException({ error: 'Too many attempts. Please try again later.' }, 429);
     }
   }
@@ -82,7 +85,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    this.limit('login', req, 5);
+    this.limitUser('auth_account_security_user', user, LIMITS.accountSecurityUser);
     const result = await this.auth.changePassword(user.id, user.email, body);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
@@ -222,7 +225,7 @@ export class AuthController {
   @Post('mfa/enable')
   @HttpCode(200)
   async mfaEnable(@CurrentUser() user: User, @Body() body: { code?: unknown }, @Req() req: Request) {
-    this.limit('mfa', req, 5);
+    this.limitUser('auth_mfa_user', user, LIMITS.mfaUser);
     const result = await this.auth.enableMfa(user.id, body.code);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
@@ -234,7 +237,7 @@ export class AuthController {
   @Post('mfa/disable')
   @HttpCode(200)
   async mfaDisable(@CurrentUser() user: User, @Body() body: unknown, @Req() req: Request) {
-    this.limit('login', req, 5);
+    this.limitUser('auth_account_security_user', user, LIMITS.accountSecurityUser);
     const result = await this.auth.disableMfa(user.id, user.email, body);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);
@@ -250,8 +253,8 @@ export class AuthController {
 
   @Post('mcp-tokens')
   @HttpCode(201)
-  async createMcpToken(@CurrentUser() user: User, @Body() body: { name?: unknown }, @Req() req: Request) {
-    this.limit('login', req, 5);
+  async createMcpToken(@CurrentUser() user: User, @Body() body: { name?: unknown }) {
+    this.limitUser('auth_mcp_token_create_user', user, LIMITS.mcpTokenCreateUser);
     const result = await this.auth.createMcpToken(user.id, body.name);
     if (result.error) {
       throw new HttpException({ error: result.error }, result.status!);

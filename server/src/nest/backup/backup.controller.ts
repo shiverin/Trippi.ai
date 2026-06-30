@@ -8,6 +8,7 @@ import type { User } from '../../types';
 import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { rateLimitUserKey } from '../auth/rate-limit.service';
 import { BackupService } from './backup.service';
 import {
   Body,
@@ -65,7 +66,7 @@ export class BackupController {
   @Post('create')
   @HttpCode(200) // Express answers create with res.json (200), not the POST-default 201.
   async create(@CurrentUser() user: User, @Req() req: Request) {
-    if (!this.backup.checkRateLimit(req.ip || 'unknown', 3, this.backup.rateWindow)) {
+    if (!this.backup.checkRateLimit(rateLimitUserKey(user.id) ?? 'user:unknown', 3, this.backup.rateWindow)) {
       throw new HttpException({ error: 'Too many backup requests. Please try again later.' }, 429);
     }
     try {

@@ -5,7 +5,7 @@ import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasskeyEnabledGuard } from './passkey-enabled.guard';
-import { RateLimitService } from './rate-limit.service';
+import { RateLimitService, rateLimitIpKey, rateLimitUserKey } from './rate-limit.service';
 import {
   Body,
   Controller,
@@ -25,6 +25,11 @@ import type { Request, Response } from 'express';
 
 const WINDOW = 15 * 60 * 1000;
 const LOGIN_MIN_LATENCY_MS = 350;
+const LIMITS = {
+  accountSecurityUser: 5,
+  mfaUser: 5,
+  passkeyLoginIp: 20,
+};
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -47,7 +52,14 @@ export class PasskeyController {
   ) {}
 
   private limit(bucket: string, req: Request, max: number): void {
-    if (!this.rl.check(bucket, req.ip || 'unknown', max, WINDOW, Date.now())) {
+    if (!this.rl.check(bucket, rateLimitIpKey(req), max, WINDOW, Date.now())) {
+      throw new HttpException({ error: 'Too many attempts. Please try again later.' }, 429);
+    }
+  }
+
+  private limitUser(bucket: string, user: User, max: number): void {
+    const key = rateLimitUserKey(user.id) ?? 'user:unknown';
+    if (!this.rl.check(bucket, key, max, WINDOW, Date.now())) {
       throw new HttpException({ error: 'Too many attempts. Please try again later.' }, 429);
     }
   }
@@ -56,8 +68,8 @@ export class PasskeyController {
   @Post('register/options')
   @HttpCode(200)
   @UseGuards(PasskeyEnabledGuard, JwtAuthGuard)
-  async registerOptions(@CurrentUser() user: User, @Body() body: { password?: string }, @Req() req: Request) {
-    this.limit('mfa', req, 5);
+  async registerOptions(@CurrentUser() user: User, @Body() body: { password?: string }) {
+    this.limitUser('auth_mfa_user', user, LIMITS.mfaUser);
     const result = await this.auth.passkeyRegisterOptions(user.id, body?.password);
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
     return result.options;
@@ -78,7 +90,7 @@ export class PasskeyController {
   @HttpCode(200)
   @UseGuards(PasskeyEnabledGuard)
   async loginOptions(@Req() req: Request) {
-    this.limit('login', req, 10);
+    this.limit('auth_passkey_login_ip', req, LIMITS.passkeyLoginIp);
     const result = await this.auth.passkeyLoginOptions();
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
     return result.options;
@@ -88,7 +100,7 @@ export class PasskeyController {
   @HttpCode(200)
   @UseGuards(PasskeyEnabledGuard)
   async loginVerify(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    this.limit('login', req, 10);
+    this.limit('auth_passkey_login_ip', req, LIMITS.passkeyLoginIp);
     const started = Date.now();
     const result = await this.auth.passkeyLoginVerify(body);
     if (result.auditAction) {
@@ -132,7 +144,7 @@ export class PasskeyController {
     @Body() body: { password?: string },
     @Req() req: Request,
   ) {
-    this.limit('login', req, 5);
+    this.limitUser('auth_account_security_user', user, LIMITS.accountSecurityUser);
     const result = await this.auth.deletePasskey(user.id, id, body?.password);
     if (result.error) throw new HttpException({ error: result.error }, result.status!);
     writeAudit({ userId: user.id, action: 'user.passkey_delete', resource: String(id), ip: getClientIp(req) });

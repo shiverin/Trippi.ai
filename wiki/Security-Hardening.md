@@ -42,16 +42,38 @@ No configuration is required; this policy is always active.
 
 ## Rate Limiting
 
-Built-in in-memory rate limits protect authentication endpoints:
+Built-in in-memory rate limits protect auth, OAuth, backup, MCP, and WebSocket endpoints. Public auth flows use a wider source-IP bucket plus a tighter target bucket, so a shared proxy edge does not make unrelated users consume one another's small brute-force budget. Email, invite-token, reset-token, MFA-token, and OAuth-client limiter keys are SHA-256 hashed before being stored in memory.
 
-| Endpoint | Limit | Window |
-|---|---|---|
-| Login / Register / Invite | 10 attempts | 15 minutes |
-| MFA verify-login / enable | 5 attempts | 15 minutes |
-| Password change | 5 attempts | 15 minutes |
-| MCP token creation | 5 attempts | 15 minutes |
+| Surface                                        |                   Limit | Window          | Key                                                     |
+| ---------------------------------------------- | ----------------------: | --------------- | ------------------------------------------------------- |
+| Demo login                                     |             20 attempts | 15 minutes      | Source IP                                               |
+| Invite lookup                                  |            120 attempts | 15 minutes      | Source IP                                               |
+| Invite lookup                                  |             20 attempts | 15 minutes      | Invite token                                            |
+| Registration                                   |            120 attempts | 15 minutes      | Source IP                                               |
+| Registration                                   |              3 attempts | 15 minutes      | Normalized email                                        |
+| Password login                                 |            300 attempts | 15 minutes      | Source IP                                               |
+| Password login                                 |             10 attempts | 15 minutes      | Normalized email                                        |
+| Forgot password                                |             60 attempts | 15 minutes      | Source IP                                               |
+| Forgot password                                |              3 attempts | 15 minutes      | Normalized email                                        |
+| Reset password                                 |             60 attempts | 15 minutes      | Source IP                                               |
+| Reset password                                 |              5 attempts | 15 minutes      | Reset token                                             |
+| MFA login verification                         |            120 attempts | 15 minutes      | Source IP                                               |
+| MFA login verification                         |              5 attempts | 15 minutes      | MFA login token                                         |
+| MFA enable / passkey registration              |              5 attempts | 15 minutes      | Authenticated user                                      |
+| Password change / MFA disable / passkey delete |              5 attempts | 15 minutes      | Authenticated user                                      |
+| MCP token creation                             |             10 attempts | 15 minutes      | Authenticated user                                      |
+| Backup create                                  |              3 attempts | 1 hour          | Authenticated admin user                                |
+| OAuth token endpoint                           |            120 attempts | 1 minute        | Source IP                                               |
+| OAuth token endpoint                           |             30 attempts | 1 minute        | Source IP + OAuth client ID                             |
+| OAuth revoke endpoint                          |             10 attempts | 1 minute        | Source IP                                               |
+| OAuth validate endpoint                        |             30 attempts | 1 minute        | Source IP                                               |
+| MCP requests                                   |            300 requests | 1 minute        | User + OAuth client, configurable with `MCP_RATE_LIMIT` |
+| MCP sessions                                   | 200 concurrent sessions | 1 hour idle TTL | User, configurable with `MCP_MAX_SESSION_PER_USER`      |
+| WebSocket messages                             |             30 messages | 10 seconds      | Connection                                              |
 
-These limits are per source IP. If trippi.ai is behind a reverse proxy, set `TRUST_PROXY` so the real client IP is used rather than the proxy's IP.
+If trippi.ai is behind a reverse proxy, set `TRUST_PROXY` so the real client IP is used rather than the proxy's IP. The auth/OAuth limiter stores at most `RATE_LIMIT_MAX_KEYS_PER_BUCKET` keys per bucket (default `100000`) and prunes expired or oldest entries under pressure.
+
+These in-process limits are suitable for a single backend instance. For a multi-instance or high-volume public deployment, keep these app-level controls and add an edge/shared limiter such as Vercel firewall rules, GCP Cloud Armor, Cloudflare, or Redis-backed rate limiting so all instances enforce one global budget.
 
 ## Content Security Policy
 

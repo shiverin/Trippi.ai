@@ -56,11 +56,13 @@ On a fresh trippi.ai instance with no existing accounts, the registration form o
 
 ## Rate limiting
 
-Failed login attempts are rate-limited to **10 attempts per 15-minute window** per IP address. After exceeding the limit, further attempts return HTTP 429 until the window resets.
+Failed login attempts are rate-limited to **300 attempts per 15-minute window** per source IP and **10 attempts per 15-minute window** per normalized email address. The email key is hashed before it is stored by the limiter. After exceeding a limit, further attempts return HTTP 429 until the window resets.
 
-MFA verification attempts are rate-limited separately to **5 attempts per 15-minute window** per IP address.
+MFA verification attempts are rate-limited separately to **120 attempts per 15-minute window** per source IP and **5 attempts per 15-minute window** per MFA login token.
 
-Forgot-password requests are rate-limited to **3 attempts per 15-minute window** per IP. Reset-password submissions are limited to **5 attempts per 15-minute window** per IP.
+Registration is limited to **120 attempts per 15-minute window** per source IP and **3 attempts per 15-minute window** per normalized email. Forgot-password requests use **60 per source IP** and **3 per normalized email**. Reset-password submissions use **60 per source IP** and **5 per reset token**.
+
+See [Security-Hardening](Security-Hardening) for the full rate-limit matrix.
 
 ## Demo mode
 

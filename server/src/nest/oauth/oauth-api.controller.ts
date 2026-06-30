@@ -5,7 +5,7 @@ import { CookieAuthGuard } from '../auth/cookie-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtGuard } from '../auth/optional-jwt.guard';
-import { RateLimitService } from '../auth/rate-limit.service';
+import { RateLimitService, rateLimitIpKey } from '../auth/rate-limit.service';
 import { OauthService } from './oauth.service';
 import {
   Body,
@@ -25,6 +25,7 @@ import {
 import type { Request, Response } from 'express';
 
 const MIN = 60_000;
+const VALIDATE_IP_LIMIT = 30;
 
 /**
  * Authenticated OAuth management endpoints (the SPA's consent + client/session
@@ -54,7 +55,7 @@ export class OauthApiController {
     @Query() params: Partial<AuthorizeParams>,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (!this.rl.check('oauth_validate', req.ip || 'unknown', 30, MIN, Date.now())) {
+    if (!this.rl.check('oauth_validate_ip', rateLimitIpKey(req), VALIDATE_IP_LIMIT, MIN, Date.now())) {
       throw new HttpException(
         { error: 'too_many_requests', error_description: 'Too many attempts. Please try again later.' },
         429,

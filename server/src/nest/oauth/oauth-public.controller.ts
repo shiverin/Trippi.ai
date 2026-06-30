@@ -1,11 +1,14 @@
 import { writeAudit, getClientIp, logWarn } from '../../services/auditLog';
-import { RateLimitService } from '../auth/rate-limit.service';
+import { RateLimitService, rateLimitHash, rateLimitIpKey } from '../auth/rate-limit.service';
 import { OauthService } from './oauth.service';
 import { Controller, Get, Headers, HttpCode, Post, Req, Res } from '@nestjs/common';
 
 import type { Request, Response } from 'express';
 
 const MIN = 60_000;
+const TOKEN_IP_LIMIT = 120;
+const TOKEN_CLIENT_LIMIT = 30;
+const REVOKE_IP_LIMIT = 10;
 
 /**
  * Public OAuth 2.1 endpoints (no session) — byte-identical to the legacy
@@ -31,7 +34,13 @@ export class OauthPublicController {
     }
 
     const body: Record<string, string> = typeof req.body === 'object' && req.body ? req.body : {};
-    if (!this.rl.check('oauth_token', `${req.ip}|${body.client_id ?? ''}`, 30, MIN, Date.now())) {
+    const now = Date.now();
+    const ipKey = rateLimitIpKey(req);
+    const clientKey = `${ipKey}|client:${rateLimitHash(String(body.client_id ?? ''))}`;
+    if (
+      !this.rl.check('oauth_token_ip', ipKey, TOKEN_IP_LIMIT, MIN, now) ||
+      !this.rl.check('oauth_token_client', clientKey, TOKEN_CLIENT_LIMIT, MIN, now)
+    ) {
       res
         .status(429)
         .json({ error: 'too_many_requests', error_description: 'Too many attempts. Please try again later.' });
@@ -203,7 +212,7 @@ export class OauthPublicController {
       res.status(404).end();
       return;
     }
-    if (!this.rl.check('oauth_revoke', req.ip || 'unknown', 10, MIN, Date.now())) {
+    if (!this.rl.check('oauth_revoke_ip', rateLimitIpKey(req), REVOKE_IP_LIMIT, MIN, Date.now())) {
       res
         .status(429)
         .json({ error: 'too_many_requests', error_description: 'Too many attempts. Please try again later.' });

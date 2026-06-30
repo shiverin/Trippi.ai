@@ -44,14 +44,16 @@ If the setting is active and your account does not have 2FA set up, any API requ
 
 ## Rate limits
 
-trippi.ai enforces IP-based rate limits to protect against brute-force attacks:
+trippi.ai enforces rate limits to protect against brute-force attacks:
 
-| Endpoint | Limit |
-|---|---|
-| Login (`/api/auth/login`) | 10 attempts per 15 minutes |
-| MFA code verification (`/api/auth/mfa/verify-login`) | 5 attempts per 15 minutes |
+| Endpoint                                             | Limit                       | Key              |
+| ---------------------------------------------------- | --------------------------- | ---------------- |
+| Login (`/api/auth/login`)                            | 300 attempts per 15 minutes | Source IP        |
+| Login (`/api/auth/login`)                            | 10 attempts per 15 minutes  | Normalized email |
+| MFA code verification (`/api/auth/mfa/verify-login`) | 120 attempts per 15 minutes | Source IP        |
+| MFA code verification (`/api/auth/mfa/verify-login`) | 5 attempts per 15 minutes   | MFA login token  |
 
-Exceeding a limit returns HTTP 429. Wait for the window to reset before retrying.
+Exceeding a limit returns HTTP 429. Wait for the window to reset before retrying. See [Security-Hardening](Security-Hardening) for the full rate-limit matrix.
 
 ## Demo users
 

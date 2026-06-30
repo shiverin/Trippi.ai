@@ -25,6 +25,22 @@ Actions. Do not spend context polling long-running checks by default. It is fine
 to run a quick `gh run list --repo shiverin/Trippi.ai --branch main --limit 10`
 snapshot if useful, but report it as a snapshot and return.
 
+## Production deploy speed
+
+Do not build the production Docker image on the small GCP VM unless it is a true
+emergency fallback. The intended fast path is:
+
+1. Push to `main` and let GitHub Actions build/publish
+   `ghcr.io/shiverin/trippi-ai:main`.
+2. On the VM, pull and restart the prebuilt image through
+   `deploy/oracle/deploy.sh` with `TRIPPI_IMAGE=ghcr.io/shiverin/trippi-ai:main`.
+
+The VM deploy should normally be just a Docker pull plus `up -d --no-build`.
+If GitHub Actions Docker builds are being canceled by rapid consecutive pushes,
+wait for the newest `main` Docker Image run to finish or manually dispatch one
+final run after pushes settle. Avoid `docker compose build app` on the VM because
+dependency install and image build are much slower there.
+
 ## Testing/Dev Docker setup
 
 For local FE/BE browser testing, use the saved "Testing/Dev Docker Setup" in

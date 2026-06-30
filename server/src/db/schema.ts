@@ -249,6 +249,24 @@ function createTables(db: Database.Database): void {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS booking_options (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_intent_id INTEGER NOT NULL REFERENCES booking_intents(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      external_id TEXT,
+      title TEXT,
+      price REAL,
+      currency TEXT,
+      score REAL,
+      expires_at DATETIME,
+      checkout_url TEXT,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL DEFAULT 'current' CHECK(status IN ('current', 'expired', 'archived')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      archived_at DATETIME
+    );
+
     CREATE TABLE IF NOT EXISTS trip_members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
@@ -476,6 +494,10 @@ function createTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_reservations_trip_id ON reservations(trip_id);
     CREATE INDEX IF NOT EXISTS idx_booking_intents_trip_id ON booking_intents(trip_id);
     CREATE INDEX IF NOT EXISTS idx_booking_intents_status ON booking_intents(trip_id, status);
+    CREATE INDEX IF NOT EXISTS idx_booking_options_intent_id ON booking_options(booking_intent_id);
+    CREATE INDEX IF NOT EXISTS idx_booking_options_status ON booking_options(booking_intent_id, status);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_booking_options_provider_external
+      ON booking_options(booking_intent_id, provider, external_id);
     CREATE INDEX IF NOT EXISTS idx_trip_files_trip_id ON trip_files(trip_id);
     CREATE INDEX IF NOT EXISTS idx_day_notes_day_id ON day_notes(day_id);
     CREATE INDEX IF NOT EXISTS idx_photos_trip_id ON photos(trip_id);

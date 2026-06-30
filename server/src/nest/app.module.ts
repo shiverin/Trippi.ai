@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { BackupModule } from './backup/backup.module';
 import { BookingImportModule } from './booking-import/booking-import.module';
 import { BookingIntentsModule } from './booking-intents/booking-intents.module';
+import { BookingOptionsModule } from './booking-options/booking-options.module';
 import { BudgetModule } from './budget/budget.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CollabModule } from './collab/collab.module';
@@ -83,6 +84,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
     AddonsModule,
     BookingImportModule,
     BookingIntentsModule,
+    BookingOptionsModule,
   ],
   controllers: [HealthController],
   providers: [

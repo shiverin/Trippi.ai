@@ -14,11 +14,16 @@ function isAlreadyExistsError(err: unknown): boolean {
   return /ORA-01430|ORA-00955|duplicate column|already exists/i.test(message);
 }
 
+function isMissingTableError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /ORA-00942|no such table/i.test(message);
+}
+
 async function execIgnoringAlreadyExists(sql: string): Promise<void> {
   try {
     await asyncDb.exec(sql);
   } catch (err) {
-    if (!isAlreadyExistsError(err)) throw err;
+    if (!isAlreadyExistsError(err) && !isMissingTableError(err)) throw err;
   }
 }
 

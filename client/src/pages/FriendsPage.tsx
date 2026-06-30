@@ -16,6 +16,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { friendsApi } from '../api/client';
 import PageShell from '../components/Layout/PageShell';
+import { DefaultArtwork, artworkSeedFromString } from '../components/shared/DefaultArtwork';
 import { useToast } from '../components/shared/Toast';
 import { useTranslation } from '../i18n';
 import { getApiErrorMessage } from '../types';
@@ -30,10 +31,23 @@ function Avatar({ user, size = 44 }: { user: Pick<FriendUser, 'username' | 'avat
   const avatar = resolveMediaUrl(user.avatar_url);
   return (
     <div
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/60 bg-gradient-to-br from-emerald-300 via-sky-300 to-violet-300 text-sm font-black text-slate-950 shadow-sm"
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/60 bg-surface-secondary text-sm font-black text-white shadow-sm"
       style={{ width: size, height: size }}
     >
-      {avatar ? <img src={avatar} alt="" className="h-full w-full object-cover" /> : initials(user.username)}
+      {avatar ? (
+        <img src={avatar} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <>
+          <DefaultArtwork
+            className="absolute inset-0"
+            icon={false}
+            kind="avatar"
+            seed={artworkSeedFromString(user.username)}
+            tone="mini"
+          />
+          <span className="relative z-[1] drop-shadow-sm">{initials(user.username)}</span>
+        </>
+      )}
     </div>
   );
 }
@@ -68,7 +82,7 @@ function UserRow({
       className={`group flex w-full min-w-0 items-center gap-3 rounded-lg border px-3 py-3 text-left transition ${
         active
           ? 'border-content/20 bg-surface-secondary shadow-sm'
-          : 'border-edge bg-surface-card hover:border-content/15 hover:bg-surface-secondary'
+          : 'hover:border-content/15 border-edge bg-surface-card hover:bg-surface-secondary'
       }`}
     >
       <Avatar user={user} />
@@ -76,7 +90,7 @@ function UserRow({
         <div className="truncate text-sm font-bold text-content">@{user.username}</div>
         <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase text-content-faint">
           <span>{user.follower_count} followers</span>
-          <span className="h-1 w-1 rounded-full bg-content-faint/40" />
+          <span className="bg-content-faint/40 h-1 w-1 rounded-full" />
           <span>{user.shared_trip_count ?? 0} shared</span>
         </div>
       </div>
@@ -107,8 +121,10 @@ function ProfileHeader({
 }) {
   const { user } = profile;
   return (
-    <div className="rounded-lg border border-edge bg-surface-card p-4 shadow-sm">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="relative overflow-hidden rounded-lg border border-edge bg-surface-card p-4 shadow-sm">
+      <DefaultArtwork className="absolute inset-0 opacity-70" icon={false} kind="friends" seed={user.id} tone="soft" />
+      <div className="bg-surface-card/80 absolute inset-0 backdrop-blur-[2px]" />
+      <div className="relative z-[1] flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-4">
           <Avatar user={user} size={72} />
           <div className="min-w-0">
@@ -218,18 +234,29 @@ function SharedTripCard({ trip }: { trip: FriendSharedTrip }) {
   return (
     <Link
       to={`/shared/${trip.token}`}
-      className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-edge bg-surface-card transition hover:-translate-y-0.5 hover:border-content/20 hover:shadow-md"
+      className="hover:border-content/20 group flex min-w-0 flex-col overflow-hidden rounded-lg border border-edge bg-surface-card transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div
-        className="h-28 bg-surface-secondary"
-        style={{
-          backgroundImage: cover
-            ? `linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.24)), url(${cover})`
-            : 'linear-gradient(135deg, rgba(16,185,129,0.22), rgba(14,165,233,0.2), rgba(168,85,247,0.18))',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      />
+      <div className="relative h-28 overflow-hidden bg-surface-secondary">
+        {cover ? (
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url(${cover})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          />
+        ) : (
+          <DefaultArtwork
+            className="absolute inset-0"
+            icon={false}
+            kind="share"
+            seed={artworkSeedFromString(trip.token)}
+            tone="soft"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/[0.02] to-black/25" />
+      </div>
       <div className="flex min-h-[172px] flex-1 flex-col p-4">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <h3 className="line-clamp-2 text-base font-black text-content">{trip.title}</h3>
@@ -252,7 +279,10 @@ function SharedTripCard({ trip }: { trip: FriendSharedTrip }) {
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {permissionLabels(trip).map((label) => (
-            <span key={label} className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+            <span
+              key={label}
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-300"
+            >
               <Check size={11} />
               {label}
             </span>
@@ -266,7 +296,11 @@ function SharedTripCard({ trip }: { trip: FriendSharedTrip }) {
 export default function FriendsPage(): React.ReactElement {
   const { t } = useTranslation();
   const toast = useToast();
-  const [hub, setHub] = useState<{ following: FriendUser[]; suggestions: FriendUser[]; me: { follower_count: number; following_count: number } } | null>(null);
+  const [hub, setHub] = useState<{
+    following: FriendUser[];
+    suggestions: FriendUser[];
+    me: { follower_count: number; following_count: number };
+  } | null>(null);
   const [selected, setSelected] = useState<FriendProfileResponse | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FriendUser[]>([]);
@@ -343,7 +377,7 @@ export default function FriendsPage(): React.ReactElement {
         prev.map((item) => {
           const fresh = [...nextHub.following, ...nextHub.suggestions].find((candidate) => candidate.id === item.id);
           return fresh ?? item;
-        }),
+        })
       );
     } catch (err) {
       toast.error(getApiErrorMessage(err, t('common.error')));
@@ -383,21 +417,30 @@ export default function FriendsPage(): React.ReactElement {
         <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
           <aside className="space-y-4">
             <div className="rounded-lg border border-edge bg-surface-card p-3 shadow-sm">
-              <label className="mb-2 flex items-center gap-2 text-xs font-black uppercase text-content-faint" htmlFor="friend-search">
+              <label
+                className="mb-2 flex items-center gap-2 text-xs font-black uppercase text-content-faint"
+                htmlFor="friend-search"
+              >
                 <Search size={14} />
                 Search username
               </label>
               <div className="relative">
-                <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-content-faint" />
+                <Search
+                  size={17}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-content-faint"
+                />
                 <input
                   id="friend-search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Try @atlasfan"
-                  className="h-11 w-full rounded-lg border border-edge bg-surface-secondary pl-10 pr-10 text-sm font-semibold text-content outline-none transition placeholder:text-content-faint focus:border-content/30"
+                  className="focus:border-content/30 h-11 w-full rounded-lg border border-edge bg-surface-secondary pl-10 pr-10 text-sm font-semibold text-content outline-none transition placeholder:text-content-faint"
                 />
                 {searching ? (
-                  <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-content-faint" />
+                  <Loader2
+                    size={16}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-content-faint"
+                  />
                 ) : null}
               </div>
             </div>
@@ -419,6 +462,12 @@ export default function FriendsPage(): React.ReactElement {
                     ))
                   ) : (
                     <div className="rounded-lg border border-dashed border-edge bg-surface-card px-4 py-8 text-center text-sm font-semibold text-content-muted">
+                      <DefaultArtwork
+                        className="mx-auto mb-4 h-20 w-32 rounded-2xl"
+                        kind="friends"
+                        seed="friends-search-empty"
+                        tone="mini"
+                      />
                       No usernames found yet.
                     </div>
                   )}
@@ -439,23 +488,29 @@ export default function FriendsPage(): React.ReactElement {
                     ))
                   ) : (
                     <div className="rounded-lg border border-dashed border-edge bg-surface-card px-4 py-6 text-sm font-semibold text-content-muted">
+                      <DefaultArtwork
+                        className="mb-4 h-20 w-32 rounded-2xl"
+                        kind="friends"
+                        seed="friends-circle-empty"
+                        tone="mini"
+                      />
                       Follow a traveler to start building your circle.
                     </div>
                   )}
 
                   <div className="pt-2 text-xs font-black uppercase text-content-faint">Suggested travelers</div>
-                  {(hub?.suggestions.length ?? 0) > 0 ? (
-                    hub?.suggestions.map((user) => (
-                      <UserRow
-                        key={user.id}
-                        user={user}
-                        active={selected?.user.id === user.id}
-                        onSelect={() => void openProfile(user.username)}
-                        onFollow={() => void toggleFollow(user)}
-                        busy={busyUserId === user.id}
-                      />
-                    ))
-                  ) : null}
+                  {(hub?.suggestions.length ?? 0) > 0
+                    ? hub?.suggestions.map((user) => (
+                        <UserRow
+                          key={user.id}
+                          user={user}
+                          active={selected?.user.id === user.id}
+                          onSelect={() => void openProfile(user.username)}
+                          onFollow={() => void toggleFollow(user)}
+                          busy={busyUserId === user.id}
+                        />
+                      ))
+                    : null}
                 </>
               )}
             </div>
@@ -474,7 +529,9 @@ export default function FriendsPage(): React.ReactElement {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h2 className="text-xl font-black text-content">Shared trips</h2>
-                      <p className="text-sm font-medium text-content-muted">Only trips this traveler has explicitly shown on their profile.</p>
+                      <p className="text-sm font-medium text-content-muted">
+                        Only trips this traveler has explicitly shown on their profile.
+                      </p>
                     </div>
                   </div>
                   {selected.shared_trips.length > 0 ? (
@@ -485,7 +542,12 @@ export default function FriendsPage(): React.ReactElement {
                     </div>
                   ) : (
                     <div className="rounded-lg border border-dashed border-edge bg-surface-card px-6 py-10 text-center">
-                      <Globe2 className="mx-auto mb-3 text-content-faint" size={28} />
+                      <DefaultArtwork
+                        className="mx-auto mb-4 h-24 w-40 rounded-2xl"
+                        kind="share"
+                        seed={selected.user.id}
+                        tone="mini"
+                      />
                       <p className="text-sm font-bold text-content">No shared trips on this profile yet.</p>
                       <p className="mt-1 text-sm text-content-muted">When they publish a trip, it will appear here.</p>
                     </div>
@@ -494,7 +556,12 @@ export default function FriendsPage(): React.ReactElement {
               </>
             ) : (
               <div className="flex min-h-[520px] flex-col items-center justify-center rounded-lg border border-dashed border-edge bg-surface-card px-6 text-center">
-                <Users className="mb-4 text-content-faint" size={34} />
+                <DefaultArtwork
+                  className="mb-5 h-28 w-44 rounded-2xl"
+                  kind="friends"
+                  seed="friends-first"
+                  tone="mini"
+                />
                 <h2 className="text-xl font-black text-content">Find your first travel friend</h2>
                 <p className="mt-2 max-w-md text-sm font-medium text-content-muted">
                   Search a username or pick from suggestions to inspect a public-safe travel profile.

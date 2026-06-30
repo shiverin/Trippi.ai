@@ -602,6 +602,7 @@ describe('IntegrationsTab', () => {
     await user.type(nameInput, 'Test Client');
     const uriInput = screen.getByPlaceholderText(/https:\/\/your-app/i);
     await user.type(uriInput, 'http://localhost');
+    await user.click(screen.getByRole('button', { name: /Select all/i }));
     await user.click(screen.getByRole('button', { name: /Register Client/i }));
     // Success view shows client credentials (there may be multiple matches in list + modal)
     await screen.findAllByText(/clid-new/);
@@ -633,6 +634,7 @@ describe('IntegrationsTab', () => {
     await screen.findByText('Register OAuth Client');
     await user.type(screen.getByPlaceholderText(/Claude Web, My MCP App/i), 'TC2');
     await user.type(screen.getByPlaceholderText(/https:\/\/your-app/i), 'http://localhost');
+    await user.click(screen.getByRole('button', { name: /Select all/i }));
     await user.click(screen.getByRole('button', { name: /Register Client/i }));
     await screen.findAllByText(/clid-n2/);
     // Check the "Client Registered" modal title is visible before Done
@@ -762,6 +764,21 @@ describe('IntegrationsTab', () => {
     expect(createBtn).toBeDisabled();
   });
 
+  it('FE-COMP-INTEGRATIONS-031B: Register Client button disabled when scopes are empty', async () => {
+    const user = userEvent.setup();
+    enableMcp();
+    render(<IntegrationsTab />);
+    await screen.findByText('MCP Configuration');
+    await user.click(screen.getByRole('button', { name: /New Client/i }));
+    await screen.findByText('Register OAuth Client');
+    const createBtn = screen.getByRole('button', { name: /Register Client/i });
+
+    await user.type(screen.getByPlaceholderText(/Claude Web, My MCP App/i), 'Test');
+    await user.type(screen.getByPlaceholderText(/https:\/\/your-app/i), 'http://localhost');
+
+    expect(createBtn).toBeDisabled();
+  });
+
   it('FE-COMP-INTEGRATIONS-032: error toast shown when create OAuth client fails', async () => {
     const user = userEvent.setup();
     server.use(http.post('/api/oauth/clients', () => HttpResponse.json({ error: 'server error' }, { status: 500 })));
@@ -777,6 +794,7 @@ describe('IntegrationsTab', () => {
     await screen.findByText('Register OAuth Client');
     await user.type(screen.getByPlaceholderText(/Claude Web, My MCP App/i), 'Fail Client');
     await user.type(screen.getByPlaceholderText(/https:\/\/your-app/i), 'http://localhost');
+    await user.click(screen.getByRole('button', { name: /Select all/i }));
     await user.click(screen.getByRole('button', { name: /Register Client/i }));
     await screen.findByText(/Failed to register/i);
   });

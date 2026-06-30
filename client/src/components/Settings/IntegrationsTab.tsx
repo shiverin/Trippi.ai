@@ -1209,7 +1209,12 @@ function OAuthClientModals(props: any) {
                   </button>
                   <button
                     onClick={handleCreateOAuthClient}
-                    disabled={!oauthNewName.trim() || (!oauthIsMachine && !oauthNewUris.trim()) || oauthCreating}
+                    disabled={
+                      !oauthNewName.trim() ||
+                      (!oauthIsMachine && !oauthNewUris.trim()) ||
+                      oauthNewScopes.length === 0 ||
+                      oauthCreating
+                    }
                     className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
                   >
                     {oauthCreating ? t('settings.oauth.modal.creating') : t('settings.oauth.modal.create')}

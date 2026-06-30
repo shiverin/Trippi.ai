@@ -944,7 +944,13 @@
   aspect-ratio: 4 / 3;
   overflow: hidden;
 }
+.trek-dash .trip-default-art {
+  position: absolute;
+  inset: 0;
+}
 .trek-dash .trip-cover img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -957,13 +963,14 @@
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 1;
   background: linear-gradient(180deg, oklch(0 0 0 / 0) 40%, oklch(0 0 0 / 0.55) 100%);
 }
 .trek-dash .trip-status {
   position: absolute;
   top: 16px;
   left: 16px;
-  z-index: 1;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -1027,7 +1034,9 @@
 .trek-dash .trips.list-view .trip-action-btn {
   background: oklch(1 0 0 / 0.9);
   border-color: oklch(0.88 0.008 70 / 0.9);
-  box-shadow: var(--sh-sm), inset 0 1px 0 oklch(1 0 0 / 0.85);
+  box-shadow:
+    var(--sh-sm),
+    inset 0 1px 0 oklch(1 0 0 / 0.85);
   color: var(--ink);
 }
 .trek-dash .trips.list-view .trip-action-btn:hover,
@@ -1040,7 +1049,9 @@
 .dark .trek-dash .trips.list-view .trip-action-btn {
   background: oklch(0.1 0 0 / 0.78);
   border-color: oklch(1 0 0 / 0.14);
-  box-shadow: var(--sh-sm), inset 0 1px 0 oklch(1 0 0 / 0.08);
+  box-shadow:
+    var(--sh-sm),
+    inset 0 1px 0 oklch(1 0 0 / 0.08);
   color: var(--ink);
 }
 .dark .trek-dash .trips.list-view .trip-action-btn:hover,
@@ -1058,7 +1069,7 @@
   left: 18px;
   right: 18px;
   bottom: 16px;
-  z-index: 1;
+  z-index: 2;
   color: #fff;
 }
 .trek-dash .trip-name {
@@ -1249,6 +1260,21 @@
    from the error banner above so an outage and a real empty list never look alike. */
 .trek-dash .trips-empty {
   margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-lg);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  padding: 14px 16px;
+}
+.trek-dash .trips-empty-art {
+  width: 104px;
+  height: 76px;
+  flex: 0 0 auto;
+  border-radius: 18px;
+  box-shadow: var(--sh-md);
 }
 .trek-dash .trips-empty h4 {
   font-size: 18px;
@@ -1260,6 +1286,17 @@
   font-size: 14px;
   color: var(--ink-3);
   margin: 0;
+}
+
+@media (max-width: 640px) {
+  .trek-dash .trips-empty {
+    align-items: flex-start;
+  }
+  .trek-dash .trips-empty-art {
+    width: 82px;
+    height: 62px;
+    border-radius: 16px;
+  }
 }
 
 /* ----------------- tools sidebar ----------------- */

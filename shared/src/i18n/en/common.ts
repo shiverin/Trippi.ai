@@ -50,5 +50,6 @@ const common: TranslationStrings = {
   'common.collapse': 'Collapse',
   'common.copy': 'Copy',
   'common.copied': 'Copied',
+  'common.share': 'Share',
 };
 export default common;

@@ -57,6 +57,7 @@ export interface EnqueueAgentJobInput<TPayload = unknown> {
   tripId?: number | null;
   maxAttempts?: number;
   nextRunAt?: DateInput;
+  rerunTerminal?: boolean;
 }
 
 export interface ClaimAgentJobOptions {
@@ -209,7 +210,36 @@ export async function enqueueAgentJob<TPayload = unknown>(
     const existing = await asyncDb
       .prepare('SELECT * FROM agent_jobs WHERE type = ? AND idempotency_key = ?')
       .get<AgentJobRow>(type, idempotencyKey);
-    if (existing) return mapAgentJobRow<TPayload>(existing);
+    if (existing) {
+      if (input.rerunTerminal && ['succeeded', 'failed', 'cancelled', 'archived'].includes(existing.status)) {
+        await asyncDb
+          .prepare(
+            `
+              UPDATE agent_jobs
+              SET payload = ?,
+                  status = 'queued',
+                  attempts = 0,
+                  max_attempts = ?,
+                  next_run_at = ?,
+                  last_error = NULL,
+                  result_metadata = NULL,
+                  trip_id = ?,
+                  locked_by = NULL,
+                  locked_at = NULL,
+                  started_at = NULL,
+                  finished_at = NULL,
+                  cancelled_at = NULL,
+                  archived_at = NULL,
+                  updated_at = ?
+              WHERE id = ?
+            `,
+          )
+          .run(payload, maxAttempts, nextRunAt, tripId, now, existing.id);
+        const requeued = await getAgentJob<TPayload>(Number(existing.id));
+        if (requeued) return requeued;
+      }
+      return mapAgentJobRow<TPayload>(existing);
+    }
   }
 
   throw new Error('Failed to enqueue agent job');

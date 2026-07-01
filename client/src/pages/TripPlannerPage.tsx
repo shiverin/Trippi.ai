@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { MapCompassPill, type CompassMap } from '../components/Map/MapCompassPill';
 import { MapViewAuto as MapView } from '../components/Map/MapViewAuto';
@@ -22,6 +22,7 @@ import {
   FolderPlus,
   ListTodo,
   Loader2,
+  Lock,
   PackageCheck,
   PanelLeftClose,
   PanelLeftOpen,
@@ -34,6 +35,7 @@ import {
   X,
 } from 'lucide-react';
 import { assignmentsApi } from '../api/client';
+import UpgradePlansModal from '../components/Billing/UpgradePlansModal';
 import CostsPanel, { ExpenseModal, type ExpensePrefill } from '../components/Budget/CostsPanel';
 import CollabPanel from '../components/Collab/CollabPanel';
 import type { CommandCenterAction } from '../components/CommandCenter/commandCenterModel';
@@ -299,6 +301,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     settings,
     placesPhotosEnabled,
     trip,
+    tripEditLocked,
     days,
     places,
     assignments,
@@ -313,6 +316,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     tripActions,
     can,
     canUploadFiles,
+    entitlementState,
     pushUndo,
     undo,
     canUndo,
@@ -461,7 +465,22 @@ export default function TripPlannerPage(): React.ReactElement | null {
 
   const poi = usePoiExplore();
   const [glMap, setGlMap] = useState<CompassMap | null>(null);
+  const [upgradePlansOpen, setUpgradePlansOpen] = useState(false);
   const poiPillEnabled = useSettingsStore((s) => s.settings.map_poi_pill_enabled) !== false;
+  const canEditTrip = !tripEditLocked && can('trip_edit', trip);
+
+  useEffect(() => {
+    const openUpgrade = () => setUpgradePlansOpen(true);
+    window.addEventListener('trippi:trip-edit-locked', openUpgrade);
+    return () => window.removeEventListener('trippi:trip-edit-locked', openUpgrade);
+  }, []);
+
+  useEffect(() => {
+    if (tripEditLocked && showTripForm) {
+      setShowTripForm(false);
+      setUpgradePlansOpen(true);
+    }
+  }, [tripEditLocked, showTripForm, setShowTripForm]);
 
   // Costs expense editor opened from a booking modal (save-then-open). Lives at the
   // page level so it has tripMembers / base currency / current user available.
@@ -624,6 +643,15 @@ export default function TripPlannerPage(): React.ReactElement | null {
           activeTab={activeTab}
           onChange={handleTabChange}
         />
+        {tripEditLocked && (
+          <button
+            className="absolute right-3 hidden items-center gap-1.5 rounded-full border border-edge bg-surface-card px-3 py-1.5 text-xs font-semibold text-content-secondary shadow-sm md:flex"
+            onClick={() => setUpgradePlansOpen(true)}
+          >
+            <Lock className="h-3.5 w-3.5" />
+            {t('dashboard.locked.readOnly')}
+          </button>
+        )}
       </div>
 
       {/* Offset by navbar + tab bar (44px) */}
@@ -647,7 +675,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                 decisions={groupDecisions}
                 decisionMembers={tripMembers}
                 currentUserId={meId > 0 ? meId : null}
-                canManageDecisions={can('trip_edit', trip)}
+                canManageDecisions={canEditTrip}
                 decisionBusyId={groupDecisionBusyId}
                 onDecisionRespond={handleGroupDecisionRespond}
                 onDecisionClose={handleGroupDecisionClose}
@@ -873,7 +901,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                   decisions={groupDecisions}
                   decisionMembers={tripMembers}
                   currentUserId={meId > 0 ? meId : null}
-                  canManageDecisions={can('trip_edit', trip)}
+                  canManageDecisions={canEditTrip}
                   decisionBusyId={groupDecisionBusyId}
                   onCreateDecision={setLinkedDecisionContext}
                   onDecisionRespond={handleGroupDecisionRespond}
@@ -1100,7 +1128,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                     decisions={groupDecisions}
                     decisionMembers={tripMembers}
                     currentUserId={meId > 0 ? meId : null}
-                    canManageDecisions={can('trip_edit', trip)}
+                    canManageDecisions={canEditTrip}
                     decisionBusyId={groupDecisionBusyId}
                     onCreateDecision={setLinkedDecisionContext}
                     onDecisionRespond={handleGroupDecisionRespond}
@@ -1152,7 +1180,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                 decisions={groupDecisions}
                 decisionMembers={tripMembers}
                 currentUserId={meId > 0 ? meId : null}
-                canManageDecisions={can('trip_edit', trip)}
+                canManageDecisions={canEditTrip}
                 decisionBusyId={groupDecisionBusyId}
                 onCreateDecision={setLinkedDecisionContext}
                 onDecisionRespond={handleGroupDecisionRespond}
@@ -1227,7 +1255,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                       decisions={groupDecisions}
                       decisionMembers={tripMembers}
                       currentUserId={meId > 0 ? meId : null}
-                      canManageDecisions={can('trip_edit', trip)}
+                      canManageDecisions={canEditTrip}
                       decisionBusyId={groupDecisionBusyId}
                       onCreateDecision={setLinkedDecisionContext}
                       onDecisionRespond={handleGroupDecisionRespond}
@@ -1405,7 +1433,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                           decisions={groupDecisions}
                           decisionMembers={tripMembers}
                           currentUserId={meId > 0 ? meId : null}
-                          canManageDecisions={can('trip_edit', trip)}
+                          canManageDecisions={canEditTrip}
                           decisionBusyId={groupDecisionBusyId}
                           onCreateDecision={setLinkedDecisionContext}
                           onDecisionRespond={handleGroupDecisionRespond}
@@ -1628,6 +1656,17 @@ export default function TripPlannerPage(): React.ReactElement | null {
           toast.success(t('trip.toast.tripUpdated'));
         }}
         trip={trip}
+      />
+      <UpgradePlansModal
+        open={upgradePlansOpen}
+        billing={entitlementState.billing}
+        checkoutLoading={entitlementState.checkoutLoading}
+        onClose={() => setUpgradePlansOpen(false)}
+        onSelect={(planId) => {
+          entitlementState.startUpgrade(planId).catch((err) => {
+            toast.info(err instanceof Error ? err.message : 'Upgrade checkout is not available yet.');
+          });
+        }}
       />
       <TripMembersModal
         isOpen={showMembersModal}

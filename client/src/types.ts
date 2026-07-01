@@ -95,17 +95,68 @@ export interface ResolvedEntitlements {
   subscribed: boolean;
   trialing: boolean;
   limits: EntitlementPlanLimits;
+  referralBonus?: {
+    active: boolean;
+    activeUntil: string | null;
+    pendingDays: number;
+    daysRemaining: number;
+    expiresSoon: boolean;
+    maxDays: number;
+  };
+}
+
+export interface BillingPlanOption {
+  id: string;
+  planKey: string;
+  label: string;
+  priceLabel: string;
+  intervalLabel: string;
+  description: string;
+  badge?: string;
+  featured?: boolean;
 }
 
 export interface BillingUpgradeAvailability {
   checkoutAvailable: boolean;
   defaultPlanId: string | null;
   portalAvailable: boolean;
+  plans: BillingPlanOption[];
 }
 
 export interface BillingEntitlementsResponse {
   entitlements: ResolvedEntitlements;
   billing: BillingUpgradeAvailability;
+}
+
+export interface ReferralSummary {
+  code: string | null;
+  referral_url: string | null;
+  reward_days: number;
+  max_bonus_days: number;
+  successful_referrals: number;
+  pending_bonus_days: number;
+  active_bonus_until: string | null;
+  active_bonus_days_remaining: number;
+  expires_soon: boolean;
+}
+
+export interface ReferralValidation {
+  valid: boolean;
+  code?: string;
+  referrer_username?: string;
+  reward_days: number;
+}
+
+export interface ReferralExpiryWarning {
+  show: boolean;
+  active_until: string | null;
+  trips: Array<{
+    id: number;
+    title: string;
+    start_date: string | null;
+    end_date: string | null;
+    created_at: string | null;
+  }>;
 }
 
 export interface TodoItem {

@@ -3,7 +3,8 @@ import { BookingOptionsService, type BookingOptionInput } from '../nest/booking-
 import { enqueueAgentJob, type AgentJob } from './agentJobQueue';
 import type { AgentJobHandler, AgentJobHandlers } from './agentJobWorker';
 import {
-  createMockTravelSearchAdapter,
+  createConfiguredTravelSearchAdapter,
+  getTravelSearchFeatureStatus,
   rankTravelSearchResults,
   type RankedTravelSearchResult,
   type TravelSearchBudget,
@@ -13,8 +14,6 @@ import {
 } from './travelSearch';
 
 export const PRICE_WATCH_JOB_TYPE = 'booking-intent.price-watch';
-export const PRICE_WATCH_PROVIDER = 'mock-travel';
-export const PRICE_WATCH_PROVIDER_MODE = 'mock-development-provider';
 export const PRICE_WATCH_DEFAULT_LIMIT = 5;
 
 export type BookingIntentWatchStatus = 'idle' | 'queued' | 'checking' | 'checked' | 'failed';
@@ -23,7 +22,7 @@ export interface PriceWatchJobPayload {
   tripId: number;
   bookingIntentId: number;
   provider: string;
-  providerMode: typeof PRICE_WATCH_PROVIDER_MODE;
+  providerMode: string;
   limit: number;
 }
 
@@ -53,8 +52,8 @@ interface PriceWatchResultMetadata {
   bookingIntentId: number;
   tripId: number;
   provider: string;
-  providerMode: typeof PRICE_WATCH_PROVIDER_MODE;
-  mockProvider: true;
+  providerMode: string;
+  mockProvider: boolean;
   resultCount: number;
   upsertedOptions: number;
 }
@@ -66,16 +65,18 @@ export function priceWatchIdempotencyKey(bookingIntentId: number | string): stri
 export async function enqueuePriceWatchJob(input: EnqueuePriceWatchInput): Promise<AgentJob<PriceWatchJobPayload>> {
   const tripId = normalizeId(input.tripId, 'tripId');
   const bookingIntentId = normalizeId(input.bookingIntentId, 'bookingIntentId');
+  const status = getTravelSearchFeatureStatus();
 
   return enqueueAgentJob<PriceWatchJobPayload>({
     type: PRICE_WATCH_JOB_TYPE,
     tripId,
     idempotencyKey: priceWatchIdempotencyKey(bookingIntentId),
+    rerunTerminal: true,
     payload: {
       tripId,
       bookingIntentId,
-      provider: PRICE_WATCH_PROVIDER,
-      providerMode: PRICE_WATCH_PROVIDER_MODE,
+      provider: status.provider,
+      providerMode: status.providerMode,
       limit: normalizeLimit(input.limit),
     },
   });
@@ -105,7 +106,11 @@ export const processBookingPriceWatchJob: AgentJobHandler<PriceWatchJobPayload> 
 
   try {
     const request = toTravelSearchRequest(intent);
-    const adapter = createMockTravelSearchAdapter({ provider: payload.provider });
+    const providerStatus = getTravelSearchFeatureStatus();
+    if (!providerStatus.enabled) {
+      throw new Error(providerStatus.reason ?? 'Travel search provider is unavailable.');
+    }
+    const adapter = createConfiguredTravelSearchAdapter();
     const results = await adapter.search(request, {
       limit: payload.limit,
       signal: context.signal,
@@ -117,9 +122,9 @@ export const processBookingPriceWatchJob: AgentJobHandler<PriceWatchJobPayload> 
     return {
       bookingIntentId: payload.bookingIntentId,
       tripId: payload.tripId,
-      provider: payload.provider,
-      providerMode: PRICE_WATCH_PROVIDER_MODE,
-      mockProvider: true,
+      provider: adapter.provider,
+      providerMode: providerStatus.providerMode,
+      mockProvider: providerStatus.mock,
       resultCount: results.length,
       upsertedOptions,
     };
@@ -155,6 +160,7 @@ async function upsertRankedOptions(
 
 function toBookingOptionInput(ranked: RankedTravelSearchResult): BookingOptionInput {
   const result = ranked.result;
+  const providerMode = result.metadata.mock === true ? 'mock-development-provider' : 'amadeus-live-provider';
   return {
     provider: result.provider,
     external_id: result.externalId,
@@ -164,8 +170,8 @@ function toBookingOptionInput(ranked: RankedTravelSearchResult): BookingOptionIn
     score: ranked.score,
     checkout_url: result.deepLink,
     metadata: {
-      source: PRICE_WATCH_PROVIDER_MODE,
-      mock: true,
+      source: providerMode,
+      mock: result.metadata.mock === true,
       provider_metadata: result.metadata,
       timing: result.timing,
       cancellation_hint: result.cancellationHint,
@@ -265,7 +271,7 @@ function toTravelSearchRequest(intent: BookingIntentWatchRow): TravelSearchReque
     preferences,
     metadata: {
       source: 'booking-intent',
-      providerMode: PRICE_WATCH_PROVIDER_MODE,
+      providerMode: getTravelSearchFeatureStatus().providerMode,
     },
   };
 }
@@ -337,8 +343,13 @@ function normalizePayload(payload: PriceWatchJobPayload): PriceWatchJobPayload {
     tripId: normalizeId(payload.tripId, 'tripId'),
     bookingIntentId: normalizeId(payload.bookingIntentId, 'bookingIntentId'),
     provider:
-      typeof payload.provider === 'string' && payload.provider.trim() ? payload.provider.trim() : PRICE_WATCH_PROVIDER,
-    providerMode: PRICE_WATCH_PROVIDER_MODE,
+      typeof payload.provider === 'string' && payload.provider.trim()
+        ? payload.provider.trim()
+        : getTravelSearchFeatureStatus().provider,
+    providerMode:
+      typeof payload.providerMode === 'string' && payload.providerMode.trim()
+        ? payload.providerMode.trim()
+        : getTravelSearchFeatureStatus().providerMode,
     limit: normalizeLimit(payload.limit),
   };
 }

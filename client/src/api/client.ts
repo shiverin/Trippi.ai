@@ -103,7 +103,7 @@ import type {
   GroupDecisionResponseState,
 } from '../components/Decisions/groupDecisionModel';
 import { isReachable, probeNow } from '../sync/connectivity';
-import type { BillingEntitlementsResponse } from '../types';
+import type { BillingEntitlementsResponse, ReferralExpiryWarning, ReferralSummary, ReferralValidation } from '../types';
 import { API_BASE_URL, apiUrl } from './baseUrl';
 import { getSocketId } from './websocket';
 
@@ -311,6 +311,16 @@ apiClient.interceptors.response.use(
       }
       error.message = translated;
     }
+    if (
+      error.response?.status === 403 &&
+      (error.response?.data as { code?: string } | undefined)?.code === 'TRIP_EDIT_LOCKED'
+    ) {
+      window.dispatchEvent(
+        new CustomEvent('trippi:trip-edit-locked', {
+          detail: error.response.data,
+        })
+      );
+    }
     return Promise.reject(error);
   }
 );
@@ -380,6 +390,17 @@ export const billingApi = {
     apiClient.post('/billing/checkout-session', data).then((r) => r.data as { url: string }),
   portalSession: (data: { returnUrl?: string } = {}) =>
     apiClient.post('/billing/portal-session', data).then((r) => r.data as { url: string }),
+};
+
+export const referralsApi = {
+  me: (): Promise<ReferralSummary> => apiClient.get('/referrals/me').then((r) => r.data as ReferralSummary),
+  create: (): Promise<ReferralSummary> => apiClient.post('/referrals/me', {}).then((r) => r.data as ReferralSummary),
+  validate: (code: string): Promise<ReferralValidation> =>
+    apiClient.get(`/referrals/${encodeURIComponent(code)}`).then((r) => r.data as ReferralValidation),
+  expiryWarning: (): Promise<ReferralExpiryWarning> =>
+    apiClient.get('/referrals/expiry-warning').then((r) => r.data as ReferralExpiryWarning),
+  dismissExpiryWarning: (activeUntil: string) =>
+    apiClient.post('/referrals/expiry-warning/dismiss', { active_until: activeUntil }).then((r) => r.data),
 };
 
 export interface PasskeyCredential {

@@ -2,6 +2,7 @@ import admin from './admin';
 import airport from './airport';
 import atlas from './atlas';
 import backup from './backup';
+import billing from './billing';
 import budget from './budget';
 import categories from './categories';
 import collab from './collab';
@@ -27,6 +28,7 @@ import photos from './photos';
 import places from './places';
 import planner from './planner';
 import register from './register';
+import referral from './referral';
 import reservations from './reservations';
 import settings from './settings';
 import share from './share';
@@ -66,6 +68,8 @@ const locale = {
   ...members,
   ...categories,
   ...backup,
+  ...billing,
+  ...referral,
   ...photos,
   ...pdf,
   ...planner,

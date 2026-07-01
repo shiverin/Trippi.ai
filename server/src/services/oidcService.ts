@@ -4,6 +4,7 @@ import { db } from '../db/database';
 import { User } from '../types';
 import { decrypt_api_key } from './apiKeyCrypto';
 import { resolveAuthToggles, resolveAuthTogglesAsync } from './authService';
+import { completeReferralSignup, validateReferralCodeInternal } from './referralService';
 
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -63,7 +64,7 @@ const DISCOVERY_TTL = 60 * 60 * 1000; // 1 hour
 
 const pendingStates = new Map<
   string,
-  { createdAt: number; redirectUri: string; inviteToken?: string; codeVerifier: string }
+  { createdAt: number; redirectUri: string; inviteToken?: string; referralCode?: string; codeVerifier: string }
 >();
 
 setInterval(() => {
@@ -80,11 +81,15 @@ function base64url(buf: Buffer): string {
 // Creates the login state and a matching PKCE pair. The verifier stays server
 // side (in pendingStates); the S256 challenge goes to the provider so PKCE-
 // required setups (e.g. Pocket ID with PKCE = required) work.
-export function createState(redirectUri: string, inviteToken?: string): { state: string; codeChallenge: string } {
+export function createState(
+  redirectUri: string,
+  inviteToken?: string,
+  referralCode?: string,
+): { state: string; codeChallenge: string } {
   const state = crypto.randomBytes(32).toString('hex');
   const codeVerifier = base64url(crypto.randomBytes(32));
   const codeChallenge = base64url(crypto.createHash('sha256').update(codeVerifier).digest());
-  pendingStates.set(state, { createdAt: Date.now(), redirectUri, inviteToken, codeVerifier });
+  pendingStates.set(state, { createdAt: Date.now(), redirectUri, inviteToken, referralCode, codeVerifier });
   return { state, codeChallenge };
 }
 
@@ -520,6 +525,7 @@ export async function findOrCreateUserAsync(
   userInfo: OidcUserInfo,
   config: OidcConfig,
   inviteToken?: string,
+  referralCode?: string,
 ): Promise<{ user: User } | { error: string }> {
   const email = userInfo.email!.trim().toLowerCase();
   const name = userInfo.name || userInfo.preferred_username || email.split('@')[0];
@@ -585,7 +591,12 @@ export async function findOrCreateUserAsync(
     }
   }
 
-  if (!isFirstUser && !validInvite) {
+  const validReferral = referralCode ? await validateReferralCodeInternal(referralCode) : null;
+  if (referralCode && !validReferral) {
+    return { error: 'invalid_referral' };
+  }
+
+  if (!isFirstUser && !validInvite && !validReferral) {
     const { oidc_registration } = await resolveAuthTogglesAsync();
     if (!oidc_registration) {
       return { error: 'registration_disabled' };
@@ -617,7 +628,9 @@ export async function findOrCreateUserAsync(
           'INSERT INTO users (username, email, password_hash, role, oidc_sub, oidc_issuer, first_seen_version, login_count) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
         )
         .run(username, email, hash, role, sub, config.issuer, process.env.APP_VERSION || '0.0.0');
-      return { user: { id: Number(result.lastInsertRowid), username, email, role } as User };
+      const userId = Number(result.lastInsertRowid);
+      if (validReferral) await completeReferralSignup(validReferral.code, userId);
+      return { user: { id: userId, username, email, role } as User };
     })();
   } catch (err) {
     if (err === inviteRaceError) {

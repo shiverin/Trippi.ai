@@ -1,4 +1,5 @@
 import { KitineraryExtractorService } from './kitinerary-extractor.service';
+import { getTravelSearchFeatureStatus } from '../../services/travelSearch';
 import { Controller, Get } from '@nestjs/common';
 
 /** Exposes server feature flags consumed by the frontend to show/hide optional UI. */
@@ -10,6 +11,7 @@ export class FeaturesController {
   features() {
     return {
       bookingImport: this.extractor.isAvailable(),
+      travelSearch: getTravelSearchFeatureStatus(),
     };
   }
 }

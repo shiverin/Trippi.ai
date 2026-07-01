@@ -15,6 +15,7 @@ import { deleteMediaBestEffort, mediaKey } from './mediaStorage';
 import { encryptMfaSecret, decryptMfaSecret } from './mfaCrypto';
 import { validatePassword } from './passwordPolicy';
 import { getAllPermissions, getAllPermissionsAsync } from './permissions';
+import { completeReferralSignup, validateReferralCodeInternal } from './referralService';
 import { deleteUserCompletely } from './userCleanupService';
 import { isPasskeyConfigured, isPasskeyConfiguredAsync, resolveWebauthnConfigAsync } from './webauthnConfig';
 import {
@@ -894,7 +895,13 @@ export async function validateInviteTokenAsync(token: string): Promise<{
   return { valid: true, max_uses: invite.max_uses, used_count: invite.used_count, expires_at: invite.expires_at };
 }
 
-export function registerUser(body: { username?: string; email?: string; password?: string; invite_token?: string }): {
+export function registerUser(body: {
+  username?: string;
+  email?: string;
+  password?: string;
+  invite_token?: string;
+  referral_code?: string;
+}): {
   error?: string;
   status?: number;
   token?: string;
@@ -905,6 +912,7 @@ export function registerUser(body: { username?: string; email?: string; password
   const username = typeof body.username === 'string' ? body.username.trim() : '';
   const email = typeof body.email === 'string' ? body.email.trim() : '';
   const { password, invite_token } = body;
+  const referral_code = typeof body.referral_code === 'string' ? body.referral_code.trim() : '';
 
   const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }).count;
 
@@ -918,7 +926,17 @@ export function registerUser(body: { username?: string; email?: string; password
       return { error: 'Invite link has expired', status: 410 };
   }
 
-  if (userCount > 0 && !validInvite) {
+  let validReferral: { code: string; user_id: number } | null = null;
+  if (referral_code) {
+    // The synchronous registration path is legacy/local-only; runtime Nest
+    // registration uses registerUserAsync below, where the referral is awarded.
+    validReferral = db
+      .prepare('SELECT code, user_id FROM referral_codes WHERE code = ? AND revoked_at IS NULL')
+      .get(referral_code) as { code: string; user_id: number } | null;
+    if (!validReferral) return { error: 'Invalid referral link', status: 400 };
+  }
+
+  if (userCount > 0 && !validInvite && !validReferral) {
     const toggles = resolveAuthToggles();
     if (!toggles.password_registration) {
       return { error: 'Password registration is disabled. Contact your administrator.', status: 403 };
@@ -984,6 +1002,7 @@ export async function registerUserAsync(body: {
   email?: string;
   password?: string;
   invite_token?: string;
+  referral_code?: string;
 }): Promise<{
   error?: string;
   status?: number;
@@ -995,6 +1014,7 @@ export async function registerUserAsync(body: {
   const username = typeof body.username === 'string' ? body.username.trim() : '';
   const email = typeof body.email === 'string' ? body.email.trim() : '';
   const { password, invite_token } = body;
+  const referral_code = typeof body.referral_code === 'string' ? body.referral_code.trim() : '';
 
   const userCount = (
     (await asyncDb.prepare('SELECT COUNT(*) as count FROM users').get<{ count: number }>()) ?? { count: 0 }
@@ -1015,7 +1035,12 @@ export async function registerUserAsync(body: {
     }
   }
 
-  if (userCount > 0 && !validInvite) {
+  const validReferral = referral_code ? await validateReferralCodeInternal(referral_code) : null;
+  if (referral_code && !validReferral) {
+    return { error: 'Invalid referral link', status: 400 };
+  }
+
+  if (userCount > 0 && !validInvite && !validReferral) {
     const toggles = await resolveAuthTogglesAsync();
     if (!toggles.password_registration) {
       return { error: 'Password registration is disabled. Contact your administrator.', status: 403 };
@@ -1077,11 +1102,17 @@ export async function registerUserAsync(body: {
         }
       }
 
+      let referralApplied = false;
+      if (validReferral) {
+        const referralResult = await completeReferralSignup(validReferral.code, userId);
+        referralApplied = referralResult.applied;
+      }
+
       return {
         token,
         user: { ...user, avatar_url: null },
         auditUserId: userId,
-        auditDetails: { username, email, role },
+        auditDetails: { username, email, role, referral: referralApplied },
       };
     })();
   } catch {

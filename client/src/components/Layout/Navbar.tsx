@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ChevronDown,
   Compass,
+  Gift,
   Globe,
   LogOut,
   Moon,
@@ -22,6 +23,7 @@ import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import ReferralDialog from '../Referrals/ReferralDialog';
 import { useToast } from '../shared/Toast';
 import InAppNotificationBell from './InAppNotificationBell.tsx';
 
@@ -52,6 +54,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
   const navigate = useNavigate();
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
+  const [referralDialogOpen, setReferralDialogOpen] = useState<boolean>(false);
   const [scrolled, setScrolled] = useState<boolean>(false);
   const documentDark = useDocumentDarkMode();
   const darkMode = settings.dark_mode;
@@ -386,6 +389,20 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
                         {t('nav.admin')}
                       </Link>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        setReferralDialogOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-sm text-content-secondary transition-colors"
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <Gift className="h-4 w-4" />
+                      {t('nav.referFriends')}
+                    </button>
                   </div>
 
                   <div className="border-t border-edge-secondary py-1">
@@ -403,6 +420,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
             )}
         </div>
       )}
+      <ReferralDialog open={referralDialogOpen} onClose={() => setReferralDialogOpen(false)} />
     </nav>
   );
 }

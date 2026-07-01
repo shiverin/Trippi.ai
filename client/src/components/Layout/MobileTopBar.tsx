@@ -1,4 +1,4 @@
-import { Bell, Bot, LogOut, Settings, Shield } from 'lucide-react';
+import { Bell, Bot, Gift, LogOut, Settings, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
 import { useAuthStore } from '../../store/authStore';
 import { useInAppNotificationStore } from '../../store/inAppNotificationStore';
+import ReferralDialog from '../Referrals/ReferralDialog';
 
 // Mobile-only: a slim strip at the very top of the dashboard with the
 // notification + profile icons (right-aligned). Scrolls with the page.
@@ -16,6 +17,7 @@ export default function MobileTopBar() {
   const unread = useInAppNotificationStore((s) => s.unreadCount);
   const fetchUnreadCount = useInAppNotificationStore((s) => s.fetchUnreadCount);
   const [showProfile, setShowProfile] = useState(false);
+  const [showReferral, setShowReferral] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) fetchUnreadCount();
@@ -63,12 +65,23 @@ export default function MobileTopBar() {
         </button>
       </div>
 
-      {showProfile && createPortal(<ProfileSheet onClose={() => setShowProfile(false)} />, document.body)}
+      {showProfile &&
+        createPortal(
+          <ProfileSheet
+            onClose={() => setShowProfile(false)}
+            onRefer={() => {
+              setShowProfile(false);
+              setShowReferral(true);
+            }}
+          />,
+          document.body
+        )}
+      <ReferralDialog open={showReferral} onClose={() => setShowReferral(false)} />
     </>
   );
 }
 
-function ProfileSheet({ onClose }: { onClose: () => void }) {
+function ProfileSheet({ onClose, onRefer }: { onClose: () => void; onRefer: () => void }) {
   const { t } = useTranslation();
   const { user, logout } = useAuthStore();
   const mcpConnectEnabled = useAddonStore((s) => s.addons.some((addon) => addon.id === 'mcp' && addon.enabled));
@@ -143,6 +156,14 @@ function ProfileSheet({ onClose }: { onClose: () => void }) {
               <span className="text-[14px] font-medium text-zinc-900 dark:text-white">{t('nav.bottomAdmin')}</span>
             </button>
           )}
+
+          <button
+            onClick={onRefer}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-zinc-50 active:bg-zinc-100 dark:hover:bg-zinc-800 dark:active:bg-zinc-800"
+          >
+            <Gift size={18} className="text-zinc-500" />
+            <span className="text-[14px] font-medium text-zinc-900 dark:text-white">{t('nav.referFriends')}</span>
+          </button>
         </div>
 
         <div className="mx-4 h-px bg-zinc-100 dark:bg-zinc-800" />

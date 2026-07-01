@@ -5,6 +5,7 @@ import { listDays, listAccommodations } from '../../services/dayService';
 import {
   checkActiveTripCapacity,
   checkTripGroupCapacity,
+  annotateTripsWithEditLocks,
   throwIfEntitlementDenied,
 } from '../../services/entitlementService';
 import { listFilesAsync } from '../../services/fileService';
@@ -47,7 +48,7 @@ export class TripsService {
     const startedAt = Date.now();
     try {
       if (archived === null) {
-        return asyncDb
+        const trips = await asyncDb
           .prepare(
             `
       ${tripSvc.TRIP_SELECT}
@@ -56,9 +57,10 @@ export class TripsService {
       ORDER BY t.created_at DESC
     `,
           )
-          .all({ userId });
+          .all<{ id: number; user_id: number }>({ userId });
+        return annotateTripsWithEditLocks(trips);
       }
-      return asyncDb
+      const trips = await asyncDb
         .prepare(
           `
     ${tripSvc.TRIP_SELECT}
@@ -67,7 +69,8 @@ export class TripsService {
     ORDER BY t.created_at DESC
   `,
         )
-        .all({ userId, archived });
+        .all<{ id: number; user_id: number }>({ userId, archived });
+      return annotateTripsWithEditLocks(trips);
     } finally {
       const ms = Date.now() - startedAt;
       if (ms >= 1000) {
@@ -105,8 +108,11 @@ export class TripsService {
       const tripId = Number(result.lastInsertRowid);
       await this.seedNewTripDays(tripId, data.start_date || null, data.end_date || null, maxDays, data.day_count);
 
-      const trip = await asyncDb.prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`).get({ userId, tripId });
-      return { trip, tripId, reminderDays: rd };
+      const trip = await asyncDb
+        .prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`)
+        .get<{ id: number; user_id: number }>({ userId, tripId });
+      const [annotatedTrip] = await annotateTripsWithEditLocks(trip ? [trip] : []);
+      return { trip: annotatedTrip, tripId, reminderDays: rd };
     })();
   }
 
@@ -143,7 +149,7 @@ export class TripsService {
   }
 
   async get(tripId: string, userId: number) {
-    return asyncDb
+    const trip = await asyncDb
       .prepare(
         `
     ${tripSvc.TRIP_SELECT}
@@ -151,7 +157,9 @@ export class TripsService {
     WHERE t.id = :tripId AND (t.user_id = :userId OR m.user_id IS NOT NULL)
   `,
       )
-      .get({ userId, tripId });
+      .get<{ id: number; user_id: number }>({ userId, tripId });
+    const [annotatedTrip] = await annotateTripsWithEditLocks(trip ? [trip] : []);
+    return annotatedTrip;
   }
 
   async getRaw(tripId: string) {
@@ -239,8 +247,11 @@ export class TripsService {
         ?.email;
     }
 
-    const updatedTrip = await asyncDb.prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`).get({ userId, tripId });
-    return { updatedTrip, changes, isAdminEdit, ownerEmail, newTitle, newReminder, oldReminder };
+    const updatedTrip = await asyncDb
+      .prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`)
+      .get<{ id: number; user_id: number }>({ userId, tripId });
+    const [annotatedTrip] = await annotateTripsWithEditLocks(updatedTrip ? [updatedTrip] : []);
+    return { updatedTrip: annotatedTrip, changes, isAdminEdit, ownerEmail, newTitle, newReminder, oldReminder };
   }
 
   async remove(tripId: string, userId: number, role: string) {
@@ -292,7 +303,11 @@ export class TripsService {
 
   /** Re-read a freshly copied trip in list shape (mirrors the route's TRIP_SELECT query). */
   async getCopiedTrip(newTripId: number, userId: number) {
-    return asyncDb.prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`).get({ userId, tripId: newTripId });
+    const trip = await asyncDb
+      .prepare(`${tripSvc.TRIP_SELECT} WHERE t.id = :tripId`)
+      .get<{ id: number; user_id: number }>({ userId, tripId: newTripId });
+    const [annotatedTrip] = await annotateTripsWithEditLocks(trip ? [trip] : []);
+    return annotatedTrip;
   }
 
   async listMembers(tripId: string, ownerId: number) {

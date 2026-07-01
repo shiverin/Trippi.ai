@@ -3,8 +3,15 @@ import type { BillingPlanKey } from '../../services/subscriptionService';
 export const STRIPE_API_VERSION = '2026-06-24.dahlia';
 
 export interface BillingPlanConfig {
-  id: BillingPlanKey;
+  id: string;
+  planKey: BillingPlanKey;
   stripePriceId: string;
+  label: string;
+  priceLabel: string;
+  intervalLabel: string;
+  description: string;
+  badge?: string;
+  featured?: boolean;
 }
 
 export interface BillingRedirectUrls {
@@ -26,6 +33,50 @@ export class BillingConfigError extends Error {}
 const DEFAULT_SUCCESS_PATH = '/billing/success?session_id={CHECKOUT_SESSION_ID}';
 const DEFAULT_CANCEL_PATH = '/billing';
 const DEFAULT_PORTAL_RETURN_PATH = '/settings/billing';
+
+const DEFAULT_PLAN_DETAILS: Record<
+  string,
+  Omit<BillingPlanConfig, 'id' | 'stripePriceId'> & { aliases?: string[] }
+> = {
+  pro_monthly: {
+    planKey: 'pro',
+    label: 'Pro',
+    priceLabel: '$1.99',
+    intervalLabel: 'per month',
+    description: 'Full Pro planning for one month.',
+    aliases: ['pro'],
+  },
+  pro_annual: {
+    planKey: 'pro',
+    label: 'Pro annual',
+    priceLabel: '$10',
+    intervalLabel: 'per 12 months',
+    description: 'A year of Pro for frequent travelers.',
+    badge: 'Best value',
+    featured: true,
+  },
+  agency_annual: {
+    planKey: 'agency',
+    label: 'Agency',
+    priceLabel: '$49',
+    intervalLabel: 'per 12 months',
+    description: 'Agency-scale limits for teams and trip operators.',
+  },
+  pro: {
+    planKey: 'pro',
+    label: 'Pro',
+    priceLabel: '$1.99',
+    intervalLabel: 'per month',
+    description: 'Full Pro planning for one month.',
+  },
+  agency: {
+    planKey: 'agency',
+    label: 'Agency',
+    priceLabel: '$49',
+    intervalLabel: 'per 12 months',
+    description: 'Agency-scale limits for teams and trip operators.',
+  },
+};
 
 function cleanOrigin(value: string | undefined | null): string | null {
   const trimmed = value?.trim();
@@ -60,12 +111,58 @@ function fallbackAppUrl(env: NodeJS.ProcessEnv): string {
   return `http://localhost:${port}`;
 }
 
-function parsePlanRecord(id: unknown, stripePriceId: unknown): BillingPlanConfig | null {
-  if (typeof id !== 'string' || typeof stripePriceId !== 'string') return null;
+function defaultPlanDetails(id: string): Omit<BillingPlanConfig, 'id' | 'stripePriceId'> {
+  if (DEFAULT_PLAN_DETAILS[id]) return DEFAULT_PLAN_DETAILS[id];
+  if (id.startsWith('pro_')) return DEFAULT_PLAN_DETAILS.pro_monthly;
+  if (id.startsWith('agency_')) return DEFAULT_PLAN_DETAILS.agency_annual;
+  return {
+    planKey: id as BillingPlanKey,
+    label: id,
+    priceLabel: '',
+    intervalLabel: '',
+    description: '',
+  };
+}
+
+function planKeyFromId(id: string, override: unknown): BillingPlanKey {
+  if (typeof override === 'string' && override.trim()) return override.trim().toLowerCase();
+  return defaultPlanDetails(id).planKey;
+}
+
+function parsePlanRecord(id: unknown, value: unknown): BillingPlanConfig | null {
+  if (typeof id !== 'string') return null;
   const planId = id.trim();
-  const priceId = stripePriceId.trim();
+  if (!planId) return null;
+  const defaults = defaultPlanDetails(planId);
+
+  if (typeof value === 'string') {
+    const priceId = value.trim();
+    if (!priceId) return null;
+    return { id: planId, stripePriceId: priceId, ...defaults };
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const item = value as Record<string, unknown>;
+  const rawPriceId = item.stripePriceId ?? item.priceId ?? item.stripe_price_id;
+  if (typeof rawPriceId !== 'string') return null;
+  const priceId = rawPriceId.trim();
   if (!planId || !priceId) return null;
-  return { id: planId, stripePriceId: priceId };
+  return {
+    id: planId,
+    stripePriceId: priceId,
+    planKey: planKeyFromId(planId, item.planKey ?? item.entitlementPlanKey ?? item.entitlement),
+    label: typeof item.label === 'string' && item.label.trim() ? item.label.trim() : defaults.label,
+    priceLabel:
+      typeof item.priceLabel === 'string' && item.priceLabel.trim() ? item.priceLabel.trim() : defaults.priceLabel,
+    intervalLabel:
+      typeof item.intervalLabel === 'string' && item.intervalLabel.trim()
+        ? item.intervalLabel.trim()
+        : defaults.intervalLabel,
+    description:
+      typeof item.description === 'string' && item.description.trim() ? item.description.trim() : defaults.description,
+    badge: typeof item.badge === 'string' && item.badge.trim() ? item.badge.trim() : defaults.badge,
+    featured: typeof item.featured === 'boolean' ? item.featured : defaults.featured,
+  };
 }
 
 function parseJsonPlans(raw: string): BillingPlanConfig[] | null {
@@ -76,7 +173,7 @@ function parseJsonPlans(raw: string): BillingPlanConfig[] | null {
         .map((entry) => {
           if (!entry || typeof entry !== 'object') return null;
           const item = entry as Record<string, unknown>;
-          return parsePlanRecord(item.id ?? item.planId ?? item.key, item.stripePriceId ?? item.priceId);
+          return parsePlanRecord(item.id ?? item.planId ?? item.key, item);
         })
         .filter((plan): plan is BillingPlanConfig => Boolean(plan));
     }
@@ -102,8 +199,9 @@ function parseDelimitedPlans(raw: string): BillingPlanConfig[] {
 }
 
 /**
- * STRIPE_ORGANIZER_PLANS accepts either JSON (`{"pro":"price_..."}`) or
- * comma-delimited pairs (`pro=price_...,agency=price_...`).
+ * STRIPE_ORGANIZER_PLANS accepts either JSON
+ * (`{"pro_monthly":"price_..."}` or full plan objects) or comma-delimited pairs
+ * (`pro_monthly=price_...,pro_annual=price_...,agency_annual=price_...`).
  */
 export function resolveBillingConfig(env: NodeJS.ProcessEnv = process.env): BillingRuntimeConfig {
   const rawPlans = env.STRIPE_ORGANIZER_PLANS?.trim() || '';

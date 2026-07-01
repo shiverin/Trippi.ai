@@ -1,7 +1,13 @@
 import { getEntitlementsForUser, type ResolvedEntitlements } from '../../services/entitlementService';
 import { getBillingCustomerForUser } from '../../services/subscriptionService';
 import type { User } from '../../types';
-import { BillingConfigError, getAllowedPlan, resolveBillingConfig, resolveBillingRedirectUrls } from './billing.config';
+import {
+  BillingConfigError,
+  getAllowedPlan,
+  resolveBillingConfig,
+  resolveBillingRedirectUrls,
+  type BillingPlanConfig,
+} from './billing.config';
 import { StripeClient, StripeRequestError } from './stripe-client';
 import { Injectable } from '@nestjs/common';
 
@@ -32,6 +38,18 @@ export interface BillingUpgradeAvailability {
   checkoutAvailable: boolean;
   defaultPlanId: string | null;
   portalAvailable: boolean;
+  plans: BillingPlanOption[];
+}
+
+export interface BillingPlanOption {
+  id: string;
+  planKey: string;
+  label: string;
+  priceLabel: string;
+  intervalLabel: string;
+  description: string;
+  badge?: string;
+  featured?: boolean;
 }
 
 export interface BillingEntitlementsResult {
@@ -39,7 +57,7 @@ export interface BillingEntitlementsResult {
   billing: BillingUpgradeAvailability;
 }
 
-const CHECKOUT_PLAN_PRIORITY = ['pro', 'agency', 'trial'] as const;
+const CHECKOUT_PLAN_PRIORITY = ['pro_monthly', 'pro_annual', 'agency_annual', 'pro', 'agency', 'trial'] as const;
 
 @Injectable()
 export class BillingService {
@@ -73,8 +91,10 @@ export class BillingService {
       params.set('client_reference_id', String(user.id));
       params.set('metadata[user_id]', String(user.id));
       params.set('metadata[plan_id]', plan.id);
+      params.set('metadata[plan_key]', plan.planKey);
       params.set('subscription_data[metadata][user_id]', String(user.id));
       params.set('subscription_data[metadata][plan_id]', plan.id);
+      params.set('subscription_data[metadata][plan_key]', plan.planKey);
 
       if (customer?.stripe_customer_id) {
         params.set('customer', customer.stripe_customer_id);
@@ -116,23 +136,38 @@ export class BillingService {
   }
 }
 
-function pickDefaultCheckoutPlan(currentPlanKey: string, planIds: string[]): string | null {
-  const candidates = planIds.filter((id) => id !== 'free' && id !== currentPlanKey);
+function toPlanOption(plan: BillingPlanConfig): BillingPlanOption {
+  return {
+    id: plan.id,
+    planKey: plan.planKey,
+    label: plan.label,
+    priceLabel: plan.priceLabel,
+    intervalLabel: plan.intervalLabel,
+    description: plan.description,
+    badge: plan.badge,
+    featured: plan.featured,
+  };
+}
+
+function pickDefaultCheckoutPlan(currentPlanKey: string, plans: BillingPlanOption[]): string | null {
+  const candidates = plans.filter((plan) => plan.planKey !== 'free' && plan.planKey !== currentPlanKey);
   for (const preferred of CHECKOUT_PLAN_PRIORITY) {
-    if (candidates.includes(preferred)) return preferred;
+    if (candidates.some((plan) => plan.id === preferred)) return preferred;
   }
-  return candidates[0] ?? null;
+  return candidates[0]?.id ?? null;
 }
 
 export function resolveUpgradeAvailability(currentPlanKey: string, subscribed = false): BillingUpgradeAvailability {
   const config = resolveBillingConfig();
-  const defaultPlanId = pickDefaultCheckoutPlan(currentPlanKey, Array.from(config.plans.keys()));
+  const plans = Array.from(config.plans.values()).map(toPlanOption);
+  const defaultPlanId = pickDefaultCheckoutPlan(currentPlanKey, plans);
   const checkoutAvailable = Boolean(config.stripeSecretKey && defaultPlanId);
 
   return {
     checkoutAvailable,
     defaultPlanId: checkoutAvailable ? defaultPlanId : null,
     portalAvailable: Boolean(config.stripeSecretKey && subscribed),
+    plans: checkoutAvailable ? plans : plans.map((plan) => ({ ...plan })),
   };
 }
 

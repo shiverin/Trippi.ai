@@ -47,6 +47,8 @@ export default function LoginPage(): React.ReactElement {
     setError,
     appConfig,
     inviteToken,
+    referralCode,
+    referralInfo,
     langDropdownOpen,
     setLangDropdownOpen,
     setLanguageLocal,
@@ -82,6 +84,10 @@ export default function LoginPage(): React.ReactElement {
   const showRegisterToggle =
     showRegisterOption && !!appConfig?.has_users && !appConfig?.demo_mode && !passwordChangeStep;
   const reserveRegisterToggle = !passwordChangeStep && (appConfig === null || showRegisterToggle);
+  const oidcSignupParams = new URLSearchParams();
+  if (inviteToken) oidcSignupParams.set('invite', inviteToken);
+  if (referralCode) oidcSignupParams.set('ref', referralCode);
+  const oidcSignupQuery = oidcSignupParams.toString() ? `?${oidcSignupParams.toString()}` : '';
 
   const inputBase: React.CSSProperties = {
     width: '100%',
@@ -727,8 +733,8 @@ export default function LoginPage(): React.ReactElement {
                 <p style={{ margin: '0 0 24px', fontSize: 13.5, color: '#9ca3af' }}>
                   {noRedirect ? t('login.oidcLoggedOut') : t('login.oidcOnly')}
                 </p>
-                {error && (
-                  <div
+	                  {error && (
+	                    <div
                     style={{
                       padding: '10px 14px',
                       background: '#fef2f2',
@@ -740,10 +746,10 @@ export default function LoginPage(): React.ReactElement {
                     }}
                   >
                     {error}
-                  </div>
-                )}
+	                    </div>
+	                  )}
                 <a
-                  href={`/api/auth/oidc/login${inviteToken ? '?invite=' + encodeURIComponent(inviteToken) : ''}`}
+                  href={`/api/auth/oidc/login${oidcSignupQuery}`}
                   style={{
                     width: '100%',
                     padding: '12px',
@@ -800,8 +806,8 @@ export default function LoginPage(): React.ReactElement {
                 </p>
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {error && (
-                    <div
+	                  {error && (
+	                    <div
                       style={{
                         padding: '10px 14px',
                         background: '#fef2f2',
@@ -812,10 +818,29 @@ export default function LoginPage(): React.ReactElement {
                       }}
                     >
                       {error}
+	                    </div>
+	                  )}
+
+                  {mode === 'register' && referralInfo && !error && (
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        background: '#ecfdf5',
+                        border: '1px solid #bbf7d0',
+                        borderRadius: 10,
+                        fontSize: 13,
+                        color: '#047857',
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {t('login.referralAccepted', {
+                        name: referralInfo.referrer_username || t('login.referralAFriend'),
+                        days: referralInfo.reward_days,
+                      })}
                     </div>
                   )}
 
-                  {passwordChangeStep && (
+	                  {passwordChangeStep && (
                     <>
                       <div
                         style={{
@@ -1282,7 +1307,7 @@ export default function LoginPage(): React.ReactElement {
                 <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
               </div>
               <a
-                href={`/api/auth/oidc/login${inviteToken ? '?invite=' + encodeURIComponent(inviteToken) : ''}`}
+                href={`/api/auth/oidc/login${oidcSignupQuery}`}
                 style={{
                   marginTop: 12,
                   width: '100%',

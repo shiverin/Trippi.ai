@@ -2,7 +2,6 @@ import {
   Archive,
   AlertCircle,
   ArrowRight,
-  ArrowRightLeft,
   Calendar,
   Check,
   Clock,
@@ -12,6 +11,7 @@ import {
   LayoutGrid,
   List,
   ListTodo,
+  Lock,
   MapPin,
   Plane,
   Plus,
@@ -22,34 +22,33 @@ import {
   X,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { referralsApi } from '../api/client';
+import UpgradePlansModal from '../components/Billing/UpgradePlansModal';
 import DemoBanner from '../components/Layout/DemoBanner';
 import MobileTopBar from '../components/Layout/MobileTopBar';
 import Navbar from '../components/Layout/Navbar';
 import TripFormModal from '../components/Trips/TripFormModal';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import CopyTripDialog from '../components/shared/CopyTripDialog';
-import CustomSelect from '../components/shared/CustomSelect';
 import PlaceAvatar from '../components/shared/PlaceAvatar';
 import { LockedState } from '../components/shared/PremiumGate';
 import { useToast } from '../components/shared/Toast';
 import { formatLimit, isLimitReached, useEntitlements } from '../hooks/useEntitlements';
 import { useTranslation } from '../i18n';
-import { useSettingsStore } from '../store/settingsStore';
 import '../styles/dashboard.css';
 import { formatTime, splitReservationDateTime } from '../utils/formatters';
 import { resolveMediaUrl } from '../utils/mediaUrl';
-import { convertDistance, getDistanceUnitLabel } from '../utils/units';
 import {
   type DashboardTrip,
   type DashboardTodo,
   type HeroBundle,
-  type TravelStats,
   type UpcomingReservation,
   MS_PER_DAY,
   daysUntil,
   getTripStatus,
 } from './dashboard/dashboardModel';
 import { useDashboard } from './dashboard/useDashboard';
+import type { ReferralExpiryWarning } from '../types';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -127,7 +126,6 @@ export default function DashboardPage(): React.ReactElement {
     navigate,
     spotlight,
     heroBundle,
-    stats,
     upcoming,
     pendingTodos,
     gridTrips,
@@ -161,6 +159,8 @@ export default function DashboardPage(): React.ReactElement {
   const entitlementState = useEntitlements();
   const lifetimeTripLimit = entitlementState.entitlements?.limits.activeTrips;
   const lifetimeTripLocked = isLimitReached(lifetimeTripLimit, ownedLifetimeTripCount);
+  const [upgradePlansOpen, setUpgradePlansOpen] = useState(false);
+  const [expiryWarning, setExpiryWarning] = useState<ReferralExpiryWarning | null>(null);
 
   const openCreateTrip = () => {
     if (lifetimeTripLocked) return;
@@ -168,10 +168,37 @@ export default function DashboardPage(): React.ReactElement {
     setShowForm(true);
   };
 
-  const startUpgrade = () => {
-    entitlementState.startUpgrade().catch((err) => {
+  const startUpgrade = (planId?: string) => {
+    entitlementState.startUpgrade(planId).catch((err) => {
       toast.info(err instanceof Error ? err.message : 'Upgrade checkout is not available yet.');
     });
+  };
+
+  const openUpgradePlans = () => setUpgradePlansOpen(true);
+
+  const openTripEdit = (trip: DashboardTrip) => {
+    if (trip.edit_locked) {
+      openUpgradePlans();
+      return;
+    }
+    setEditingTrip(trip);
+    setShowForm(true);
+  };
+
+  useEffect(() => {
+    if (overlaysDisabled) return;
+    referralsApi
+      .expiryWarning()
+      .then((warning) => {
+        if (warning.show) setExpiryWarning(warning);
+      })
+      .catch(() => {});
+  }, [overlaysDisabled]);
+
+  const dismissExpiryWarning = () => {
+    const activeUntil = expiryWarning?.active_until;
+    setExpiryWarning(null);
+    if (activeUntil) referralsApi.dismissExpiryWarning(activeUntil).catch(() => {});
   };
 
   useEffect(() => {
@@ -212,10 +239,7 @@ export default function DashboardPage(): React.ReactElement {
                     bundle={heroBundle}
                     locale={locale}
                     onOpen={() => navigate(`/trips/${spotlight.id}`)}
-                    onEdit={() => {
-                      setEditingTrip(spotlight);
-                      setShowForm(true);
-                    }}
+                    onEdit={() => openTripEdit(spotlight)}
                     onCopy={() => setCopyTrip(spotlight)}
                     onArchive={() =>
                       spotlight.is_archived ? handleUnarchive(spotlight.id) : handleArchive(spotlight.id)
@@ -224,9 +248,6 @@ export default function DashboardPage(): React.ReactElement {
                   />
                 </div>
               )}
-
-              <AtlasStats stats={stats} />
-
               <section className="trips-section">
                 <div className="sec-head">
                   <h3 className="sec-title">{t('dashboard.title')}</h3>
@@ -270,10 +291,7 @@ export default function DashboardPage(): React.ReactElement {
                       trip={trip}
                       locale={locale}
                       onOpen={() => navigate(`/trips/${trip.id}`)}
-                      onEdit={() => {
-                        setEditingTrip(trip);
-                        setShowForm(true);
-                      }}
+                      onEdit={() => openTripEdit(trip)}
                       onCopy={() => setCopyTrip(trip)}
                       onArchive={() => (trip.is_archived ? handleUnarchive(trip.id) : handleArchive(trip.id))}
                       onDelete={() => setDeleteTrip(trip)}
@@ -290,7 +308,7 @@ export default function DashboardPage(): React.ReactElement {
                           description={`Your ${entitlementState.entitlements?.planKey ?? 'current'} plan includes this many trips for the lifetime of the account.`}
                           upgradeAvailable={!!entitlementState.billing?.checkoutAvailable}
                           upgradePending={entitlementState.checkoutLoading}
-                          onUpgrade={startUpgrade}
+                          onUpgrade={openUpgradePlans}
                           testId="active-trip-locked-state"
                         />
                       </div>
@@ -317,15 +335,13 @@ export default function DashboardPage(): React.ReactElement {
                 onOpen={openDashboardTodo}
                 onComplete={completeDashboardTodo}
               />
-              <TimezoneTool locale={locale} />
-              <CurrencyTool />
             </aside>
           </main>
         </div>
 
         <button
           className="fab-new-trip"
-          onClick={lifetimeTripLocked ? startUpgrade : openCreateTrip}
+          onClick={lifetimeTripLocked ? openUpgradePlans : openCreateTrip}
           aria-label={t('dashboard.newTrip')}
           title={lifetimeTripLocked ? 'Trip limit reached' : t('dashboard.newTrip')}
         >
@@ -366,6 +382,23 @@ export default function DashboardPage(): React.ReactElement {
             onClose={() => setCopyTrip(null)}
           />
         )}
+        <UpgradePlansModal
+          open={upgradePlansOpen}
+          billing={entitlementState.billing}
+          checkoutLoading={entitlementState.checkoutLoading}
+          onClose={() => setUpgradePlansOpen(false)}
+          onSelect={startUpgrade}
+        />
+        {expiryWarning?.show && (
+          <ReferralExpiryOverlay
+            warning={expiryWarning}
+            onDismiss={dismissExpiryWarning}
+            onUpgrade={() => {
+              setExpiryWarning(null);
+              openUpgradePlans();
+            }}
+          />
+        )}
       </div>
     </>
   );
@@ -401,6 +434,7 @@ function BoardingPassHero({
   const start = splitDate(trip.start_date, locale);
   const end = splitDate(trip.end_date, locale);
   const coverImageUrl = resolveMediaUrl(trip.cover_image);
+  const editLocked = !!trip.edit_locked;
 
   // Countdown cell — plain text in the same style as the trip-dates cell:
   // days remaining while the trip runs, days until departure before it starts.
@@ -566,9 +600,15 @@ function BoardingPassHero({
               {status === 'ongoing' && <span className="pulse" />}
               {badge}
             </div>
+            {editLocked && (
+              <div className="hero-badge" style={{ background: 'rgba(17,24,39,0.72)' }}>
+                <Lock size={13} />
+                {t('dashboard.locked.readOnly')}
+              </div>
+            )}
             <div className="hero-tools">
               <button className="hero-tool" aria-label={t('common.edit')} onClick={(e) => stop(e, onEdit)}>
-                <Edit2 size={16} />
+                {editLocked ? <Lock size={16} /> : <Edit2 size={16} />}
               </button>
               <button className="hero-tool" aria-label={t('dashboard.aria.duplicate')} onClick={(e) => stop(e, onCopy)}>
                 <Copy size={16} />
@@ -728,6 +768,7 @@ function TripCard({
   const end = splitDate(trip.end_date, locale);
   const until = daysUntil(trip.start_date);
   const coverImageUrl = resolveMediaUrl(trip.cover_image);
+  const editLocked = !!trip.edit_locked;
 
   const statusClass =
     status === 'ongoing'
@@ -761,7 +802,7 @@ function TripCard({
     <article className="trip-card" onClick={onOpen}>
       <div className="trip-actions">
         <button className="trip-action-btn" aria-label={t('common.edit')} onClick={(e) => stop(e, onEdit)}>
-          <Edit2 size={16} />
+          {editLocked ? <Lock size={16} /> : <Edit2 size={16} />}
         </button>
         <button
           className="trip-action-btn"
@@ -794,6 +835,14 @@ function TripCard({
         <div className={`trip-status ${statusClass}`}>
           <span className="indicator" /> {statusLabel}
         </div>
+        {editLocked && (
+          <div
+            className="trip-status"
+            style={{ top: 46, background: 'rgba(17,24,39,0.72)', color: '#fff' }}
+          >
+            <Lock size={12} /> {t('dashboard.locked.readOnly')}
+          </div>
+        )}
         <div className="trip-cover-content">
           <h3 className="trip-name">{trip.title}</h3>
         </div>
@@ -832,6 +881,55 @@ function TripCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function ReferralExpiryOverlay({
+  warning,
+  onDismiss,
+  onUpgrade,
+}: {
+  warning: ReferralExpiryWarning;
+  onDismiss: () => void;
+  onUpgrade: () => void;
+}): React.ReactElement {
+  const { t } = useTranslation();
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-edge bg-surface-card p-5 shadow-2xl">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700">
+            <AlertCircle className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold text-content">{t('dashboard.expiry.title')}</h2>
+            <p className="mt-1 text-sm leading-6 text-content-muted">{t('dashboard.expiry.body')}</p>
+          </div>
+          <button className="rounded-lg p-2 text-content-muted hover:bg-surface-secondary" onClick={onDismiss}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="mt-4 max-h-56 space-y-2 overflow-auto">
+          {warning.trips.slice(0, 8).map((trip) => (
+            <div key={trip.id} className="rounded-lg border border-edge bg-surface-secondary px-3 py-2">
+              <div className="truncate text-sm font-medium text-content">{trip.title}</div>
+              <div className="text-xs text-content-muted">
+                {trip.start_date || t('dashboard.hero.noDates')}
+                {trip.end_date ? ` - ${trip.end_date}` : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button className="rounded-lg border border-edge px-3 py-2 text-sm font-semibold text-content-secondary" onClick={onDismiss}>
+            {t('dashboard.expiry.dismiss')}
+          </button>
+          <button className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-text" onClick={onUpgrade}>
+            {t('dashboard.expiry.upgrade')}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

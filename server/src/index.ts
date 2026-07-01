@@ -9,6 +9,7 @@ import 'reflect-metadata';
 type SchedulerModule = typeof import('./scheduler');
 
 let scheduler: SchedulerModule | null = null;
+let agentJobWorkerAbort: AbortController | null = null;
 
 // Create upload and data directories on startup
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -89,6 +90,14 @@ const onListen = () => {
   scheduler.startTrippiPhotoCacheCleanup();
   scheduler.startPlacePhotoCacheCleanup();
   scheduler.startAirTrailSync();
+  agentJobWorkerAbort = new AbortController();
+  const { runAgentJobWorkerLoop } = require('./services/agentJobWorker') as typeof import('./services/agentJobWorker');
+  const { bookingPriceWatchHandlers } = require('./services/bookingPriceWatch') as typeof import('./services/bookingPriceWatch');
+  void runAgentJobWorkerLoop({
+    handlers: bookingPriceWatchHandlers,
+    signal: agentJobWorkerAbort.signal,
+    pollIntervalMs: Number(process.env.AGENT_JOB_POLL_INTERVAL_MS) || 1000,
+  }).catch((err: unknown) => sLogWarn(`Agent job worker stopped: ${err instanceof Error ? err.message : String(err)}`));
   const { startOracleBackedSync } = require('./db/oracleMirrorRuntime') as typeof import('./db/oracleMirrorRuntime');
   startOracleBackedSync();
   const { startTokenCleanup } = require('./services/ephemeralTokens');
@@ -139,6 +148,8 @@ function shutdown(signal: string): void {
   const { logInfo: sLogInfo, logError: sLogError } = require('./services/auditLog');
   const { closeMcpSessions } = require('./mcp');
   sLogInfo(`${signal} received — shutting down gracefully...`);
+  agentJobWorkerAbort?.abort();
+  agentJobWorkerAbort = null;
   scheduler?.stop();
   closeMcpSessions();
   void nestApp?.close();

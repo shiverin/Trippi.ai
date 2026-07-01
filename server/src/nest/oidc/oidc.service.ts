@@ -25,8 +25,8 @@ export class OidcService {
   discover(issuer: string, discoveryUrl?: string | null) {
     return oidc.discover(issuer, discoveryUrl);
   }
-  createState(redirectUri: string, inviteToken?: string) {
-    return oidc.createState(redirectUri, inviteToken);
+  createState(redirectUri: string, inviteToken?: string, referralCode?: string) {
+    return oidc.createState(redirectUri, inviteToken, referralCode);
   }
   consumeState(state: string) {
     return oidc.consumeState(state);

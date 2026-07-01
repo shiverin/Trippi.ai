@@ -38,6 +38,8 @@ export const tripSchema = z.object({
   is_owner: z.number().optional(),
   owner_username: z.string().optional(),
   shared_count: z.number().optional(),
+  edit_locked: z.boolean().optional(),
+  edit_lock_reason: z.string().optional(),
 });
 export type Trip = z.infer<typeof tripSchema>;
 

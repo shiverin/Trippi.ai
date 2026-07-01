@@ -1,4 +1,6 @@
 import { asyncDb } from '../db/asyncDatabase';
+import type { User } from '../types';
+import { getReferralBonusState, type ReferralBonusState } from './referralService';
 import { getBillingSubscriptionForUser } from './subscriptionService';
 
 export type EntitlementLimit = number | null;
@@ -33,6 +35,7 @@ export interface ResolvedEntitlements {
   subscribed: boolean;
   trialing: boolean;
   limits: EntitlementPlanLimits;
+  referralBonus: ReferralBonusState;
 }
 
 export interface EntitlementCheck {
@@ -224,17 +227,29 @@ export async function getEntitlementsForUser(userId: number): Promise<ResolvedEn
   const plans = getEntitlementPlanDefinitions();
   const billingPlanKey = normalizePlanKey(billing.plan_key);
   const billingStatus = billing.status.toLowerCase();
-  const planKey =
+  const paidAccessActive = billingStatus === 'active' || billingStatus === 'trialing';
+  const referralBonus = await getReferralBonusState(userId, {
+    paidAccessActive: paidAccessActive || userRole === 'admin',
+  });
+  let planKey =
     userRole === 'admin' && plans.agency ? 'agency' : resolveEffectivePlanKey(billingStatus, billingPlanKey, plans);
+  let effectiveBillingPlanKey = billingPlanKey;
+  let effectiveBillingStatus = billingStatus;
+  if (planKey === 'free' && referralBonus.active && plans.pro) {
+    planKey = 'pro';
+    effectiveBillingPlanKey = 'referral_bonus';
+    effectiveBillingStatus = 'referral_bonus';
+  }
 
   return {
     userId,
     planKey,
-    billingPlanKey,
-    billingStatus,
+    billingPlanKey: effectiveBillingPlanKey,
+    billingStatus: effectiveBillingStatus,
     subscribed: billingStatus === 'active',
     trialing: billingStatus === 'trialing',
     limits: plans[planKey] ?? plans.free,
+    referralBonus,
   };
 }
 
@@ -300,6 +315,63 @@ export async function countMcpTokensForUser(userId: number): Promise<number> {
     .prepare('SELECT COUNT(*) AS count FROM mcp_tokens WHERE user_id = ?')
     .get<{ count: number }>(userId);
   return row?.count ?? 0;
+}
+
+export interface TripEditLockInfo {
+  id: number;
+  edit_locked: boolean;
+  edit_lock_reason?: 'FREE_SURPLUS_TRIP';
+}
+
+export async function getLockedOwnedTripIdsForUser(userId: number, editableLimit = 5): Promise<Set<number>> {
+  const entitlements = await getEntitlementsForUser(userId);
+  if (entitlements.planKey !== 'free') return new Set();
+
+  const rows = await asyncDb
+    .prepare(
+      `
+      SELECT id
+      FROM trips
+      WHERE user_id = ?
+      ORDER BY created_at DESC, id DESC
+    `,
+    )
+    .all<{ id: number }>(userId);
+
+  if (rows.length <= editableLimit) return new Set();
+  return new Set(rows.slice(editableLimit).map((row) => Number(row.id)));
+}
+
+export async function isTripEditLockedForActor(
+  tripId: string | number,
+  actor: Pick<User, 'id' | 'role'> | null | undefined,
+): Promise<boolean> {
+  if (!actor || actor.role === 'admin') return false;
+  const trip = await asyncDb.prepare('SELECT id, user_id FROM trips WHERE id = ?').get<{ id: number; user_id: number }>(
+    tripId,
+  );
+  if (!trip) return false;
+  const lockedIds = await getLockedOwnedTripIdsForUser(Number(trip.user_id));
+  return lockedIds.has(Number(trip.id));
+}
+
+export async function annotateTripsWithEditLocks<T extends { id: number; user_id: number }>(trips: T[]): Promise<T[]> {
+  if (trips.length === 0) return trips;
+  const ownerIds = Array.from(new Set(trips.map((trip) => Number(trip.user_id)).filter(Number.isFinite)));
+  const lockedByOwner = new Map<number, Set<number>>();
+  await Promise.all(
+    ownerIds.map(async (ownerId) => {
+      lockedByOwner.set(ownerId, await getLockedOwnedTripIdsForUser(ownerId));
+    }),
+  );
+  return trips.map((trip) => {
+    const locked = lockedByOwner.get(Number(trip.user_id))?.has(Number(trip.id)) ?? false;
+    return {
+      ...trip,
+      edit_locked: locked,
+      ...(locked ? { edit_lock_reason: 'FREE_SURPLUS_TRIP' as const } : {}),
+    };
+  });
 }
 
 export async function checkActiveTripCapacity(userId: number, requested = 1): Promise<EntitlementCheck> {

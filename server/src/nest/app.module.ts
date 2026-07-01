@@ -13,6 +13,7 @@ import { BudgetModule } from './budget/budget.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CollabModule } from './collab/collab.module';
 import { IdempotencyInterceptor } from './common/idempotency.interceptor';
+import { TripEditLockInterceptor } from './common/trip-edit-lock.interceptor';
 import { TrippiExceptionFilter } from './common/trippi-exception.filter';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
@@ -32,6 +33,7 @@ import { OidcModule } from './oidc/oidc.module';
 import { PackingModule } from './packing/packing.module';
 import { PhotosModule } from './photos/photos.module';
 import { PlacesModule } from './places/places.module';
+import { ReferralsModule } from './referrals/referrals.module';
 import { SpaFallbackFilter } from './platform/spa-fallback.filter';
 import { ReservationsModule } from './reservations/reservations.module';
 import { SettingsModule } from './settings/settings.module';
@@ -83,6 +85,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
     SettingsModule,
     BackupModule,
     AuthModule,
+    ReferralsModule,
     BillingModule,
     OidcModule,
     OauthModule,
@@ -105,6 +108,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
     // Replays the X-Idempotency-Key the client sends on every write, matching
     // the legacy applyIdempotency middleware so retried mutations don't double-apply.
     { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: TripEditLockInterceptor },
   ],
 })
 export class AppModule {}

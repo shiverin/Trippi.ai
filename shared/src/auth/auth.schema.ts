@@ -13,6 +13,7 @@ export const registerRequestSchema = z.object({
   password: z.string(),
   username: z.string().optional(),
   invite_token: z.string().optional(),
+  referral_code: z.string().optional(),
 });
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 

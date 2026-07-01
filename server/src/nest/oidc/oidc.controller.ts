@@ -47,7 +47,8 @@ export class OidcController {
       }
       const redirectUri = `${appUrl.replace(/\/+$/, '')}/api/auth/oidc/callback`;
       const inviteToken = req.query.invite as string | undefined;
-      const { state, codeChallenge } = this.oidc.createState(redirectUri, inviteToken);
+      const referralCode = req.query.ref as string | undefined;
+      const { state, codeChallenge } = this.oidc.createState(redirectUri, inviteToken, referralCode);
       // Bind the state to THIS browser. The callback requires a matching cookie,
       // so an attacker-initiated login (whose callback URL carries a valid state
       // from the shared server map) cannot be replayed in a victim's browser to
@@ -144,7 +145,7 @@ export class OidcController {
         return f('/login?oidc_error=subject_mismatch');
       }
 
-      const result = await this.oidc.findOrCreateUser(userInfo, config, pending.inviteToken);
+      const result = await this.oidc.findOrCreateUser(userInfo, config, pending.inviteToken, pending.referralCode);
       if ('error' in result) return f('/login?oidc_error=' + result.error);
 
       await this.oidc.touchLastLogin(result.user.id);

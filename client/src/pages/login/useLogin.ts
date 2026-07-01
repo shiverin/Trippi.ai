@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore, hasStoredLanguage } from '../../store/settingsStore'
 import { useTranslation, detectBrowserLanguage } from '../../i18n'
 import { startAuthentication } from '@simplewebauthn/browser'
-import { authApi, configApi } from '../../api/client'
+import { authApi, configApi, referralsApi } from '../../api/client'
 import { apiUrl } from '../../api/baseUrl'
 import { getApiErrorMessage } from '../../types'
 
@@ -45,6 +45,8 @@ export function useLogin() {
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null)
   const [inviteToken, setInviteToken] = useState<string>('')
   const [inviteValid, setInviteValid] = useState<boolean>(false)
+  const [referralCode, setReferralCode] = useState<string>('')
+  const [referralInfo, setReferralInfo] = useState<{ referrer_username?: string; reward_days: number } | null>(null)
   const exchangeInitiated = useRef(false)
 
   const [langDropdownOpen, setLangDropdownOpen] = useState<boolean>(false)
@@ -84,6 +86,7 @@ export function useLogin() {
     const params = new URLSearchParams(window.location.search)
 
     const invite = params.get('invite')
+    const ref = params.get('ref')
     const oidcCode = params.get('oidc_code')
     const oidcError = params.get('oidc_error')
 
@@ -94,6 +97,17 @@ export function useLogin() {
         setInviteValid(true)
       }).catch(() => {
         setError(t('login.invalidInviteLink'))
+      })
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    if (ref) {
+      setReferralCode(ref)
+      setMode('register')
+      referralsApi.validate(ref).then((data) => {
+        setReferralInfo({ referrer_username: data.referrer_username, reward_days: data.reward_days })
+      }).catch(() => {
+        setError(t('login.invalidReferralLink'))
       })
       window.history.replaceState({}, '', window.location.pathname)
     }
@@ -154,7 +168,7 @@ export function useLogin() {
           if (!config.has_users) setMode('register')
           // Skip auto-redirect when config is from cache — network is unreliable
           // and auto-redirecting to the IdP could loop if the proxy changed.
-          if (!fromCache && !config.password_login && config.oidc_login && config.oidc_configured && config.has_users && !invite && !noRedirect) {
+          if (!fromCache && !config.password_login && config.oidc_login && config.oidc_configured && config.has_users && !invite && !ref && !noRedirect) {
             window.location.href = '/api/auth/oidc/login'
           }
         }
@@ -258,7 +272,7 @@ export function useLogin() {
       if (mode === 'register') {
         if (!username.trim()) { setError(t('login.usernameRequired')); setIsLoading(false); return }
         if (password.length < 8) { setError(t('login.passwordMinLength')); setIsLoading(false); return }
-        await register(username, email, password, inviteToken || undefined)
+        await register(username, email, password, inviteToken || undefined, referralCode || undefined)
       } else {
         const result = await login(email, password, rememberMe)
         if ('mfa_required' in result && result.mfa_required && 'mfa_token' in result) {
@@ -283,7 +297,7 @@ export function useLogin() {
     }
   }
 
-  const showRegisterOption = (appConfig?.password_registration || !appConfig?.has_users || inviteValid) && (appConfig?.setup_complete !== false || !appConfig?.has_users)
+  const showRegisterOption = (appConfig?.password_registration || !appConfig?.has_users || inviteValid || !!referralInfo) && (appConfig?.setup_complete !== false || !appConfig?.has_users)
 
   // In OIDC-only mode, show a minimal page that redirects directly to the IdP
   const oidcOnly = !appConfig?.password_login && appConfig?.oidc_login && appConfig?.oidc_configured
@@ -292,7 +306,7 @@ export function useLogin() {
     navigate,
     mode, setMode,
     username, setUsername, email, setEmail, password, setPassword, rememberMe, setRememberMe, showPassword, setShowPassword,
-    isLoading, error, setError, appConfig, inviteToken,
+    isLoading, error, setError, appConfig, inviteToken, referralCode, referralInfo,
     langDropdownOpen, setLangDropdownOpen, setLanguageLocal,
     showTakeoff, mfaStep, setMfaStep, mfaToken, setMfaToken, mfaCode, setMfaCode,
     passwordChangeStep, newPassword, setNewPassword, confirmPassword, setConfirmPassword,

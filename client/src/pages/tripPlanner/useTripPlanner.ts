@@ -133,6 +133,7 @@ export function useTripPlanner() {
   const { settings } = useSettingsStore();
   const placesPhotosEnabled = useAuthStore((s) => s.placesPhotosEnabled);
   const trip = useTripStore((s) => s.trip);
+  const tripEditLocked = !!trip?.edit_locked;
   const days = useTripStore((s) => s.days);
   const places = useTripStore((s) => s.places);
   const assignments = useTripStore((s) => s.assignments);
@@ -147,7 +148,7 @@ export function useTripPlanner() {
   // Actions — stable references, don't cause re-renders
   const tripActions = useRef(useTripStore.getState()).current;
   const can = useCanDo();
-  const canUploadFiles = can('file_upload', trip);
+  const canUploadFiles = !tripEditLocked && can('file_upload', trip);
   const { pushUndo, undo, canUndo, lastActionLabel } = usePlannerHistory();
 
   const handleUndo = useCallback(async () => {
@@ -1312,6 +1313,7 @@ export function useTripPlanner() {
     settings,
     placesPhotosEnabled,
     trip,
+    tripEditLocked,
     days,
     places,
     assignments,
@@ -1326,6 +1328,7 @@ export function useTripPlanner() {
     tripActions,
     can,
     canUploadFiles,
+    entitlementState,
     pushUndo,
     undo,
     canUndo,

@@ -232,15 +232,27 @@ function priceObject(price: StripeSubscriptionItemLike['price']): StripePriceLik
 }
 
 function planKeyFor(metadata: Metadata, price: StripePriceLike | null): string {
-  return (
+  return normalizeWebhookPlanKey(
     metadata?.plan_key?.trim() ||
     metadata?.trippi_plan_key?.trim() ||
+    metadata?.plan_id?.trim() ||
     price?.metadata?.plan_key?.trim() ||
     price?.lookup_key?.trim() ||
     price?.nickname?.trim() ||
     price?.id ||
-    'free'
+    'free',
   );
+}
+
+function normalizeWebhookPlanKey(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return 'free';
+  if (normalized === 'pro_monthly' || normalized === 'pro_annual' || normalized.startsWith('pro_')) return 'pro';
+  if (normalized === 'agency_annual' || normalized.startsWith('agency_')) return 'agency';
+  if (normalized === 'trial' || normalized === 'free' || normalized === 'pro' || normalized === 'agency') {
+    return normalized;
+  }
+  return normalized;
 }
 
 function epochToIso(value: number | null | undefined): string | null {

@@ -1,5 +1,6 @@
 import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
+import { assertTripShareContentIsFamilySafe, screenTripShareContent } from './contentSafetyService';
 import { serveFilePath } from './placePhotoCache';
 import { loadTagsByPlaceIds, loadTagsByPlaceIdsAsync } from './queryHelpers';
 
@@ -50,6 +51,17 @@ interface ShareTokenInfo {
 
 function boolToDb(value: boolean | undefined): number | null {
   return typeof value === 'boolean' ? (value ? 1 : 0) : null;
+}
+
+function effectiveSharePermissions(row: Record<string, unknown> | null, permissions: SharePermissions): SharePermissions {
+  return {
+    share_map: permissions.share_map ?? (row ? !!row.share_map : true),
+    share_bookings: permissions.share_bookings ?? (row ? !!row.share_bookings : true),
+    share_packing: permissions.share_packing ?? (row ? !!row.share_packing : false),
+    share_budget: permissions.share_budget ?? (row ? !!row.share_budget : false),
+    share_collab: permissions.share_collab ?? (row ? !!row.share_collab : false),
+    profile_visible: permissions.profile_visible ?? (row ? !!row.profile_visible : false),
+  };
 }
 
 /**
@@ -115,8 +127,10 @@ export async function createOrUpdateShareLinkAsync(
   permissions: SharePermissions,
 ): Promise<{ token: string; created: boolean }> {
   const existing = await asyncDb
-    .prepare('SELECT token FROM share_tokens WHERE trip_id = ?')
-    .get<{ token: string }>(tripId);
+    .prepare('SELECT * FROM share_tokens WHERE trip_id = ?')
+    .get<Record<string, unknown> & { token: string }>(tripId);
+  await assertTripShareContentIsFamilySafe(tripId, effectiveSharePermissions(existing ?? null, permissions));
+
   if (existing) {
     await asyncDb
       .prepare(
@@ -388,6 +402,8 @@ export async function getSharedTripDataAsync(token: string): Promise<Record<stri
   if (!shareRow || isExpired(shareRow.expires_at)) return null;
 
   const tripId = shareRow.trip_id;
+  const safetyIssues = await screenTripShareContent(tripId, effectiveSharePermissions(shareRow, {}));
+  if (safetyIssues.length > 0) return null;
 
   const trip = await asyncDb
     .prepare('SELECT id, title, description, start_date, end_date, cover_image, currency FROM trips WHERE id = ?')

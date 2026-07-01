@@ -115,6 +115,45 @@ describe('Share link CRUD', () => {
     expect(second.body.token).toBe(first.body.token);
   });
 
+  it('SHARE-021 — POST blocks public sharing when core trip content is not family friendly', async () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id, { title: 'Beach porn crawl' });
+
+    const res = await request(app)
+      .post(`/api/trips/${trip.id}/share-link`)
+      .set('Cookie', authCookie(user.id))
+      .send({});
+
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('CONTENT_SAFETY_BLOCKED');
+    expect(res.body.error).toMatch(/cannot be shared publicly/i);
+    expect(res.body.issues).toEqual([expect.objectContaining({ field: 'trip title', category: 'adult' })]);
+    expect(testDb.prepare('SELECT token FROM share_tokens WHERE trip_id = ?').get(trip.id)).toBeUndefined();
+  });
+
+  it('SHARE-022 — POST only screens optional sections when they are shared', async () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id, { title: 'Safe itinerary' });
+    testDb
+      .prepare('INSERT INTO collab_messages (trip_id, user_id, text, deleted) VALUES (?, ?, ?, 0)')
+      .run(trip.id, user.id, 'Skip the porn spam link.');
+
+    const hidden = await request(app)
+      .post(`/api/trips/${trip.id}/share-link`)
+      .set('Cookie', authCookie(user.id))
+      .send({ share_collab: false });
+    expect(hidden.status).toBe(201);
+
+    const exposed = await request(app)
+      .post(`/api/trips/${trip.id}/share-link`)
+      .set('Cookie', authCookie(user.id))
+      .send({ share_collab: true });
+    expect(exposed.status).toBe(422);
+    expect(exposed.body.issues).toEqual([
+      expect.objectContaining({ field: 'collab message text', category: 'adult' }),
+    ]);
+  });
+
   it('SHARE-004 — GET returns share link status', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
@@ -200,6 +239,22 @@ describe('Shared trip access', () => {
 
   it('SHARE-008 — GET /shared/:invalid-token returns 404', async () => {
     const res = await request(app).get('/api/shared/invalid-token-xyz');
+    expect(res.status).toBe(404);
+  });
+
+  it('SHARE-023 — GET /shared/:token stops serving a link if the trip later becomes unsafe', async () => {
+    const { user } = createUser(testDb);
+    const trip = createTrip(testDb, user.id, { title: 'Safe Paris Trip' });
+
+    const create = await request(app)
+      .post(`/api/trips/${trip.id}/share-link`)
+      .set('Cookie', authCookie(user.id))
+      .send({});
+    expect(create.status).toBe(201);
+
+    testDb.prepare('UPDATE trips SET description = ? WHERE id = ?').run('Add a cocaine meetup stop.', trip.id);
+
+    const res = await request(app).get(`/api/shared/${create.body.token}`);
     expect(res.status).toBe(404);
   });
 

@@ -80,4 +80,14 @@ describe('MobileTopBar', () => {
     render(<MobileTopBar />, { initialEntries: ['/dashboard'] });
     expect(await screen.findByRole('button', { name: 'Profil' })).toBeInTheDocument();
   });
+
+  it('FE-COMP-MOBILETOPBAR-008: profile sheet opens referral dialog', async () => {
+    const user = userEvent.setup();
+    render(<MobileTopBar />, { initialEntries: ['/dashboard'] });
+
+    await user.click(screen.getByRole('button', { name: 'Profile' }));
+    await user.click(screen.getByText('Refer friends'));
+
+    expect(await screen.findByText('You both get 7 days of Pro')).toBeInTheDocument();
+  });
 });

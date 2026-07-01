@@ -170,13 +170,12 @@ async function ensureSqliteReferralStorage(): Promise<void> {
 
 async function ensureReferralStorage(): Promise<void> {
   if (!referralStorageReady) {
-    referralStorageReady =
-      resolveDbProvider() === 'oracle-async'
-        ? ensureOracleReferralStorage()
-        : ensureSqliteReferralStorage().catch((err) => {
-            referralStorageReady = null;
-            throw err;
-          });
+    const initialize =
+      resolveDbProvider() === 'oracle-async' ? ensureOracleReferralStorage() : ensureSqliteReferralStorage();
+    referralStorageReady = initialize.catch((err) => {
+      referralStorageReady = null;
+      throw err;
+    });
   }
   await referralStorageReady;
 }

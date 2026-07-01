@@ -2,6 +2,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildSettings, buildTodoItem, buildTrip, buildUser } from '../../tests/helpers/factories';
+import { billingPlanOptions } from '../../tests/helpers/msw/handlers/billing';
 import { server } from '../../tests/helpers/msw/server';
 import { render, screen, waitFor } from '../../tests/helpers/render';
 import { resetAllStores, seedStore } from '../../tests/helpers/store';
@@ -1143,10 +1144,11 @@ describe('DashboardPage', () => {
   });
 
   describe('FE-PAGE-DASH-036: lifetime trip entitlement lock', () => {
-    it('shows a locked create state and starts checkout without hiding existing trips', async () => {
+    it('shows a locked create state and opens the plan picker without hiding existing trips', async () => {
       const user = userEvent.setup();
       const owner = buildUser({ id: 1, username: 'owner' });
       let checkoutCalled = false;
+      let checkoutBody: Record<string, unknown> | null = null;
       seedStore(useAuthStore, { isAuthenticated: true, user: owner });
 
       server.use(
@@ -1167,11 +1169,17 @@ describe('DashboardPage', () => {
                 groupSize: null,
               },
             },
-            billing: { checkoutAvailable: true, defaultPlanId: 'pro', portalAvailable: false },
+            billing: {
+              checkoutAvailable: true,
+              defaultPlanId: 'pro_monthly',
+              portalAvailable: false,
+              plans: billingPlanOptions,
+            },
           })
         ),
-        http.post('/api/billing/checkout-session', async () => {
+        http.post('/api/billing/checkout-session', async ({ request }) => {
           checkoutCalled = true;
+          checkoutBody = (await request.json()) as Record<string, unknown>;
           return HttpResponse.json({ url: 'https://checkout.example.test/session' });
         }),
         http.get('/api/trips', ({ request }) => {
@@ -1206,7 +1214,14 @@ describe('DashboardPage', () => {
       const newTripButtons = screen.getAllByRole('button', { name: /new trip/i });
       await user.click(newTripButtons[newTripButtons.length - 1]);
 
+      expect(await screen.findByText('Choose your plan')).toBeInTheDocument();
+      expect(screen.getByText('$1.99')).toBeInTheDocument();
+      expect(screen.getByText('$10')).toBeInTheDocument();
+      expect(screen.getByText('$49')).toBeInTheDocument();
+      await user.click(screen.getAllByRole('button', { name: /choose plan/i })[0]);
+
       await waitFor(() => expect(checkoutCalled).toBe(true));
+      expect(checkoutBody).toEqual({ planId: 'pro_monthly' });
       expect(screen.queryByText(/Create New Trip/i)).not.toBeInTheDocument();
       expect(screen.getAllByText('Locked Trip Two').length).toBeGreaterThan(0);
     });

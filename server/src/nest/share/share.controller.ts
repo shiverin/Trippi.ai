@@ -1,4 +1,5 @@
 import type { User } from '../../types';
+import { isContentSafetyError } from '../../services/contentSafetyService';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ShareService } from './share.service';
@@ -45,14 +46,22 @@ export class TripShareController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.requireManage(tripId, user);
-    const result = await this.share.createOrUpdate(tripId, user.id, {
-      share_map: body.share_map,
-      share_bookings: body.share_bookings,
-      share_packing: body.share_packing,
-      share_budget: body.share_budget,
-      share_collab: body.share_collab,
-      profile_visible: body.profile_visible,
-    });
+    let result: Awaited<ReturnType<ShareService['createOrUpdate']>>;
+    try {
+      result = await this.share.createOrUpdate(tripId, user.id, {
+        share_map: body.share_map,
+        share_bookings: body.share_bookings,
+        share_packing: body.share_packing,
+        share_budget: body.share_budget,
+        share_collab: body.share_collab,
+        profile_visible: body.profile_visible,
+      });
+    } catch (err) {
+      if (isContentSafetyError(err)) {
+        throw new HttpException({ error: err.message, code: err.code, issues: err.issues }, err.status);
+      }
+      throw err;
+    }
     // 201 only on first creation; an update answers 200, mirroring the legacy route.
     res.status(result.created ? 201 : 200);
     return { token: result.token };

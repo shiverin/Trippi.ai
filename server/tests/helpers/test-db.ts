@@ -111,6 +111,10 @@ const RESET_TABLES = [
   'billing_webhook_events',
   'billing_subscriptions',
   'billing_customers',
+  // Referrals
+  'referrals',
+  'referral_codes',
+  'referral_bonus_accounts',
   // User data
   'settings',
   'mcp_tokens',

@@ -13,6 +13,7 @@ const PASSWORD_PLACEHOLDER = '••••••••';
 
 beforeEach(() => {
   resetAllStores();
+  window.history.pushState({}, '', '/');
 });
 
 describe('LoginPage', () => {
@@ -173,6 +174,45 @@ describe('LoginPage', () => {
       await waitFor(() => {
         expect(document.querySelector('.takeoff-overlay')).toBeInTheDocument();
       });
+    });
+
+    it('validates ?ref= links and sends referral_code during registration', async () => {
+      const user = userEvent.setup();
+      let capturedBody: Record<string, unknown> | null = null;
+      window.history.pushState({}, '', '/register?ref=FRIEND7');
+      server.use(
+        http.get('/api/auth/app-config', () =>
+          HttpResponse.json({
+            has_users: true,
+            allow_registration: false,
+            demo_mode: false,
+            oidc_configured: false,
+            oidc_only_mode: false,
+            oidc_login: false,
+            oidc_registration: false,
+            password_login: true,
+            password_registration: false,
+            setup_complete: true,
+          })
+        ),
+        http.get('/api/referrals/FRIEND7', () =>
+          HttpResponse.json({ valid: true, code: 'FRIEND7', referrer_username: 'Ava', reward_days: 7 })
+        ),
+        http.post('/api/auth/register', async ({ request }) => {
+          capturedBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ user: { id: 5, username: 'newuser', email: 'new@example.com', role: 'user' } });
+        })
+      );
+
+      render(<LoginPage />);
+
+      expect(await screen.findByText('Ava invited you. You both get 7 days of Pro after signup.')).toBeInTheDocument();
+      await user.type(screen.getByPlaceholderText('admin'), 'newuser');
+      await user.type(screen.getByPlaceholderText(EMAIL_PLACEHOLDER), 'new@example.com');
+      await user.type(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER), 'password123');
+      await user.click(screen.getByRole('button', { name: /create account/i }));
+
+      await waitFor(() => expect(capturedBody).toEqual(expect.objectContaining({ referral_code: 'FRIEND7' })));
     });
   });
 

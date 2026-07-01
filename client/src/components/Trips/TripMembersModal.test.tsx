@@ -1,6 +1,7 @@
-// FE-COMP-MEMBERS-001 to FE-COMP-MEMBERS-026
+// FE-COMP-MEMBERS-001 to FE-COMP-MEMBERS-027
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { afterEach } from 'vitest';
 import { buildTrip, buildUser } from '../../../tests/helpers/factories';
 import { server } from '../../../tests/helpers/msw/server';
 import { render, screen, waitFor } from '../../../tests/helpers/render';
@@ -58,6 +59,10 @@ beforeEach(() => {
   );
   seedStore(useAuthStore, { user: ownerUser, isAuthenticated: true });
   seedStore(useTripStore, { trip: buildTrip({ id: 1, title: 'Test Trip' }) });
+});
+
+afterEach(() => {
+  delete window.__addToast;
 });
 
 describe('TripMembersModal', () => {
@@ -244,6 +249,36 @@ describe('TripMembersModal', () => {
     await waitFor(() => {
       const input = screen.getByDisplayValue(/\/shared\/abc123/);
       expect(input).toBeInTheDocument();
+    });
+  });
+
+  it('FE-COMP-MEMBERS-027: create share link surfaces server moderation errors', async () => {
+    const user = userEvent.setup();
+    const addToast = vi.fn();
+    window.__addToast = addToast;
+    seedStore(usePermissionsStore, { permissions: { share_manage: 'trip_owner' } });
+    seedStore(useTripStore, { trip: buildTrip({ id: 1, user_id: ownerUser.id }) });
+
+    server.use(
+      http.get('/api/trips/1/share-link', () => HttpResponse.json({ token: null })),
+      http.post('/api/trips/1/share-link', () =>
+        HttpResponse.json(
+          {
+            error:
+              'This trip cannot be shared publicly yet because it contains content that may not be family friendly.',
+            code: 'CONTENT_SAFETY_BLOCKED',
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+
+    render(<TripMembersModal {...defaultProps} />);
+    const createBtn = await screen.findByText('Create link');
+    await user.click(createBtn);
+
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith(expect.stringContaining('cannot be shared publicly'), 'error', undefined);
     });
   });
 

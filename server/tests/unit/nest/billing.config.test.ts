@@ -17,7 +17,12 @@ describe('billing config', () => {
     });
 
     expect(config.stripeApiVersion).toBe(STRIPE_API_VERSION);
-    expect(getAllowedPlan(config, 'pro')).toEqual({ id: 'pro', stripePriceId: 'price_pro' });
+    expect(getAllowedPlan(config, 'pro')).toMatchObject({
+      id: 'pro',
+      planKey: 'pro',
+      stripePriceId: 'price_pro',
+      priceLabel: '$1.99',
+    });
   });
 
   it('parses organizer plan allowlists from comma-delimited config', () => {
@@ -25,7 +30,31 @@ describe('billing config', () => {
       STRIPE_ORGANIZER_PLANS: 'pro=price_pro, agency=price_agency',
     });
 
-    expect(getAllowedPlan(config, 'agency')).toEqual({ id: 'agency', stripePriceId: 'price_agency' });
+    expect(getAllowedPlan(config, 'agency')).toMatchObject({
+      id: 'agency',
+      planKey: 'agency',
+      stripePriceId: 'price_agency',
+      priceLabel: '$49',
+    });
+  });
+
+  it('keeps display plan ids separate from entitlement plan keys', () => {
+    const config = resolveBillingConfig({
+      STRIPE_ORGANIZER_PLANS: JSON.stringify({
+        pro_monthly: { stripePriceId: 'price_monthly', planKey: 'pro', label: 'Monthly Pro' },
+        pro_annual: 'price_annual',
+        agency_annual: 'price_agency_annual',
+      }),
+    });
+
+    expect(getAllowedPlan(config, 'pro_monthly')).toMatchObject({
+      id: 'pro_monthly',
+      planKey: 'pro',
+      stripePriceId: 'price_monthly',
+      label: 'Monthly Pro',
+    });
+    expect(getAllowedPlan(config, 'pro_annual')).toMatchObject({ id: 'pro_annual', planKey: 'pro' });
+    expect(getAllowedPlan(config, 'agency_annual')).toMatchObject({ id: 'agency_annual', planKey: 'agency' });
   });
 
   it('rejects missing or unknown plan IDs with a friendly message', () => {

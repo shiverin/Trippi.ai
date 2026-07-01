@@ -71,7 +71,7 @@ describe('BillingService', () => {
       {
         APP_URL: 'https://app.example.test',
         STRIPE_SECRET_KEY: 'sk_test_123',
-        STRIPE_ORGANIZER_PLANS: 'agency=price_agency,pro=price_pro_monthly',
+        STRIPE_ORGANIZER_PLANS: 'agency_annual=price_agency,pro_monthly=price_pro_monthly',
       },
       () => service({}).getEntitlements(user),
     );
@@ -79,8 +79,14 @@ describe('BillingService', () => {
     expect(getEntitlementsForUserMock).toHaveBeenCalledWith(user.id);
     expect(result).toMatchObject({
       entitlements: { planKey: 'free', limits: { activeTrips: 5, groupSize: 1 } },
-      billing: { checkoutAvailable: true, defaultPlanId: 'pro', portalAvailable: false },
+      billing: { checkoutAvailable: true, defaultPlanId: 'pro_monthly', portalAvailable: false },
     });
+    expect(result.billing.plans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'pro_monthly', planKey: 'pro', priceLabel: '$1.99' }),
+        expect.objectContaining({ id: 'agency_annual', planKey: 'agency', priceLabel: '$49' }),
+      ]),
+    );
   });
 
   it('returns a coming-soon billing state when checkout is not configured', async () => {
@@ -93,7 +99,8 @@ describe('BillingService', () => {
       () => service({}).getEntitlements(user),
     );
 
-    expect(result.billing).toEqual({ checkoutAvailable: false, defaultPlanId: null, portalAvailable: false });
+    expect(result.billing).toMatchObject({ checkoutAvailable: false, defaultPlanId: null, portalAvailable: false });
+    expect(result.billing.plans).toEqual([expect.objectContaining({ id: 'pro', planKey: 'pro' })]);
   });
 
   it('creates a hosted subscription checkout session for an allowlisted organizer plan', async () => {
@@ -104,9 +111,9 @@ describe('BillingService', () => {
       {
         APP_URL: 'https://app.example.test',
         STRIPE_SECRET_KEY: 'sk_test_123',
-        STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+        STRIPE_ORGANIZER_PLANS: 'pro_monthly=price_pro_monthly',
       },
-      () => service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'pro' }),
+      () => service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'pro_monthly' }),
     );
 
     expect(result).toEqual({ url: 'https://checkout.stripe.test/cs' });
@@ -118,8 +125,11 @@ describe('BillingService', () => {
     expect(params.get('success_url')).toBe('https://app.example.test/billing/success?session_id={CHECKOUT_SESSION_ID}');
     expect(params.get('cancel_url')).toBe('https://app.example.test/billing');
     expect(params.get('client_reference_id')).toBe('7');
-    expect(params.get('metadata[plan_id]')).toBe('pro');
+    expect(params.get('metadata[plan_id]')).toBe('pro_monthly');
+    expect(params.get('metadata[plan_key]')).toBe('pro');
     expect(params.get('subscription_data[metadata][user_id]')).toBe('7');
+    expect(params.get('subscription_data[metadata][plan_id]')).toBe('pro_monthly');
+    expect(params.get('subscription_data[metadata][plan_key]')).toBe('pro');
     expect(params.get('customer_email')).toBe('organizer@example.test');
     expect(params.get('customer')).toBeNull();
   });
@@ -136,9 +146,9 @@ describe('BillingService', () => {
       {
         APP_URL: 'https://app.example.test',
         STRIPE_SECRET_KEY: 'sk_test_123',
-        STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+        STRIPE_ORGANIZER_PLANS: 'pro_monthly=price_pro_monthly',
       },
-      () => service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'pro' }),
+      () => service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'pro_monthly' }),
     );
 
     const params = createCheckoutSession.mock.calls[0][0] as URLSearchParams;
@@ -151,7 +161,7 @@ describe('BillingService', () => {
     const env = {
       APP_URL: 'https://app.example.test',
       STRIPE_SECRET_KEY: 'sk_test_123',
-      STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+      STRIPE_ORGANIZER_PLANS: 'pro_monthly=price_pro_monthly',
     };
 
     await expect(
@@ -163,7 +173,7 @@ describe('BillingService', () => {
       withEnv(env, () =>
         billingError(() =>
           service({ createCheckoutSession }).createCheckoutSession(user, {
-            planId: 'pro',
+            planId: 'pro_monthly',
             successUrl: 'https://evil.example.test/success',
           }),
         ),
@@ -180,9 +190,12 @@ describe('BillingService', () => {
         {
           APP_URL: 'https://app.example.test',
           STRIPE_SECRET_KEY: 'sk_test_123',
-          STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+          STRIPE_ORGANIZER_PLANS: 'pro_monthly=price_pro_monthly',
         },
-        () => billingError(() => service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'pro' })),
+        () =>
+          billingError(() =>
+            service({ createCheckoutSession }).createCheckoutSession(user, { planId: 'pro_monthly' }),
+          ),
       ),
     ).resolves.toEqual({ status: 502, message: 'Billing is temporarily unavailable. Please try again later.' });
   });
@@ -232,11 +245,11 @@ describe('BillingService', () => {
         {
           APP_URL: 'https://app.example.test',
           STRIPE_SECRET_KEY: '',
-          STRIPE_ORGANIZER_PLANS: 'pro=price_pro_monthly',
+          STRIPE_ORGANIZER_PLANS: 'pro_monthly=price_pro_monthly',
         },
         () =>
           billingError(() =>
-            service({ createCheckoutSession: vi.fn() }).createCheckoutSession(user, { planId: 'pro' }),
+            service({ createCheckoutSession: vi.fn() }).createCheckoutSession(user, { planId: 'pro_monthly' }),
           ),
       ),
     ).resolves.toEqual({ status: 503, message: 'Billing is not configured.' });

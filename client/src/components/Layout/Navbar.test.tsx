@@ -329,4 +329,19 @@ describe('Navbar', () => {
     await user.click(screen.getByText('adminuser'));
     expect(screen.getByText('Administrator')).toBeInTheDocument();
   });
+
+  it('FE-COMP-NAVBAR-034: profile menu opens referral dialog and generates a link', async () => {
+    const user = userEvent.setup();
+    render(<Navbar />);
+
+    await user.click(screen.getByText('testuser'));
+    await user.click(screen.getByText('Refer friends'));
+
+    expect(await screen.findByText('You both get 7 days of Pro')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /generate referral link/i }));
+    await waitFor(() => {
+      const values = screen.queryAllByRole('textbox').map((input) => (input as HTMLInputElement).value);
+      expect(values.some((value) => value.endsWith('/register?ref=TESTCODE'))).toBe(true);
+    });
+  });
 });

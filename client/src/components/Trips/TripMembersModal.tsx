@@ -115,8 +115,8 @@ function ShareLinkSection({
     try {
       const d = await shareApi.createLink(tripId, perms);
       setShareToken(d.token);
-    } catch {
-      toast.error(t('share.createError'));
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, t('share.createError')));
     }
   };
 
@@ -126,8 +126,8 @@ function ShareLinkSection({
     if (shareToken) {
       try {
         await shareApi.createLink(tripId, newPerms);
-      } catch {
-        toast.error(t('share.createError'));
+      } catch (err: unknown) {
+        toast.error(getApiErrorMessage(err, t('share.createError')));
       }
     }
   };

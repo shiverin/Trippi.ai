@@ -29,16 +29,19 @@ Keep the AI promise grounded. Avoid saying Trippi automatically books travel, gu
 The person who always ends up organizing the trip.
 
 Pain:
+
 - Everyone sends ideas in different chats.
 - Costs, bookings, and files get lost.
 - People ask the same questions again and again.
 
 Message:
+
 - Put the whole group trip in one shared workspace.
 - Everyone can see the plan, costs, files, and updates.
 - Spend less time chasing people and more time traveling.
 
 Best channels:
+
 - Instagram, TikTok, Facebook Groups, Reddit travel communities, group-travel blogs.
 
 ### 2. The Tech-Savvy Traveler
@@ -46,16 +49,19 @@ Best channels:
 The traveler who already uses AI, Notion, maps, spreadsheets, and automation.
 
 Pain:
+
 - Existing travel apps feel too shallow.
 - AI research still has to be copied into real planning tools.
 - Itinerary, files, budgets, and maps are disconnected.
 
 Message:
+
 - A real travel workspace for people and AI agents.
 - MCP-ready, OAuth-secured, collaborative, and modular.
 - Plan with the tools you already use, but keep the trip organized.
 
 Best channels:
+
 - LinkedIn, X, Product Hunt, Hacker News-style posts, indie hacker communities, AI newsletters.
 
 ### 3. The AI-Curious Non-Technical Traveler
@@ -63,16 +69,19 @@ Best channels:
 The traveler who wants help but does not want to learn complex tools.
 
 Pain:
+
 - Planning feels overwhelming.
 - AI answers are useful, but turning them into an actual trip is work.
 - They need a friendly interface, not a developer dashboard.
 
 Message:
+
 - Let AI help with the messy parts.
 - Keep the final plan simple, visual, and shared.
 - No spreadsheets required.
 
 Best channels:
+
 - Instagram Reels, TikTok, YouTube Shorts, simple search ads, travel creator partnerships.
 
 ### 4. Remote Teams And Retreat Planners
@@ -80,16 +89,19 @@ Best channels:
 Small teams planning offsites, retreats, and work trips.
 
 Pain:
+
 - Team travel involves people, files, budgets, schedules, and decisions.
 - Plans change often.
 - Not everyone needs edit access.
 
 Message:
+
 - A shared workspace for team travel logistics.
 - Roles, files, reservations, maps, budgets, and real-time sync.
 - Keep the plan visible without losing control.
 
 Best channels:
+
 - LinkedIn, search ads, founder communities, remote-work newsletters.
 
 ## Message Pillars
@@ -100,6 +112,7 @@ Core idea:
 No more scattered planning.
 
 Copy angles:
+
 - Maps, budgets, bookings, files, and plans in one place.
 - A trip plan everyone can actually find.
 - Stop planning your trip across group chats.
@@ -110,6 +123,7 @@ Core idea:
 Everyone sees the same plan.
 
 Copy angles:
+
 - Live updates for the whole group.
 - Invite friends, assign roles, and keep decisions visible.
 - Group planning without the group chat spiral.
@@ -120,6 +134,7 @@ Core idea:
 AI helps inside the planning system.
 
 Copy angles:
+
 - Connect AI assistants to your trip workspace.
 - Turn AI research into real itineraries, lists, and budgets.
 - AI help with user-controlled access.
@@ -130,6 +145,7 @@ Core idea:
 Planning, traveling, and remembering live together.
 
 Copy angles:
+
 - From first idea to final boarding pass.
 - Plan the route, track the cost, save the files, remember the journey.
 - Your travel operating system.
@@ -242,6 +258,7 @@ Start planning
 Ad Group: Group Travel Planner
 
 Headlines:
+
 - Group Trip Planner
 - Plan Trips With Friends
 - Shared Travel Itinerary
@@ -252,6 +269,7 @@ Headlines:
 - Shared Trip Workspace
 
 Descriptions:
+
 - Plan group trips with shared maps, itineraries, budgets, reservations, files, and AI help.
 - Keep everyone aligned with one shared workspace for trip ideas, plans, costs, and documents.
 - Replace scattered chats and spreadsheets with a collaborative trip planner built for groups.
@@ -259,6 +277,7 @@ Descriptions:
 Ad Group: AI Travel Planner
 
 Headlines:
+
 - AI Travel Planner
 - Plan Trips With AI
 - AI Group Trip Planning
@@ -267,6 +286,7 @@ Headlines:
 - MCP Travel Planning
 
 Descriptions:
+
 - Connect AI assistants to a shared travel workspace where itineraries, maps, budgets, and files stay organized.
 - Turn AI research into usable group plans with Trippi.ai.
 - AI helps organize the trip. You stay in control.
@@ -315,7 +335,7 @@ Visual:
 A messy wall of chat bubbles, PDFs, map pins, and cost notes flowing into a clean Trippi trip dashboard.
 
 CTA:
-Start planning at trippi.ai
+Start planning at trippi.lol
 
 ### Poster 2: AI Co-Planner
 
@@ -407,7 +427,7 @@ The goal is simple: make the trip plan something everyone can actually use.
 If you plan trips with friends, family, teams, or AI tools, I would love your feedback.
 
 CTA:
-Try it at trippi.ai
+Try it at trippi.lol
 
 ### LinkedIn Product Post
 
@@ -415,6 +435,7 @@ Post:
 Most travel apps focus on one slice of the journey.
 
 Trippi.ai is built around the whole trip:
+
 - Ideas and places
 - Day-by-day maps
 - Shared budgets
@@ -428,7 +449,7 @@ Trippi.ai is built around the whole trip:
 It is a travel workspace, not just an itinerary page.
 
 CTA:
-Start planning your next trip at trippi.ai
+Start planning your next trip at trippi.lol
 
 ### X Launch Thread
 
@@ -448,7 +469,7 @@ Post 5:
 Built for friends, families, digital nomads, teams, and the one person who always ends up organizing everything.
 
 Post 6:
-Try it: trippi.ai
+Try it: trippi.lol
 
 ### Instagram Caption
 
@@ -460,7 +481,7 @@ Trippi.ai keeps your itinerary, map, budget, reservations, files, packing list, 
 For friends, families, teams, and the person who somehow became the trip manager.
 
 CTA:
-Start your next trip at trippi.ai
+Start your next trip at trippi.lol
 
 ### TikTok / Reel Script: Group Chat Problem
 
@@ -468,6 +489,7 @@ Hook:
 POV: You are planning a group trip and nobody knows where anything is.
 
 Scenes:
+
 1. Show chaotic chat: "What hotel did we book?"
 2. Show spreadsheet: "Who paid for dinner?"
 3. Show map tabs: "Where are we going tomorrow?"
@@ -485,6 +507,7 @@ Hook:
 AI can suggest your trip. But where do you actually organize it?
 
 Scenes:
+
 1. AI chat suggests itinerary.
 2. User copies into notes.
 3. Notes become messy.
@@ -715,6 +738,7 @@ Strongest first-pass directions:
 ## Image Generation Guardrails
 
 Use real Trippi screenshots where possible. If generated visuals are used:
+
 - Keep the app UI large and inspectable.
 - Do not invent fake reviews, metrics, customer names, partner logos, app store badges, or booking guarantees.
 - Do not claim AI automatically purchases flights or hotels.
@@ -812,4 +836,3 @@ Founder/product:
 3. Use real product screenshots as proof, especially map planner, dashboard, budget, and Journey.
 4. Keep paid ads simple: one pain, one product proof, one CTA.
 5. Retarget with feature-specific ads: budget, files, reservations, AI, Journey.
-

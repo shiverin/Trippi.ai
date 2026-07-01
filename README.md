@@ -8,10 +8,10 @@
 
 <br />
 
-<p><strong>Cloud group travel planning, built for collaboration and AI.</strong></p>
+<p><strong>AI trip planner and cloud group travel workspace, built for collaboration.</strong></p>
 
 <p>
-  <a href="https://trippi.ai/">trippi.ai</a> is a hosted travel workspace for friends, families, and teams who want
+  <a href="https://www.trippi.lol/">trippi.lol</a> is a hosted travel workspace for friends, families, and teams who want
   one shared place to turn ideas into itineraries, maps, budgets, reservations, and decisions.
 </p>
 

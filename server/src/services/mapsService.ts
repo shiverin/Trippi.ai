@@ -32,6 +32,23 @@ interface NominatimResult {
   lon: string;
 }
 
+interface PhotonFeature {
+  geometry?: {
+    coordinates?: [number, number];
+  };
+  properties?: {
+    osm_type?: string;
+    osm_id?: number | string;
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    postcode?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+  };
+}
+
 interface OverpassElement {
   tags?: Record<string, string>;
 }
@@ -540,6 +557,58 @@ export async function searchNominatim(query: string, lang?: string) {
   }));
 }
 
+// ── Photon search fallback ───────────────────────────────────────────────────
+
+function photonAddress(properties: PhotonFeature['properties']): string {
+  if (!properties) return '';
+  return [
+    [properties.street, properties.housenumber].filter(Boolean).join(' '),
+    properties.postcode,
+    properties.city,
+    properties.state,
+    properties.country,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
+export async function searchPhoton(query: string, lang?: string) {
+  const params = new URLSearchParams({
+    q: query,
+    limit: '10',
+    lang: toApiLang(lang, 'en').split('-')[0],
+  });
+  const response = await fetch(`https://photon.komoot.io/api/?${params}`, {
+    headers: { 'User-Agent': UA },
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(
+      `Photon API error: ${response.status} ${response.statusText}${text ? ' - ' + text.substring(0, 200) : ''}`,
+    );
+  }
+  const data = (await response.json()) as { features?: PhotonFeature[] };
+  return (data.features || []).map((feature) => {
+    const [lng, lat] = feature.geometry?.coordinates ?? [null, null];
+    const props = feature.properties || {};
+    const osmType = props.osm_type?.toLowerCase();
+    const osmId = props.osm_id;
+    return {
+      google_place_id: null,
+      google_ftid: null,
+      osm_id: osmType && osmId != null ? `${osmType}:${osmId}` : null,
+      name: props.name || '',
+      address: photonAddress(props),
+      lat: typeof lat === 'number' ? lat : null,
+      lng: typeof lng === 'number' ? lng : null,
+      rating: null,
+      website: null,
+      phone: null,
+      source: 'photon',
+    };
+  });
+}
+
 // ── Nominatim lookup (by OSM ID) ────────────────────────────────────────────
 
 export async function lookupNominatim(
@@ -1032,7 +1101,10 @@ export async function searchPlaces(
 
   if (!apiKey) {
     const places = await searchNominatim(query, lang);
-    return { places, source: 'openstreetmap' };
+    if (places.length > 0) return { places, source: 'openstreetmap' };
+
+    const photonPlaces = await searchPhoton(query, lang);
+    return { places: photonPlaces, source: 'photon' };
   }
 
   const searchBody: Record<string, unknown> = { textQuery: query, languageCode: toApiLang(lang) };
@@ -1080,7 +1152,13 @@ export async function searchPlaces(
     source: 'google',
   }));
 
-  return { places, source: 'google' };
+  if (places.length > 0) return { places, source: 'google' };
+
+  const nominatimPlaces = await searchNominatim(query, lang);
+  if (nominatimPlaces.length > 0) return { places: nominatimPlaces, source: 'openstreetmap' };
+
+  const photonPlaces = await searchPhoton(query, lang);
+  return { places: photonPlaces, source: 'photon' };
 }
 
 // ── Autocomplete (Google or Nominatim fallback) ─────────────────────────────

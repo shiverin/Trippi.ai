@@ -930,19 +930,74 @@ describe('searchPlaces (fetch stubbed)', () => {
     });
   });
 
-  it('MAPS-039d: returns empty places array when Google returns no results', async () => {
+  it('MAPS-039d: falls back to Nominatim when Google returns no results', async () => {
     mockDbGet.mockReturnValueOnce({ maps_api_key: 'some-key' });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ places: [] }),
-      }),
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ places: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            {
+              osm_type: 'way',
+              osm_id: '123',
+              lat: '35.7137',
+              lon: '139.7897',
+              display_name: 'Kappabashi Dougu Street, Tokyo, Japan',
+              name: 'Kappabashi Dougu Street',
+            },
+          ],
+        }),
     );
     const { searchPlaces } = await import('../../../src/services/mapsService');
-    const result = await searchPlaces(1, 'very obscure place');
-    expect(result.source).toBe('google');
-    expect(result.places).toHaveLength(0);
+    const result = await searchPlaces(1, 'Kappabashi Dougu Street Tokyo');
+    expect(result.source).toBe('openstreetmap');
+    expect(result.places).toHaveLength(1);
+    expect((result.places[0] as any).name).toBe('Kappabashi Dougu Street');
+  });
+
+  it('MAPS-039f: falls back to Photon when Nominatim returns no results without a Google key', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [
+            {
+              geometry: { coordinates: [139.7086, 35.6672] },
+              properties: {
+                osm_type: 'way',
+                osm_id: 456,
+                name: 'Omotesando Hills',
+                city: 'Tokyo',
+                country: 'Japan',
+              },
+            },
+          ],
+        }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+    const { searchPlaces } = await import('../../../src/services/mapsService');
+    const result = await searchPlaces(999, 'Omotesando Hills Tokyo');
+    expect(result.source).toBe('photon');
+    expect(result.places).toHaveLength(1);
+    expect(result.places[0] as any).toMatchObject({
+      name: 'Omotesando Hills',
+      lat: 35.6672,
+      lng: 139.7086,
+      osm_id: 'way:456',
+      source: 'photon',
+    });
+    expect(String(fetchMock.mock.calls[1][0])).toContain('photon.komoot.io');
   });
 
   it('MAPS-039e: handles Google result with optional fields absent', async () => {

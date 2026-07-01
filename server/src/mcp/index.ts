@@ -10,6 +10,7 @@ import { getMcpSafeUrl } from '../services/notifications';
 import { getUserByAccessTokenAsync } from '../services/oauthService';
 import { User } from '../types';
 import { clearMcpFeatureFlagCache, getMcpFeatureFlags, isMcpAddonEnabledFast } from './featureFlags';
+import { ITINERARY_PLANNING_QUALITY_TEXT } from './itineraryPlanningQuality';
 import { registerResources } from './resources';
 import { sessions, revokeUserSessions, revokeUserSessionsForClient } from './sessionManager';
 import { registerTools } from './tools';
@@ -56,6 +57,9 @@ You are connected to trippi.ai, a travel planning application. Below is a compac
 **Loading trip context:** Before planning or modifying a trip, call \`get_trip_summary\` once. It returns all days (with assignments and notes), accommodations, budget, packing, reservations, collab notes, and todos in a single round-trip. Use this data to answer follow-up questions without extra tool calls.
 
 **Full-trip itinerary planning:** When the user asks to plan a trip, generate a full itinerary, build a multi-day travel plan, or produce a PDF itinerary, use \`apply_itinerary_plan\` exactly once. Send the complete normalized JSON payload in one call: all days, activities, timing, accommodations, and text/provider-ID locations. Set \`exportPdf: true\` for PDF requests. Do not invent or send \`lat\`/\`lng\`; the server validates, geocodes, creates places, assigns them to days, selects a destination cover image from imported itinerary places, and exports the official Trippi PDF. For PDF requests, set \`cover_place_query\` to the strongest scenic or landmark place already present in the itinerary, such as a national park, old town, lake, mountain, temple, or gorge. Do not send an image URL. Do not create activities with \`create_day_note\`.
+
+**Full-trip itinerary quality bar:** A valid itinerary is not automatically a good itinerary. Before calling \`apply_itinerary_plan\`, make the plan feel manually crafted, route-aware, and useful enough that the user would actually follow it:
+${ITINERARY_PLANNING_QUALITY_TEXT}
 
 **Adding a place to the itinerary (correct order):**
 1. \`search_place\` — find the real-world POI; note the \`osm_id\`, \`google_place_id\`, and/or \`google_ftid\` in the result.

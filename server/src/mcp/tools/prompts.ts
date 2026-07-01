@@ -4,6 +4,7 @@ import { isAddonEnabledAsync } from '../../services/adminService';
 import { listItems as listPackingItems } from '../../services/packingService';
 import { getTripSummary } from '../../services/tripService';
 import type { McpFeatureFlags } from '../featureFlags';
+import { ITINERARY_PLANNING_QUALITY_TEXT } from '../itineraryPlanningQuality';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 
 import { z } from 'zod';
@@ -69,6 +70,44 @@ ${days?.map((d: any, i: number) => `Day ${i + 1} (${d.date}): ${d.assignments?.l
       return {
         description: `Summary of trip "${trip?.title || tripId}"`,
         messages: [{ role: 'user', content: { type: 'text', text } }],
+      };
+    },
+  );
+
+  server.registerPrompt(
+    'itinerary-planning-brief',
+    {
+      title: 'Itinerary Planning Brief',
+      description:
+        'Use this before generating a full trip itinerary so the result is dense, realistic, route-aware, and ready for apply_itinerary_plan.',
+      argsSchema: {
+        destination: z.string().min(1).max(200).optional().describe('Destination, region, or route.'),
+        dates: z.string().min(1).max(120).optional().describe('Trip dates or relative timing.'),
+        travelers: z.string().min(1).max(200).optional().describe('Traveler count, group style, or constraints.'),
+        style: z.string().min(1).max(200).optional().describe('Budget, pace, vibe, interests, or travel style.'),
+      },
+    },
+    async ({ destination, dates, travelers, style }) => {
+      const context = [
+        destination ? `Destination/route: ${destination}` : null,
+        dates ? `Dates: ${dates}` : null,
+        travelers ? `Travelers: ${travelers}` : null,
+        style ? `Style: ${style}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      return {
+        description: 'High-quality Trippi itinerary planning brief',
+        messages: [
+          {
+            role: 'user' as const,
+            content: {
+              type: 'text' as const,
+              text: `${context ? `${context}\n\n` : ''}Plan this in Trippi with apply_itinerary_plan, using one complete JSON call. Quality bar:\n${ITINERARY_PLANNING_QUALITY_TEXT}\n\nBefore the tool call, make the itinerary coherent enough to follow in real life: realistic wake-up times, travel buffers, clustered neighborhoods, meals, rest slots, reservations, hotel moves, and locally specific descriptions. For PDFs, set exportPdf: true and choose cover_place_query from the strongest scenic or landmark stop already in the plan.`,
+            },
+          },
+        ],
       };
     },
   );

@@ -39,6 +39,8 @@ export interface ImportLocation {
   google_place_id?: string;
   google_ftid?: string;
   osm_id?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface ImportActivity {
@@ -213,7 +215,7 @@ function validateTime(value: string | undefined, path: string, issues: ImportIss
   if (value !== undefined && !TIME_RE.test(value)) issues.push({ path, message: 'Expected 24-hour HH:mm time.' });
 }
 
-const LOCATION_FIELDS = new Set(['name', 'query', 'address', 'google_place_id', 'google_ftid', 'osm_id']);
+const LOCATION_FIELDS = new Set(['name', 'query', 'address', 'google_place_id', 'google_ftid', 'osm_id', 'lat', 'lng']);
 
 function validateLocation(location: ImportLocation | undefined, path: string, issues: ImportIssue[]): boolean {
   if (!location || !clean(location.query)) {
@@ -225,9 +227,18 @@ function validateLocation(location: ImportLocation | undefined, path: string, is
     if (!LOCATION_FIELDS.has(key)) {
       issues.push({
         path: `${path}.${key}`,
-        message: 'Unsupported location field. Send query/address/provider IDs only; backend geocodes coordinates.',
+        message: 'Unsupported location field. Send query/address, provider IDs, or known coordinates only.',
       });
     }
+  }
+
+  const lat = parseNumber(location.lat);
+  const lng = parseNumber(location.lng);
+  if ((location.lat !== undefined || location.lng !== undefined) && !hasValidCoordinates(lat, lng)) {
+    issues.push({
+      path,
+      message: 'Latitude and longitude must be supplied together as valid coordinates.',
+    });
   }
   return true;
 }
@@ -361,6 +372,26 @@ function locationFromCandidate(candidate: Record<string, unknown>, fallback: Imp
     website: clean(candidate.website) ?? null,
     phone: clean(candidate.phone) ?? null,
     source: clean(candidate.source) ?? null,
+  };
+}
+
+function locationFromCoordinates(location: ImportLocation): ResolvedLocation | null {
+  const lat = parseNumber(location.lat);
+  const lng = parseNumber(location.lng);
+  if (!hasValidCoordinates(lat, lng)) return null;
+
+  const label = clean(location.name) ?? clean(location.query) ?? 'Untitled place';
+  return {
+    name: label,
+    address: clean(location.address) ?? null,
+    lat,
+    lng: lng as number,
+    google_place_id: clean(location.google_place_id) ?? null,
+    google_ftid: clean(location.google_ftid) ?? null,
+    osm_id: clean(location.osm_id) ?? null,
+    website: null,
+    phone: null,
+    source: 'coordinates',
   };
 }
 
@@ -498,6 +529,9 @@ async function resolveLocation(
   lang: string | undefined,
   path: string,
 ): Promise<{ location: ResolvedLocation; warning?: string }> {
+  const coordinates = locationFromCoordinates(location);
+  if (coordinates) return { location: coordinates };
+
   const detailsId = clean(location.google_place_id) ?? clean(location.osm_id);
   if (detailsId) {
     try {

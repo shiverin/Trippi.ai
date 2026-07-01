@@ -26,6 +26,7 @@ import {
   ValidationError,
 } from '../../services/tripService';
 import { getMcpFeatureFlags } from '../featureFlags';
+import { APPLY_ITINERARY_PLAN_TOOL_DESCRIPTION } from '../itineraryPlanningQuality';
 import { canRead, canReadTrips, canWrite, canDeleteTrips, canShareTrips } from '../scopes';
 import {
   safeBroadcast,
@@ -51,37 +52,73 @@ const ItineraryLocationSchema = z
       .string()
       .min(1)
       .max(300)
-      .describe('Search query for backend geocoding. Do not provide or invent coordinates.'),
+      .describe('Search query for backend geocoding. Include this even when provider IDs or coordinates are known.'),
     address: z.string().max(500).optional().describe('Known street address or area, if available.'),
     google_place_id: z.string().max(200).optional().describe('Google Places ID, if known.'),
     google_ftid: z.string().max(300).optional().describe('Google Maps feature ID, if known.'),
     osm_id: z.string().max(120).optional().describe('OpenStreetMap ID, such as node:123, way:123, or relation:123.'),
+    lat: z
+      .number()
+      .min(-90)
+      .max(90)
+      .optional()
+      .describe('Known latitude from a reliable source. Do not invent coordinates.'),
+    lng: z
+      .number()
+      .min(-180)
+      .max(180)
+      .optional()
+      .describe('Known longitude from a reliable source. Do not invent coordinates.'),
   })
   .strict();
 
 const ItineraryActivitySchema = z
   .object({
-    title: z.string().min(1).max(200),
-    description: z.string().max(2000).optional(),
+    title: z
+      .string()
+      .min(1)
+      .max(200)
+      .describe('Specific, user-facing activity title. Prefer real places or concrete logistics over vague labels.'),
+    description: z
+      .string()
+      .max(2000)
+      .optional()
+      .describe(
+        'Rich activity detail: why this stop belongs here, what to do/order/notice, and how it fits the day. Avoid generic one-line filler.',
+      ),
     category: z
       .enum(['attraction', 'restaurant', 'hotel', 'activity', 'transport', 'shopping', 'nature', 'other'])
-      .optional(),
+      .optional()
+      .describe('Use restaurant/hotel/transport/nature/shopping/etc. precisely so maps, filters, and PDFs read well.'),
     start_time: z
       .string()
       .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-      .optional(),
+      .optional()
+      .describe('Planned local start time in 24-hour HH:mm format. Include this for every scheduled itinerary item.'),
     end_time: z
       .string()
       .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-      .optional(),
-    duration_minutes: z.number().positive().optional(),
+      .optional()
+      .describe('Planned local end time for fixed bookings, timed tickets, transport, or long blocks.'),
+    duration_minutes: z
+      .number()
+      .positive()
+      .optional()
+      .describe('Realistic on-site or logistics duration, including buffers when appropriate.'),
     location: ItineraryLocationSchema,
-    notes: z.string().max(2000).optional(),
-    price: z.number().nonnegative().optional(),
+    notes: z
+      .string()
+      .max(2000)
+      .optional()
+      .describe(
+        'Practical notes: booking windows, ticket/passport requirements, crowd timing, weather, route tips, meeting points, or backup choices.',
+      ),
+    price: z.number().nonnegative().optional().describe('Estimated per-person cost when useful; use 0 for free items.'),
     currency: z
       .string()
       .regex(/^[A-Z]{3}$/)
-      .optional(),
+      .optional()
+      .describe('Currency for price, usually the trip currency or local currency.'),
   })
   .strict();
 
@@ -107,9 +144,24 @@ const ItineraryDaySchema = z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
-    title: z.string().min(1).max(200).optional(),
-    city: z.string().min(1).max(120).optional(),
-    activities: z.array(ItineraryActivitySchema).max(MAX_ITINERARY_IMPORT_ACTIVITIES),
+    title: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe('Theme for the day, e.g. "East Tokyo contrasts" or "Arrival, old lanes, and riverside dinner".'),
+    city: z
+      .string()
+      .min(1)
+      .max(120)
+      .optional()
+      .describe('Primary city or area for geocoding and route sanity. Include this for every day when possible.'),
+    activities: z
+      .array(ItineraryActivitySchema)
+      .max(MAX_ITINERARY_IMPORT_ACTIVITIES)
+      .describe(
+        'Ordered scheduled items. Normal full sightseeing days should usually include 5-8 locatable activities; arrival/departure/transit/rest days may have fewer but should include the logistics that make the day realistic.',
+      ),
     accommodation: ItineraryAccommodationSchema.optional(),
   })
   .strict();
@@ -208,8 +260,7 @@ export function registerTripTools(
     server.registerTool(
       'apply_itinerary_plan',
       {
-        description:
-          'Create or update a complete multi-day itinerary in one structured JSON call. Use this as the primary one-shot tool for "plan a trip", "full itinerary", "generate travel plan", and PDF itinerary requests. Activities are imported as real places with day assignments, never as day notes. Do not provide or invent lat/lng; send location query/address/provider IDs and let the server geocode, validate, attach a destination cover image from resolved itinerary places, apply atomically, and optionally export the official Trippi PDF. For PDF requests, optionally set cover_place_query to the strongest scenic or landmark place from the itinerary; do not send an image URL.',
+        description: APPLY_ITINERARY_PLAN_TOOL_DESCRIPTION,
         inputSchema: {
           target: ItineraryTargetSchema.describe(
             'new_trip creates a trip; existing_trip appends or replaces only previous MCP-imported itinerary objects.',
@@ -220,7 +271,9 @@ export function registerTripTools(
             .min(1)
             .max(200)
             .optional()
-            .describe('Destination region/country appended to geocoding queries, e.g. "Yunnan, China".'),
+            .describe(
+              'Destination region/country appended to geocoding queries, e.g. "Yunnan, China". Include this for accurate multi-city planning.',
+            ),
           cover_place_query: z
             .string()
             .min(1)
@@ -235,7 +288,7 @@ export function registerTripTools(
             .min(1)
             .max(MAX_ITINERARY_IMPORT_DAYS)
             .describe(
-              'Full itinerary payload. Every activity must include a location query. Do not include lat/lng. Include day city and destination_context so the backend can geocode accurately.',
+              'Full itinerary payload. Every activity must include a location query. Include day city and destination_context so the backend can geocode accurately. If reliable coordinates/provider IDs are already known, include them; otherwise do not invent lat/lng. Build dense, realistic days with times, durations, meals, transfers, rest buffers, descriptions, notes, and accommodations when relevant.',
             ),
         },
         annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,

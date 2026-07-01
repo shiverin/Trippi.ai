@@ -361,7 +361,7 @@ function yunnanTenDayPlan() {
 }
 
 describe('Tool: apply_itinerary_plan', () => {
-  it('exposes a strict one-shot schema without raw coordinate fields', async () => {
+  it('exposes a strict one-shot schema with quality guidance and optional known coordinates', async () => {
     const { user } = createUser(testDb);
 
     await withHarness(user.id, async (h) => {
@@ -372,8 +372,12 @@ describe('Tool: apply_itinerary_plan', () => {
       expect(JSON.stringify(applyTool?.inputSchema)).toContain('"exportPdf"');
       expect(JSON.stringify(applyTool?.inputSchema)).toContain('"destination_context"');
       expect(JSON.stringify(applyTool?.inputSchema)).toContain('"cover_place_query"');
-      expect(JSON.stringify(applyTool?.inputSchema)).not.toContain('"lat":');
-      expect(JSON.stringify(applyTool?.inputSchema)).not.toContain('"lng":');
+      expect(applyTool?.description).toContain('meticulous, realistic itinerary');
+      expect(JSON.stringify(applyTool?.inputSchema)).toContain('5-8 locatable activities');
+      expect(JSON.stringify(applyTool?.inputSchema)).toContain('Build dense, realistic days');
+      expect(JSON.stringify(applyTool?.inputSchema)).toContain('"lat"');
+      expect(JSON.stringify(applyTool?.inputSchema)).toContain('"lng"');
+      expect(JSON.stringify(applyTool?.inputSchema)).toContain('Do not invent coordinates');
     });
   });
 
@@ -484,14 +488,14 @@ describe('Tool: apply_itinerary_plan', () => {
     });
   });
 
-  it('rejects raw coordinates in itinerary location payloads', async () => {
+  it('uses known coordinates directly when supplied by the caller', async () => {
     const { user } = createUser(testDb);
 
     await withHarness(user.id, async (h) => {
       const result = await h.client.callTool({
         name: 'apply_itinerary_plan',
         arguments: {
-          target: { kind: 'new_trip', title: 'Coordinate Rejection Test' },
+          target: { kind: 'new_trip', title: 'Coordinate Import Test' },
           days: [
             {
               day_number: 1,
@@ -509,9 +513,14 @@ describe('Tool: apply_itinerary_plan', () => {
         },
       });
 
-      expect(result.isError).toBe(true);
+      const data = parseToolResult(result) as any;
+      expect(data.success).toBe(true);
       expect(searchPlacesMock).not.toHaveBeenCalled();
-      expect((testDb.prepare('SELECT COUNT(*) AS count FROM trips').get() as { count: number }).count).toBe(0);
+      expect(testDb.prepare("SELECT lat, lng FROM places WHERE name = 'Dali Ancient City'").get()).toMatchObject({
+        lat: 25.691,
+        lng: 100.159,
+      });
+      expect((testDb.prepare('SELECT COUNT(*) AS count FROM trips').get() as { count: number }).count).toBe(1);
     });
   });
 

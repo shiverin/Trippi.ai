@@ -848,6 +848,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                   }
                   onDayDetail={(day) => {
                     setShowDayDetail(day);
+                    setDayDetailCollapsed(true);
                     setSelectedPlaceId(null);
                     selectAssignment(null);
                   }}
@@ -1352,6 +1353,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                           }}
                           onDayDetail={(day) => {
                             setShowDayDetail(day);
+                            setDayDetailCollapsed(true);
                             setSelectedPlaceId(null);
                             selectAssignment(null);
                           }}

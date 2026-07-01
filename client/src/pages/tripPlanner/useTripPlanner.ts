@@ -284,7 +284,7 @@ export function useTripPlanner() {
   } = useResizablePanels();
   const { selectedPlaceId, selectedAssignmentId, setSelectedPlaceId, selectAssignment } = usePlaceSelection();
   const [showDayDetail, setShowDayDetail] = useState<Day | null>(null);
-  const [dayDetailCollapsed, setDayDetailCollapsed] = useState(false);
+  const [dayDetailCollapsed, setDayDetailCollapsed] = useState(true);
   const [showPlaceForm, setShowPlaceForm] = useState<boolean>(false);
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
   const [prefillCoords, setPrefillCoords] = useState<{

@@ -1626,6 +1626,8 @@ describe('TripPlannerPage', () => {
       await act(async () => {
         capturedDayPlanSidebarProps.current.onDayDetail?.(day);
       });
+
+      expect(capturedDayDetailPanelProps.current.collapsed).toBe(true);
     });
   });
 

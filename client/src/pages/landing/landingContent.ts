@@ -11,7 +11,6 @@ import {
   Map,
   Plane,
   Route,
-  Server,
   ShieldCheck,
   Sparkles,
   Users,
@@ -70,7 +69,7 @@ export const workflowSteps: WorkflowStep[] = [
   {
     step: '1',
     title: 'Capture ideas',
-    description: 'Drop ideas, places, and votes. AI groups them into options.',
+    description: 'Drop ideas, places, and votes. The AI trip planner groups them into options.',
     Icon: Sparkles,
   },
   {
@@ -90,11 +89,11 @@ export const workflowSteps: WorkflowStep[] = [
 export const spotlightFeatures: SpotlightFeature[] = [
   {
     id: 'maps',
-    title: 'Interactive maps',
+    title: 'AI itinerary maps',
     description: 'Explore, search, and pin places together in realtime.',
     details: 'A shared map, day-by-day itinerary, route stops, and place lists stay connected in one planning surface.',
     image: '/landing/trip-planner.png',
-    imageAlt: 'Trippi trip planner with a live Tokyo map, itinerary days, and place list.',
+    imageAlt: 'Trippi AI trip planner with a live Tokyo map, itinerary days, and place list.',
     accent: 'blue',
     Icon: Map,
   },
@@ -200,7 +199,8 @@ export const pricingTiers: PricingTier[] = [
     name: 'Agentic',
     price: '$49',
     cadence: '/mo',
-    description: 'Full MCP access for ChatGPT, Gemini, and Claude to plan autonomously and coordinate travel purchases.',
+    description:
+      'Full MCP access for ChatGPT, Gemini, and Claude to plan autonomously and coordinate travel purchases.',
     features: ['Full MCP agent access', 'Flights, hotels, attractions', '100% agentic workflow'],
     cta: 'Go agentic',
     Icon: Bot,
@@ -217,7 +217,7 @@ export const faqItems: FaqItem[] = [
   },
   {
     id: 'groups',
-    question: 'Does it work for group trips?',
+    question: 'Does Trippi work for group trips?',
     answer:
       'Yes. Trippi is built around shared trips, live edits, budgets, reservations, files, and invite-only collaboration.',
     Icon: Users,

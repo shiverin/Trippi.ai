@@ -101,9 +101,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'trippi',
-        short_name: 'trippi',
-        description: 'Your trips. Your plan. Your AI travel workspace.',
+        name: 'Trippi - AI Trip Planner',
+        short_name: 'Trippi',
+        description: 'AI trip planning for group itineraries, maps, budgets, reservations, files, and routes.',
         theme_color: '#111827',
         background_color: '#0f172a',
         display: 'standalone',

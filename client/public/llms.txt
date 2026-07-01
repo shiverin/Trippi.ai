@@ -1,0 +1,25 @@
+# Trippi
+
+Trippi is an AI trip planner for group travel at https://www.trippi.lol/.
+
+## Product
+
+Trippi helps travelers plan collaborative trips with AI-powered itineraries, live maps, shared budgets, reservations, uploaded files, route planning, packing support, and travel memories.
+
+## Key Pages
+
+- Homepage: https://www.trippi.lol/
+- Sitemap: https://www.trippi.lol/sitemap.xml
+
+## Target Searches
+
+- AI trip planner
+- AI trip planner for group trips
+- group trip planner
+- collaborative travel itinerary app
+- travel budget planner
+- route planner for trips
+
+## Indexing Notes
+
+The public homepage is the primary marketing page. Login, dashboard, shared-token, OAuth, and private app routes should not be indexed.

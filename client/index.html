@@ -2,26 +2,146 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Trippi | AI Trip Planner for Group Trips</title>
     <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      name="description"
+      content="Trippi is an AI trip planner for group travel. Build itineraries, maps, budgets, reservations, files, and shared routes in one collaborative travel app."
     />
-    <title>trippi</title>
+    <meta
+      name="keywords"
+      content="AI trip planner, group trip planner, travel itinerary app, collaborative travel planning, travel budget planner, route planner"
+    />
+    <meta name="application-name" content="Trippi" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://www.trippi.lol/" />
 
     <!-- PWA / iOS -->
-    <meta name="theme-color" content="#09090b" />
+    <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="trippi" />
+    <meta name="apple-mobile-web-app-title" content="Trippi" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180x180.png" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@400;700;800&display=swap" rel="stylesheet" />
+    <!-- Social sharing -->
+    <meta property="og:site_name" content="Trippi" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.trippi.lol/" />
+    <meta property="og:title" content="Trippi | AI Trip Planner for Group Trips" />
+    <meta
+      property="og:description"
+      content="Plan group trips with AI-powered itineraries, live maps, shared budgets, reservations, files, and routes that stay in sync."
+    />
+    <meta property="og:image" content="https://www.trippi.lol/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Trippi AI trip planner showing a shared map and itinerary workspace." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Trippi | AI Trip Planner for Group Trips" />
+    <meta
+      name="twitter:description"
+      content="Plan group trips with AI-powered itineraries, live maps, shared budgets, reservations, files, and routes that stay in sync."
+    />
+    <meta name="twitter:image" content="https://www.trippi.lol/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.trippi.lol/#organization",
+            "name": "Trippi",
+            "url": "https://www.trippi.lol/",
+            "logo": "https://www.trippi.lol/icons/icon-512x512.png",
+            "sameAs": ["https://www.linkedin.com/in/zhaoshizhen2004/"]
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://www.trippi.lol/#app",
+            "name": "Trippi",
+            "applicationCategory": "TravelApplication",
+            "operatingSystem": "Web",
+            "url": "https://www.trippi.lol/",
+            "image": "https://www.trippi.lol/og-image.png",
+            "description": "Trippi is an AI trip planner for group travel with shared itineraries, live maps, budgets, reservations, files, and routes.",
+            "publisher": {
+              "@id": "https://www.trippi.lol/#organization"
+            },
+            "offers": [
+              {
+                "@type": "Offer",
+                "name": "Beginner",
+                "price": "0",
+                "priceCurrency": "USD"
+              },
+              {
+                "@type": "Offer",
+                "name": "Pro",
+                "price": "9",
+                "priceCurrency": "USD"
+              },
+              {
+                "@type": "Offer",
+                "name": "Agentic",
+                "price": "49",
+                "priceCurrency": "USD"
+              }
+            ],
+            "featureList": [
+              "AI itinerary planning",
+              "Collaborative group trips",
+              "Live travel maps",
+              "Shared travel budgets",
+              "Reservations and files",
+              "Route planning and exports"
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://www.trippi.lol/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Can AI agents plan with Trippi?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. The Agentic plan unlocks MCP access so tools like ChatGPT, Gemini, and Claude can help build itineraries, organize details, and coordinate booking workflows."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Trippi work for group trips?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Trippi is built around shared trips, live edits, budgets, reservations, files, and invite-only collaboration."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I import bookings and files?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "You can keep trip files, tickets, PDFs, notes, and reservations beside the itinerary so the context stays together."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is my trip data private?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Trips are private by default. You choose who can view, edit, or collaborate, and shared plans stay invite-only unless you publish them."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
 
     <!-- Leaflet -->
     <link

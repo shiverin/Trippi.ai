@@ -15,7 +15,7 @@ describe('LandingPage', () => {
   it('renders the hero, navigation, and primary calls to action', () => {
     renderLanding();
 
-    expect(screen.getByRole('heading', { name: /your trippi, our troppi/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /ai trip planner for group trips/i })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /get started/i })[0]).toHaveAttribute('href', '/login');
     expect(screen.getAllByRole('link', { name: /start planning/i })[0]).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: /watch demo/i })).toHaveAttribute('href', '#showcase');

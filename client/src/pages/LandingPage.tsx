@@ -1,15 +1,4 @@
-import {
-  ArrowRight,
-  Bell,
-  ChevronDown,
-  Compass,
-  Linkedin,
-  Mail,
-  Menu,
-  Moon,
-  PlayCircle,
-  X,
-} from 'lucide-react';
+import { ArrowRight, Bell, ChevronDown, Compass, Linkedin, Mail, Menu, Moon, PlayCircle, X } from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/landing.css';
@@ -102,7 +91,7 @@ function ProductBrowser({ className = '' }: { className?: string }) {
         <span className="landing-dot landing-dot--red" />
         <span className="landing-dot landing-dot--amber" />
         <span className="landing-dot landing-dot--green" />
-        <div className="landing-browser__address">app.trippi.ai/tokyo</div>
+        <div className="landing-browser__address">www.trippi.lol/tokyo</div>
       </div>
       <div className="landing-browser__chrome">
         <div className="landing-browser__crumb">
@@ -121,7 +110,7 @@ function ProductBrowser({ className = '' }: { className?: string }) {
       <div className="landing-browser__media">
         <img
           src="/landing/trip-planner.png"
-          alt="Trippi trip planner showing a live Tokyo map and itinerary sidebar."
+          alt="Trippi AI trip planner showing a live Tokyo map and itinerary sidebar."
         />
       </div>
     </div>
@@ -134,11 +123,12 @@ function HeroSection() {
       <div className="landing-hero__copy">
         <div className="landing-hero__badge">
           <Compass size={18} />
-          <span>AI-powered travel</span>
+          <span>AI trip planner</span>
         </div>
-        <h1>Your trippi, our troppi</h1>
+        <h1>AI trip planner for group trips</h1>
         <p>
-          Plan group trips with AI help, live maps, shared budgets, reservations, files, and routes that stay in sync.
+          Build collaborative itineraries with AI, live maps, shared budgets, reservations, files, and routes that stay
+          in sync.
         </p>
         <div className="landing-hero__actions">
           <Link className="landing-btn landing-btn--primary landing-btn--large" to="/login">
@@ -374,7 +364,7 @@ function LandingFooter() {
     <footer className="landing-footer">
       <div className="landing-footer__brand">
         <Brand light />
-        <p>Engineering adventure, one trip at a time.</p>
+        <p>Collaborative travel planning, one trip at a time.</p>
         <div>
           <a href="https://www.linkedin.com/in/zhaoshizhen2004/" aria-label="Trippi on LinkedIn">
             <Linkedin size={18} />
@@ -392,8 +382,8 @@ function LandingFooter() {
         ))}
       </nav>
       <div className="landing-footer__bottom">
-        <span>Copyright 2026 trippi.ai</span>
-        <span>All-in-one travel planning for people and AI agents.</span>
+        <span>Copyright 2026 trippi.lol</span>
+        <span>AI trip planning for people, groups, and travel agents.</span>
       </div>
     </footer>
   );

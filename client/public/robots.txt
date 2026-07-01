@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /atlas
+Disallow: /dashboard
+Disallow: /forgot-password
+Disallow: /friends
+Disallow: /journey
+Disallow: /login
+Disallow: /mcp-connect
+Disallow: /notifications
+Disallow: /oauth/
+Disallow: /public/journey/
+Disallow: /reset-password
+Disallow: /settings
+Disallow: /shared/
+Disallow: /trips/
+Disallow: /vacay
+
+Sitemap: https://www.trippi.lol/sitemap.xml

@@ -116,7 +116,6 @@ export default function ReferralDialog({ open, onClose }: ReferralDialogProps): 
             </span>
             <div>
               <h2 className="text-base font-semibold text-content">{t('referral.title')}</h2>
-              <p className="text-xs text-content-muted">{t('referral.subtitle')}</p>
             </div>
           </div>
           <button className="rounded-lg p-2 text-content-muted hover:bg-surface-secondary" onClick={onClose}>
@@ -126,11 +125,10 @@ export default function ReferralDialog({ open, onClose }: ReferralDialogProps): 
 
         <div className="space-y-4 p-5">
           <div className="rounded-xl border border-edge bg-surface-secondary p-4">
-            <div className="flex items-start gap-3">
-              <Sparkles className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 flex-shrink-0 text-accent" />
               <div>
                 <p className="text-sm font-semibold text-content">{t('referral.valueTitle')}</p>
-                <p className="mt-1 text-sm leading-6 text-content-muted">{t('referral.valueBody')}</p>
               </div>
             </div>
           </div>

@@ -48,6 +48,12 @@ export interface EntitlementCheck {
   message?: string;
 }
 
+export interface OwnedTripUsage {
+  lifetimeTrips: number;
+  lockedTrips: number;
+  editableFreeTrips: number;
+}
+
 type PartialMcpLimits = Partial<Record<keyof McpAutomationLimits, EntitlementLimit | string | number | null>>;
 type PartialPlanLimits = Partial<
   Omit<Record<keyof EntitlementPlanLimits, EntitlementLimit | string | number | null>, 'mcpAutomation'> & {
@@ -317,6 +323,33 @@ export async function countMcpTokensForUser(userId: number): Promise<number> {
   return row?.count ?? 0;
 }
 
+async function listOwnedTripIdsByLockOrder(userId: number): Promise<Array<{ id: number }>> {
+  return asyncDb
+    .prepare(
+      `
+      SELECT id
+      FROM trips
+      WHERE user_id = ?
+      ORDER BY created_at DESC, id DESC
+    `,
+    )
+    .all<{ id: number }>(userId);
+}
+
+export async function getOwnedTripUsageForUser(
+  userId: number,
+  entitlements: Pick<ResolvedEntitlements, 'planKey'>,
+  editableLimit = 5,
+): Promise<OwnedTripUsage> {
+  const rows = await listOwnedTripIdsByLockOrder(userId);
+  const lockedTrips = entitlements.planKey === 'free' && rows.length > editableLimit ? rows.length - editableLimit : 0;
+  return {
+    lifetimeTrips: rows.length,
+    lockedTrips,
+    editableFreeTrips: editableLimit,
+  };
+}
+
 export interface TripEditLockInfo {
   id: number;
   edit_locked: boolean;
@@ -327,16 +360,7 @@ export async function getLockedOwnedTripIdsForUser(userId: number, editableLimit
   const entitlements = await getEntitlementsForUser(userId);
   if (entitlements.planKey !== 'free') return new Set();
 
-  const rows = await asyncDb
-    .prepare(
-      `
-      SELECT id
-      FROM trips
-      WHERE user_id = ?
-      ORDER BY created_at DESC, id DESC
-    `,
-    )
-    .all<{ id: number }>(userId);
+  const rows = await listOwnedTripIdsByLockOrder(userId);
 
   if (rows.length <= editableLimit) return new Set();
   return new Set(rows.slice(editableLimit).map((row) => Number(row.id)));

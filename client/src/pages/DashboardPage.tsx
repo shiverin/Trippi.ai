@@ -386,6 +386,7 @@ export default function DashboardPage(): React.ReactElement {
         <UpgradePlansModal
           open={upgradePlansOpen}
           billing={entitlementState.billing}
+          access={entitlementState.access}
           checkoutLoading={entitlementState.checkoutLoading}
           onClose={() => setUpgradePlansOpen(false)}
           onSelect={startUpgrade}

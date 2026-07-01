@@ -2,11 +2,13 @@ import { Building2, Check, Loader2, Sparkles, X } from 'lucide-react';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from '../../i18n';
-import type { BillingUpgradeAvailability } from '../../types';
+import type { BillingAccessSummary, BillingUpgradeAvailability } from '../../types';
+import PlanStatusBadge from './PlanStatusBadge';
 
 interface UpgradePlansModalProps {
   open: boolean;
   billing: BillingUpgradeAvailability | null | undefined;
+  access?: BillingAccessSummary | null;
   checkoutLoading?: boolean;
   onClose: () => void;
   onSelect: (planId: string) => void;
@@ -15,6 +17,7 @@ interface UpgradePlansModalProps {
 export default function UpgradePlansModal({
   open,
   billing,
+  access,
   checkoutLoading = false,
   onClose,
   onSelect,
@@ -35,6 +38,12 @@ export default function UpgradePlansModal({
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {access && (
+          <div className="border-b border-edge px-5 py-4">
+            <PlanStatusBadge access={access} />
+          </div>
+        )}
 
         <div className="grid gap-3 p-5 md:grid-cols-3">
           {plans.map((plan) => {

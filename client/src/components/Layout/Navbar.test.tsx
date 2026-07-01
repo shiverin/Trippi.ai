@@ -1,4 +1,4 @@
-// FE-COMP-NAVBAR-001 to FE-COMP-NAVBAR-028
+// FE-COMP-NAVBAR-001 to FE-COMP-NAVBAR-035
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { buildSettings, buildUser } from '../../../tests/helpers/factories';
@@ -343,5 +343,15 @@ describe('Navbar', () => {
       const values = screen.queryAllByRole('textbox').map((input) => (input as HTMLInputElement).value);
       expect(values.some((value) => value.endsWith('/register?ref=TESTCODE'))).toBe(true);
     });
+  });
+
+  it('FE-COMP-NAVBAR-035: profile menu shows compact plan usage status', async () => {
+    const user = userEvent.setup();
+    render(<Navbar />);
+
+    await user.click(screen.getByText('testuser'));
+
+    expect(await screen.findByText('Free plan')).toBeInTheDocument();
+    expect(screen.getByText('No Pro access active')).toBeInTheDocument();
   });
 });

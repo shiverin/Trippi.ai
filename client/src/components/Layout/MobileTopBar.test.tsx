@@ -1,4 +1,4 @@
-// FE-COMP-MOBILETOPBAR-001 to FE-COMP-MOBILETOPBAR-007
+// FE-COMP-MOBILETOPBAR-001 to FE-COMP-MOBILETOPBAR-009
 
 vi.mock('./InAppNotificationBell', () => ({ default: () => null }));
 
@@ -89,5 +89,15 @@ describe('MobileTopBar', () => {
     await user.click(screen.getByText('Refer friends'));
 
     expect(await screen.findByText('You both get 7 days of Pro')).toBeInTheDocument();
+  });
+
+  it('FE-COMP-MOBILETOPBAR-009: profile sheet links compact usage status to Settings Usage', async () => {
+    const user = userEvent.setup();
+    render(<MobileTopBar />, { initialEntries: ['/dashboard'] });
+
+    await user.click(screen.getByRole('button', { name: 'Profile' }));
+    await user.click(await screen.findByText('Free plan'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/settings?tab=usage');
   });
 });

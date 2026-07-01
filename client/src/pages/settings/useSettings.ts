@@ -20,7 +20,8 @@ export function useSettings() {
   const hasIntegrations = memoriesEnabled || mcpEnabled || airtrailEnabled
 
   const [appVersion, setAppVersion] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('display')
+  const requestedTab = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState(() => (requestedTab === 'usage' ? 'usage' : 'display'))
 
   useEffect(() => {
     loadAddons()
@@ -31,6 +32,11 @@ export function useSettings() {
   useEffect(() => {
     if (searchParams.get('mfa') === 'required') {
       setActiveTab('account')
+      return
+    }
+    const tab = searchParams.get('tab')
+    if (tab && ['display', 'usage', 'map', 'notifications', 'integrations', 'offline', 'account'].includes(tab)) {
+      setActiveTab(tab)
     }
   }, [searchParams])
 

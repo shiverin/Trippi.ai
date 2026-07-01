@@ -1,4 +1,4 @@
-import { Bell, CloudOff, Map, Palette, Plug, Settings, User } from 'lucide-react';
+import { BarChart3, Bell, CloudOff, Map, Palette, Plug, Settings, User } from 'lucide-react';
 import React from 'react';
 import PageShell from '../components/Layout/PageShell';
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar';
@@ -8,6 +8,7 @@ import IntegrationsTab from '../components/Settings/IntegrationsTab';
 import MapSettingsTab from '../components/Settings/MapSettingsTab';
 import NotificationsTab from '../components/Settings/NotificationsTab';
 import OfflineTab from '../components/Settings/OfflineTab';
+import UsageTab from '../components/Settings/UsageTab';
 import { useTranslation } from '../i18n';
 import { useSettings } from './settings/useSettings';
 
@@ -18,6 +19,7 @@ export default function SettingsPage(): React.ReactElement {
 
   const tabs: PageSidebarTab[] = [
     { id: 'display', label: t('settings.tabs.display'), icon: Palette },
+    { id: 'usage', label: t('settings.tabs.usage'), icon: BarChart3 },
     { id: 'map', label: t('settings.tabs.map'), icon: Map },
     { id: 'notifications', label: t('settings.tabs.notifications'), icon: Bell },
     ...(hasIntegrations ? [{ id: 'integrations', label: t('settings.tabs.integrations'), icon: Plug }] : []),
@@ -48,6 +50,7 @@ export default function SettingsPage(): React.ReactElement {
           footer={appVersion ? `v${appVersion} · cloud SaaS` : 'cloud SaaS'}
         >
           {activeTab === 'display' && <DisplaySettingsTab />}
+          {activeTab === 'usage' && <UsageTab />}
           {activeTab === 'map' && <MapSettingsTab />}
           {activeTab === 'notifications' && <NotificationsTab />}
           {activeTab === 'integrations' && hasIntegrations && <IntegrationsTab />}

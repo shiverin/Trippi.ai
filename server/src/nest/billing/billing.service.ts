@@ -1,5 +1,10 @@
-import { getEntitlementsForUser, type ResolvedEntitlements } from '../../services/entitlementService';
-import { getBillingCustomerForUser } from '../../services/subscriptionService';
+import {
+  getEntitlementsForUser,
+  getOwnedTripUsageForUser,
+  type EntitlementLimit,
+  type ResolvedEntitlements,
+} from '../../services/entitlementService';
+import { getBillingCustomerForUser, getBillingSubscriptionForUser } from '../../services/subscriptionService';
 import type { User } from '../../types';
 import {
   BillingConfigError,
@@ -54,20 +59,151 @@ export interface BillingPlanOption {
 
 export interface BillingEntitlementsResult {
   entitlements: ResolvedEntitlements;
+  access: BillingAccessSummary;
+  usage: BillingUsageSummary;
   billing: BillingUpgradeAvailability;
 }
 
+export type BillingAccessSource = 'free' | 'paid_subscription' | 'paid_trial' | 'referral_bonus' | 'admin';
+
+export interface BillingAccessSummary {
+  source: BillingAccessSource;
+  planKey: string;
+  activeUntil: string | null;
+  daysRemaining: number | null;
+  renews: boolean;
+  cancelAtPeriodEnd: boolean;
+}
+
+export interface BillingUsageSummary {
+  lifetimeTrips: {
+    current: number;
+    limit: EntitlementLimit;
+    locked: number;
+    editableFreeTrips: number;
+  };
+  groupSize: {
+    limit: EntitlementLimit;
+  };
+  referralBonus: {
+    activeDays: number;
+    pendingDays: number;
+    maxDays: number;
+  };
+}
+
 const CHECKOUT_PLAN_PRIORITY = ['pro_monthly', 'pro_annual', 'agency_annual', 'pro', 'agency', 'trial'] as const;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function parseFutureIso(value: string | null | undefined, now = Date.now()): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime()) || parsed.getTime() <= now) return null;
+  return parsed.toISOString();
+}
+
+function daysRemainingUntil(value: string | null, now = Date.now()): number | null {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  if (Number.isNaN(parsed) || parsed <= now) return null;
+  return Math.floor((parsed - now) / DAY_MS);
+}
+
+function resolveAccessSummary(
+  user: Pick<User, 'role'>,
+  entitlements: ResolvedEntitlements,
+  billing: Awaited<ReturnType<typeof getBillingSubscriptionForUser>>,
+): BillingAccessSummary {
+  if (user.role === 'admin') {
+    return {
+      source: 'admin',
+      planKey: entitlements.planKey,
+      activeUntil: null,
+      daysRemaining: null,
+      renews: false,
+      cancelAtPeriodEnd: false,
+    };
+  }
+
+  if (entitlements.billingPlanKey === 'referral_bonus' || entitlements.billingStatus === 'referral_bonus') {
+    const activeUntil = parseFutureIso(entitlements.referralBonus.activeUntil);
+    return {
+      source: 'referral_bonus',
+      planKey: entitlements.planKey,
+      activeUntil,
+      daysRemaining: daysRemainingUntil(activeUntil),
+      renews: false,
+      cancelAtPeriodEnd: false,
+    };
+  }
+
+  const billingStatus = billing.status.toLowerCase();
+  if (billingStatus === 'trialing') {
+    const activeUntil = parseFutureIso(billing.trial_end) ?? parseFutureIso(billing.current_period_end);
+    return {
+      source: 'paid_trial',
+      planKey: entitlements.planKey,
+      activeUntil,
+      daysRemaining: daysRemainingUntil(activeUntil),
+      renews: false,
+      cancelAtPeriodEnd: !!billing.cancel_at_period_end,
+    };
+  }
+
+  if (billingStatus === 'active') {
+    const activeUntil = parseFutureIso(billing.current_period_end);
+    const cancelAtPeriodEnd = !!billing.cancel_at_period_end;
+    return {
+      source: 'paid_subscription',
+      planKey: entitlements.planKey,
+      activeUntil,
+      daysRemaining: daysRemainingUntil(activeUntil),
+      renews: !cancelAtPeriodEnd,
+      cancelAtPeriodEnd,
+    };
+  }
+
+  return {
+    source: 'free',
+    planKey: entitlements.planKey,
+    activeUntil: null,
+    daysRemaining: null,
+    renews: false,
+    cancelAtPeriodEnd: false,
+  };
+}
 
 @Injectable()
 export class BillingService {
   constructor(private readonly stripe: StripeClient) {}
 
   async getEntitlements(user: User): Promise<BillingEntitlementsResult> {
-    const entitlements = await getEntitlementsForUser(user.id);
+    const [entitlements, billing] = await Promise.all([
+      getEntitlementsForUser(user.id),
+      getBillingSubscriptionForUser(user.id),
+    ]);
+    const tripUsage = await getOwnedTripUsageForUser(user.id, entitlements);
+    const upgradeCurrentPlanKey = entitlements.billingPlanKey === 'referral_bonus' ? 'free' : entitlements.planKey;
     return {
       entitlements,
-      billing: resolveUpgradeAvailability(entitlements.planKey, entitlements.subscribed),
+      access: resolveAccessSummary(user, entitlements, billing),
+      usage: {
+        lifetimeTrips: {
+          current: tripUsage.lifetimeTrips,
+          limit: entitlements.limits.activeTrips,
+          locked: tripUsage.lockedTrips,
+          editableFreeTrips: tripUsage.editableFreeTrips,
+        },
+        groupSize: {
+          limit: entitlements.limits.groupSize,
+        },
+        referralBonus: {
+          activeDays: entitlements.referralBonus.daysRemaining,
+          pendingDays: entitlements.referralBonus.pendingDays,
+          maxDays: entitlements.referralBonus.maxDays,
+        },
+      },
+      billing: resolveUpgradeAvailability(upgradeCurrentPlanKey, entitlements.subscribed),
     };
   }
 

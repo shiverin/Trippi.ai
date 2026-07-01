@@ -27,6 +27,10 @@ vi.mock('../components/Settings/AccountTab', () => ({
   default: () => <div data-testid="account-tab">Account Settings</div>,
 }));
 
+vi.mock('../components/Settings/UsageTab', () => ({
+  default: () => <div data-testid="usage-tab">Usage Settings</div>,
+}));
+
 beforeEach(() => {
   resetAllStores();
   seedStore(useAuthStore, { isAuthenticated: true, user: buildUser() });
@@ -98,13 +102,14 @@ describe('SettingsPage', () => {
   });
 
   describe('FE-PAGE-SETTINGS-004: All standard tabs are present', () => {
-    it('renders Display, Map, Notifications, Account tabs', async () => {
+    it('renders Display, Usage, Map, Notifications, Account tabs', async () => {
       render(<SettingsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /display/i })).toBeInTheDocument();
       });
 
+      expect(screen.getByRole('button', { name: /usage/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /^map$/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /notifications/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /account/i })).toBeInTheDocument();
@@ -117,6 +122,14 @@ describe('SettingsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('account-tab')).toBeInTheDocument();
+      });
+    });
+
+    it('auto-switches to usage tab when ?tab=usage is in URL', async () => {
+      render(<SettingsPage />, { initialEntries: ['/settings?tab=usage'] });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('usage-tab')).toBeInTheDocument();
       });
     });
   });

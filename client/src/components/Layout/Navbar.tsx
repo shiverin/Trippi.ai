@@ -19,10 +19,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDocumentDarkMode } from '../../hooks/useDocumentDarkMode';
+import { useEntitlements } from '../../hooks/useEntitlements';
 import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import PlanStatusBadge from '../Billing/PlanStatusBadge';
 import ReferralDialog from '../Referrals/ReferralDialog';
 import { useToast } from '../shared/Toast';
 import InAppNotificationBell from './InAppNotificationBell.tsx';
@@ -57,6 +59,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
   const [referralDialogOpen, setReferralDialogOpen] = useState<boolean>(false);
   const [scrolled, setScrolled] = useState<boolean>(false);
   const documentDark = useDocumentDarkMode();
+  const entitlementState = useEntitlements();
   const darkMode = settings.dark_mode;
   const settingDark =
     darkMode === true ||
@@ -350,6 +353,15 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
                         <Shield className="h-3 w-3" /> {t('nav.administrator')}
                       </span>
                     )}
+                  </div>
+                  <div className="border-b border-edge-secondary p-3">
+                    <PlanStatusBadge
+                      access={entitlementState.access}
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate('/settings?tab=usage');
+                      }}
+                    />
                   </div>
 
                   <div className="py-1">

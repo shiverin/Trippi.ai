@@ -124,8 +124,8 @@ export default function ReferralDialog({ open, onClose }: ReferralDialogProps): 
 
               <div className="grid grid-cols-3 gap-2">
                 <Stat label={t('referral.successful')} value={summary?.successful_referrals ?? 0} />
-                <Stat label={t('referral.activeDays')} value={summary?.active_bonus_days_remaining ?? 0} />
-                <Stat label={t('referral.pendingDays')} value={summary?.pending_bonus_days ?? 0} />
+                <Stat label={t('settings.usage.referralActiveDays')} value={summary?.active_bonus_days_remaining ?? 0} />
+                <Stat label={t('settings.usage.referralPendingDays')} value={summary?.pending_bonus_days ?? 0} />
               </div>
             </>
           ) : (

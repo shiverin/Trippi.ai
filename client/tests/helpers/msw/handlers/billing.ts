@@ -46,6 +46,27 @@ export const billingHandlers = [
           activeTrips: 5,
           groupSize: 1,
         },
+        referralBonus: {
+          active: false,
+          activeUntil: null,
+          pendingDays: 0,
+          daysRemaining: 0,
+          expiresSoon: false,
+          maxDays: 90,
+        },
+      },
+      access: {
+        source: 'free',
+        planKey: 'free',
+        activeUntil: null,
+        daysRemaining: null,
+        renews: false,
+        cancelAtPeriodEnd: false,
+      },
+      usage: {
+        lifetimeTrips: { current: 2, limit: 5, locked: 0, editableFreeTrips: 5 },
+        groupSize: { limit: 1 },
+        referralBonus: { activeDays: 0, pendingDays: 0, maxDays: 90 },
       },
       billing: { checkoutAvailable: false, defaultPlanId: null, portalAvailable: false, plans: billingPlanOptions },
     })

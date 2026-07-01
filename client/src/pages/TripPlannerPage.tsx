@@ -1660,6 +1660,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
       <UpgradePlansModal
         open={upgradePlansOpen}
         billing={entitlementState.billing}
+        access={entitlementState.access}
         checkoutLoading={entitlementState.checkoutLoading}
         onClose={() => setUpgradePlansOpen(false)}
         onSelect={(planId) => {

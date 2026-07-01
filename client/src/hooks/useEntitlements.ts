@@ -78,14 +78,31 @@ export function useEntitlements() {
     [data]
   );
 
+  const openBillingPortal = useCallback(async () => {
+    if (!data?.billing.portalAvailable) {
+      throw new Error('Billing portal is not available yet.');
+    }
+
+    setCheckoutLoading(true);
+    try {
+      const session = await billingApi.portalSession({ returnUrl: '/settings?tab=usage' });
+      window.location.assign(session.url);
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }, [data]);
+
   return {
     data,
     entitlements: data?.entitlements ?? null,
+    access: data?.access ?? null,
+    usage: data?.usage ?? null,
     billing: data?.billing ?? null,
     loading,
     checkoutLoading,
     error,
     load,
     startUpgrade,
+    openBillingPortal,
   };
 }

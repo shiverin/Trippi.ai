@@ -6,16 +6,20 @@ import type { User } from '../../../src/types';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBillingCustomerForUserMock, getEntitlementsForUserMock } = vi.hoisted(() => ({
+const { getBillingCustomerForUserMock, getBillingSubscriptionForUserMock, getEntitlementsForUserMock, getOwnedTripUsageForUserMock } = vi.hoisted(() => ({
   getBillingCustomerForUserMock: vi.fn(),
+  getBillingSubscriptionForUserMock: vi.fn(),
   getEntitlementsForUserMock: vi.fn(),
+  getOwnedTripUsageForUserMock: vi.fn(),
 }));
 
 vi.mock('../../../src/services/subscriptionService', () => ({
   getBillingCustomerForUser: getBillingCustomerForUserMock,
+  getBillingSubscriptionForUser: getBillingSubscriptionForUserMock,
 }));
 vi.mock('../../../src/services/entitlementService', () => ({
   getEntitlementsForUser: getEntitlementsForUserMock,
+  getOwnedTripUsageForUser: getOwnedTripUsageForUserMock,
 }));
 
 const user = { id: 7, email: 'organizer@example.test', role: 'user' } as User;
@@ -49,6 +53,14 @@ describe('BillingService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getBillingCustomerForUserMock.mockResolvedValue(undefined);
+    getBillingSubscriptionForUserMock.mockResolvedValue({
+      user_id: user.id,
+      status: 'free',
+      plan_key: 'free',
+      current_period_end: null,
+      trial_end: null,
+      cancel_at_period_end: 0,
+    });
     getEntitlementsForUserMock.mockResolvedValue({
       userId: user.id,
       planKey: 'free',
@@ -63,6 +75,19 @@ describe('BillingService', () => {
         activeTrips: 5,
         groupSize: 1,
       },
+      referralBonus: {
+        active: false,
+        activeUntil: null,
+        pendingDays: 0,
+        daysRemaining: 0,
+        expiresSoon: false,
+        maxDays: 90,
+      },
+    });
+    getOwnedTripUsageForUserMock.mockResolvedValue({
+      lifetimeTrips: 3,
+      lockedTrips: 0,
+      editableFreeTrips: 5,
     });
   });
 
@@ -79,6 +104,8 @@ describe('BillingService', () => {
     expect(getEntitlementsForUserMock).toHaveBeenCalledWith(user.id);
     expect(result).toMatchObject({
       entitlements: { planKey: 'free', limits: { activeTrips: 5, groupSize: 1 } },
+      access: { source: 'free', activeUntil: null, daysRemaining: null },
+      usage: { lifetimeTrips: { current: 3, limit: 5, locked: 0 }, groupSize: { limit: 1 } },
       billing: { checkoutAvailable: true, defaultPlanId: 'pro_monthly', portalAvailable: false },
     });
     expect(result.billing.plans).toEqual(
@@ -87,6 +114,198 @@ describe('BillingService', () => {
         expect.objectContaining({ id: 'agency_annual', planKey: 'agency', priceLabel: '$49' }),
       ]),
     );
+  });
+
+  it('includes paid subscription renewal access details', async () => {
+    getEntitlementsForUserMock.mockResolvedValue({
+      userId: user.id,
+      planKey: 'pro',
+      billingPlanKey: 'pro',
+      billingStatus: 'active',
+      subscribed: true,
+      trialing: false,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: 100,
+        groupSize: null,
+      },
+      referralBonus: {
+        active: false,
+        activeUntil: null,
+        pendingDays: 7,
+        daysRemaining: 0,
+        expiresSoon: false,
+        maxDays: 90,
+      },
+    });
+    getBillingSubscriptionForUserMock.mockResolvedValue({
+      user_id: user.id,
+      status: 'active',
+      plan_key: 'pro',
+      current_period_end: '2999-01-01T00:00:00.000Z',
+      trial_end: null,
+      cancel_at_period_end: 0,
+    });
+    getOwnedTripUsageForUserMock.mockResolvedValue({ lifetimeTrips: 8, lockedTrips: 0, editableFreeTrips: 5 });
+
+    const result = await withEnv(
+      {
+        APP_URL: 'https://app.example.test',
+        STRIPE_SECRET_KEY: 'sk_test_123',
+        STRIPE_ORGANIZER_PLANS: 'pro_monthly=price_pro_monthly',
+      },
+      () => service({}).getEntitlements(user),
+    );
+
+    expect(result.access).toMatchObject({
+      source: 'paid_subscription',
+      planKey: 'pro',
+      activeUntil: '2999-01-01T00:00:00.000Z',
+      renews: true,
+      cancelAtPeriodEnd: false,
+    });
+    expect(result.access.daysRemaining).toBeGreaterThan(0);
+    expect(result.usage).toMatchObject({
+      lifetimeTrips: { current: 8, limit: 100, locked: 0 },
+      groupSize: { limit: null },
+      referralBonus: { activeDays: 0, pendingDays: 7, maxDays: 90 },
+    });
+  });
+
+  it('marks cancel-at-period-end paid access as ending instead of renewing', async () => {
+    getEntitlementsForUserMock.mockResolvedValue({
+      userId: user.id,
+      planKey: 'pro',
+      billingPlanKey: 'pro',
+      billingStatus: 'active',
+      subscribed: true,
+      trialing: false,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: 100,
+        groupSize: null,
+      },
+      referralBonus: {
+        active: false,
+        activeUntil: null,
+        pendingDays: 0,
+        daysRemaining: 0,
+        expiresSoon: false,
+        maxDays: 90,
+      },
+    });
+    getBillingSubscriptionForUserMock.mockResolvedValue({
+      user_id: user.id,
+      status: 'active',
+      plan_key: 'pro',
+      current_period_end: '2999-02-01T00:00:00.000Z',
+      trial_end: null,
+      cancel_at_period_end: 1,
+    });
+
+    const result = await withEnv(
+      {
+        APP_URL: 'https://app.example.test',
+        STRIPE_SECRET_KEY: 'sk_test_123',
+        STRIPE_ORGANIZER_PLANS: 'pro_monthly=price_pro_monthly',
+      },
+      () => service({}).getEntitlements(user),
+    );
+
+    expect(result.access).toMatchObject({
+      source: 'paid_subscription',
+      activeUntil: '2999-02-01T00:00:00.000Z',
+      renews: false,
+      cancelAtPeriodEnd: true,
+    });
+  });
+
+  it('includes trial and referral bonus access details', async () => {
+    getEntitlementsForUserMock.mockResolvedValueOnce({
+      userId: user.id,
+      planKey: 'trial',
+      billingPlanKey: 'trial',
+      billingStatus: 'trialing',
+      subscribed: false,
+      trialing: true,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: 100,
+        groupSize: null,
+      },
+      referralBonus: {
+        active: false,
+        activeUntil: null,
+        pendingDays: 0,
+        daysRemaining: 0,
+        expiresSoon: false,
+        maxDays: 90,
+      },
+    });
+    getBillingSubscriptionForUserMock.mockResolvedValueOnce({
+      user_id: user.id,
+      status: 'trialing',
+      plan_key: 'pro',
+      current_period_end: '2999-03-01T00:00:00.000Z',
+      trial_end: '2999-02-15T00:00:00.000Z',
+      cancel_at_period_end: 0,
+    });
+
+    const trial = await withEnv({ STRIPE_ORGANIZER_PLANS: 'pro_monthly=price_pro_monthly' }, () =>
+      service({}).getEntitlements(user),
+    );
+    expect(trial.access).toMatchObject({
+      source: 'paid_trial',
+      activeUntil: '2999-02-15T00:00:00.000Z',
+      renews: false,
+    });
+
+    getEntitlementsForUserMock.mockResolvedValueOnce({
+      userId: user.id,
+      planKey: 'pro',
+      billingPlanKey: 'referral_bonus',
+      billingStatus: 'referral_bonus',
+      subscribed: false,
+      trialing: false,
+      limits: {
+        aiWorkers: 0,
+        priceWatches: 0,
+        mcpAutomation: { maxTokens: 0, maxConcurrentSessions: 0, requestsPerMinute: 0 },
+        activeTrips: 100,
+        groupSize: null,
+      },
+      referralBonus: {
+        active: true,
+        activeUntil: '2999-04-01T00:00:00.000Z',
+        pendingDays: 0,
+        daysRemaining: 7,
+        expiresSoon: false,
+        maxDays: 90,
+      },
+    });
+    getBillingSubscriptionForUserMock.mockResolvedValueOnce({
+      user_id: user.id,
+      status: 'free',
+      plan_key: 'free',
+      current_period_end: null,
+      trial_end: null,
+      cancel_at_period_end: 0,
+    });
+    const referral = await withEnv({ STRIPE_ORGANIZER_PLANS: 'pro_monthly=price_pro_monthly' }, () =>
+      service({}).getEntitlements(user),
+    );
+    expect(referral.access).toMatchObject({
+      source: 'referral_bonus',
+      activeUntil: '2999-04-01T00:00:00.000Z',
+      renews: false,
+    });
+    expect(referral.access.daysRemaining).toBeGreaterThan(0);
   });
 
   it('returns a coming-soon billing state when checkout is not configured', async () => {

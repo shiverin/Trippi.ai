@@ -123,8 +123,38 @@ export interface BillingUpgradeAvailability {
   plans: BillingPlanOption[];
 }
 
+export type BillingAccessSource = 'free' | 'paid_subscription' | 'paid_trial' | 'referral_bonus' | 'admin';
+
+export interface BillingAccessSummary {
+  source: BillingAccessSource;
+  planKey: string;
+  activeUntil: string | null;
+  daysRemaining: number | null;
+  renews: boolean;
+  cancelAtPeriodEnd: boolean;
+}
+
+export interface BillingUsageSummary {
+  lifetimeTrips: {
+    current: number;
+    limit: EntitlementLimit;
+    locked: number;
+    editableFreeTrips: number;
+  };
+  groupSize: {
+    limit: EntitlementLimit;
+  };
+  referralBonus: {
+    activeDays: number;
+    pendingDays: number;
+    maxDays: number;
+  };
+}
+
 export interface BillingEntitlementsResponse {
   entitlements: ResolvedEntitlements;
+  access: BillingAccessSummary;
+  usage: BillingUsageSummary;
   billing: BillingUpgradeAvailability;
 }
 

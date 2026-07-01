@@ -1,6 +1,5 @@
 import { Calendar, Check, ChevronRight, MapPin, Plus, RefreshCw, Search, Sparkles, X } from 'lucide-react';
 import PageShell from '../components/Layout/PageShell';
-import { DefaultArtwork } from '../components/shared/DefaultArtwork';
 import { TransHtml, useTranslation } from '../i18n';
 import type { Journey } from '../store/journeyStore';
 import { computeJourneyLifecycle } from '../utils/journeyLifecycle';
@@ -228,7 +227,6 @@ export default function JourneyPage() {
                 className="relative h-[340px] cursor-pointer overflow-hidden rounded-3xl transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:shadow-xl md:h-[400px]"
                 style={{ background: pickGradient(activeJourney.id) }}
               >
-                <DefaultArtwork className="absolute inset-0" kind="journey" seed={activeJourney.id} icon={false} />
                 {/* Cover image */}
                 {activeJourney.cover_image && (
                   <div className="absolute inset-0 z-[1]">
@@ -346,22 +344,15 @@ export default function JourneyPage() {
               {/* Create card */}
               <button
                 onClick={() => openCreateModal()}
-                className="group relative flex min-h-[320px] cursor-pointer flex-col items-center justify-center gap-2.5 overflow-hidden rounded-2xl border-[1.5px] border-dashed border-zinc-200 bg-white transition-[border-color,background-color,transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                className="group flex min-h-[320px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border-[1.5px] border-dashed border-zinc-200 bg-white transition-[border-color,background-color,transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
               >
-                <DefaultArtwork
-                  className="absolute inset-x-5 top-5 h-28 rounded-2xl opacity-80"
-                  kind="journey"
-                  seed="new-journey"
-                  tone="mini"
-                  icon={false}
-                />
-                <div className="relative z-[1] mt-16 flex h-14 w-14 items-center justify-center rounded-full bg-white/85 text-zinc-500 shadow-sm backdrop-blur transition-[background-color,transform] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:rotate-90 dark:bg-zinc-800/85 dark:text-zinc-300">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100 text-zinc-400 transition-[background-color,transform] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:rotate-90 group-hover:bg-white dark:bg-zinc-800 dark:group-hover:bg-zinc-700">
                   <Plus size={22} />
                 </div>
-                <span className="relative z-[1] text-[14px] font-semibold text-zinc-700 dark:text-zinc-300">
+                <span className="text-[14px] font-semibold text-zinc-700 dark:text-zinc-300">
                   {t('journey.frontpage.createNew')}
                 </span>
-                <span className="relative z-[1] max-w-[180px] text-center text-[12px] leading-snug text-zinc-400">
+                <span className="max-w-[180px] text-center text-[12px] leading-snug text-zinc-400">
                   {t('journey.frontpage.createNewSub')}
                 </span>
               </button>
@@ -557,7 +548,6 @@ function JourneyCard({
     >
       {/* Cover */}
       <div className="relative h-[170px] overflow-hidden" style={{ background: pickGradient(j.id) }}>
-        <DefaultArtwork className="absolute inset-0" kind="journey" seed={j.id} tone="soft" icon={false} />
         {j.cover_image && (
           <>
             <img src={`/uploads/${j.cover_image}`} className="absolute inset-0 h-full w-full object-cover" alt="" />

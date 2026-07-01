@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { fetchPhoto, getCached, isLoading, onThumbReady } from '../../services/photoService';
 import { useAuthStore } from '../../store/authStore';
 import type { Place } from '../../types';
-import { DefaultArtwork } from './DefaultArtwork';
 import { getCategoryIcon } from './categoryIcons';
 
 interface Category {
@@ -109,7 +108,6 @@ export default React.memo(function PlaceAvatar({ place, size = 32, category }: P
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   };
 
   if (photoSrc) {
@@ -147,13 +145,7 @@ export default React.memo(function PlaceAvatar({ place, size = 32, category }: P
 
   return (
     <div ref={ref} style={containerStyle}>
-      <DefaultArtwork className="absolute inset-0" icon={false} kind="place" seed={place.id} tone="mini" />
-      <IconComp
-        size={iconSize}
-        strokeWidth={1.8}
-        color="rgba(255,255,255,0.92)"
-        style={{ position: 'relative', zIndex: 1 }}
-      />
+      <IconComp size={iconSize} strokeWidth={1.8} color="rgba(255,255,255,0.92)" />
     </div>
   );
 });

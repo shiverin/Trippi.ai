@@ -1,6 +1,6 @@
 import {
-  AlertCircle,
   Archive,
+  AlertCircle,
   ArrowRight,
   ArrowRightLeft,
   Calendar,
@@ -29,7 +29,6 @@ import TripFormModal from '../components/Trips/TripFormModal';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import CopyTripDialog from '../components/shared/CopyTripDialog';
 import CustomSelect from '../components/shared/CustomSelect';
-import { DefaultArtwork } from '../components/shared/DefaultArtwork';
 import PlaceAvatar from '../components/shared/PlaceAvatar';
 import { LockedState } from '../components/shared/PremiumGate';
 import { useToast } from '../components/shared/Toast';
@@ -41,8 +40,8 @@ import { formatTime, splitReservationDateTime } from '../utils/formatters';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import { convertDistance, getDistanceUnitLabel } from '../utils/units';
 import {
-  type DashboardTodo,
   type DashboardTrip,
+  type DashboardTodo,
   type HeroBundle,
   type TravelStats,
   type UpcomingReservation,
@@ -51,6 +50,20 @@ import {
   getTripStatus,
 } from './dashboard/dashboardModel';
 import { useDashboard } from './dashboard/useDashboard';
+
+const GRADIENTS = [
+  'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+  'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+  'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+  'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+  'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+  'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+  'linear-gradient(135deg, #96fbc4 0%, #f9f586 100%)',
+];
+function tripGradient(id: number): string {
+  return GRADIENTS[id % GRADIENTS.length];
+}
 
 // Day + short month for the boarding pass / cards, e.g. { d: '10', m: 'Sep' }.
 function splitDate(dateStr: string | null | undefined, locale: string): { d: string; m: string } | null {
@@ -245,11 +258,8 @@ export default function DashboardPage(): React.ReactElement {
 
                 {gridTrips.length === 0 && !isLoading && !loadError && (
                   <div className="trips-empty">
-                    <DefaultArtwork className="trips-empty-art" kind="empty" seed="dashboard-empty" tone="mini" />
-                    <div>
-                      <h4>{t('dashboard.emptyTitle')}</h4>
-                      <p>{t('dashboard.emptyText')}</p>
-                    </div>
+                    <h4>{t('dashboard.emptyTitle')}</h4>
+                    <p>{t('dashboard.emptyText')}</p>
                   </div>
                 )}
 
@@ -538,7 +548,7 @@ function BoardingPassHero({
   return (
     <>
       <section className="hero-trip" onClick={onOpen}>
-        <DefaultArtwork className="bg" kind="trip" seed={trip.id} icon={false} />
+        <div className="bg" style={{ background: tripGradient(trip.id) }} />
         {coverImageUrl && (
           <img
             className="bg"
@@ -753,7 +763,11 @@ function TripCard({
         <button className="trip-action-btn" aria-label={t('common.edit')} onClick={(e) => stop(e, onEdit)}>
           <Edit2 size={16} />
         </button>
-        <button className="trip-action-btn" aria-label={t('dashboard.aria.duplicate')} onClick={(e) => stop(e, onCopy)}>
+        <button
+          className="trip-action-btn"
+          aria-label={t('dashboard.aria.duplicate')}
+          onClick={(e) => stop(e, onCopy)}
+        >
           <Copy size={16} />
         </button>
         <button
@@ -767,8 +781,7 @@ function TripCard({
           <Trash2 size={16} />
         </button>
       </div>
-      <div className="trip-cover">
-        <DefaultArtwork className="trip-default-art" kind="trip" seed={trip.id} tone="soft" icon={false} />
+      <div className="trip-cover" style={{ background: tripGradient(trip.id) }}>
         {coverImageUrl && (
           <img
             src={coverImageUrl}

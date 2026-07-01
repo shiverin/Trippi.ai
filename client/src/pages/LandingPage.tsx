@@ -123,12 +123,11 @@ function HeroSection() {
       <div className="landing-hero__copy">
         <div className="landing-hero__badge">
           <Compass size={18} />
-          <span>AI trip planner</span>
+          <span>AI-powered travel</span>
         </div>
-        <h1>AI trip planner for group trips</h1>
+        <h1>Your trippi, our troppi</h1>
         <p>
-          Build collaborative itineraries with AI, live maps, shared budgets, reservations, files, and routes that stay
-          in sync.
+          Plan group trips with AI help, live maps, shared budgets, reservations, files, and routes that stay in sync.
         </p>
         <div className="landing-hero__actions">
           <Link className="landing-btn landing-btn--primary landing-btn--large" to="/login">

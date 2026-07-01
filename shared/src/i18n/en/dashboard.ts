@@ -178,7 +178,8 @@ const dashboard: TranslationStrings = {
   'dashboard.locked.title': 'This trip is read-only',
   'dashboard.locked.description': 'Your referral Pro expired. Upgrade to keep surplus trips editable.',
   'dashboard.expiry.title': 'Referral Pro ends soon',
-  'dashboard.expiry.body': 'These surplus trips will become read-only when your referral Pro ends. They stay viewable, archivable, and deletable.',
+  'dashboard.expiry.body':
+    'These surplus trips will become read-only when your referral Pro ends. They stay viewable, archivable, and deletable.',
   'dashboard.expiry.dismiss': 'Not now',
   'dashboard.expiry.upgrade': 'Upgrade to keep editing',
 };

@@ -27,8 +27,8 @@ import perm from './perm';
 import photos from './photos';
 import places from './places';
 import planner from './planner';
-import register from './register';
 import referral from './referral';
+import register from './register';
 import reservations from './reservations';
 import settings from './settings';
 import share from './share';
@@ -69,10 +69,10 @@ const locale = {
   ...categories,
   ...backup,
   ...billing,
-  ...referral,
   ...photos,
   ...pdf,
   ...planner,
+  ...referral,
   ...stats,
   ...day,
   ...memories,

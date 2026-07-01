@@ -54,7 +54,7 @@ function LandingNav({
           <Link className="landing-btn landing-btn--ghost" to="/login">
             Sign In
           </Link>
-          <Link className="landing-btn landing-btn--primary" to="/login">
+          <Link className="landing-btn landing-btn--primary" to="/register">
             Get Started
           </Link>
           <button
@@ -130,7 +130,7 @@ function HeroSection() {
           Plan group trips with AI help, live maps, shared budgets, reservations, files, and routes that stay in sync.
         </p>
         <div className="landing-hero__actions">
-          <Link className="landing-btn landing-btn--primary landing-btn--large" to="/login">
+          <Link className="landing-btn landing-btn--primary landing-btn--large" to="/register">
             <Compass size={19} />
             Start planning
           </Link>
@@ -301,7 +301,7 @@ function PricingSection() {
         <p>Start with the basics, upgrade into a richer planner, or unlock autonomous LLM-agent workflows.</p>
       </div>
       <div className="landing-pricing__grid">
-        {pricingTiers.map(({ name, price, cadence, description, features, cta, featured, Icon }) => (
+        {pricingTiers.map(({ name, price, cadence, description, features, cta, ctaHref, featured, Icon }) => (
           <article key={name} className={`landing-price-card ${featured ? 'is-featured' : ''}`}>
             {featured && <span className="landing-price-card__flag">Most popular</span>}
             <Icon size={28} />
@@ -321,7 +321,7 @@ function PricingSection() {
                 </li>
               ))}
             </ul>
-            <Link className={`landing-btn ${featured ? 'landing-btn--primary' : 'landing-btn--outline'}`} to="/login">
+            <Link className={`landing-btn ${featured ? 'landing-btn--primary' : 'landing-btn--outline'}`} to={ctaHref}>
               {cta}
             </Link>
           </article>
@@ -417,7 +417,7 @@ export default function LandingPage(): React.ReactElement {
           <h2>Ready to turn the group chat into a trip?</h2>
           <p>Bring everyone into one live itinerary before the next idea disappears.</p>
         </div>
-        <Link className="landing-btn landing-btn--primary landing-btn--large" to="/login">
+        <Link className="landing-btn landing-btn--primary landing-btn--large" to="/register">
           Start planning
           <ArrowRight size={18} />
         </Link>

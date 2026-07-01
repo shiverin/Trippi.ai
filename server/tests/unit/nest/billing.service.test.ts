@@ -96,7 +96,8 @@ describe('BillingService', () => {
       {
         APP_URL: 'https://app.example.test',
         STRIPE_SECRET_KEY: 'sk_test_123',
-        STRIPE_ORGANIZER_PLANS: 'agency_annual=price_agency,pro_monthly=price_pro_monthly',
+        STRIPE_ORGANIZER_PLANS:
+          'agency_annual=price_agency,pro_annual=price_pro_annual,pro_monthly=price_pro_monthly',
       },
       () => service({}).getEntitlements(user),
     );
@@ -108,12 +109,11 @@ describe('BillingService', () => {
       usage: { lifetimeTrips: { current: 3, limit: 5, locked: 0 }, groupSize: { limit: 1 } },
       billing: { checkoutAvailable: true, defaultPlanId: 'pro_monthly', portalAvailable: false },
     });
-    expect(result.billing.plans).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: 'pro_monthly', planKey: 'pro', priceLabel: '$1.99' }),
-        expect.objectContaining({ id: 'agency_annual', planKey: 'agency', priceLabel: '$49' }),
-      ]),
-    );
+    expect(result.billing.plans).toEqual([
+      expect.objectContaining({ id: 'pro_monthly', planKey: 'pro', priceLabel: '$1.99' }),
+      expect.objectContaining({ id: 'pro_annual', planKey: 'pro', priceLabel: '$9.99' }),
+      expect.objectContaining({ id: 'agency_annual', planKey: 'agency', priceLabel: '$49' }),
+    ]);
   });
 
   it('includes paid subscription renewal access details', async () => {

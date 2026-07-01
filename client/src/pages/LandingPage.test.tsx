@@ -15,10 +15,26 @@ describe('LandingPage', () => {
   it('renders the hero, navigation, and primary calls to action', () => {
     renderLanding();
 
-    expect(screen.getByRole('heading', { name: /ai trip planner for group trips/i })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /get started/i })[0]).toHaveAttribute('href', '/login');
-    expect(screen.getAllByRole('link', { name: /start planning/i })[0]).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('heading', { name: /your trippi, our troppi/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /get started/i })[0]).toHaveAttribute('href', '/register');
+    expect(screen.getAllByRole('link', { name: /start planning/i })[0]).toHaveAttribute('href', '/register');
     expect(screen.getByRole('link', { name: /watch demo/i })).toHaveAttribute('href', '#showcase');
+  });
+
+  it('links pricing buttons into the billing checkout funnel', () => {
+    renderLanding();
+
+    expect(screen.getByText('$1.99')).toBeInTheDocument();
+    expect(screen.getByText('/mo or $9.99/year')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /start free/i })).toHaveAttribute('href', '/register');
+    expect(screen.getAllByRole('link', { name: /get started/i })[1]).toHaveAttribute(
+      'href',
+      '/register?redirect=%2Fbilling%2Fcheckout%3Fplan%3Dpro',
+    );
+    expect(screen.getByRole('link', { name: /go agency/i })).toHaveAttribute(
+      'href',
+      '/register?redirect=%2Fbilling%2Fcheckout%3Fplan%3Dagency',
+    );
   });
 
   it('switches the feature spotlight when a feature is selected', () => {

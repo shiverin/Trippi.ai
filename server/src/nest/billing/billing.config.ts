@@ -48,8 +48,8 @@ const DEFAULT_PLAN_DETAILS: Record<
   },
   pro_annual: {
     planKey: 'pro',
-    label: 'Pro annual',
-    priceLabel: '$10',
+    label: 'Pro for 12 months',
+    priceLabel: '$9.99',
     intervalLabel: 'per 12 months',
     description: 'A year of Pro for frequent travelers.',
     badge: 'Best value',
@@ -59,7 +59,7 @@ const DEFAULT_PLAN_DETAILS: Record<
     planKey: 'agency',
     label: 'Agency',
     priceLabel: '$49',
-    intervalLabel: 'per 12 months',
+    intervalLabel: 'per month',
     description: 'Agency-scale limits for teams and trip operators.',
   },
   pro: {
@@ -73,10 +73,12 @@ const DEFAULT_PLAN_DETAILS: Record<
     planKey: 'agency',
     label: 'Agency',
     priceLabel: '$49',
-    intervalLabel: 'per 12 months',
+    intervalLabel: 'per month',
     description: 'Agency-scale limits for teams and trip operators.',
   },
 };
+
+const PLAN_DISPLAY_ORDER = ['pro_monthly', 'pro_annual', 'agency_annual', 'pro', 'agency', 'trial'];
 
 function cleanOrigin(value: string | undefined | null): string | null {
   const trimmed = value?.trim();
@@ -198,6 +200,19 @@ function parseDelimitedPlans(raw: string): BillingPlanConfig[] {
     .filter((plan): plan is BillingPlanConfig => Boolean(plan));
 }
 
+function sortPlans(plans: BillingPlanConfig[]): BillingPlanConfig[] {
+  return plans
+    .map((plan, index) => ({ plan, index }))
+    .sort((a, b) => {
+      const aRank = PLAN_DISPLAY_ORDER.indexOf(a.plan.id);
+      const bRank = PLAN_DISPLAY_ORDER.indexOf(b.plan.id);
+      const normalizedARank = aRank === -1 ? Number.MAX_SAFE_INTEGER : aRank;
+      const normalizedBRank = bRank === -1 ? Number.MAX_SAFE_INTEGER : bRank;
+      return normalizedARank - normalizedBRank || a.index - b.index;
+    })
+    .map(({ plan }) => plan);
+}
+
 /**
  * STRIPE_ORGANIZER_PLANS accepts either JSON
  * (`{"pro_monthly":"price_..."}` or full plan objects) or comma-delimited pairs
@@ -207,7 +222,7 @@ export function resolveBillingConfig(env: NodeJS.ProcessEnv = process.env): Bill
   const rawPlans = env.STRIPE_ORGANIZER_PLANS?.trim() || '';
   const parsedPlans = rawPlans ? (parseJsonPlans(rawPlans) ?? parseDelimitedPlans(rawPlans)) : [];
   const plans = new Map<string, BillingPlanConfig>();
-  parsedPlans.forEach((plan) => plans.set(plan.id, plan));
+  sortPlans(parsedPlans).forEach((plan) => plans.set(plan.id, plan));
 
   const appUrl = fallbackAppUrl(env);
   const allowedOrigins = Array.from(

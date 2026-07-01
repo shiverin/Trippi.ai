@@ -1216,7 +1216,7 @@ describe('DashboardPage', () => {
 
       expect(await screen.findByText('Choose your plan')).toBeInTheDocument();
       expect(screen.getByText('$1.99')).toBeInTheDocument();
-      expect(screen.getByText('$10')).toBeInTheDocument();
+      expect(screen.getByText('$9.99')).toBeInTheDocument();
       expect(screen.getByText('$49')).toBeInTheDocument();
       await user.click(screen.getAllByRole('button', { name: /choose plan/i })[0]);
 

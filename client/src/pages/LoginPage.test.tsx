@@ -13,6 +13,7 @@ const PASSWORD_PLACEHOLDER = '••••••••';
 
 beforeEach(() => {
   resetAllStores();
+  sessionStorage.clear();
   window.history.pushState({}, '', '/');
 });
 
@@ -213,6 +214,18 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /create account/i }));
 
       await waitFor(() => expect(capturedBody).toEqual(expect.objectContaining({ referral_code: 'FRIEND7' })));
+    });
+
+    it('opens registration mode on /register and preserves checkout redirect intent', async () => {
+      window.history.pushState({}, '', '/register?redirect=%2Fbilling%2Fcheckout%3Fplan%3Dpro');
+
+      render(<LoginPage />, { initialEntries: ['/register?redirect=%2Fbilling%2Fcheckout%3Fplan%3Dpro'] });
+
+      expect(await screen.findByPlaceholderText('admin')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /create account/i })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(sessionStorage.getItem('oidc_redirect')).toBe('/billing/checkout?plan=pro');
+      });
     });
   });
 

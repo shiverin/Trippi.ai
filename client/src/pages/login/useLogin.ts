@@ -34,7 +34,11 @@ interface AppConfig {
  */
 export function useLogin() {
   const { t } = useTranslation()
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [mode, setMode] = useState<'login' | 'register'>(() =>
+    location.pathname.startsWith('/register') ? 'register' : 'login'
+  )
   const [username, setUsername] = useState<string>('')
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
@@ -62,19 +66,25 @@ export function useLogin() {
 
   const { login, register, demoLogin, completeMfaLogin, loadUser } = useAuthStore()
   const { setLanguageLocal, setLanguageTransient } = useSettingsStore()
-  const navigate = useNavigate()
-  const location = useLocation()
   const noRedirect = !!(location.state as { noRedirect?: boolean } | null)?.noRedirect
 
   const redirectTarget = useMemo(() => {
-    const params = new URLSearchParams(window.location.search)
+    const params = new URLSearchParams(location.search || window.location.search)
     const redirect = params.get('redirect')
     // Only allow relative paths starting with / to prevent open redirect attacks
     if (redirect && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/\\')) {
       return redirect
     }
     return '/dashboard'
-  }, [])
+  }, [location.search])
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/register')) {
+      setMode('register')
+    } else if (location.pathname.startsWith('/login')) {
+      setMode('login')
+    }
+  }, [location.pathname])
 
   useEffect(() => {
     if (redirectTarget !== '/dashboard') {

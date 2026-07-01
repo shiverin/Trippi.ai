@@ -386,7 +386,7 @@ export const authApi = {
 export const billingApi = {
   entitlements: (): Promise<BillingEntitlementsResponse> =>
     apiClient.get('/billing/entitlements').then((r) => r.data as BillingEntitlementsResponse),
-  checkoutSession: (data: { planId: string }) =>
+  checkoutSession: (data: { planId: string; successUrl?: string; cancelUrl?: string }) =>
     apiClient.post('/billing/checkout-session', data).then((r) => r.data as { url: string }),
   portalSession: (data: { returnUrl?: string } = {}) =>
     apiClient.post('/billing/portal-session', data).then((r) => r.data as { url: string }),

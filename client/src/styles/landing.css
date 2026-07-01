@@ -946,6 +946,7 @@
 
 .landing-price-card__price {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 4px;
 }

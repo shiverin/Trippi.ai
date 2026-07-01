@@ -12,8 +12,8 @@ export const billingPlanOptions = [
   {
     id: 'pro_annual',
     planKey: 'pro',
-    label: 'Pro annual',
-    priceLabel: '$10',
+    label: 'Pro for 12 months',
+    priceLabel: '$9.99',
     intervalLabel: 'per 12 months',
     description: 'A year of Pro for frequent travelers.',
     badge: 'Best value',
@@ -24,7 +24,7 @@ export const billingPlanOptions = [
     planKey: 'agency',
     label: 'Agency',
     priceLabel: '$49',
-    intervalLabel: 'per 12 months',
+    intervalLabel: 'per month',
     description: 'Agency-scale limits for teams and trip operators.',
   },
 ];

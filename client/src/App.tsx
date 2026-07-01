@@ -25,6 +25,8 @@ import './pages/Trips/noticeActions.js';
 
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const AtlasPage = lazy(() => import('./pages/AtlasPage'));
+const BillingCheckoutPage = lazy(() => import('./pages/BillingCheckoutPage'));
+const BillingSuccessPage = lazy(() => import('./pages/BillingSuccessPage'));
 const FilesPage = lazy(() => import('./pages/FilesPage'));
 const FriendsPage = lazy(() => import('./pages/FriendsPage'));
 const InAppNotificationsPage = lazy(() => import('./pages/InAppNotificationsPage.tsx'));
@@ -277,6 +279,27 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         {/* OAuth 2.1 consent page — intentionally outside ProtectedRoute */}
         <Route path="/oauth/consent" element={<OAuthAuthorizePage />} />
+        <Route path="/billing" element={<Navigate to="/settings?tab=usage" replace />} />
+        <Route
+          path="/billing/checkout"
+          element={
+            <ProtectedRoute>
+              <DeferredRoute>
+                <BillingCheckoutPage />
+              </DeferredRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing/success"
+          element={
+            <ProtectedRoute>
+              <DeferredRoute>
+                <BillingSuccessPage />
+              </DeferredRoute>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={

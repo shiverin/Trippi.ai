@@ -53,8 +53,14 @@ describe('billing config', () => {
       stripePriceId: 'price_monthly',
       label: 'Monthly Pro',
     });
-    expect(getAllowedPlan(config, 'pro_annual')).toMatchObject({ id: 'pro_annual', planKey: 'pro' });
+    expect(getAllowedPlan(config, 'pro_annual')).toMatchObject({
+      id: 'pro_annual',
+      planKey: 'pro',
+      label: 'Pro for 12 months',
+      priceLabel: '$9.99',
+    });
     expect(getAllowedPlan(config, 'agency_annual')).toMatchObject({ id: 'agency_annual', planKey: 'agency' });
+    expect(Array.from(config.plans.keys())).toEqual(['pro_monthly', 'pro_annual', 'agency_annual']);
   });
 
   it('rejects missing or unknown plan IDs with a friendly message', () => {

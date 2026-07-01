@@ -47,6 +47,7 @@ export interface PricingTier {
   description: string;
   features: string[];
   cta: string;
+  ctaHref: string;
   featured?: boolean;
   Icon: LucideIcon;
 }
@@ -183,26 +184,29 @@ export const pricingTiers: PricingTier[] = [
     description: 'Start simple with the basics: up to 5 free trips per account and one plain 2D map view.',
     features: ['Up to 5 free trips', 'Single plain 2D map', 'Basic itinerary only'],
     cta: 'Start free',
+    ctaHref: '/register',
     Icon: Map,
   },
   {
     name: 'Pro',
-    price: '$9',
-    cadence: '/mo',
+    price: '$1.99',
+    cadence: '/mo or $9.99/year',
     description: 'For serious planners who want more trips, richer maps, and a fully customizable travel workspace.',
     features: ['Up to 100 trips', 'Customizable workspace', '3D maps and advanced options'],
     cta: 'Get started',
+    ctaHref: '/register?redirect=%2Fbilling%2Fcheckout%3Fplan%3Dpro',
     featured: true,
     Icon: Sparkles,
   },
   {
-    name: 'Agentic',
+    name: 'Agency',
     price: '$49',
     cadence: '/mo',
     description:
       'Full MCP access for ChatGPT, Gemini, and Claude to plan autonomously and coordinate travel purchases.',
     features: ['Full MCP agent access', 'Flights, hotels, attractions', '100% agentic workflow'],
-    cta: 'Go agentic',
+    cta: 'Go agency',
+    ctaHref: '/register?redirect=%2Fbilling%2Fcheckout%3Fplan%3Dagency',
     Icon: Bot,
   },
 ];
@@ -212,7 +216,7 @@ export const faqItems: FaqItem[] = [
     id: 'agents',
     question: 'Can AI agents plan with Trippi?',
     answer:
-      'Yes. The Agentic plan unlocks MCP access so tools like ChatGPT, Gemini, and Claude can help build itineraries, organize details, and coordinate booking workflows.',
+      'Yes. The Agency plan unlocks MCP access so tools like ChatGPT, Gemini, and Claude can help build itineraries, organize details, and coordinate booking workflows.',
     Icon: Bot,
   },
   {

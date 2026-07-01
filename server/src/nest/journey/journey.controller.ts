@@ -1,4 +1,4 @@
-import { getAllowedExtensionsAsync } from '../../services/fileService';
+import { getAllowedExtensionsAsync } from '../../services/allowedFileTypes';
 import {
   deleteMediaBestEffort,
   deleteStoredMedia,

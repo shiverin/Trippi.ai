@@ -3604,6 +3604,14 @@ function runMigrations(db: Database.Database): void {
         if (!err.message?.includes('duplicate column name')) throw err;
       }
     },
+    () => {
+      // Admin-owned plan overrides are separate from Stripe subscription facts.
+      try {
+        db.exec('ALTER TABLE users ADD COLUMN billing_plan_override TEXT');
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column name')) throw err;
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {

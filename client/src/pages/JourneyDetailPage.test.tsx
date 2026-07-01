@@ -2775,6 +2775,85 @@ describe('JourneyDetailPage', () => {
     });
   });
 
+  // ── FE-PAGE-JOURNEYDETAIL-115b ─────────────────────────────────────────
+  describe('FE-PAGE-JOURNEYDETAIL-115b: Settings Add Trip opens current AddTripDialog', () => {
+    it('opens the add-trip dialog from settings and links an available trip', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      let linkCalled = false;
+
+      server.use(
+        http.get('/api/journeys/available-trips', () => {
+          return HttpResponse.json({
+            trips: [
+              {
+                id: 20,
+                title: 'Paris Weekend',
+                destination: 'Paris',
+                start_date: '2026-05-01',
+                end_date: '2026-05-03',
+              },
+            ],
+          });
+        }),
+        http.post('/api/journeys/1/trips', () => {
+          linkCalled = true;
+          return HttpResponse.json({ success: true });
+        })
+      );
+
+      await renderAndWait();
+      await openSettingsDialog(user);
+      await user.click(screen.getByText('Add Trip'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Link Trip')).toBeInTheDocument();
+        expect(screen.getByText('Paris Weekend')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Link' }));
+
+      await waitFor(() => {
+        expect(linkCalled).toBe(true);
+      });
+    });
+  });
+
+  // ── FE-PAGE-JOURNEYDETAIL-115c ─────────────────────────────────────────
+  describe('FE-PAGE-JOURNEYDETAIL-115c: Settings invite opens current ContributorInviteDialog', () => {
+    it('opens invite from settings, selects a user, and posts the contributor invite', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      let inviteCalled = false;
+
+      server.use(
+        http.get('/api/auth/users', () => {
+          return HttpResponse.json({
+            users: [{ id: 2, username: 'alice', email: 'alice@example.com', avatar: null }],
+          });
+        }),
+        http.post('/api/journeys/1/contributors', () => {
+          inviteCalled = true;
+          return HttpResponse.json({ success: true });
+        })
+      );
+
+      await renderAndWait();
+      await openSettingsDialog(user);
+      await user.click(screen.getByText('Invite Contributor'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Search User')).toBeInTheDocument();
+        expect(screen.getByText('alice')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('alice'));
+      await user.click(screen.getByRole('button', { name: 'Invite' }));
+
+      await waitFor(() => {
+        expect(inviteCalled).toBe(true);
+      });
+    });
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
   // NEW TESTS: FE-PAGE-JOURNEYDETAIL-116 to 140
   // ═══════════════════════════════════════════════════════════════════════════
@@ -3975,7 +4054,7 @@ describe('JourneyDetailPage', () => {
   });
 
   // ── FE-PAGE-JOURNEYDETAIL-150 ──────────────────────────────────────────
-  describe.skip('FE-PAGE-JOURNEYDETAIL-150: ProviderPicker no-trips shows message', () => {
+  describe('FE-PAGE-JOURNEYDETAIL-150: ProviderPicker no-trips shows message', () => {
     it('shows "no trips linked" message when trip filter has no trip range', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
@@ -4008,9 +4087,9 @@ describe('JourneyDetailPage', () => {
 
       await user.click(screen.getByText('Immich'));
 
-      // In trip tab with no trips, it shows "no trips linked" message
+      // In trip tab with no trips, it shows the settings no-trips message
       await waitFor(() => {
-        const noTrips = screen.getAllByText('No trips linked yet');
+        const noTrips = screen.getAllByText('No trips linked');
         expect(noTrips.length).toBeGreaterThanOrEqual(1);
       });
     });

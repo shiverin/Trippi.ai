@@ -93,6 +93,8 @@ const ALLOWED_DESTRUCTIVE: Record<string, string> = {
     'Widen PK to (key,user_id,method,path). Rebuild, rows copied (old PK is a subset).',
   'DROP TABLE day_accommodations':
     'Make place_id nullable + ON DELETE SET NULL. Rebuild, rows copied.',
+  'DROP TABLE booking_intents':
+    'Checkout handoff tracking/status CHECK rebuild. Rows copied into booking_intents_new first.',
   'DROP TABLE schema_version':
     'Add surrogate id PK to schema_version. Rebuild, version row copied.',
 
@@ -177,6 +179,11 @@ describe('migration hygiene — no silently swallowed errors', () => {
       `migrations.ts must not swallow errors silently. Give each catch a log line ` +
         `(e.g. console.warn('[migrations] ...', err)). Found: ${emptyCatch.length}`,
     ).toEqual([]);
+  });
+
+  it('keeps the billing plan override migration idempotent for reruns', () => {
+    expect(migrationsSource).toContain('ALTER TABLE users ADD COLUMN billing_plan_override TEXT');
+    expect(migrationsSource).toMatch(/duplicate column name/);
   });
 });
 

@@ -2,6 +2,7 @@ import { asyncDb } from '../db/asyncDatabase';
 import { db } from '../db/database';
 import { verifyJwtAndLoadUser } from '../middleware/auth';
 import { TripFile } from '../types';
+import { DEFAULT_ALLOWED_EXTENSIONS, getAllowedExtensionsAsync } from './allowedFileTypes';
 import { consumeEphemeralToken } from './ephemeralTokens';
 import { deleteStoredMedia, tripFileLegacyKey, type StoredMediaMetadata } from './mediaStorage';
 import { BLOCKED_EXTENSIONS } from './uploadPolicy';
@@ -14,7 +15,7 @@ import path from 'path';
 // ---------------------------------------------------------------------------
 
 export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
-export const DEFAULT_ALLOWED_EXTENSIONS = 'jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv,pkpass';
+export { DEFAULT_ALLOWED_EXTENSIONS, getAllowedExtensionsAsync };
 export { BLOCKED_EXTENSIONS };
 export const filesDir = path.join(__dirname, '../../uploads/files');
 
@@ -29,17 +30,6 @@ export function getAllowedExtensions(): string {
     const row = db.prepare("SELECT value FROM app_settings WHERE key = 'allowed_file_types'").get() as
       | { value: string }
       | undefined;
-    return row?.value || DEFAULT_ALLOWED_EXTENSIONS;
-  } catch {
-    return DEFAULT_ALLOWED_EXTENSIONS;
-  }
-}
-
-export async function getAllowedExtensionsAsync(): Promise<string> {
-  try {
-    const row = await asyncDb
-      .prepare("SELECT value FROM app_settings WHERE key = 'allowed_file_types'")
-      .get<{ value: string }>();
     return row?.value || DEFAULT_ALLOWED_EXTENSIONS;
   } catch {
     return DEFAULT_ALLOWED_EXTENSIONS;

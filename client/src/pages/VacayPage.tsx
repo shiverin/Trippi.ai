@@ -45,26 +45,6 @@ export default function VacayPage(): React.ReactElement {
           <ChevronRight size={16} className="text-content-muted" />
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-1">
-        {years.map((y) => (
-          <button
-            key={y}
-            onClick={() => setSelectedYear(y)}
-            className={`rounded-lg py-1.5 text-center text-xs font-medium transition-[background-color,color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] ${y === selectedYear ? 'bg-content text-surface-card' : 'bg-surface-secondary text-content-muted'}`}
-          >
-            {y}
-          </button>
-        ))}
-      </div>
-      <div className="mt-3 border-t border-edge-secondary pt-3">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-content-faint">
-          {t('vacay.legend')}
-        </span>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="h-3 w-4 rounded bg-[#3b82f6]" />
-          <span className="text-[11px] text-content-muted">Trip day</span>
-        </div>
-      </div>
     </div>
   );
 

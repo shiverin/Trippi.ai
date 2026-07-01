@@ -31,15 +31,16 @@ describe('VacayPage', () => {
       expect(screen.getByTestId('vacay-calendar')).toBeInTheDocument();
     });
     expect(screen.getByText('Trip dates dashboard')).toBeInTheDocument();
-    expect(screen.getAllByText('Trip day')[0]).toBeInTheDocument();
+    expect(screen.queryByText('Trip day')).not.toBeInTheDocument();
   });
 
-  it('shows a fixed 10-year range before and after the current year', () => {
+  it('shows only the compact selected year control', () => {
     render(<VacayPage />);
 
-    expect(screen.getAllByRole('button', { name: String(currentYear - 10) })[0]).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: String(currentYear) })[0]).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: String(currentYear + 10) })[0]).toBeInTheDocument();
+    expect(screen.getAllByText(String(currentYear))[0]).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: String(currentYear - 10) })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: String(currentYear) })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: String(currentYear + 10) })).not.toBeInTheDocument();
   });
 
   it('moves between years with chevrons instead of add/delete year controls', () => {

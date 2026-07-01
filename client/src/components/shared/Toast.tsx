@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle, Info, X, XCircle } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -184,12 +184,15 @@ export const useToast = () => {
     }
   }, []);
 
-  return {
-    success: (message: string, duration?: number) => show(message, 'success', duration),
-    error: (message: string, duration?: number) => show(message, 'error', duration),
-    warning: (message: string, duration?: number) => show(message, 'warning', duration),
-    info: (message: string, duration?: number) => show(message, 'info', duration),
-  };
+  return useMemo(
+    () => ({
+      success: (message: string, duration?: number) => show(message, 'success', duration),
+      error: (message: string, duration?: number) => show(message, 'error', duration),
+      warning: (message: string, duration?: number) => show(message, 'warning', duration),
+      info: (message: string, duration?: number) => show(message, 'info', duration),
+    }),
+    [show],
+  );
 };
 
 export default useToast;

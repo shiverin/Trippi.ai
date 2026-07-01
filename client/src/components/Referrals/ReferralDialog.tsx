@@ -21,12 +21,22 @@ export default function ReferralDialog({ open, onClose }: ReferralDialogProps): 
 
   useEffect(() => {
     if (!open) return;
+    let cancelled = false;
     setLoading(true);
     referralsApi
       .me()
-      .then(setSummary)
-      .catch((err) => toast.error(err instanceof Error ? err.message : t('common.error')))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setSummary(data);
+      })
+      .catch((err) => {
+        if (!cancelled) toast.error(err instanceof Error ? err.message : t('common.error'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, t, toast]);
 
   if (!open) return null;
@@ -43,9 +53,41 @@ export default function ReferralDialog({ open, onClose }: ReferralDialogProps): 
   };
 
   const link = summary?.referral_url || '';
+  const copyReferralLink = async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+        return true;
+      }
+    } catch {
+      // Fall through to the legacy selection copy path below.
+    }
+
+    try {
+      const input = document.createElement('textarea');
+      input.value = link;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.top = '-9999px';
+      input.style.opacity = '0';
+      document.body.appendChild(input);
+      input.select();
+      input.setSelectionRange(0, input.value.length);
+      const copiedWithFallback = document.execCommand('copy');
+      document.body.removeChild(input);
+      return copiedWithFallback;
+    } catch {
+      return false;
+    }
+  };
+
   const copy = async () => {
     if (!link) return;
-    await navigator.clipboard.writeText(link);
+    const copiedLink = await copyReferralLink();
+    if (!copiedLink) {
+      toast.error(t('common.error'));
+      return;
+    }
     setCopied(true);
     toast.success(t('referral.copied'));
     window.setTimeout(() => setCopied(false), 1600);
@@ -54,8 +96,12 @@ export default function ReferralDialog({ open, onClose }: ReferralDialogProps): 
   const share = async () => {
     if (!link) return copy();
     if (navigator.share) {
-      await navigator.share({ title: t('referral.shareTitle'), text: t('referral.shareText'), url: link });
-      return;
+      try {
+        await navigator.share({ title: t('referral.shareTitle'), text: t('referral.shareText'), url: link });
+        return;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+      }
     }
     await copy();
   };

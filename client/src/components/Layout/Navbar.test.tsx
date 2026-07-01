@@ -345,6 +345,39 @@ describe('Navbar', () => {
     });
   });
 
+  it('FE-COMP-NAVBAR-034B: referral dialog does not reload summary in a loop while open', async () => {
+    let summaryRequests = 0;
+    server.use(
+      http.get('/api/referrals/me', () => {
+        summaryRequests += 1;
+        return HttpResponse.json({
+          code: 'TESTCODE',
+          referral_url: 'http://localhost:3001/register?ref=TESTCODE',
+          reward_days: 7,
+          max_bonus_days: 90,
+          successful_referrals: 1,
+          pending_bonus_days: 0,
+          active_bonus_until: null,
+          active_bonus_days_remaining: 0,
+          expires_soon: false,
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<Navbar />);
+
+    await user.click(screen.getByText('testuser'));
+    await user.click(screen.getByText('Refer friends'));
+
+    await waitFor(() => {
+      const values = screen.queryAllByRole('textbox').map((input) => (input as HTMLInputElement).value);
+      expect(values.some((value) => value.endsWith('/register?ref=TESTCODE'))).toBe(true);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect(summaryRequests).toBe(1);
+  });
+
   it('FE-COMP-NAVBAR-035: profile menu does not show compact plan usage status', async () => {
     const user = userEvent.setup();
     render(<Navbar />);

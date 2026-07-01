@@ -5,9 +5,7 @@ import {
   ExternalLink,
   Globe2,
   Loader2,
-  MapPin,
   Search,
-  Sparkles,
   UserCheck,
   UserPlus,
   Users,
@@ -20,7 +18,6 @@ import { useToast } from '../components/shared/Toast';
 import { useTranslation } from '../i18n';
 import { getApiErrorMessage } from '../types';
 import { resolveMediaUrl } from '../utils/mediaUrl';
-import { countryCodeToFlag } from './atlas/atlasModel';
 
 function initials(username: string): string {
   return username.slice(0, 2).toUpperCase();
@@ -141,7 +138,6 @@ function ProfileHeader({
 }
 
 function StatsPanel({ stats }: { stats: FriendStats }) {
-  const topCountries = stats.countries.slice(0, 8);
   return (
     <section className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -150,55 +146,6 @@ function StatsPanel({ stats }: { stats: FriendStats }) {
         <StatTile value={stats.total_places} label="Places" />
         <StatTile value={stats.total_cities} label="Cities" />
         <StatTile value={stats.total_days} label="Days" />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.1fr]">
-        <div className="rounded-lg border border-edge bg-surface-card p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-black text-content">
-            <Sparkles size={17} />
-            Travel rhythm
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <StatTile value={stats.streak} label="Year streak" />
-            <StatTile value={stats.trips_this_year} label="This year" />
-            <StatTile value={stats.first_year ?? 'New'} label="First year" />
-          </div>
-        </div>
-        <div className="rounded-lg border border-edge bg-surface-card p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-black text-content">
-            <Globe2 size={17} />
-            Continent spread
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {Object.entries(stats.continents).map(([continent, count]) => (
-              <div key={continent} className="rounded-lg bg-surface-secondary px-3 py-2">
-                <div className="text-lg font-black tabular-nums text-content">{count}</div>
-                <div className="truncate text-[11px] font-semibold uppercase text-content-faint">{continent}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="rounded-lg border border-edge bg-surface-card p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-black text-content">
-          <MapPin size={17} />
-          Most seen countries
-        </div>
-        {topCountries.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {topCountries.map((country) => (
-              <span
-                key={country.code}
-                className="inline-flex items-center gap-2 rounded-full border border-edge bg-surface-secondary px-3 py-2 text-sm font-bold text-content"
-              >
-                <span>{countryCodeToFlag(country.code)}</span>
-                <span>{country.code}</span>
-                <span className="text-xs font-semibold text-content-faint">{country.place_count} places</span>
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm font-medium text-content-muted">No country stats yet.</p>
-        )}
       </div>
     </section>
   );

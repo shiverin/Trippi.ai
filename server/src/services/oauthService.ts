@@ -65,6 +65,11 @@ function getAllowedMcpResourceOrigins(base: string): Set<string> {
   addResourceOrigin(origins, base);
   addResourceOrigin(origins, process.env.APP_URL);
   addResourceOrigin(origins, process.env.TRIPPI_DOMAIN);
+  for (const origin of (process.env.MCP_RESOURCE_ALIASES || '').split(',')) {
+    addResourceOrigin(origins, origin);
+  }
+  // Backward-compatible deployment hint: some hosted frontends expose the MCP
+  // endpoint through origins already present in ALLOWED_ORIGINS.
   for (const origin of (process.env.ALLOWED_ORIGINS || '').split(',')) {
     addResourceOrigin(origins, origin);
   }

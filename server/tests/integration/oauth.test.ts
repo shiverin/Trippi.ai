@@ -250,8 +250,8 @@ describe('DCR scope optional — ChatGPT compatibility (issue #959 bug 2)', () =
     });
 
     it('OAUTH-959E — validates same-origin resource aliases as the MCP audience', async () => {
-        const originalAllowedOrigins = process.env.ALLOWED_ORIGINS;
-        process.env.ALLOWED_ORIGINS = 'https://trippi-ai.vercel.app,https://34.29.0.6.sslip.io';
+        const originalResourceAliases = process.env.MCP_RESOURCE_ALIASES;
+        process.env.MCP_RESOURCE_ALIASES = 'https://trippi-ai.vercel.app,https://34.29.0.6.sslip.io';
         const { user } = createUser(testDb);
         const redirectUri = 'https://chatgpt.example.com/cb';
         const registered = await request(app)
@@ -288,8 +288,8 @@ describe('DCR scope optional — ChatGPT compatibility (issue #959 bug 2)', () =
                 expect(validate.body.resource).toBe('https://trippi.example.com/mcp');
             }
         } finally {
-            if (originalAllowedOrigins === undefined) delete process.env.ALLOWED_ORIGINS;
-            else process.env.ALLOWED_ORIGINS = originalAllowedOrigins;
+            if (originalResourceAliases === undefined) delete process.env.MCP_RESOURCE_ALIASES;
+            else process.env.MCP_RESOURCE_ALIASES = originalResourceAliases;
         }
     });
 

@@ -73,6 +73,7 @@ Set at minimum:
 TRIPPI_DOMAIN=34.29.0.6.sslip.io
 APP_URL=https://trippi-ai.vercel.app
 ALLOWED_ORIGINS=https://trippi-ai.vercel.app,https://34.29.0.6.sslip.io
+MCP_RESOURCE_ALIASES=https://trippi.lol,https://www.trippi.lol,https://trippi-ai.vercel.app,https://34.29.0.6.sslip.io
 ADMIN_EMAIL=you@example.com
 ADMIN_PASSWORD=<long random first-login password>
 ```

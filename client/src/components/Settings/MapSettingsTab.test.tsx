@@ -12,9 +12,23 @@ import MapSettingsTab from './MapSettingsTab';
 
 // Mock MapView to avoid Leaflet DOM issues in jsdom
 vi.mock('../Map/MapView', () => ({
-  MapView: ({ onMapClick }: { onMapClick?: (info: { latlng: { lat: number; lng: number } }) => void }) => (
-    <div data-testid="map-view" onClick={() => onMapClick?.({ latlng: { lat: 51.5, lng: -0.1 } })} />
+  MapView: ({
+    onMapClick,
+    tileUrl,
+  }: {
+    onMapClick?: (info: { latlng: { lat: number; lng: number } }) => void;
+    tileUrl?: string;
+  }) => (
+    <div
+      data-testid="map-view"
+      data-tile-url={tileUrl || ''}
+      onClick={() => onMapClick?.({ latlng: { lat: 51.5, lng: -0.1 } })}
+    />
   ),
+}));
+
+vi.mock('./MapboxPreview', () => ({
+  default: () => <div data-testid="gl-map-preview" />,
 }));
 
 function entitlementPayload(overrides: any = {}) {
@@ -265,7 +279,6 @@ describe('MapSettingsTab', () => {
       settings: buildSettings({
         map_provider: 'mapbox-gl',
         map_tile_url: 'https://custom.tiles/{z}/{x}/{y}.png',
-        mapbox_access_token: 'pk.previous',
         mapbox_3d_enabled: true,
         mapbox_quality_mode: true,
       }),
@@ -280,7 +293,6 @@ describe('MapSettingsTab', () => {
       expect.objectContaining({
         map_provider: 'leaflet',
         map_tile_url: '',
-        mapbox_access_token: '',
         mapbox_style: expect.any(String),
         maplibre_style: '',
         mapbox_3d_enabled: false,
@@ -300,6 +312,43 @@ describe('MapSettingsTab', () => {
     expect(mapboxButton).not.toBeDisabled();
 
     await user.click(mapboxButton);
-    expect(screen.getByText('Mapbox Access Token')).toBeInTheDocument();
+    expect(
+      await screen.findByText((text) => text.includes('Mapbox access is managed by Trippi') || text === 'settings.mapMapboxManaged')
+    ).toBeInTheDocument();
+  });
+
+  it('FE-COMP-MAP-021: replaces legacy Stadia tile URLs with the token-free default', async () => {
+    enableProMaps();
+    const user = userEvent.setup();
+    const updateSettings = vi.fn().mockResolvedValue(undefined);
+    seedStore(useSettingsStore, {
+      settings: buildSettings({
+        map_tile_url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png',
+        default_lat: 48.8566,
+        default_lng: 2.3522,
+        default_zoom: 10,
+      }),
+      updateSettings,
+    });
+
+    render(<MapSettingsTab />);
+
+    const tileInput = screen.getByPlaceholderText(/openstreetmap/i);
+    await waitFor(() => expect(tileInput).not.toBeDisabled());
+    expect(tileInput).not.toHaveValue('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png');
+    await waitFor(() =>
+      expect(screen.getByTestId('map-view')).toHaveAttribute(
+        'data-tile-url',
+        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      )
+    );
+
+    await user.click(screen.getByText('Save Map'));
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        map_tile_url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      })
+    );
   });
 });

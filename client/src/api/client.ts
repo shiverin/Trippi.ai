@@ -5,6 +5,7 @@ import {
   friendsHubResponseSchema,
   friendsSearchResponseSchema,
   inAppListResultSchema,
+  mapsMapboxSessionResultSchema,
   mapsAutocompleteResultSchema,
   mapsPlaceDetailsResultSchema,
   mapsPlacePhotoResultSchema,
@@ -58,6 +59,7 @@ import {
   type JourneyShareLinkRequest,
   type LoginRequest,
   type MapsTransportRouteResult,
+  type MapsMapboxSessionResult,
   type McpTokenCreateRequest,
   type MfaEnableRequest,
   type MfaVerifyLoginRequest,
@@ -892,6 +894,10 @@ export const mapsApi = {
     apiClient
       .post('/maps/resolve-url', { url })
       .then((r) => checkInDev(mapsResolveUrlResultSchema, r.data, 'maps.resolveUrl')),
+  mapboxSession: (style?: string) =>
+    apiClient
+      .post('/maps/mapbox/session', { style })
+      .then((r) => checkInDev(mapsMapboxSessionResultSchema, r.data, 'maps.mapboxSession') as MapsMapboxSessionResult),
   transportRoute: (tripId: number | string, reservationId: number | string, signal?: AbortSignal) =>
     apiClient
       .post('/maps/transport-route', { tripId, reservationId }, { signal, timeout: 15000 })

@@ -14,6 +14,13 @@ const { maps } = vi.hoisted(() => ({
 }));
 vi.mock('../../../src/services/mapsService', () => maps);
 
+const { getEntitlementsForUserMock } = vi.hoisted(() => ({
+  getEntitlementsForUserMock: vi.fn(),
+}));
+vi.mock('../../../src/services/entitlementService', () => ({
+  getEntitlementsForUser: getEntitlementsForUserMock,
+}));
+
 const { serveFilePath } = vi.hoisted(() => ({ serveFilePath: vi.fn() }));
 vi.mock('../../../src/services/placePhotoCache', () => ({ serveFilePath }));
 
@@ -31,7 +38,43 @@ function svc(row?: { value: string }) {
   return new MapsService(makeDb(row).db);
 }
 
-beforeEach(() => vi.clearAllMocks());
+function makeMapboxDb(initialUsed = 0, month = new Date().toISOString().slice(0, 7)) {
+  const rows: Record<string, { month: string; map_loads: number; disabled_at: string | null }> = {};
+  if (initialUsed >= 0) rows[month] = { month, map_loads: initialUsed, disabled_at: null };
+  const run = vi.fn(async () => ({ changes: 0 }));
+  const get = vi.fn(async (sql: string, arg?: string) => {
+    if (sql.includes('mapbox_usage_monthly')) return rows[arg || month] || undefined;
+    if (sql.includes('user_tables')) return { table_name: 'MAPBOX_USAGE_MONTHLY' };
+    return undefined;
+  });
+  const prepare = vi.fn((sql: string) => ({
+    run: vi.fn(async (...args: unknown[]) => {
+      if (sql.includes('INSERT OR IGNORE INTO mapbox_usage_monthly')) {
+        const targetMonth = String(args[0]);
+        rows[targetMonth] ??= { month: targetMonth, map_loads: 0, disabled_at: null };
+        return { changes: 1 };
+      }
+      if (sql.includes('UPDATE mapbox_usage_monthly')) {
+        const targetMonth = String(args[1]);
+        const limit = Number(args[2]);
+        rows[targetMonth] ??= { month: targetMonth, map_loads: 0, disabled_at: null };
+        if (rows[targetMonth].map_loads >= limit) return { changes: 0 };
+        rows[targetMonth].map_loads += 1;
+        if (rows[targetMonth].map_loads >= Number(args[0])) rows[targetMonth].disabled_at = new Date().toISOString();
+        return { changes: 1 };
+      }
+      return { changes: 0 };
+    }),
+  }));
+  return { db: { run, get, prepare } as unknown as DatabaseService, rows, run, get, prepare };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 describe('MapsService', () => {
   describe('kill-switch settings reads', () => {
@@ -126,6 +169,97 @@ describe('MapsService', () => {
     it('returns null when nothing is cached', () => {
       serveFilePath.mockReturnValue(null);
       expect(svc().photoBytesPath('p1')).toBeNull();
+    });
+  });
+
+  describe('backend-owned Mapbox sessions', () => {
+    it('returns fallback without incrementing when no server token is configured', async () => {
+      const { db, prepare } = makeMapboxDb();
+      const result = await new MapsService(db).mapboxSession(7);
+
+      expect(result).toMatchObject({ enabled: false, fallbackProvider: 'maplibre-gl', reason: 'not_configured' });
+      expect(prepare).not.toHaveBeenCalledWith(expect.stringContaining('UPDATE mapbox_usage_monthly'));
+      expect(getEntitlementsForUserMock).not.toHaveBeenCalled();
+    });
+
+    it('denies free users before creating a metered session', async () => {
+      vi.stubEnv('MAPBOX_ACCESS_TOKEN', 'sk.server-token');
+      getEntitlementsForUserMock.mockResolvedValue({ planKey: 'free' });
+      const { db, rows } = makeMapboxDb(0);
+
+      const result = await new MapsService(db).mapboxSession(7);
+
+      expect(result).toMatchObject({ enabled: false, fallbackProvider: 'maplibre-gl', reason: 'plan_required', used: 0 });
+      expect(rows[new Date().toISOString().slice(0, 7)].map_loads).toBe(0);
+    });
+
+    it('increments usage and returns a proxy style URL below the monthly limit', async () => {
+      vi.stubEnv('MAPBOX_ACCESS_TOKEN', 'sk.server-token');
+      vi.stubEnv('MAPBOX_MONTHLY_LOAD_LIMIT', '2');
+      getEntitlementsForUserMock.mockResolvedValue({ planKey: 'pro' });
+      const { db } = makeMapboxDb(0);
+
+      const result = await new MapsService(db).mapboxSession(7, 'mapbox://styles/mapbox/standard');
+
+      expect(result.enabled).toBe(true);
+      expect(result.used).toBe(1);
+      expect(result.remaining).toBe(1);
+      expect(result.styleUrl).toContain('/api/maps/mapbox/style?');
+      expect(result.styleUrl).toContain('session=');
+      expect(result.styleUrl).not.toContain('access_token');
+    });
+
+    it('denies new sessions at the monthly cutoff without returning a 500 shape', async () => {
+      vi.stubEnv('MAPBOX_ACCESS_TOKEN', 'sk.server-token');
+      vi.stubEnv('MAPBOX_MONTHLY_LOAD_LIMIT', '2');
+      getEntitlementsForUserMock.mockResolvedValue({ planKey: 'pro' });
+      const { db } = makeMapboxDb(2);
+
+      const result = await new MapsService(db).mapboxSession(7, 'mapbox://styles/mapbox/standard');
+
+      expect(result).toMatchObject({
+        enabled: false,
+        fallbackProvider: 'maplibre-gl',
+        reason: 'quota_exhausted',
+        used: 2,
+        limit: 2,
+        remaining: 0,
+      });
+    });
+
+    it('rewrites proxied style JSON without leaking the server token', async () => {
+      vi.stubEnv('MAPBOX_ACCESS_TOKEN', 'sk.server-token');
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            version: 8,
+            sprite: 'mapbox://sprites/mapbox/standard',
+            glyphs: 'mapbox://fonts/mapbox/{fontstack}/{range}.pbf',
+            sources: {
+              streets: { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' },
+              raster: {
+                type: 'raster',
+                tiles: ['https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.jpg?access_token=leak'],
+              },
+            },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        ),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+      const { db } = makeMapboxDb(1);
+
+      const response = await new MapsService(db).mapboxStyle('mapbox://styles/mapbox/standard', 'session-1');
+      const bodyText = response.body.toString('utf8');
+      const body = JSON.parse(bodyText);
+
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('access_token=sk.server-token'), expect.any(Object));
+      expect(bodyText).not.toContain('access_token');
+      expect(body.sprite).toBe('/api/maps/mapbox/sprites/mapbox/standard?session=session-1');
+      expect(body.glyphs).toBe('/api/maps/mapbox/fonts/mapbox/{fontstack}/{range}.pbf?session=session-1');
+      expect(body.sources.streets.url).toBe('/api/maps/mapbox/tilejson/mapbox.mapbox-streets-v8?session=session-1');
+      expect(body.sources.raster.tiles[0]).toContain('/api/maps/mapbox/resource?');
+      expect(body.sources.raster.tiles[0]).toContain('session=session-1');
     });
   });
 });

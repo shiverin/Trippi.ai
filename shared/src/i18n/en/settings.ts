@@ -31,6 +31,8 @@ const settings: TranslationStrings = {
   'settings.mapMapboxToken': 'Mapbox Access Token',
   'settings.mapMapboxTokenHint': 'Public token (pk.*) from',
   'settings.mapMapboxTokenLink': 'mapbox.com → Access tokens',
+  'settings.mapMapboxManaged':
+    'Mapbox access is managed by Trippi on the backend. If the monthly safety limit is reached, MapLibre is used automatically.',
   'settings.mapStyle': 'Map Style',
   'settings.mapStylePlaceholder': 'Select a Mapbox style',
   'settings.mapStyleHint': 'Preset or your own mapbox://styles/USER/ID URL',

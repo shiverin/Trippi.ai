@@ -3,12 +3,12 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useRef } from 'react';
-import { MAPBOX_DEFAULT_STYLE, normalizeStyleForProvider, type GlMapProvider } from '../Map/glProviders';
+import { useMapboxSession } from '../../hooks/useMapboxSession';
+import { MAPBOX_DEFAULT_STYLE, OPENFREEMAP_DEFAULT_STYLE, normalizeStyleForProvider, type GlMapProvider } from '../Map/glProviders';
 import { addCustom3dBuildings, addTerrainAndSky, isStandardFamily, supportsCustom3d } from '../Map/mapboxSetup';
 
 interface Props {
   provider?: GlMapProvider;
-  token?: string;
   style: string;
   lat: number;
   lng: number;
@@ -20,7 +20,6 @@ interface Props {
 
 export default function GlMapPreview({
   provider = 'mapbox-gl',
-  token = '',
   style,
   lat,
   lng,
@@ -34,14 +33,29 @@ export default function GlMapPreview({
   const mapRef = useRef<any | null>(null);
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
-  const isMapLibre = provider === 'maplibre-gl';
+  const mapboxSession = useMapboxSession(provider === 'mapbox-gl', style);
+  const renderProvider: GlMapProvider =
+    provider === 'mapbox-gl' && mapboxSession.status === 'fallback' ? 'maplibre-gl' : provider;
+  const isMapLibre = renderProvider === 'maplibre-gl';
   const gl = (isMapLibre ? maplibregl : mapboxgl) as any;
-  const glStyle = normalizeStyleForProvider(provider, style);
+  const glStyle =
+    provider === 'mapbox-gl'
+      ? mapboxSession.status === 'ready'
+        ? mapboxSession.session.styleUrl!
+        : OPENFREEMAP_DEFAULT_STYLE
+      : normalizeStyleForProvider(provider, style);
   const enableMapbox3d = !isMapLibre && enable3d;
 
   useEffect(() => {
-    if (!containerRef.current || (!isMapLibre && !token)) return;
-    if (!isMapLibre) mapboxgl.accessToken = token;
+    if (!containerRef.current || (provider === 'mapbox-gl' && mapboxSession.status === 'loading')) return;
+    if (!isMapLibre) {
+      mapboxgl.accessToken = 'pk.trippi_backend_proxy';
+      try {
+        (mapboxgl as unknown as { setTelemetryEnabled?: (enabled: boolean) => void }).setTelemetryEnabled?.(false);
+      } catch {
+        /* noop */
+      }
+    }
 
     const mapOptions: Record<string, unknown> = {
       container: containerRef.current,
@@ -86,7 +100,7 @@ export default function GlMapPreview({
       }
       mapRef.current = null;
     };
-  }, [provider, token, glStyle, enableMapbox3d, quality]);
+  }, [provider, renderProvider, mapboxSession.status, glStyle, enableMapbox3d, quality]);
 
   // Recenter without rebuilding the map when lat/lng/zoom change externally
   useEffect(() => {
@@ -98,10 +112,10 @@ export default function GlMapPreview({
     }
   }, [lat, lng, zoom]);
 
-  if (!isMapLibre && !token) {
+  if (provider === 'mapbox-gl' && mapboxSession.status === 'loading') {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800">
-        Enter a Mapbox access token to preview
+        Loading Mapbox preview…
       </div>
     );
   }

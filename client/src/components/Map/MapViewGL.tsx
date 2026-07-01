@@ -77,6 +77,7 @@ interface Props {
   onPoiClick?: (poi: Poi) => void;
   onViewportChange?: (bbox: { south: number; west: number; north: number; east: number }) => void;
   glProvider?: GlMapProvider;
+  mapboxStyleOverride?: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onMapReady?: (map: any | null) => void;
 }
@@ -223,18 +224,18 @@ export function MapViewGL({
   onPoiClick,
   onViewportChange,
   glProvider = 'mapbox-gl',
+  mapboxStyleOverride = null,
   onMapReady,
 }: Props) {
   const rawMapboxStyle = useSettingsStore((s) => s.settings.mapbox_style || MAPBOX_DEFAULT_STYLE);
   const rawMaplibreStyle = useSettingsStore((s) => s.settings.maplibre_style || '');
-  const mapboxToken = useSettingsStore((s) => s.settings.mapbox_access_token || '');
   const mapbox3d = useSettingsStore((s) => s.settings.mapbox_3d_enabled !== false);
   const mapboxQuality = useSettingsStore((s) => s.settings.mapbox_quality_mode === true);
   const showEndpointLabels = useSettingsStore((s) => s.settings.map_booking_labels) !== false;
   const mapLang = useSettingsStore((s) => s.settings.language);
   const isMapLibre = glProvider === 'maplibre-gl';
   const gl = (isMapLibre ? maplibregl : mapboxgl) as any;
-  const glStyle = styleForActiveProvider(glProvider, rawMapboxStyle, rawMaplibreStyle);
+  const glStyle = !isMapLibre && mapboxStyleOverride ? mapboxStyleOverride : styleForActiveProvider(glProvider, rawMapboxStyle, rawMaplibreStyle);
   const enableMapbox3d = !isMapLibre && mapbox3d;
   const placesPhotosEnabled = useAuthStore((s) => s.placesPhotosEnabled);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(getAllThumbs);
@@ -276,8 +277,15 @@ export function MapViewGL({
 
   // Build/rebuild the map on provider/style/token/3d change
   useEffect(() => {
-    if (!containerRef.current || (!isMapLibre && !mapboxToken)) return;
-    if (!isMapLibre) mapboxgl.accessToken = mapboxToken;
+    if (!containerRef.current) return;
+    if (!isMapLibre) {
+      mapboxgl.accessToken = 'pk.trippi_backend_proxy';
+      try {
+        (mapboxgl as unknown as { setTelemetryEnabled?: (enabled: boolean) => void }).setTelemetryEnabled?.(false);
+      } catch {
+        /* noop */
+      }
+    }
 
     const mapOptions: Record<string, unknown> = {
       container: containerRef.current,
@@ -477,7 +485,7 @@ export function MapViewGL({
       mapRef.current = null;
       setMapReady(false);
     };
-  }, [glProvider, glStyle, mapboxToken, enableMapbox3d, mapboxQuality]); // rebuild on provider/style changes only
+  }, [glProvider, glStyle, enableMapbox3d, mapboxQuality]); // rebuild on provider/style changes only
 
   // Pin the basemap label language to the UI language so labels don't fall back to the
   // browser/OS locale and stack multiple scripts per place (e.g. "India/भारत/India", #1299).
@@ -837,18 +845,6 @@ export function MapViewGL({
     if (map.loaded()) apply();
     else map.once('load', apply);
   }, [userPosition, trackingMode, glProvider]);
-
-  if (!isMapLibre && !mapboxToken) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-zinc-100 px-6 text-center dark:bg-zinc-800">
-        <div className="text-sm text-zinc-500">
-          No Mapbox access token configured.
-          <br />
-          <span className="text-xs">Settings → Map → Mapbox GL</span>
-        </div>
-      </div>
-    );
-  }
 
   // Desktop browsers only get IP-based geolocation (city-level accuracy),
   // so the button would be misleading. Mobile, where real GPS lives, keeps it.

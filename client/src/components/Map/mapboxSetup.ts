@@ -42,7 +42,7 @@ export function addCustom3dBuildings(map: mapboxgl.Map, dark: boolean) {
     sourceId = 'mapbox-streets-v8'
     if (!map.getSource(sourceId)) {
       try {
-        map.addSource(sourceId, { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' })
+        map.addSource(sourceId, { type: 'vector', url: '/api/maps/mapbox/tilejson/mapbox.mapbox-streets-v8' })
       } catch { return }
     }
   }
@@ -83,7 +83,7 @@ export function addTerrainAndSky(map: mapboxgl.Map) {
     if (!map.getSource('mapbox-dem')) {
       map.addSource('mapbox-dem', {
         type: 'raster-dem',
-        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        url: '/api/maps/mapbox/tilejson/mapbox.mapbox-terrain-dem-v1',
         tileSize: 512,
         maxzoom: 14,
       })

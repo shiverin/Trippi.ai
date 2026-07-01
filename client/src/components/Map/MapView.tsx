@@ -9,6 +9,7 @@ import type { Place, Reservation } from '../../types';
 import { CATEGORY_ICON_MAP, getCategoryIcon } from '../shared/categoryIcons';
 import { POI_CATEGORY_BY_KEY, type Poi } from './poiCategories';
 import ReservationOverlay from './ReservationOverlay';
+import { DEFAULT_LEAFLET_TILE_URL, normalizeLeafletTileUrl } from './tileUrls';
 
 function categoryIconSvg(iconName: string | null | undefined, size: number): string {
   const IconComponent = (iconName && CATEGORY_ICON_MAP[iconName]) || CATEGORY_ICON_MAP['MapPin'];
@@ -447,7 +448,7 @@ export const MapView = memo(function MapView({
   onMapContextMenu = null,
   center = [48.8566, 2.3522],
   zoom = 10,
-  tileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  tileUrl = DEFAULT_LEAFLET_TILE_URL,
   fitKey = 0,
   dayOrderMap = {},
   leftWidth = 0,
@@ -463,6 +464,7 @@ export const MapView = memo(function MapView({
   onPoiClick,
   onViewportChange,
 }: any) {
+  const effectiveTileUrl = normalizeLeafletTileUrl(tileUrl);
   const poiMarkers = useMemo(
     () =>
       (pois as Poi[]).map((poi: Poi) => (
@@ -674,7 +676,7 @@ export const MapView = memo(function MapView({
           className="h-full w-full bg-[#e5e7eb]"
         >
           <TileLayer
-            url={tileUrl}
+            url={effectiveTileUrl}
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             maxZoom={19}
             keepBuffer={8}

@@ -13,6 +13,7 @@ import {
   type GlMapProvider,
 } from '../Map/glProviders';
 import { MapView } from '../Map/MapView';
+import { normalizeLeafletTileUrl } from '../Map/tileUrls';
 import CustomSelect from '../shared/CustomSelect';
 import { useToast } from '../shared/Toast';
 import GlMapPreview from './MapboxPreview';
@@ -29,7 +30,6 @@ const MAP_PRESETS: MapPreset[] = [
   { name: 'OpenStreetMap DE', url: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png' },
   { name: 'CartoDB Light', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' },
   { name: 'CartoDB Dark', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' },
-  { name: 'Stadia Smooth', url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png' },
 ];
 
 // Tag → chip color mapping. Keeps the dropdown readable at a glance so a
@@ -163,8 +163,7 @@ export default function MapSettingsTab(): React.ReactElement {
   const initialProvider = normalizeProvider(settings.map_provider);
   const [saving, setSaving] = useState(false);
   const [provider, setProvider] = useState<Provider>(initialProvider);
-  const [mapTileUrl, setMapTileUrl] = useState<string>(settings.map_tile_url || '');
-  const [mapboxToken, setMapboxToken] = useState<string>(settings.mapbox_access_token || '');
+  const [mapTileUrl, setMapTileUrl] = useState<string>(normalizeLeafletTileUrl(settings.map_tile_url));
   const [mapboxStyle, setMapboxStyle] = useState<string>(
     styleForProvider(initialProvider, slotStyle(initialProvider, settings))
   );
@@ -179,8 +178,7 @@ export default function MapSettingsTab(): React.ReactElement {
   useEffect(() => {
     const nextProvider = normalizeProvider(settings.map_provider);
     setProvider(nextProvider);
-    setMapTileUrl(settings.map_tile_url || '');
-    setMapboxToken(settings.mapbox_access_token || '');
+    setMapTileUrl(normalizeLeafletTileUrl(settings.map_tile_url));
     setMapboxStyle(styleForProvider(nextProvider, slotStyle(nextProvider, settings)));
     setMapbox3d(settings.mapbox_3d_enabled !== false);
     setMapboxQuality(settings.mapbox_quality_mode === true);
@@ -240,8 +238,7 @@ export default function MapSettingsTab(): React.ReactElement {
           : { mapbox_style: glStyle };
       await updateSettings({
         map_provider: saveProvider,
-        map_tile_url: freeMapLocked ? '' : mapTileUrl,
-        mapbox_access_token: freeMapLocked ? '' : mapboxToken,
+        map_tile_url: freeMapLocked ? '' : normalizeLeafletTileUrl(mapTileUrl),
         ...stylePatch,
         mapbox_3d_enabled: freeMapLocked ? false : mapbox3d,
         mapbox_quality_mode: freeMapLocked ? false : mapboxQuality,
@@ -396,26 +393,8 @@ export default function MapSettingsTab(): React.ReactElement {
       {effectiveProvider !== 'leaflet' && (
         <div className="space-y-3">
           {effectiveProvider === 'mapbox-gl' && (
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('settings.mapMapboxToken')}</label>
-              <input
-                type="text"
-                value={mapboxToken}
-                onChange={(e) => setMapboxToken(e.target.value)}
-                placeholder="pk.eyJ1Ijoi..."
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-slate-400"
-              />
-              <p className="mt-1 text-xs text-slate-400">
-                {t('settings.mapMapboxTokenHint')}{' '}
-                <a
-                  href="https://account.mapbox.com/access-tokens/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  {t('settings.mapMapboxTokenLink')}
-                </a>
-              </p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+              {t('settings.mapMapboxManaged')}
             </div>
           )}
 
@@ -513,7 +492,6 @@ export default function MapSettingsTab(): React.ReactElement {
           {effectiveProvider !== 'leaflet' ? (
             <GlMapPreview
               provider={effectiveProvider}
-              token={mapboxToken}
               style={mapboxStyle}
               lat={parseFloat(String(defaultLat)) || 48.8566}
               lng={parseFloat(String(defaultLng)) || 2.3522}
@@ -540,7 +518,7 @@ export default function MapSettingsTab(): React.ReactElement {
               onMapContextMenu: null,
               center: [settings.default_lat, settings.default_lng],
               zoom: defaultZoom,
-              tileUrl: freeMapLocked ? undefined : mapTileUrl,
+              tileUrl: freeMapLocked ? undefined : normalizeLeafletTileUrl(mapTileUrl),
               fitKey: null,
               dayOrderMap: [],
               leftWidth: 0,

@@ -42,6 +42,7 @@ interface Props {
   fullScreen?: boolean;
   paddingBottom?: number;
   glProvider?: GlMapProvider;
+  mapboxStyleOverride?: string | null;
 }
 
 interface Item {
@@ -222,19 +223,19 @@ const JourneyMapGL = forwardRef<JourneyMapGLHandle, Props>(function JourneyMapGL
     fullScreen,
     paddingBottom,
     glProvider = 'mapbox-gl',
+    mapboxStyleOverride = null,
   },
   ref
 ) {
   const stableTrail = trail || EMPTY_TRAIL;
   const rawMapboxStyle = useSettingsStore((s) => s.settings.mapbox_style || MAPBOX_DEFAULT_STYLE);
   const rawMaplibreStyle = useSettingsStore((s) => s.settings.maplibre_style || '');
-  const mapboxToken = useSettingsStore((s) => s.settings.mapbox_access_token || '');
   const mapbox3d = useSettingsStore((s) => s.settings.mapbox_3d_enabled !== false);
   const mapboxQuality = useSettingsStore((s) => s.settings.mapbox_quality_mode === true);
   const mapLang = useSettingsStore((s) => s.settings.language);
   const isMapLibre = glProvider === 'maplibre-gl';
   const gl = (isMapLibre ? maplibregl : mapboxgl) as any;
-  const glStyle = styleForActiveProvider(glProvider, rawMapboxStyle, rawMaplibreStyle);
+  const glStyle = !isMapLibre && mapboxStyleOverride ? mapboxStyleOverride : styleForActiveProvider(glProvider, rawMapboxStyle, rawMaplibreStyle);
   const enableMapbox3d = !isMapLibre && mapbox3d;
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -381,8 +382,15 @@ const JourneyMapGL = forwardRef<JourneyMapGLHandle, Props>(function JourneyMapGL
   // Build map once per style/token change. Markers and layers are rebuilt
   // inside the same effect so they stay in sync with the active style.
   useEffect(() => {
-    if (!containerRef.current || (!isMapLibre && !mapboxToken)) return;
-    if (!isMapLibre) mapboxgl.accessToken = mapboxToken;
+    if (!containerRef.current) return;
+    if (!isMapLibre) {
+      mapboxgl.accessToken = 'pk.trippi_backend_proxy';
+      try {
+        (mapboxgl as unknown as { setTelemetryEnabled?: (enabled: boolean) => void }).setTelemetryEnabled?.(false);
+      } catch {
+        /* noop */
+      }
+    }
 
     const items = buildItems(entries);
     itemsRef.current = items;
@@ -514,7 +522,6 @@ const JourneyMapGL = forwardRef<JourneyMapGLHandle, Props>(function JourneyMapGL
     stableTrail,
     glProvider,
     glStyle,
-    mapboxToken,
     enableMapbox3d,
     mapboxQuality,
     fullScreen,
@@ -541,27 +548,6 @@ const JourneyMapGL = forwardRef<JourneyMapGLHandle, Props>(function JourneyMapGL
     }, 50);
     return () => clearTimeout(t);
   }, [activeMarkerId, highlightMarker, enableMapbox3d, fullScreen]);
-
-  if (!isMapLibre && !mapboxToken) {
-    return (
-      <div
-        style={{
-          position: 'relative',
-          height: height === 9999 ? '100%' : height,
-          width: '100%',
-          borderRadius: 'inherit',
-          overflow: 'hidden',
-        }}
-        className="flex items-center justify-center bg-zinc-100 px-6 text-center dark:bg-zinc-800"
-      >
-        <div className="text-sm text-zinc-500">
-          No Mapbox access token configured.
-          <br />
-          <span className="text-xs">Settings → Map → Mapbox GL</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div

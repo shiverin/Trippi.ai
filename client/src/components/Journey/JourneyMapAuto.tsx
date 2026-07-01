@@ -1,6 +1,8 @@
 import { forwardRef, lazy, Suspense, useImperativeHandle, useRef } from 'react';
 import { useMapEntitlements } from '../../hooks/useMapEntitlements';
+import { useMapboxSession } from '../../hooks/useMapboxSession';
 import { useSettingsStore } from '../../store/settingsStore';
+import { MAPBOX_DEFAULT_STYLE } from '../Map/glProviders';
 import JourneyMap, { type JourneyMapHandle } from './JourneyMap';
 import type { JourneyMapGLHandle } from './JourneyMapGL';
 
@@ -38,15 +40,16 @@ interface Props {
 
 const JourneyMapAuto = forwardRef<JourneyMapAutoHandle, Props>(function JourneyMapAuto(props, ref) {
   const provider = useSettingsStore((s) => s.settings.map_provider);
-  const token = useSettingsStore((s) => s.settings.mapbox_access_token);
+  const mapboxStyle = useSettingsStore((s) => s.settings.mapbox_style || MAPBOX_DEFAULT_STYLE);
   const { freeMapLocked } = useMapEntitlements();
+  const mapboxSession = useMapboxSession(!freeMapLocked && provider === 'mapbox-gl', mapboxStyle);
   const leafletRef = useRef<JourneyMapHandle>(null);
   const glRef = useRef<JourneyMapGLHandle>(null);
 
-  // Fall back to Leaflet when the user selected Mapbox GL but hasn't
-  // supplied a token yet. MapLibre/OpenFreeMap is tokenless.
-  const useGL = !freeMapLocked && (provider === 'maplibre-gl' || (provider === 'mapbox-gl' && !!token));
-  const glProvider = provider === 'maplibre-gl' ? 'maplibre-gl' : 'mapbox-gl';
+  const useGL =
+    !freeMapLocked &&
+    (provider === 'maplibre-gl' || (provider === 'mapbox-gl' && mapboxSession.status !== 'loading' && mapboxSession.status !== 'idle'));
+  const glProvider = provider === 'maplibre-gl' || mapboxSession.status === 'fallback' ? 'maplibre-gl' : 'mapbox-gl';
 
   useImperativeHandle(
     ref,
@@ -62,7 +65,12 @@ const JourneyMapAuto = forwardRef<JourneyMapAutoHandle, Props>(function JourneyM
     return (
       <Suspense fallback={null}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <JourneyMapGL ref={glRef} {...(props as any)} glProvider={glProvider} />
+        <JourneyMapGL
+          ref={glRef}
+          {...(props as any)}
+          glProvider={glProvider}
+          mapboxStyleOverride={glProvider === 'mapbox-gl' ? mapboxSession.session?.styleUrl : null}
+        />
       </Suspense>
     );
   }

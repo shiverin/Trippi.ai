@@ -6,6 +6,7 @@ import { MapsService } from './maps.service';
 import { Body, Controller, Get, HttpCode, HttpException, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { mapsTransportRouteRequestSchema } from '@trippi/shared';
 import type {
+  MapsMapboxSessionResult,
   MapsAutocompleteResult,
   MapsPlaceDetailsResult,
   MapsPlacePhotoResult,
@@ -25,6 +26,12 @@ function toHttpException(err: unknown, fallbackMessage: string, defaultStatus: n
   const status = (err as { status?: number }).status || defaultStatus;
   const message = err instanceof Error ? err.message : fallbackMessage;
   return new HttpException({ error: message }, status);
+}
+
+function sendProxiedMapbox(res: Response, payload: { body: Buffer; contentType: string; cacheControl?: string | null }) {
+  res.type(payload.contentType);
+  res.set('Cache-Control', payload.cacheControl || 'public, max-age=3600');
+  res.send(payload.body);
 }
 
 /**
@@ -83,6 +90,100 @@ export class MapsController {
       return await this.maps.pois(category, bbox);
     } catch (err: unknown) {
       throw toHttpException(err, 'POI search error', 500);
+    }
+  }
+
+  @Post('mapbox/session')
+  @HttpCode(200)
+  async mapboxSession(
+    @CurrentUser() user: User,
+    @Body('style') style?: string,
+  ): Promise<MapsMapboxSessionResult> {
+    try {
+      return await this.maps.mapboxSession(user.id, style);
+    } catch (err: unknown) {
+      console.error('Mapbox session error:', err);
+      throw toHttpException(err, 'Mapbox session error', 500);
+    }
+  }
+
+  @Get('mapbox/style')
+  async mapboxStyle(
+    @Query('style') style: string | undefined,
+    @Query('session') session: string | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!style) throw new HttpException({ error: 'style is required' }, 400);
+    try {
+      sendProxiedMapbox(res, await this.maps.mapboxStyle(style, session));
+    } catch (err: unknown) {
+      throw toHttpException(err, 'Mapbox style error', 500);
+    }
+  }
+
+  @Get('mapbox/tilejson/:tileset')
+  async mapboxTilejson(
+    @Param('tileset') tileset: string,
+    @Query('session') session: string | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      sendProxiedMapbox(res, await this.maps.mapboxTilejson(tileset, session));
+    } catch (err: unknown) {
+      throw toHttpException(err, 'Mapbox tilejson error', 500);
+    }
+  }
+
+  @Get('mapbox/fonts/:owner/:fontstack/:range')
+  async mapboxFont(
+    @Param('owner') owner: string,
+    @Param('fontstack') fontstack: string,
+    @Param('range') range: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      sendProxiedMapbox(res, await this.maps.mapboxFont(owner, fontstack, range));
+    } catch (err: unknown) {
+      throw toHttpException(err, 'Mapbox font error', 500);
+    }
+  }
+
+  @Get('mapbox/sprites/:owner/:style@:scale.:format')
+  async mapboxScaledSprite(
+    @Param('owner') owner: string,
+    @Param('style') style: string,
+    @Param('scale') scale: string,
+    @Param('format') format: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      sendProxiedMapbox(res, await this.maps.mapboxSprite(owner, style, `@${scale}.${format}`));
+    } catch (err: unknown) {
+      throw toHttpException(err, 'Mapbox sprite error', 500);
+    }
+  }
+
+  @Get('mapbox/sprites/:owner/:style.:format')
+  async mapboxSprite(
+    @Param('owner') owner: string,
+    @Param('style') style: string,
+    @Param('format') format: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      sendProxiedMapbox(res, await this.maps.mapboxSprite(owner, style, `.${format}`));
+    } catch (err: unknown) {
+      throw toHttpException(err, 'Mapbox sprite error', 500);
+    }
+  }
+
+  @Get('mapbox/resource')
+  async mapboxResource(@Query('url') url: string | undefined, @Res() res: Response): Promise<void> {
+    if (!url) throw new HttpException({ error: 'url is required' }, 400);
+    try {
+      sendProxiedMapbox(res, await this.maps.mapboxResource(url));
+    } catch (err: unknown) {
+      throw toHttpException(err, 'Mapbox resource error', 500);
     }
   }
 

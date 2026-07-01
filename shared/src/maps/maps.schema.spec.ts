@@ -1,6 +1,7 @@
 import {
   mapsSearchRequestSchema,
   mapsAutocompleteRequestSchema,
+  mapsMapboxSessionResultSchema,
   mapsReverseQuerySchema,
   mapsResolveUrlRequestSchema,
 } from './maps.schema';
@@ -43,5 +44,48 @@ describe('mapsResolveUrlRequestSchema', () => {
       }).success,
     ).toBe(true);
     expect(mapsResolveUrlRequestSchema.safeParse({ url: '' }).success).toBe(false);
+  });
+});
+
+describe('mapsMapboxSessionResultSchema', () => {
+  it('accepts enabled proxy sessions and quota fallback responses', () => {
+    expect(
+      mapsMapboxSessionResultSchema.safeParse({
+        enabled: true,
+        sessionId: 'session-1',
+        styleUrl: '/api/maps/mapbox/style?style=mapbox%3A%2F%2Fstyles%2Fmapbox%2Fstandard&session=session-1',
+        fallbackProvider: 'maplibre-gl',
+        month: '2026-07',
+        used: 1,
+        limit: 45000,
+        remaining: 44999,
+      }).success,
+    ).toBe(true);
+
+    expect(
+      mapsMapboxSessionResultSchema.safeParse({
+        enabled: false,
+        fallbackProvider: 'maplibre-gl',
+        month: '2026-07',
+        used: 45000,
+        limit: 45000,
+        remaining: 0,
+        reason: 'quota_exhausted',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects token-bearing or unknown fallback providers', () => {
+    expect(
+      mapsMapboxSessionResultSchema.safeParse({
+        enabled: true,
+        access_token: 'pk.leak',
+        fallbackProvider: 'leaflet',
+        month: '2026-07',
+        used: 1,
+        limit: 45000,
+        remaining: 44999,
+      }).success,
+    ).toBe(false);
   });
 });

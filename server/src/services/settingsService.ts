@@ -6,6 +6,7 @@ const ENCRYPTED_SETTING_KEYS = new Set(['webhook_url', 'ntfy_token', 'mapbox_acc
 // Encrypted keys that are masked (••••••••) when returned to the client.
 // Keys not in this set but in ENCRYPTED_SETTING_KEYS are decrypted and returned.
 const MASKED_SETTING_KEYS = new Set(['webhook_url', 'ntfy_token']);
+const SERVER_OWNED_SETTING_KEYS = new Set(['mapbox_access_token']);
 
 export const DEFAULTABLE_USER_SETTING_KEYS = [
   'temperature_unit',
@@ -17,10 +18,9 @@ export const DEFAULTABLE_USER_SETTING_KEYS = [
   'default_currency',
   'blur_booking_codes',
   'map_tile_url',
-  // Instance-wide GL map defaults: admins can set Mapbox token/style or
-  // tokenless MapLibre/OpenFreeMap style defaults for new users (#920).
+  // Instance-wide GL map defaults. Mapbox tokens are server-owned through
+  // MAPBOX_ACCESS_TOKEN and are never accepted from user/admin settings.
   'map_provider',
-  'mapbox_access_token',
   'mapbox_style',
   'maplibre_style',
   'mapbox_3d_enabled',
@@ -62,6 +62,16 @@ function parseSettingRow(row: SettingRow, { maskSecrets = false }: { maskSecrets
   return parseValue(row.value);
 }
 
+function removeServerOwnedSettings(settings: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...settings };
+  for (const key of SERVER_OWNED_SETTING_KEYS) delete next[key];
+  return next;
+}
+
+function isServerOwnedSetting(key: string): boolean {
+  return SERVER_OWNED_SETTING_KEYS.has(key);
+}
+
 export function getAdminUserDefaults(): Record<string, unknown> {
   const rows = db.prepare("SELECT key, value FROM app_settings WHERE key LIKE 'default_user_setting_%'").all() as {
     key: string;
@@ -76,7 +86,7 @@ export function getAdminUserDefaults(): Record<string, unknown> {
       defaults[settingKey] = parseValue(row.value);
     }
   }
-  return defaults;
+  return removeServerOwnedSettings(defaults);
 }
 
 export async function getAdminUserDefaultsAsync(): Promise<Record<string, unknown>> {
@@ -88,7 +98,7 @@ export async function getAdminUserDefaultsAsync(): Promise<Record<string, unknow
     const settingKey = row.key.slice('default_user_setting_'.length);
     defaults[settingKey] = parseSettingRow({ key: settingKey, value: row.value });
   }
-  return defaults;
+  return removeServerOwnedSettings(defaults);
 }
 
 export function setAdminUserDefaults(partial: Record<string, unknown>): void {
@@ -121,8 +131,6 @@ export function setAdminUserDefaults(partial: Record<string, unknown>): void {
         throw new Error(`Invalid value for ${key}: ${value}`);
       }
 
-      // Encrypt sensitive defaults (the shared Mapbox token) at rest, like the
-      // per-user equivalents; everything else is stored as plain JSON.
       const stored = ENCRYPTED_SETTING_KEYS.has(key)
         ? (maybe_encrypt_api_key(String(value)) ?? String(value))
         : JSON.stringify(value);
@@ -196,7 +204,7 @@ export function getUserSettings(userId: number): Record<string, unknown> {
   }
 
   // Admin defaults fill in only for keys the user hasn't explicitly set
-  return { ...adminDefaults, ...userSettings };
+  return removeServerOwnedSettings({ ...adminDefaults, ...userSettings });
 }
 
 export async function getUserSettingsAsync(userId: number): Promise<Record<string, unknown>> {
@@ -206,7 +214,7 @@ export async function getUserSettingsAsync(userId: number): Promise<Record<strin
   for (const row of rows) {
     userSettings[row.key] = parseSettingRow(row, { maskSecrets: true });
   }
-  return { ...adminDefaults, ...userSettings };
+  return removeServerOwnedSettings({ ...adminDefaults, ...userSettings });
 }
 
 function serializeValue(key: string, value: unknown): string {
@@ -216,6 +224,7 @@ function serializeValue(key: string, value: unknown): string {
 }
 
 export function upsertSetting(userId: number, key: string, value: unknown) {
+  if (isServerOwnedSetting(key)) return;
   db.prepare(
     `
     INSERT INTO settings (user_id, key, value) VALUES (?, ?, ?)
@@ -225,6 +234,7 @@ export function upsertSetting(userId: number, key: string, value: unknown) {
 }
 
 export async function upsertSettingAsync(userId: number, key: string, value: unknown): Promise<void> {
+  if (isServerOwnedSetting(key)) return;
   await asyncDb
     .prepare(
       `
@@ -241,28 +251,33 @@ export function bulkUpsertSettings(userId: number, settings: Record<string, unkn
     ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
   `);
   db.exec('BEGIN');
+  let updated = 0;
   try {
     for (const [key, value] of Object.entries(settings)) {
+      if (isServerOwnedSetting(key)) continue;
       upsert.run(userId, key, serializeValue(key, value));
+      updated += 1;
     }
     db.exec('COMMIT');
   } catch (err) {
     db.exec('ROLLBACK');
     throw err;
   }
-  return Object.keys(settings).length;
+  return updated;
 }
 
 export async function bulkUpsertSettingsAsync(userId: number, settings: Record<string, unknown>): Promise<number> {
-  const keys = Object.keys(settings);
+  let updated = 0;
   await asyncDb.transaction(async () => {
     const upsert = asyncDb.prepare(`
       INSERT INTO settings (user_id, key, value) VALUES (?, ?, ?)
       ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
     `);
     for (const [key, value] of Object.entries(settings)) {
+      if (isServerOwnedSetting(key)) continue;
       await upsert.run(userId, key, serializeValue(key, value));
+      updated += 1;
     }
   })();
-  return keys.length;
+  return updated;
 }

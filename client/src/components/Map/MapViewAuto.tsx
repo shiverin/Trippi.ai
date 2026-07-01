@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { useMapEntitlements } from '../../hooks/useMapEntitlements';
+import { useMapboxSession } from '../../hooks/useMapboxSession';
 import { useSettingsStore } from '../../store/settingsStore';
+import { MAPBOX_DEFAULT_STYLE } from './glProviders';
 import { MapView } from './MapView';
 
 // MapLibre/Mapbox pull in a ~230 KB (gzip) GL engine. Lazy-load the GL renderer so
@@ -18,19 +20,32 @@ const MapViewGL = lazy(() => import('./MapViewGL').then((m) => ({ default: m.Map
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function MapViewAuto(props: any) {
   const provider = useSettingsStore((s) => s.settings.map_provider);
-  const token = useSettingsStore((s) => s.settings.mapbox_access_token);
+  const mapboxStyle = useSettingsStore((s) => s.settings.mapbox_style || MAPBOX_DEFAULT_STYLE);
   const { freeMapLocked } = useMapEntitlements();
+  const mapboxSession = useMapboxSession(!freeMapLocked && provider === 'mapbox-gl', mapboxStyle);
   const effectiveProps = freeMapLocked ? { ...props, tileUrl: undefined } : props;
-  // Fall back to Leaflet when Mapbox is selected but no token is set,
-  // so trip planner never shows an empty map due to a missing token.
+  // Fall back while the backend-owned Mapbox session is pending or denied, so the
+  // planner never exposes a token and never shows a blank map.
   const glProvider =
-    freeMapLocked ? null : provider === 'maplibre-gl' ? 'maplibre-gl' : provider === 'mapbox-gl' && token ? 'mapbox-gl' : null;
+    freeMapLocked
+      ? null
+      : provider === 'maplibre-gl'
+        ? 'maplibre-gl'
+        : provider === 'mapbox-gl' && mapboxSession.status === 'ready'
+          ? 'mapbox-gl'
+          : provider === 'mapbox-gl' && mapboxSession.status === 'fallback'
+            ? 'maplibre-gl'
+            : null;
   if (glProvider) {
     // Render the previous Leaflet map as the fallback so there's no blank flash
     // while the GL chunk loads on first use.
     return (
       <Suspense fallback={<MapView {...effectiveProps} />}>
-        <MapViewGL {...effectiveProps} glProvider={glProvider} />
+        <MapViewGL
+          {...effectiveProps}
+          glProvider={glProvider}
+          mapboxStyleOverride={glProvider === 'mapbox-gl' ? mapboxSession.session.styleUrl : null}
+        />
       </Suspense>
     );
   }

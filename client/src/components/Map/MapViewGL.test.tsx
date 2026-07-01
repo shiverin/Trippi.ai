@@ -139,7 +139,6 @@ beforeEach(() => {
     settings: {
       ...useSettingsStore.getState().settings,
       map_provider: 'mapbox-gl',
-      mapbox_access_token: 'pk.test_token',
       mapbox_style: 'mapbox://styles/mapbox/streets-v12',
       mapbox_3d_enabled: false,
     },
@@ -201,12 +200,12 @@ describe('MapViewGL', () => {
       settings: {
         ...useSettingsStore.getState().settings,
         map_provider: 'maplibre-gl',
-        mapbox_access_token: '', // MapLibre/OpenFreeMap is tokenless — must not short-circuit
         maplibre_style: 'https://tiles.openfreemap.org/styles/liberty',
       },
     } as any);
     const places = [buildMapPlace({ id: 1, lat: 48.8584, lng: 2.2945 })];
 
+    vi.clearAllMocks();
     render(<MapViewGL places={places} fitKey={1} glProvider="maplibre-gl" />);
     await act(async () => {});
 

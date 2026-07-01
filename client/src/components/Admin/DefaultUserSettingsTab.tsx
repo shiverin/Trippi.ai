@@ -14,6 +14,7 @@ import {
   type GlMapProvider,
 } from '../Map/glProviders';
 import { MapView } from '../Map/MapView';
+import { normalizeLeafletTileUrl } from '../Map/tileUrls';
 import Section from '../Settings/Section';
 import CustomSelect from '../shared/CustomSelect';
 import { useToast } from '../shared/Toast';
@@ -23,7 +24,6 @@ const MAP_PRESETS = [
   { name: 'OpenStreetMap DE', url: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png' },
   { name: 'CartoDB Light', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' },
   { name: 'CartoDB Dark', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' },
-  { name: 'Stadia Smooth', url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png' },
 ];
 
 type Defaults = {
@@ -35,7 +35,6 @@ type Defaults = {
   blur_booking_codes?: boolean;
   map_tile_url?: string;
   map_provider?: string;
-  mapbox_access_token?: string;
   mapbox_style?: string;
   maplibre_style?: string;
   mapbox_3d_enabled?: boolean;
@@ -103,7 +102,6 @@ export default function DefaultUserSettingsTab(): React.ReactElement {
   const [defaults, setDefaults] = useState<Defaults>({});
   const [loaded, setLoaded] = useState(false);
   const [mapTileUrl, setMapTileUrl] = useState('');
-  const [mapboxToken, setMapboxToken] = useState('');
   const [mapboxStyle, setMapboxStyle] = useState('');
 
   useEffect(() => {
@@ -112,8 +110,7 @@ export default function DefaultUserSettingsTab(): React.ReactElement {
       .then((data: Defaults) => {
         const provider = normalizeProvider(data.map_provider);
         setDefaults(data);
-        setMapTileUrl(data.map_tile_url || '');
-        setMapboxToken(data.mapbox_access_token || '');
+        setMapTileUrl(normalizeLeafletTileUrl(data.map_tile_url));
         setMapboxStyle(
           provider === 'leaflet'
             ? data.mapbox_style || ''
@@ -139,7 +136,6 @@ export default function DefaultUserSettingsTab(): React.ReactElement {
       const updated = await adminApi.updateDefaultUserSettings({ [key]: null });
       setDefaults(updated);
       if (key === 'map_tile_url') setMapTileUrl('');
-      if (key === 'mapbox_access_token') setMapboxToken('');
       if (key === 'mapbox_style' || key === 'maplibre_style') {
         const provider = normalizeProvider(defaults.map_provider);
         setMapboxStyle(provider === 'leaflet' ? '' : defaultStyleForProvider(provider));
@@ -378,7 +374,7 @@ export default function DefaultUserSettingsTab(): React.ReactElement {
           onChange={(value: string) => {
             if (value) {
               setMapTileUrl(value);
-              save({ map_tile_url: value });
+              save({ map_tile_url: normalizeLeafletTileUrl(value) });
             }
           }}
           placeholder={t('settings.mapTemplatePlaceholder.select')}
@@ -390,7 +386,7 @@ export default function DefaultUserSettingsTab(): React.ReactElement {
           type="text"
           value={mapTileUrl}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMapTileUrl(e.target.value)}
-          onBlur={() => save({ map_tile_url: mapTileUrl })}
+          onBlur={() => save({ map_tile_url: normalizeLeafletTileUrl(mapTileUrl) })}
           placeholder="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-slate-400"
         />
@@ -408,7 +404,7 @@ export default function DefaultUserSettingsTab(): React.ReactElement {
             onMapContextMenu: null,
             center: [48.8566, 2.3522],
             zoom: 10,
-            tileUrl: mapTileUrl,
+            tileUrl: normalizeLeafletTileUrl(mapTileUrl),
             fitKey: null,
             dayOrderMap: [],
             leftWidth: 0,
@@ -444,22 +440,8 @@ export default function DefaultUserSettingsTab(): React.ReactElement {
         {mapProvider !== 'leaflet' && (
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 18 }}>
             {mapProvider === 'mapbox-gl' && (
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-content-secondary">
-                  {t('admin.defaultSettings.mapboxToken')}
-                  <ResetButton field="mapbox_access_token" />
-                </label>
-                <input
-                  type="text"
-                  value={mapboxToken}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMapboxToken(e.target.value)}
-                  onBlur={() => save({ mapbox_access_token: mapboxToken })}
-                  placeholder="pk.eyJ…"
-                  spellCheck={false}
-                  autoComplete="off"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-slate-400"
-                />
-                <p className="mt-1 text-xs text-content-faint">{t('admin.defaultSettings.mapboxTokenHint')}</p>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-content-faint">
+                {t('settings.mapMapboxManaged')}
               </div>
             )}
 

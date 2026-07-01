@@ -47,6 +47,11 @@ export const mapsTransportRouteRequestSchema = z.object({
 });
 export type MapsTransportRouteRequest = z.infer<typeof mapsTransportRouteRequestSchema>;
 
+export const mapsMapboxSessionRequestSchema = z.object({
+  style: z.string().min(1).optional(),
+});
+export type MapsMapboxSessionRequest = z.infer<typeof mapsMapboxSessionRequestSchema>;
+
 /** Provider-shaped place blob (Google/OSM fields differ); kept open by design. */
 const placeRecord = z.record(z.string(), z.unknown());
 
@@ -116,3 +121,18 @@ export const mapsTransportRouteResultSchema = z.object({
   warnings: z.array(z.string()).optional(),
 });
 export type MapsTransportRouteResult = z.infer<typeof mapsTransportRouteResultSchema>;
+
+export const mapsMapboxSessionResultSchema = z.object({
+  enabled: z.boolean(),
+  sessionId: z.string().optional(),
+  styleUrl: z.string().optional(),
+  fallbackProvider: z.literal('maplibre-gl'),
+  month: z.string(),
+  used: z.number(),
+  limit: z.number(),
+  remaining: z.number(),
+  reason: z
+    .enum(['not_configured', 'quota_exhausted', 'plan_required', 'invalid_style', 'proxy_unavailable'])
+    .optional(),
+}).strict();
+export type MapsMapboxSessionResult = z.infer<typeof mapsMapboxSessionResultSchema>;

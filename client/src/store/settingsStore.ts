@@ -119,7 +119,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     optimize_from_accommodation: true,
     map_provider: 'leaflet',
     map_poi_pill_enabled: true,
-    mapbox_access_token: '',
     mapbox_style: 'mapbox://styles/mapbox/standard',
     maplibre_style: '',
     mapbox_3d_enabled: true,

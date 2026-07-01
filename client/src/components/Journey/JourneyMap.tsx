@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
+import { normalizeLeafletTileUrl } from '../Map/tileUrls';
 
 export interface MapMarkerItem {
   id: string;
@@ -184,7 +185,7 @@ const JourneyMap = forwardRef<JourneyMapHandle, Props>(function JourneyMap(
     const defaultTile = dark
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-    L.tileLayer(mapTileUrl || defaultTile, {
+    L.tileLayer(normalizeLeafletTileUrl(mapTileUrl, defaultTile), {
       maxZoom: 18,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       referrerPolicy: 'strict-origin-when-cross-origin',

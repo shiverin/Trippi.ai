@@ -91,13 +91,12 @@ describe('MobileTopBar', () => {
     expect(await screen.findByText('You both get 7 days of Pro')).toBeInTheDocument();
   });
 
-  it('FE-COMP-MOBILETOPBAR-009: profile sheet links compact usage status to Settings Usage', async () => {
+  it('FE-COMP-MOBILETOPBAR-009: profile sheet does not show compact usage status', async () => {
     const user = userEvent.setup();
     render(<MobileTopBar />, { initialEntries: ['/dashboard'] });
 
     await user.click(screen.getByRole('button', { name: 'Profile' }));
-    await user.click(await screen.findByText('Free plan'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/settings?tab=usage');
+    expect(screen.queryByText('Free plan')).not.toBeInTheDocument();
   });
 });

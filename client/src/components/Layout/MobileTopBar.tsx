@@ -2,12 +2,10 @@ import { Bell, Bot, Gift, LogOut, Settings, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { useEntitlements } from '../../hooks/useEntitlements';
 import { useTranslation } from '../../i18n';
 import { useAddonStore } from '../../store/addonStore';
 import { useAuthStore } from '../../store/authStore';
 import { useInAppNotificationStore } from '../../store/inAppNotificationStore';
-import PlanStatusBadge from '../Billing/PlanStatusBadge';
 import ReferralDialog from '../Referrals/ReferralDialog';
 
 // Mobile-only: a slim strip at the very top of the dashboard with the
@@ -87,7 +85,6 @@ function ProfileSheet({ onClose, onRefer }: { onClose: () => void; onRefer: () =
   const { t } = useTranslation();
   const { user, logout } = useAuthStore();
   const mcpConnectEnabled = useAddonStore((s) => s.addons.some((addon) => addon.id === 'mcp' && addon.enabled));
-  const entitlementState = useEntitlements();
   const navigate = useNavigate();
 
   const handleNav = (path: string) => {
@@ -126,9 +123,6 @@ function ProfileSheet({ onClose, onRefer }: { onClose: () => void; onRefer: () =
                 <Shield size={10} /> Admin
               </span>
             )}
-          </div>
-          <div className="mt-4">
-            <PlanStatusBadge access={entitlementState.access} onClick={() => handleNav('/settings?tab=usage')} />
           </div>
         </div>
 

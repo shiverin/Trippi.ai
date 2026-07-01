@@ -345,13 +345,13 @@ describe('Navbar', () => {
     });
   });
 
-  it('FE-COMP-NAVBAR-035: profile menu shows compact plan usage status', async () => {
+  it('FE-COMP-NAVBAR-035: profile menu does not show compact plan usage status', async () => {
     const user = userEvent.setup();
     render(<Navbar />);
 
     await user.click(screen.getByText('testuser'));
 
-    expect(await screen.findByText('Free plan')).toBeInTheDocument();
-    expect(screen.getByText('No Pro access active')).toBeInTheDocument();
+    expect(screen.queryByText('Free plan')).not.toBeInTheDocument();
+    expect(screen.queryByText('No Pro access active')).not.toBeInTheDocument();
   });
 });

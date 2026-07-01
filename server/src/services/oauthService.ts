@@ -35,6 +35,42 @@ const AUTH_CODE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 const CODE_CHALLENGE_RE = /^[A-Za-z0-9_-]{43}$/;
 const CODE_VERIFIER_RE = /^[A-Za-z0-9\-._~]{43,128}$/;
 
+function addResourceOrigin(origins: Set<string>, value: string | undefined): void {
+  if (!value) return;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '*') return;
+
+  const urlText = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(urlText);
+    if (url.protocol === 'https:' || url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+      origins.add(url.origin);
+      if (url.hostname.startsWith('www.')) {
+        const apex = new URL(url.toString());
+        apex.hostname = apex.hostname.slice(4);
+        origins.add(apex.origin);
+      } else {
+        const www = new URL(url.toString());
+        www.hostname = `www.${www.hostname}`;
+        origins.add(www.origin);
+      }
+    }
+  } catch {
+    // Ignore malformed deployment hints; the canonical APP_URL remains required.
+  }
+}
+
+function getAllowedMcpResourceOrigins(base: string): Set<string> {
+  const origins = new Set<string>();
+  addResourceOrigin(origins, base);
+  addResourceOrigin(origins, process.env.APP_URL);
+  addResourceOrigin(origins, process.env.TRIPPI_DOMAIN);
+  for (const origin of (process.env.ALLOWED_ORIGINS || '').split(',')) {
+    addResourceOrigin(origins, origin);
+  }
+  return origins;
+}
+
 export function getCanonicalMcpResource(resource?: string | URL | null): string | null {
   const base = getMcpSafeUrl().replace(/\/+$/, '');
   const mcpResource = `${base}/mcp`;
@@ -45,13 +81,12 @@ export function getCanonicalMcpResource(resource?: string | URL | null): string 
 
   try {
     const requested = new URL(raw);
-    const canonicalBase = new URL(base);
-    const sameOrigin = requested.origin === canonicalBase.origin;
-    if (!sameOrigin) return null;
+    if (!getAllowedMcpResourceOrigins(base).has(requested.origin)) return null;
 
     const path = requested.pathname.replace(/\/+$/, '') || '/';
     if (
       path === '/' ||
+      path === '/mcp' ||
       path === '/.well-known/oauth-protected-resource' ||
       path === '/.well-known/oauth-protected-resource/mcp'
     ) {

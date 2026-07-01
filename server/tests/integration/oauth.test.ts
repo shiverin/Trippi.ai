@@ -250,6 +250,8 @@ describe('DCR scope optional — ChatGPT compatibility (issue #959 bug 2)', () =
     });
 
     it('OAUTH-959E — validates same-origin resource aliases as the MCP audience', async () => {
+        const originalAllowedOrigins = process.env.ALLOWED_ORIGINS;
+        process.env.ALLOWED_ORIGINS = 'https://trippi-ai.vercel.app,https://34.29.0.6.sslip.io';
         const { user } = createUser(testDb);
         const redirectUri = 'https://chatgpt.example.com/cb';
         const registered = await request(app)
@@ -258,27 +260,36 @@ describe('DCR scope optional — ChatGPT compatibility (issue #959 bug 2)', () =
             .send({ redirect_uris: [redirectUri], token_endpoint_auth_method: 'none', scope: 'trips:read' });
         expect(registered.status).toBe(201);
 
-        for (const resource of [
-            'https://trippi.example.com',
-            'https://trippi.example.com/.well-known/oauth-protected-resource',
-            'https://trippi.example.com/.well-known/oauth-protected-resource/mcp',
-        ]) {
-            const { challenge } = makePkce();
-            const validate = await request(app)
-                .get('/api/oauth/authorize/validate')
-                .set('Cookie', authCookie(user.id))
-                .query({
-                    response_type: 'code',
-                    client_id: registered.body.client_id,
-                    redirect_uri: redirectUri,
-                    scope: 'trips:read',
-                    code_challenge: challenge,
-                    code_challenge_method: 'S256',
-                    resource,
-                });
-            expect(validate.status).toBe(200);
-            expect(validate.body.valid).toBe(true);
-            expect(validate.body.resource).toBe('https://trippi.example.com/mcp');
+        try {
+            for (const resource of [
+                'https://trippi.example.com',
+                'https://trippi.example.com/mcp',
+                'https://www.trippi.example.com/mcp',
+                'https://trippi.example.com/.well-known/oauth-protected-resource',
+                'https://trippi.example.com/.well-known/oauth-protected-resource/mcp',
+                'https://trippi-ai.vercel.app/mcp',
+                'https://34.29.0.6.sslip.io/mcp',
+            ]) {
+                const { challenge } = makePkce();
+                const validate = await request(app)
+                    .get('/api/oauth/authorize/validate')
+                    .set('Cookie', authCookie(user.id))
+                    .query({
+                        response_type: 'code',
+                        client_id: registered.body.client_id,
+                        redirect_uri: redirectUri,
+                        scope: 'trips:read',
+                        code_challenge: challenge,
+                        code_challenge_method: 'S256',
+                        resource,
+                    });
+                expect(validate.status).toBe(200);
+                expect(validate.body.valid).toBe(true);
+                expect(validate.body.resource).toBe('https://trippi.example.com/mcp');
+            }
+        } finally {
+            if (originalAllowedOrigins === undefined) delete process.env.ALLOWED_ORIGINS;
+            else process.env.ALLOWED_ORIGINS = originalAllowedOrigins;
         }
     });
 

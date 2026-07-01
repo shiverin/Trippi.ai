@@ -165,12 +165,6 @@ export default function ReferralDialog({ open, onClose }: ReferralDialogProps): 
                   </button>
                 </div>
               </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <Stat label={t('referral.successful')} value={summary?.successful_referrals ?? 0} />
-                <Stat label={t('settings.usage.referralActiveDays')} value={summary?.active_bonus_days_remaining ?? 0} />
-                <Stat label={t('settings.usage.referralPendingDays')} value={summary?.pending_bonus_days ?? 0} />
-              </div>
             </>
           ) : (
             <button
@@ -186,14 +180,5 @@ export default function ReferralDialog({ open, onClose }: ReferralDialogProps): 
       </div>
     </div>,
     document.body,
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number | string }): React.ReactElement {
-  return (
-    <div className="rounded-lg border border-edge bg-surface-secondary p-3">
-      <div className="text-lg font-semibold text-content">{value}</div>
-      <div className="mt-1 text-xs text-content-muted">{label}</div>
-    </div>
   );
 }

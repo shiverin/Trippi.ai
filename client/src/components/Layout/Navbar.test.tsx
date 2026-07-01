@@ -134,13 +134,15 @@ describe('Navbar', () => {
     expect(darkModeEls.length).toBeGreaterThan(0);
   });
 
-  it('FE-COMP-NAVBAR-016: app version shown in user menu', async () => {
+  it('FE-COMP-NAVBAR-016: app version footer is hidden in user menu', async () => {
     const user = userEvent.setup();
     render(<Navbar />);
     await user.click(screen.getByText('testuser'));
     await waitFor(() => {
-      expect(screen.getByText('v2.9.10')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /log out/i })).toBeInTheDocument();
     });
+    expect(screen.queryByText('v2.9.10')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Discord')).not.toBeInTheDocument();
   });
 
   it('FE-COMP-NAVBAR-017: Settings link navigates to /settings', async () => {

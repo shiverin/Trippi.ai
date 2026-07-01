@@ -2,6 +2,7 @@ import { asyncDb } from '../db/asyncDatabase';
 import type { User } from '../types';
 import { getReferralBonusState, type ReferralBonusState } from './referralService';
 import { getBillingSubscriptionForUser } from './subscriptionService';
+import { ensureUserPlanOverrideColumn, normalizeNonAdminUserPlan } from './userPlanService';
 
 export type EntitlementLimit = number | null;
 export type EntitlementFeature =
@@ -220,23 +221,44 @@ function resolveEffectivePlanKey(
   return 'pro';
 }
 
-async function getUserRoleForEntitlements(userId: number): Promise<string | null> {
-  const user = await asyncDb.prepare('SELECT role FROM users WHERE id = ?').get<{ role: string | null }>(userId);
-  return user?.role ?? null;
+async function getUserPlanProfileForEntitlements(
+  userId: number,
+): Promise<{ role: string | null; billing_plan_override: string | null }> {
+  await ensureUserPlanOverrideColumn();
+  const user = await asyncDb
+    .prepare('SELECT role, billing_plan_override FROM users WHERE id = ?')
+    .get<{ role: string | null; billing_plan_override: string | null }>(userId);
+  return { role: user?.role ?? null, billing_plan_override: user?.billing_plan_override ?? null };
 }
 
 export async function getEntitlementsForUser(userId: number): Promise<ResolvedEntitlements> {
-  const [billing, userRole] = await Promise.all([
+  const [billing, userProfile] = await Promise.all([
     getBillingSubscriptionForUser(userId),
-    getUserRoleForEntitlements(userId),
+    getUserPlanProfileForEntitlements(userId),
   ]);
   const plans = getEntitlementPlanDefinitions();
+  const userRole = userProfile.role;
+  const adminOverridePlan = userRole === 'admin' ? null : normalizeNonAdminUserPlan(userProfile.billing_plan_override);
   const billingPlanKey = normalizePlanKey(billing.plan_key);
   const billingStatus = billing.status.toLowerCase();
   const paidAccessActive = billingStatus === 'active' || billingStatus === 'trialing';
   const referralBonus = await getReferralBonusState(userId, {
-    paidAccessActive: paidAccessActive || userRole === 'admin',
+    paidAccessActive:
+      paidAccessActive || userRole === 'admin' || (adminOverridePlan !== null && adminOverridePlan !== 'free'),
   });
+  if (adminOverridePlan) {
+    return {
+      userId,
+      planKey: adminOverridePlan,
+      billingPlanKey: adminOverridePlan,
+      billingStatus: 'admin_override',
+      subscribed: false,
+      trialing: false,
+      limits: plans[adminOverridePlan] ?? plans.free,
+      referralBonus,
+    };
+  }
+
   let planKey =
     userRole === 'admin' && plans.agency ? 'agency' : resolveEffectivePlanKey(billingStatus, billingPlanKey, plans);
   let effectiveBillingPlanKey = billingPlanKey;
@@ -295,9 +317,9 @@ export function throwIfEntitlementDenied(check: EntitlementCheck): void {
 }
 
 export async function countLifetimeTripsForUser(userId: number): Promise<number> {
-  const row = await asyncDb.prepare('SELECT COUNT(*) AS count FROM trips WHERE user_id = ?').get<{ count: number }>(
-    userId,
-  );
+  const row = await asyncDb
+    .prepare('SELECT COUNT(*) AS count FROM trips WHERE user_id = ?')
+    .get<{ count: number }>(userId);
   return row?.count ?? 0;
 }
 
@@ -371,9 +393,9 @@ export async function isTripEditLockedForActor(
   actor: Pick<User, 'id' | 'role'> | null | undefined,
 ): Promise<boolean> {
   if (!actor || actor.role === 'admin') return false;
-  const trip = await asyncDb.prepare('SELECT id, user_id FROM trips WHERE id = ?').get<{ id: number; user_id: number }>(
-    tripId,
-  );
+  const trip = await asyncDb
+    .prepare('SELECT id, user_id FROM trips WHERE id = ?')
+    .get<{ id: number; user_id: number }>(tripId);
   if (!trip) return false;
   const lockedIds = await getLockedOwnedTripIdsForUser(Number(trip.user_id));
   return lockedIds.has(Number(trip.id));

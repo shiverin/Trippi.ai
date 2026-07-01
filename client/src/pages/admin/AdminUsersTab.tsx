@@ -11,6 +11,14 @@ interface AdminUsersTabProps {
   locale: string;
 }
 
+function planLabel(plan: string | undefined): string {
+  const normalized = (plan || 'free').toLowerCase();
+  if (normalized === 'admin') return 'Admin';
+  if (normalized === 'agency') return 'Agency';
+  if (normalized === 'pro') return 'Pro';
+  return 'Free';
+}
+
 // "Users" admin tab: user table, invite links, permissions panel + the
 // create-invite modal. Pure layout around the useAdmin hook — no logic of its own.
 export default function AdminUsersTab({ admin, t, locale }: AdminUsersTabProps): React.ReactElement {
@@ -98,11 +106,17 @@ export default function AdminUsersTab({ admin, t, locale }: AdminUsersTabProps):
                     <td className="px-5 py-3">
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          u.role === 'admin' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                          u.plan === 'admin'
+                            ? 'bg-slate-900 text-white'
+                            : u.plan === 'agency'
+                              ? 'bg-indigo-50 text-indigo-700'
+                              : u.plan === 'pro'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-slate-100 text-slate-600'
                         }`}
                       >
-                        {u.role === 'admin' && <Shield className="h-3 w-3" />}
-                        {u.role === 'admin' ? t('settings.roleAdmin') : t('settings.roleUser')}
+                        {u.plan === 'admin' && <Shield className="h-3 w-3" />}
+                        {planLabel(u.plan)}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-sm text-slate-500">

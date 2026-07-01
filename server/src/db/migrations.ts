@@ -3596,6 +3596,14 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_referral_bonus_active_until ON referral_bonus_accounts(active_until);
       `);
     },
+    () => {
+      // Admin-owned plan overrides are separate from Stripe subscription facts.
+      try {
+        db.exec('ALTER TABLE users ADD COLUMN billing_plan_override TEXT');
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column name')) throw err;
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {

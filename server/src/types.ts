@@ -5,6 +5,7 @@ export interface User {
   username: string;
   email: string;
   role: 'admin' | 'user';
+  billing_plan_override?: string | null;
   password_hash?: string;
   maps_api_key?: string | null;
   unsplash_api_key?: string | null;

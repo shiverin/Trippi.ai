@@ -5,6 +5,7 @@ import { revokeUserSessions, revokeUserSessionsForClient } from '../mcp';
 import { User, Addon } from '../types';
 import { maybe_encrypt_api_key, decrypt_api_key } from './apiKeyCrypto';
 import { resolveAuthToggles, resolveAuthTogglesAsync } from './authService';
+import { getEntitlementsForUser } from './entitlementService';
 import { getPhotoProviderConfig } from './memories/helpersService';
 import { send as sendNotification } from './notificationService';
 import { validatePassword } from './passwordPolicy';
@@ -16,6 +17,13 @@ import {
   PERMISSION_ACTIONS,
 } from './permissions';
 import { deleteUserCompletely } from './userCleanupService';
+import {
+  adminPlanFromUserState,
+  ensureUserPlanOverrideColumn,
+  normalizeAdminUserPlan,
+  overrideForAdminUserPlan,
+  roleForAdminUserPlan,
+} from './userPlanService';
 
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -74,9 +82,12 @@ export const isDocker = (() => {
 export function listUsers() {
   const users = db
     .prepare(
-      'SELECT id, username, email, role, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC',
+      'SELECT id, username, email, role, billing_plan_override, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC',
     )
-    .all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & {
+    .all() as (Pick<
+    User,
+    'id' | 'username' | 'email' | 'role' | 'billing_plan_override' | 'created_at' | 'updated_at' | 'last_login'
+  > & {
     avatar?: string | null;
   })[];
   let onlineUserIds = new Set<number>();
@@ -88,6 +99,7 @@ export function listUsers() {
   }
   return users.map((u) => ({
     ...u,
+    plan: adminPlanFromUserState({ role: u.role, billing_plan_override: u.billing_plan_override }),
     avatar_url: u.avatar ? `/uploads/avatars/${u.avatar}` : null,
     created_at: utcSuffix(u.created_at),
     updated_at: utcSuffix(u.updated_at as string),
@@ -97,12 +109,16 @@ export function listUsers() {
 }
 
 export async function listUsersAsync() {
+  await ensureUserPlanOverrideColumn();
   const users = await asyncDb
     .prepare(
-      'SELECT id, username, email, role, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC',
+      'SELECT id, username, email, role, billing_plan_override, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC',
     )
     .all<
-      Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & {
+      Pick<
+        User,
+        'id' | 'username' | 'email' | 'role' | 'billing_plan_override' | 'created_at' | 'updated_at' | 'last_login'
+      > & {
         avatar?: string | null;
       }
     >();
@@ -113,20 +129,33 @@ export async function listUsersAsync() {
   } catch {
     /* */
   }
-  return users.map((u) => ({
-    ...u,
-    avatar_url: u.avatar ? `/uploads/avatars/${u.avatar}` : null,
-    created_at: utcSuffix(u.created_at),
-    updated_at: utcSuffix(u.updated_at as string),
-    last_login: utcSuffix(u.last_login),
-    online: onlineUserIds.has(u.id),
-  }));
+  return Promise.all(
+    users.map(async (u) => {
+      const entitlements = await getEntitlementsForUser(u.id);
+      return {
+        ...u,
+        plan: adminPlanFromUserState({
+          role: u.role,
+          billing_plan_override: u.billing_plan_override,
+          effectivePlanKey: entitlements.planKey,
+          billingPlanKey: entitlements.billingPlanKey,
+          billingStatus: entitlements.billingStatus,
+        }),
+        avatar_url: u.avatar ? `/uploads/avatars/${u.avatar}` : null,
+        created_at: utcSuffix(u.created_at),
+        updated_at: utcSuffix(u.updated_at as string),
+        last_login: utcSuffix(u.last_login),
+        online: onlineUserIds.has(u.id),
+      };
+    }),
+  );
 }
 
-export function createUser(data: { username: string; email: string; password: string; role?: string }) {
+export function createUser(data: { username: string; email: string; password: string; role?: string; plan?: string }) {
   const username = data.username?.trim();
   const email = data.email?.trim();
   const password = data.password?.trim();
+  const requestedPlan = data.plan === undefined ? null : normalizeAdminUserPlan(data.plan);
 
   if (!username || !email || !password) {
     return { error: 'Username, email and password are required', status: 400 };
@@ -134,6 +163,10 @@ export function createUser(data: { username: string; email: string; password: st
 
   const pwCheck = validatePassword(password);
   if (!pwCheck.ok) return { error: pwCheck.reason, status: 400 };
+
+  if (data.plan !== undefined && !requestedPlan) {
+    return { error: 'Invalid plan', status: 400 };
+  }
 
   if (data.role && !['user', 'admin'].includes(data.role)) {
     return { error: 'Invalid role', status: 400 };
@@ -146,26 +179,36 @@ export function createUser(data: { username: string; email: string; password: st
   if (existingEmail) return { error: 'Email already taken', status: 409 };
 
   const passwordHash = bcrypt.hashSync(password, BCRYPT_COST);
+  const role = requestedPlan ? roleForAdminUserPlan(requestedPlan) : data.role || 'user';
+  const planOverride = requestedPlan ? overrideForAdminUserPlan(requestedPlan) : null;
 
   const result = db
-    .prepare('INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)')
-    .run(username, email, passwordHash, data.role || 'user');
+    .prepare('INSERT INTO users (username, email, password_hash, role, billing_plan_override) VALUES (?, ?, ?, ?, ?)')
+    .run(username, email, passwordHash, role, planOverride);
 
   const user = db
-    .prepare('SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?')
+    .prepare('SELECT id, username, email, role, billing_plan_override, created_at, updated_at FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
 
   return {
-    user,
+    user: { ...(user as object), plan: adminPlanFromUserState(user as User) },
     insertedId: Number(result.lastInsertRowid),
-    auditDetails: { username, email, role: data.role || 'user' },
+    auditDetails: { username, email, plan: requestedPlan ?? role },
   };
 }
 
-export async function createUserAsync(data: { username: string; email: string; password: string; role?: string }) {
+export async function createUserAsync(data: {
+  username: string;
+  email: string;
+  password: string;
+  role?: string;
+  plan?: string;
+}) {
+  await ensureUserPlanOverrideColumn();
   const username = data.username?.trim();
   const email = data.email?.trim();
   const password = data.password?.trim();
+  const requestedPlan = data.plan === undefined ? null : normalizeAdminUserPlan(data.plan);
 
   if (!username || !email || !password) {
     return { error: 'Username, email and password are required', status: 400 };
@@ -173,6 +216,10 @@ export async function createUserAsync(data: { username: string; email: string; p
 
   const pwCheck = validatePassword(password);
   if (!pwCheck.ok) return { error: pwCheck.reason, status: 400 };
+
+  if (data.plan !== undefined && !requestedPlan) {
+    return { error: 'Invalid plan', status: 400 };
+  }
 
   if (data.role && !['user', 'admin'].includes(data.role)) {
     return { error: 'Invalid role', status: 400 };
@@ -185,29 +232,42 @@ export async function createUserAsync(data: { username: string; email: string; p
   if (existingEmail) return { error: 'Email already taken', status: 409 };
 
   const passwordHash = bcrypt.hashSync(password, BCRYPT_COST);
+  const role = requestedPlan ? roleForAdminUserPlan(requestedPlan) : data.role || 'user';
+  const planOverride = requestedPlan ? overrideForAdminUserPlan(requestedPlan) : null;
 
   const result = await asyncDb
-    .prepare('INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)')
-    .run(username, email, passwordHash, data.role || 'user');
+    .prepare('INSERT INTO users (username, email, password_hash, role, billing_plan_override) VALUES (?, ?, ?, ?, ?)')
+    .run(username, email, passwordHash, role, planOverride);
 
   const user = await asyncDb
-    .prepare('SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?')
+    .prepare('SELECT id, username, email, role, billing_plan_override, created_at, updated_at FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
 
   return {
-    user,
+    user: { ...(user as object), plan: adminPlanFromUserState(user as User) },
     insertedId: Number(result.lastInsertRowid),
-    auditDetails: { username, email, role: data.role || 'user' },
+    auditDetails: { username, email, plan: requestedPlan ?? role },
   };
 }
 
-export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string }) {
+export function updateUser(
+  id: string,
+  data: { username?: string; email?: string; role?: string; password?: string; plan?: string },
+) {
   const username = typeof data.username === 'string' ? data.username.trim() : data.username;
   const email = typeof data.email === 'string' ? data.email.trim() : data.email;
-  const { role, password } = data;
+  const { password } = data;
+  const planWasProvided = Object.prototype.hasOwnProperty.call(data, 'plan');
+  const requestedPlan = planWasProvided ? normalizeAdminUserPlan(data.plan) : null;
+  const role = requestedPlan ? roleForAdminUserPlan(requestedPlan) : data.role;
+  const planOverride = requestedPlan ? overrideForAdminUserPlan(requestedPlan) : null;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
 
   if (!user) return { error: 'User not found', status: 404 };
+
+  if (planWasProvided && !requestedPlan) {
+    return { error: 'Invalid plan', status: 400 };
+  }
 
   if (role && !['user', 'admin'].includes(role)) {
     return { error: 'Invalid role', status: 400 };
@@ -247,23 +307,25 @@ export function updateUser(id: string, data: { username?: string; email?: string
       email = COALESCE(?, email),
       role = COALESCE(?, role),
       password_hash = COALESCE(?, password_hash),
+      billing_plan_override = CASE WHEN ? = 1 THEN ? ELSE billing_plan_override END,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `,
-  ).run(username || null, email || null, role || null, passwordHash, id);
+  ).run(username || null, email || null, role || null, passwordHash, planWasProvided ? 1 : 0, planOverride, id);
 
   const updated = db
-    .prepare('SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?')
+    .prepare('SELECT id, username, email, role, billing_plan_override, created_at, updated_at FROM users WHERE id = ?')
     .get(id);
 
   const changed: string[] = [];
   if (username) changed.push('username');
   if (email) changed.push('email');
-  if (role) changed.push('role');
+  if (planWasProvided) changed.push('plan');
+  else if (role) changed.push('role');
   if (password) changed.push('password');
 
   return {
-    user: updated,
+    user: { ...(updated as object), plan: adminPlanFromUserState(updated as User) },
     previousEmail: user.email,
     changed,
   };
@@ -271,14 +333,23 @@ export function updateUser(id: string, data: { username?: string; email?: string
 
 export async function updateUserAsync(
   id: string,
-  data: { username?: string; email?: string; role?: string; password?: string },
+  data: { username?: string; email?: string; role?: string; password?: string; plan?: string },
 ) {
+  await ensureUserPlanOverrideColumn();
   const username = typeof data.username === 'string' ? data.username.trim() : data.username;
   const email = typeof data.email === 'string' ? data.email.trim() : data.email;
-  const { role, password } = data;
+  const { password } = data;
+  const planWasProvided = Object.prototype.hasOwnProperty.call(data, 'plan');
+  const requestedPlan = planWasProvided ? normalizeAdminUserPlan(data.plan) : null;
+  const role = requestedPlan ? roleForAdminUserPlan(requestedPlan) : data.role;
+  const planOverride = requestedPlan ? overrideForAdminUserPlan(requestedPlan) : null;
   const user = await asyncDb.prepare('SELECT * FROM users WHERE id = ?').get<User>(id);
 
   if (!user) return { error: 'User not found', status: 404 };
+
+  if (planWasProvided && !requestedPlan) {
+    return { error: 'Invalid plan', status: 400 };
+  }
 
   if (role && !['user', 'admin'].includes(role)) {
     return { error: 'Invalid role', status: 400 };
@@ -317,24 +388,26 @@ export async function updateUserAsync(
       email = COALESCE(?, email),
       role = COALESCE(?, role),
       password_hash = COALESCE(?, password_hash),
+      billing_plan_override = CASE WHEN ? = 1 THEN ? ELSE billing_plan_override END,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `,
     )
-    .run(username || null, email || null, role || null, passwordHash, id);
+    .run(username || null, email || null, role || null, passwordHash, planWasProvided ? 1 : 0, planOverride, id);
 
   const updated = await asyncDb
-    .prepare('SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?')
+    .prepare('SELECT id, username, email, role, billing_plan_override, created_at, updated_at FROM users WHERE id = ?')
     .get(id);
 
   const changed: string[] = [];
   if (username) changed.push('username');
   if (email) changed.push('email');
-  if (role) changed.push('role');
+  if (planWasProvided) changed.push('plan');
+  else if (role) changed.push('role');
   if (password) changed.push('password');
 
   return {
-    user: updated,
+    user: { ...(updated as object), plan: adminPlanFromUserState(updated as User) },
     previousEmail: user.email,
     changed,
   };

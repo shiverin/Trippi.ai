@@ -8,6 +8,7 @@ function createTables(db: Database.Database): void {
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'user',
+      billing_plan_override TEXT,
       maps_api_key TEXT,
       unsplash_api_key TEXT,
       openweather_api_key TEXT,

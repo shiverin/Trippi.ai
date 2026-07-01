@@ -20,6 +20,13 @@ interface AdminUserModalsProps {
   t: TranslationFn;
 }
 
+const PLAN_OPTIONS = [
+  { value: 'free', label: 'Free' },
+  { value: 'pro', label: 'Pro' },
+  { value: 'agency', label: 'Agency' },
+  { value: 'admin', label: 'Admin' },
+];
+
 // The admin page's modal layer: create-user, edit-user, the "how to update"
 // popup and the rotate-JWT confirmation. Pure layout around the useAdmin hook.
 export default function AdminUserModals({ admin, t }: AdminUserModalsProps): React.ReactElement {
@@ -116,14 +123,11 @@ export default function AdminUserModals({ admin, t }: AdminUserModalsProps): Rea
             </div>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('settings.role')}</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('admin.table.role')}</label>
             <CustomSelect
-              value={createForm.role}
-              onChange={(value) => setCreateForm((f) => ({ ...f, role: String(value) }))}
-              options={[
-                { value: 'user', label: t('settings.roleUser') },
-                { value: 'admin', label: t('settings.roleAdmin') },
-              ]}
+              value={createForm.plan}
+              onChange={(value) => setCreateForm((f) => ({ ...f, plan: String(value) }))}
+              options={PLAN_OPTIONS}
             />
           </div>
         </div>
@@ -197,14 +201,11 @@ export default function AdminUserModals({ admin, t }: AdminUserModalsProps): Rea
               </div>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('settings.role')}</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('admin.table.role')}</label>
               <CustomSelect
-                value={editForm.role}
-                onChange={(value) => setEditForm((f) => ({ ...f, role: String(value) }))}
-                options={[
-                  { value: 'user', label: t('settings.roleUser') },
-                  { value: 'admin', label: t('settings.roleAdmin') },
-                ]}
+                value={editForm.plan}
+                onChange={(value) => setEditForm((f) => ({ ...f, plan: String(value) }))}
+                options={PLAN_OPTIONS}
               />
             </div>
             <div className="border-t border-slate-100 pt-3">

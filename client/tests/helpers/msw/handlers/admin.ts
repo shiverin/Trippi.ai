@@ -1,21 +1,21 @@
 import { http, HttpResponse } from 'msw';
-import { buildUser, buildAdmin } from '../../factories';
+import { buildAdmin, buildUser } from '../../factories';
 
 export const adminHandlers = [
   http.get('/api/admin/users', () => {
-    const user1 = buildUser({ username: 'alice', email: 'alice@example.com' });
-    const admin1 = buildAdmin({ username: 'admin', email: 'admin@example.com' });
+    const user1 = { ...buildUser({ username: 'alice', email: 'alice@example.com' }), plan: 'free' };
+    const admin1 = { ...buildAdmin({ username: 'admin', email: 'admin@example.com' }), plan: 'admin' };
     return HttpResponse.json({ users: [admin1, user1] });
   }),
 
   http.post('/api/admin/users', async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     const user = buildUser({ ...body });
     return HttpResponse.json({ user });
   }),
 
   http.put('/api/admin/users/:id', async ({ params, request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     const user = buildUser({ id: Number(params.id), ...body });
     return HttpResponse.json({ user });
   }),
@@ -38,7 +38,7 @@ export const adminHandlers = [
   }),
 
   http.post('/api/admin/invites', async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ invite: { id: 1, token: 'test-invite-token', ...body } });
   }),
 
@@ -59,7 +59,7 @@ export const adminHandlers = [
   }),
 
   http.put('/api/admin/oidc', async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ ...body });
   }),
 
@@ -72,7 +72,7 @@ export const adminHandlers = [
   }),
 
   http.put('/api/admin/bag-tracking', async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ enabled: body.enabled });
   }),
 
@@ -123,7 +123,7 @@ export const adminHandlers = [
   }),
 
   http.put('/api/auth/app-settings', async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>;
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ ...body });
   }),
 

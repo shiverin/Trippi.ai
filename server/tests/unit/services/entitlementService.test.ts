@@ -140,6 +140,25 @@ describe('entitlementService', () => {
     });
   });
 
+  it('resolves admin-assigned plan overrides without requiring a billing subscription', async () => {
+    const { user } = createUser(testDb);
+    testDb.prepare('UPDATE users SET billing_plan_override = ? WHERE id = ?').run('agency', user.id);
+
+    await expect(getEntitlementsForUser(user.id)).resolves.toMatchObject({
+      userId: user.id,
+      planKey: 'agency',
+      billingPlanKey: 'agency',
+      billingStatus: 'admin_override',
+      subscribed: false,
+      trialing: false,
+      limits: {
+        activeTrips: null,
+        groupSize: null,
+        mcpAutomation: { maxTokens: null, maxConcurrentSessions: null, requestsPerMinute: null },
+      },
+    });
+  });
+
   it.each([
     ['active subscribed pro', 'active', 'pro', 'pro', true, false],
     ['active subscribed agency', 'active', 'agency', 'agency', true, false],

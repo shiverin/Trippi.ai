@@ -71,7 +71,7 @@ const admin: TranslationStrings = {
   'admin.stats.files': 'Files',
   'admin.table.user': 'User',
   'admin.table.email': 'Email',
-  'admin.table.role': 'Role',
+  'admin.table.role': 'Plan',
   'admin.table.created': 'Created',
   'admin.table.lastLogin': 'Last Login',
   'admin.table.actions': 'Actions',

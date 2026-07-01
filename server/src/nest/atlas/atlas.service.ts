@@ -32,6 +32,21 @@ export class AtlasService {
     return getStats(userId);
   }
 
+  async bootstrap(userId: number) {
+    const [stats, bucketList, visitedRegions] = await Promise.all([
+      getStats(userId),
+      listBucketListAsync(userId),
+      getVisitedRegions(userId),
+    ]);
+    return {
+      stats,
+      bucketList,
+      items: bucketList,
+      visitedRegions,
+      regions: visitedRegions.regions,
+    };
+  }
+
   visitedRegions(userId: number) {
     return getVisitedRegions(userId);
   }

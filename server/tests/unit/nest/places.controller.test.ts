@@ -206,12 +206,13 @@ describe('PlacesController (parity with the legacy /api/trips/:tripId/places rou
     expect(onUpdated).toHaveBeenCalledWith(9);
   });
 
-  it('DELETE /:id fires the hook then 404 / success', async () => {
+  it('DELETE /:id fires the hook only after a successful delete', async () => {
     const onDeleted = vi.fn();
     expect(await thrown(() => new PlacesController(svc({ remove: vi.fn().mockReturnValue(false), onDeleted } as Partial<PlacesService>)).remove(user, '5', '9'))).toEqual({ status: 404, body: { error: 'Place not found' } });
-    expect(onDeleted).toHaveBeenCalledWith(9);
-    const s = svc({ remove: vi.fn().mockReturnValue(true), broadcast: vi.fn() } as Partial<PlacesService>);
+    expect(onDeleted).not.toHaveBeenCalled();
+    const s = svc({ remove: vi.fn().mockReturnValue(true), broadcast: vi.fn(), onDeleted } as Partial<PlacesService>);
     expect(await new PlacesController(s).remove(user, '5', '9')).toEqual({ success: true });
+    expect(onDeleted).toHaveBeenCalledWith(9);
   });
 
   it('GET /:id/image maps service error + returns photos', async () => {

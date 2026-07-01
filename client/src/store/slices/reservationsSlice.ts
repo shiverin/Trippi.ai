@@ -67,10 +67,12 @@ export const createReservationsSlice = (set: SetState, get: GetState): Reservati
   },
 
   deleteReservation: async (tripId, id) => {
+    const prev = get().reservations
+    set(state => ({ reservations: state.reservations.filter(r => r.id !== id) }))
     try {
       await reservationsApi.delete(tripId, id)
-      set(state => ({ reservations: state.reservations.filter(r => r.id !== id) }))
     } catch (err: unknown) {
+      set({ reservations: prev })
       throw new Error(getApiErrorMessage(err, 'Error deleting reservation'))
     }
   },

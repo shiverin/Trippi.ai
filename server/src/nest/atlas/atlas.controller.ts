@@ -1,4 +1,5 @@
 import type { User } from '../../types';
+import { createPerfTrace } from '../../services/perfTrace';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AtlasService } from './atlas.service';
@@ -39,6 +40,16 @@ export class AtlasController {
   @Get('stats')
   async stats(@CurrentUser() user: User) {
     return this.atlas.stats(user.id);
+  }
+
+  @Get('bootstrap')
+  async bootstrap(@CurrentUser() user: User) {
+    const trace = createPerfTrace('atlas.bootstrap', { userId: user.id });
+    try {
+      return await trace.measure('loadBootstrap', () => this.atlas.bootstrap(user.id));
+    } finally {
+      trace.finish();
+    }
   }
 
   @Get('regions')

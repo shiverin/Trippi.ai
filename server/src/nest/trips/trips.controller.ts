@@ -2,6 +2,7 @@ import { writeAudit, getClientIp, logInfo } from '../../services/auditLog';
 import { isDemoEmail } from '../../services/demo';
 import { EntitlementLimitError, getEntitlementsForUser } from '../../services/entitlementService';
 import { deleteMediaBestEffort, storeUploadedMedia } from '../../services/mediaStorage';
+import { createPerfTrace } from '../../services/perfTrace';
 import { NotFoundError, ValidationError } from '../../services/tripService';
 import { assertImageUpload } from '../../services/uploadValidation';
 import type { User } from '../../types';
@@ -373,11 +374,18 @@ export class TripsController {
 
   @Get(':id/bundle')
   async bundle(@CurrentUser() user: User, @Param('id') id: string) {
-    const trip = (await this.trips.get(id, user.id)) as { user_id: number } | undefined;
-    if (!trip) {
-      throw new HttpException({ error: 'Trip not found' }, 404);
+    const trace = createPerfTrace('trips.bundle', { tripId: id, userId: user.id });
+    try {
+      const trip = (await trace.measure('loadTrip', () => this.trips.get(id, user.id))) as
+        | { user_id: number }
+        | undefined;
+      if (!trip) {
+        throw new HttpException({ error: 'Trip not found' }, 404);
+      }
+      return await trace.measure('loadBundle', () => this.trips.bundle(id, trip));
+    } finally {
+      trace.finish();
     }
-    return await this.trips.bundle(id, trip);
   }
 
   @Get(':id/export.ics')

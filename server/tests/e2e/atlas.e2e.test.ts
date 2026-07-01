@@ -105,6 +105,18 @@ describe('Atlas e2e (real auth guard + temp SQLite)', () => {
     expect(res.body).toEqual({ countries: 3 });
   });
 
+  it('200 bootstrap returns stats, bucket list, and visited regions', async () => {
+    mocks.getVisitedRegions.mockResolvedValue({ regions: { DE: [{ code: 'DE-BE', name: 'Berlin', placeCount: 1 }] } });
+    const res = await request(server).get('/api/addons/atlas/bootstrap').set('Cookie', sessionCookie(1));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      stats: { countries: 3 },
+      bucketList: [{ id: 1, name: 'Tokyo' }],
+      items: [{ id: 1, name: 'Tokyo' }],
+      regions: { DE: [{ code: 'DE-BE', name: 'Berlin', placeCount: 1 }] },
+    });
+  });
+
   it('200 (not 201) on POST country mark, with upper-cased code', async () => {
     const res = await request(server).post('/api/addons/atlas/country/de/mark').set('Cookie', sessionCookie(1));
     expect(res.status).toBe(200);

@@ -25,7 +25,7 @@ vi.mock('../../src/db/database', () => ({ db, closeDb: () => {}, reinitialize: (
 
 const { svc } = vi.hoisted(() => ({
   svc: {
-    getPlanData: vi.fn(), getActivePlanId: vi.fn(), getActivePlan: vi.fn(), updatePlan: vi.fn(),
+    getPlanData: vi.fn(), getBootstrapData: vi.fn(), getActivePlanId: vi.fn(), getActivePlan: vi.fn(), updatePlan: vi.fn(),
     addHolidayCalendar: vi.fn(), updateHolidayCalendar: vi.fn(), deleteHolidayCalendar: vi.fn(),
     getPlanUsers: vi.fn(), setUserColor: vi.fn(), sendInvite: vi.fn(), acceptInvite: vi.fn(),
     declineInvite: vi.fn(), cancelInvite: vi.fn(), dissolvePlan: vi.fn(), getAvailableUsers: vi.fn(),
@@ -76,6 +76,27 @@ describe('Vacay e2e (real auth guard + temp SQLite)', () => {
     const res = await request(server).get('/api/addons/vacay/plan').set('Cookie', sessionCookie(1));
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ plan: { id: 10 } });
+  });
+
+  it('200 bootstrap returns the selected-year calendar bundle', async () => {
+    svc.getBootstrapData.mockReturnValue({
+      plan: { id: 10 },
+      users: [{ id: 1 }],
+      years: [2026],
+      entries: [{ date: '2026-07-01', user_id: 1 }],
+      companyHolidays: [],
+      holidays: [],
+      stats: [{ user_id: 1, used: 1 }],
+    });
+    const res = await request(server).get('/api/addons/vacay/bootstrap/2026').set('Cookie', sessionCookie(1));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      plan: { id: 10 },
+      years: [2026],
+      entries: [{ date: '2026-07-01', user_id: 1 }],
+      stats: [{ user_id: 1, used: 1 }],
+    });
+    expect(svc.getBootstrapData).toHaveBeenCalledWith(1, 2026);
   });
 
   it('200 (not 201) on POST entries/toggle, forwarding the socket id', async () => {

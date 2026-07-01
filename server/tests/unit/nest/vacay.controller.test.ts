@@ -30,6 +30,17 @@ describe('VacayController (parity with the legacy /api/addons/vacay route)', () 
     expect(await makeController({ getPlanData }).getPlan(user)).toEqual({ plan: { id: 10 } });
   });
 
+  it('GET /bootstrap/:year delegates the composite loader', async () => {
+    const getBootstrapData = vi.fn().mockResolvedValue({ plan: { id: 10 }, years: [2026], entries: [], stats: [] });
+    expect(await makeController({ getBootstrapData }).bootstrap(user, '2026')).toEqual({
+      plan: { id: 10 },
+      years: [2026],
+      entries: [],
+      stats: [],
+    });
+    expect(getBootstrapData).toHaveBeenCalledWith(1, 2026);
+  });
+
   it('PUT /plan forwards the socket id', async () => {
     const updatePlan = vi.fn().mockResolvedValue({ ok: true });
     await makeController({ ...planBase, updatePlan }).updatePlan(user, { foo: 1 }, 'sock-1');

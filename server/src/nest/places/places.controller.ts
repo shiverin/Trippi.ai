@@ -1,4 +1,5 @@
 import { assertXmlOrZipUpload } from '../../services/uploadValidation';
+import { createPerfTrace } from '../../services/perfTrace';
 import type { User } from '../../types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -251,20 +252,31 @@ export class PlacesController {
     @Body('ids') ids: unknown,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = await this.requireTrip(tripId, user);
-    await this.requireEditAsync(trip, user);
-    if (!Array.isArray(ids) || ids.some((v) => typeof v !== 'number')) {
-      throw new HttpException({ error: 'ids must be an array of numbers' }, 400);
+    const trace = createPerfTrace('places.bulkDelete', {
+      tripId,
+      userId: user.id,
+      requestedCount: Array.isArray(ids) ? ids.length : undefined,
+    });
+    try {
+      const trip = await trace.measure('requireTrip', () => this.requireTrip(tripId, user));
+      await trace.measure('requireEdit', () => this.requireEditAsync(trip, user));
+      if (!Array.isArray(ids) || ids.some((v) => typeof v !== 'number')) {
+        throw new HttpException({ error: 'ids must be an array of numbers' }, 400);
+      }
+      if (ids.length === 0) {
+        return { deleted: [], count: 0 };
+      }
+      const deleted = await trace.measure('deletePlaces', () => this.places.removeMany(tripId, ids), {
+        requestedCount: ids.length,
+      });
+      for (const id of deleted) {
+        this.places.onDeleted(id);
+        this.places.broadcast(tripId, 'place:deleted', { placeId: id }, socketId);
+      }
+      return { deleted, count: deleted.length };
+    } finally {
+      trace.finish();
     }
-    if (ids.length === 0) {
-      return { deleted: [], count: 0 };
-    }
-    for (const id of ids) this.places.onDeleted(id);
-    const deleted = await this.places.removeMany(tripId, ids);
-    for (const id of deleted) {
-      this.places.broadcast(tripId, 'place:deleted', { placeId: id }, socketId);
-    }
-    return { deleted, count: deleted.length };
   }
 
   @Get(':id')
@@ -320,13 +332,18 @@ export class PlacesController {
     @Param('id') id: string,
     @Headers('x-socket-id') socketId?: string,
   ) {
-    const trip = await this.requireTrip(tripId, user);
-    await this.requireEditAsync(trip, user);
-    this.places.onDeleted(Number(id)); // sync before actual delete
-    if (!(await this.places.remove(tripId, id))) {
-      throw new HttpException({ error: 'Place not found' }, 404);
+    const trace = createPerfTrace('places.delete', { tripId, placeId: id, userId: user.id });
+    try {
+      const trip = await trace.measure('requireTrip', () => this.requireTrip(tripId, user));
+      await trace.measure('requireEdit', () => this.requireEditAsync(trip, user));
+      if (!(await trace.measure('deletePlace', () => this.places.remove(tripId, id)))) {
+        throw new HttpException({ error: 'Place not found' }, 404);
+      }
+      this.places.onDeleted(Number(id));
+      this.places.broadcast(tripId, 'place:deleted', { placeId: Number(id) }, socketId);
+      return { success: true };
+    } finally {
+      trace.finish();
     }
-    this.places.broadcast(tripId, 'place:deleted', { placeId: Number(id) }, socketId);
-    return { success: true };
   }
 }

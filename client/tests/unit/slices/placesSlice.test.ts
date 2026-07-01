@@ -92,17 +92,22 @@ describe('placesSlice', () => {
   });
 
   describe('deletePlace', () => {
-    it('FE-PLACES-005: deletePlace removes place from places array', async () => {
+    it('FE-PLACES-005: deletePlace optimistically removes place from places array', async () => {
       const place1 = buildPlace({ id: 10, trip_id: 1 });
       const place2 = buildPlace({ id: 20, trip_id: 1 });
       seedStore(useTripStore, { places: [place1, place2], assignments: {} });
 
       server.use(
-        http.delete('/api/trips/1/places/10', () => HttpResponse.json({ success: true })),
+        http.delete('/api/trips/1/places/10', async () => {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          return HttpResponse.json({ success: true });
+        }),
       );
 
-      await useTripStore.getState().deletePlace(1, 10);
+      const promise = useTripStore.getState().deletePlace(1, 10);
 
+      expect(useTripStore.getState().places.map((p) => p.id)).toEqual([20]);
+      await promise;
       const places = useTripStore.getState().places;
       expect(places).toHaveLength(1);
       expect(places[0].id).toBe(20);
@@ -129,10 +134,30 @@ describe('placesSlice', () => {
       expect(dayAssignments).toHaveLength(1);
       expect(dayAssignments[0].id).toBe(200);
     });
+
+    it('FE-PLACES-007: deletePlace rolls back place and assignments on API failure', async () => {
+      const place = buildPlace({ id: 10, trip_id: 1 });
+      const assignment = buildAssignment({ id: 100, day_id: 1, place });
+      seedStore(useTripStore, {
+        places: [place],
+        assignments: { '1': [assignment] },
+      });
+
+      server.use(
+        http.delete('/api/trips/1/places/10', () => HttpResponse.json({ error: 'nope' }, { status: 500 })),
+      );
+
+      const promise = useTripStore.getState().deletePlace(1, 10);
+      expect(useTripStore.getState().places).toEqual([]);
+      expect(useTripStore.getState().assignments['1']).toEqual([]);
+      await expect(promise).rejects.toThrow();
+      expect(useTripStore.getState().places).toEqual([place]);
+      expect(useTripStore.getState().assignments['1']).toEqual([assignment]);
+    });
   });
 
   describe('refreshPlaces', () => {
-    it('FE-PLACES-007: refreshPlaces re-fetches and replaces places array', async () => {
+    it('FE-PLACES-008: refreshPlaces re-fetches and replaces places array', async () => {
       const stale = buildPlace({ id: 99, trip_id: 1, name: 'Stale' });
       seedStore(useTripStore, { places: [stale] });
 

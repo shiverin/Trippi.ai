@@ -40,6 +40,7 @@ type ShareTripRow = TripRow & {
   share_collab: number | null;
 };
 type CountryAccumulator = FriendStatsCountry & { tripIds: Set<number>; years: Set<number> };
+type CountByUserRow = { user_id: number; count: number };
 
 const EMPTY_CONTINENTS = {
   Europe: 0,
@@ -154,14 +155,12 @@ function toFriendUser(
 @Injectable()
 export class FriendsService {
   async hub(viewerId: number): Promise<FriendsHubResponse> {
-    const [follower_count, following_count] = await Promise.all([
+    const [follower_count, following_count, followingRows, suggestionRows] = await Promise.all([
       this.countFollowers(viewerId),
       this.countFollowing(viewerId),
-    ]);
-
-    const followingRows = await asyncDb
-      .prepare(
-        `
+      asyncDb
+        .prepare(
+          `
         SELECT u.id, u.username, u.avatar
         FROM user_follows f
         JOIN users u ON u.id = f.followed_id
@@ -169,12 +168,11 @@ export class FriendsService {
         ORDER BY f.created_at DESC, LOWER(u.username) ASC
         LIMIT 24
       `,
-      )
-      .all<UserRow>(viewerId);
-
-    const suggestionRows = await asyncDb
-      .prepare(
-        `
+        )
+        .all<UserRow>(viewerId),
+      asyncDb
+        .prepare(
+          `
         SELECT u.id, u.username, u.avatar
         FROM users u
         LEFT JOIN user_follows f ON f.followed_id = u.id AND f.follower_id = ?
@@ -182,13 +180,14 @@ export class FriendsService {
         ORDER BY LOWER(u.username) ASC
         LIMIT 12
       `,
-      )
-      .all<UserRow>(viewerId, viewerId);
+        )
+        .all<UserRow>(viewerId, viewerId),
+    ]);
 
     return {
       me: { follower_count, following_count },
-      following: await this.decorateUsers(followingRows, viewerId),
-      suggestions: await this.decorateUsers(suggestionRows, viewerId),
+      following: await this.decorateUsers(followingRows as UserRow[], viewerId),
+      suggestions: await this.decorateUsers(suggestionRows as UserRow[], viewerId),
     };
   }
 
@@ -225,8 +224,11 @@ export class FriendsService {
       .get<UserRow>(username);
     if (!user) return null;
 
-    const [decorated] = await this.decorateUsers([user], viewerId);
-    const [stats, shared_trips] = await Promise.all([this.statsForUser(user.id), this.sharedTripsForUser(user.id)]);
+    const [[decorated], stats, shared_trips] = await Promise.all([
+      this.decorateUsers([user], viewerId),
+      this.statsForUser(user.id),
+      this.sharedTripsForUser(user.id),
+    ]);
     return { user: decorated, stats, shared_trips };
   }
 
@@ -246,18 +248,80 @@ export class FriendsService {
 
   private async decorateUsers(rows: UserRow[], viewerId: number): Promise<FriendUser[]> {
     if (rows.length === 0) return [];
-    return Promise.all(
-      rows.map(async (row) => {
-        const [follower_count, following_count, is_following, follows_you, shared_trip_count] = await Promise.all([
-          this.countFollowers(row.id),
-          this.countFollowing(row.id),
-          this.hasFollow(viewerId, row.id),
-          this.hasFollow(row.id, viewerId),
-          this.countProfileVisibleTrips(row.id),
-        ]);
-        return toFriendUser(row, { follower_count, following_count, is_following, follows_you, shared_trip_count });
-      }),
-    );
+    const userIds = [...new Set(rows.map((row) => Number(row.id)).filter((id) => Number.isFinite(id)))];
+    const placeholders = userIds.map(() => '?').join(',');
+    const [followerRows, followingRows, viewerFollowingRows, followsViewerRows, visibleTripRows] = await Promise.all([
+      asyncDb
+        .prepare(
+          `
+          SELECT followed_id AS user_id, COUNT(*) AS count
+          FROM user_follows
+          WHERE followed_id IN (${placeholders})
+          GROUP BY followed_id
+        `,
+        )
+        .all<CountByUserRow>(...userIds),
+      asyncDb
+        .prepare(
+          `
+          SELECT follower_id AS user_id, COUNT(*) AS count
+          FROM user_follows
+          WHERE follower_id IN (${placeholders})
+          GROUP BY follower_id
+        `,
+        )
+        .all<CountByUserRow>(...userIds),
+      asyncDb
+        .prepare(
+          `
+          SELECT followed_id AS user_id
+          FROM user_follows
+          WHERE follower_id = ? AND followed_id IN (${placeholders})
+        `,
+        )
+        .all<{ user_id: number }>(viewerId, ...userIds),
+      asyncDb
+        .prepare(
+          `
+          SELECT follower_id AS user_id
+          FROM user_follows
+          WHERE followed_id = ? AND follower_id IN (${placeholders})
+        `,
+        )
+        .all<{ user_id: number }>(viewerId, ...userIds),
+      asyncDb
+        .prepare(
+          `
+          SELECT t.user_id AS user_id, st.expires_at
+          FROM share_tokens st
+          JOIN trips t ON t.id = st.trip_id
+          WHERE t.user_id IN (${placeholders}) AND st.profile_visible = 1
+        `,
+        )
+        .all<{ user_id: number; expires_at: string | null }>(...userIds),
+    ]);
+
+    const followerCounts = new Map(followerRows.map((row) => [Number(row.user_id), Number(row.count ?? 0)]));
+    const followingCounts = new Map(followingRows.map((row) => [Number(row.user_id), Number(row.count ?? 0)]));
+    const viewerFollowing = new Set(viewerFollowingRows.map((row) => Number(row.user_id)));
+    const followsViewer = new Set(followsViewerRows.map((row) => Number(row.user_id)));
+    const sharedTripCounts = new Map<number, number>();
+    for (const row of visibleTripRows) {
+      if (isExpired(row.expires_at)) continue;
+      const id = Number(row.user_id);
+      sharedTripCounts.set(id, (sharedTripCounts.get(id) ?? 0) + 1);
+    }
+
+    return rows.map((row) => {
+      const userId = Number(row.id);
+      return toFriendUser(row, {
+        follower_count: followerCounts.get(userId) ?? 0,
+        following_count: followingCounts.get(userId) ?? 0,
+        is_following: userId !== viewerId && viewerFollowing.has(userId),
+        follows_you: userId !== viewerId && followsViewer.has(userId),
+        shared_trip_count: sharedTripCounts.get(userId) ?? 0,
+      });
+    });
   }
 
   private async countFollowers(userId: number): Promise<number> {
@@ -417,34 +481,68 @@ export class FriendsService {
       .all<ShareTripRow>(userId);
 
     const visibleRows = rows.filter((row) => !isExpired(row.expires_at));
-    return Promise.all(
-      visibleRows.map(async (row) => {
-        const [days, places, countries] = await Promise.all([
-          asyncDb.prepare('SELECT COUNT(*) as count FROM days WHERE trip_id = ?').get<{ count: number }>(row.id),
-          asyncDb.prepare('SELECT COUNT(*) as count FROM places WHERE trip_id = ?').get<{ count: number }>(row.id),
-          this.countryCountForTrip(row.id),
-        ]);
-        return {
-          id: Number(row.id),
-          title: row.title,
-          description: row.description,
-          start_date: row.start_date,
-          end_date: row.end_date,
-          cover_image: row.cover_image,
-          token: row.token,
-          day_count: Number(days?.count ?? dayCount(row.start_date, row.end_date, 0)),
-          place_count: Number(places?.count ?? 0),
-          country_count: countries,
-          permissions: {
-            share_map: !!row.share_map,
-            share_bookings: !!row.share_bookings,
-            share_packing: !!row.share_packing,
-            share_budget: !!row.share_budget,
-            share_collab: !!row.share_collab,
-          },
-        };
-      }),
-    );
+    if (visibleRows.length === 0) return [];
+
+    const tripIds = visibleRows.map((row) => Number(row.id));
+    const placeholders = tripIds.map(() => '?').join(',');
+    const [dayRows, placeRows] = await Promise.all([
+      asyncDb
+        .prepare(
+          `
+          SELECT trip_id, COUNT(*) AS count
+          FROM days
+          WHERE trip_id IN (${placeholders})
+          GROUP BY trip_id
+        `,
+        )
+        .all<{ trip_id: number; count: number }>(...tripIds),
+      asyncDb
+        .prepare(
+          `
+          SELECT p.id, p.trip_id, p.address, t.start_date, t.end_date, pr.country_code
+          FROM places p
+          JOIN trips t ON t.id = p.trip_id
+          LEFT JOIN place_regions pr ON pr.place_id = p.id
+          WHERE p.trip_id IN (${placeholders})
+        `,
+        )
+        .all<PlaceStatsRow>(...tripIds),
+    ]);
+
+    const dayCounts = new Map(dayRows.map((row) => [Number(row.trip_id), Number(row.count ?? 0)]));
+    const placeCounts = new Map<number, number>();
+    const countrySets = new Map<number, Set<string>>();
+    for (const place of placeRows) {
+      const tripId = Number(place.trip_id);
+      placeCounts.set(tripId, (placeCounts.get(tripId) ?? 0) + 1);
+      const country = countryForPlace(place);
+      if (!country) continue;
+      if (!countrySets.has(tripId)) countrySets.set(tripId, new Set());
+      countrySets.get(tripId)!.add(country);
+    }
+
+    return visibleRows.map((row) => {
+      const tripId = Number(row.id);
+      return {
+        id: tripId,
+        title: row.title,
+        description: row.description,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        cover_image: row.cover_image,
+        token: row.token,
+        day_count: dayCounts.get(tripId) ?? dayCount(row.start_date, row.end_date, 0),
+        place_count: placeCounts.get(tripId) ?? 0,
+        country_count: countrySets.get(tripId)?.size ?? 0,
+        permissions: {
+          share_map: !!row.share_map,
+          share_bookings: !!row.share_bookings,
+          share_packing: !!row.share_packing,
+          share_budget: !!row.share_budget,
+          share_collab: !!row.share_collab,
+        },
+      };
+    });
   }
 
   private async countryCountForTrip(tripId: number): Promise<number> {

@@ -151,19 +151,28 @@ describe('reservationsSlice', () => {
   });
 
   describe('deleteReservation', () => {
-    it('FE-RESERV-009: deleteReservation removes from reservations after API success', async () => {
+    it('FE-RESERV-009: deleteReservation optimistically removes from reservations', async () => {
       const r1 = buildReservation({ id: 10, trip_id: 1 });
       const r2 = buildReservation({ id: 20, trip_id: 1 });
       seedStore(useTripStore, { reservations: [r1, r2] });
 
-      await useTripStore.getState().deleteReservation(1, 10);
+      server.use(
+        http.delete('/api/trips/1/reservations/10', async () => {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          return HttpResponse.json({ success: true });
+        }),
+      );
 
+      const promise = useTripStore.getState().deleteReservation(1, 10);
+
+      expect(useTripStore.getState().reservations.map((r) => r.id)).toEqual([20]);
+      await promise;
       const reservations = useTripStore.getState().reservations;
       expect(reservations).toHaveLength(1);
       expect(reservations[0].id).toBe(20);
     });
 
-    it('FE-RESERV-010: deleteReservation on failure throws (no optimistic, server-first)', async () => {
+    it('FE-RESERV-010: deleteReservation rolls back on failure', async () => {
       const reservation = buildReservation({ id: 10, trip_id: 1 });
       seedStore(useTripStore, { reservations: [reservation] });
 
@@ -173,10 +182,11 @@ describe('reservationsSlice', () => {
         ),
       );
 
-      await expect(useTripStore.getState().deleteReservation(1, 10)).rejects.toThrow();
+      const promise = useTripStore.getState().deleteReservation(1, 10);
+      expect(useTripStore.getState().reservations).toEqual([]);
+      await expect(promise).rejects.toThrow();
 
-      // Still in state since server-first (only removes after success)
-      expect(useTripStore.getState().reservations).toHaveLength(1);
+      expect(useTripStore.getState().reservations).toEqual([reservation]);
     });
   });
 });

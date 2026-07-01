@@ -110,7 +110,7 @@ export function useAtlas() {
   };
 
   const [data, setData] = useState<AtlasData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -121,6 +121,7 @@ export function useAtlas() {
   >({});
   const regionLayerRef = useRef<L.GeoJSON | null>(null);
   const regionGeoCache = useRef<Record<string, GeoJsonFeatureCollection>>({});
+  const regionGeoInFlight = useRef<Set<string>>(new Set());
   const [showRegions, setShowRegions] = useState(false);
   const [regionGeoLoaded, setRegionGeoLoaded] = useState(0);
   const regionTooltipRef = useRef<HTMLDivElement>(null);
@@ -204,22 +205,53 @@ export function useAtlas() {
     let cancelled = false;
     const cachedStats = readAtlasCache<AtlasData>(atlasCacheScope, 'stats', ATLAS_USER_CACHE_TTL_MS);
     const cachedBucketList = readAtlasCache<BucketItem[]>(atlasCacheScope, 'bucket-list', ATLAS_USER_CACHE_TTL_MS);
+    const cachedRegions = readAtlasCache<
+      Record<string, { code: string; name: string; placeCount: number; manuallyMarked?: boolean }[]>
+    >(atlasCacheScope, 'regions', ATLAS_USER_CACHE_TTL_MS);
     if (cachedStats) setData(cachedStats);
     if (cachedBucketList) setBucketList(cachedBucketList);
-    if (cachedStats && cachedBucketList) setLoading(false);
+    if (cachedRegions) setVisitedRegions(cachedRegions);
+    setLoading(false);
 
-    Promise.all([apiClient.get('/addons/atlas/stats'), apiClient.get('/addons/atlas/bucket-list')])
-      .then(([statsRes, bucketRes]) => {
+    apiClient
+      .get('/addons/atlas/bootstrap')
+      .then((res) => {
         if (cancelled) return;
-        setData(statsRes.data);
-        const items = bucketRes.data.items || [];
+        const statsData = res.data?.stats;
+        const items = res.data?.bucketList || res.data?.items || [];
+        const regions = res.data?.regions || res.data?.visitedRegions?.regions || {};
+        if (statsData) {
+          setData(statsData);
+          writeAtlasCache(atlasCacheScope, 'stats', statsData);
+        }
         setBucketList(items);
-        writeAtlasCache(atlasCacheScope, 'stats', statsRes.data);
         writeAtlasCache(atlasCacheScope, 'bucket-list', items);
+        setVisitedRegions(regions);
+        writeAtlasCache(atlasCacheScope, 'regions', regions);
         setLoading(false);
       })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
+      .catch(async () => {
+        const [statsRes, bucketRes, regionsRes] = await Promise.allSettled([
+          apiClient.get('/addons/atlas/stats'),
+          apiClient.get('/addons/atlas/bucket-list'),
+          apiClient.get('/addons/atlas/regions'),
+        ]);
+        if (cancelled) return;
+        if (statsRes.status === 'fulfilled') {
+          setData(statsRes.value.data);
+          writeAtlasCache(atlasCacheScope, 'stats', statsRes.value.data);
+        }
+        if (bucketRes.status === 'fulfilled') {
+          const items = bucketRes.value.data.items || [];
+          setBucketList(items);
+          writeAtlasCache(atlasCacheScope, 'bucket-list', items);
+        }
+        if (regionsRes.status === 'fulfilled') {
+          const regions = regionsRes.value.data?.regions || {};
+          setVisitedRegions(regions);
+          writeAtlasCache(atlasCacheScope, 'regions', regions);
+        }
+        setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -250,28 +282,6 @@ export function useAtlas() {
     };
   }, [applyCountryGeo]);
 
-  // Load visited regions (geocoded from places/trips) — once on mount
-  useEffect(() => {
-    let cancelled = false;
-    const cachedRegions = readAtlasCache<
-      Record<string, { code: string; name: string; placeCount: number; manuallyMarked?: boolean }[]>
-    >(atlasCacheScope, 'regions', ATLAS_USER_CACHE_TTL_MS);
-    if (cachedRegions) setVisitedRegions(cachedRegions);
-
-    apiClient
-      .get('/addons/atlas/regions')
-      .then((r) => {
-        if (cancelled) return;
-        const regions = r.data?.regions || {};
-        setVisitedRegions(regions);
-        writeAtlasCache(atlasCacheScope, 'regions', regions);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [atlasCacheScope]);
-
   // Load admin-1 GeoJSON for countries visible in the current viewport
   const loadRegionsForViewportRef = useRef<() => void>(() => {});
   const loadRegionsForViewport = (): void => {
@@ -280,11 +290,13 @@ export function useAtlas() {
     const toLoad: string[] = [];
     for (const [code, layer] of Object.entries(country_layer_by_a2_ref.current)) {
       if (regionGeoCache.current[code]) continue;
+      if (regionGeoInFlight.current.has(code)) continue;
       try {
         if (bounds.intersects((layer as any).getBounds())) toLoad.push(code);
       } catch {}
     }
     if (!toLoad.length) return;
+    for (const code of toLoad) regionGeoInFlight.current.add(code);
     apiClient
       .get(`/addons/atlas/regions/geo?countries=${toLoad.join(',')}`)
       .then((geoRes) => {
@@ -300,13 +312,16 @@ export function useAtlas() {
         }
         if (added) setRegionGeoLoaded((v) => v + 1);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        for (const code of toLoad) regionGeoInFlight.current.delete(code);
+      });
   };
   loadRegionsForViewportRef.current = loadRegionsForViewport;
 
-  // Initialize map — runs after loading is done and mapRef is available
+  // Initialize the map as soon as the DOM node exists; user atlas data fills in later.
   useEffect(() => {
-    if (loading || !mapRef.current) return;
+    if (!mapRef.current) return;
     if (mapInstance.current) {
       mapInstance.current.remove();
       mapInstance.current = null;
@@ -395,17 +410,19 @@ export function useAtlas() {
       map.remove();
       mapInstance.current = null;
     };
-  }, [dark, loading]);
+  }, [dark]);
 
   // Render GeoJSON countries
   useEffect(() => {
-    if (!mapInstance.current || !geoData || !data) return;
+    if (!mapInstance.current || !geoData) return;
 
-    const visitedA3 = new Set(data.countries.map((c) => A2_TO_A3[c.code]).filter(Boolean));
+    const atlasCountries = data?.countries || [];
+    const visitedA3 = new Set(atlasCountries.map((c) => A2_TO_A3[c.code]).filter(Boolean));
     const countryMap = {};
-    data.countries.forEach((c) => {
+    atlasCountries.forEach((c) => {
       if (A2_TO_A3[c.code]) countryMap[A2_TO_A3[c.code]] = c;
     });
+    country_layer_by_a2_ref.current = {};
 
     // Preserve current map view
     const currentCenter = mapInstance.current.getCenter();

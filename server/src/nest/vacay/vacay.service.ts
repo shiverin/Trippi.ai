@@ -14,6 +14,10 @@ export class VacayService {
     return svc.getPlanData(userId);
   }
 
+  getBootstrapData(userId: number, year: number) {
+    return svc.getBootstrapData(userId, year);
+  }
+
   getActivePlanId(userId: number) {
     return svc.getActivePlanId(userId);
   }

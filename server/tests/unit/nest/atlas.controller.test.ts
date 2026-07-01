@@ -33,6 +33,16 @@ describe('AtlasController (parity with the legacy /api/addons/atlas route)', () 
     expect(stats).toHaveBeenCalledWith(8);
   });
 
+  it('GET /bootstrap delegates with the user id', async () => {
+    const bootstrap = vi.fn().mockResolvedValue({ stats: { countries: [] }, bucketList: [], regions: {} });
+    expect(await makeController({ bootstrap }).bootstrap(user)).toEqual({
+      stats: { countries: [] },
+      bucketList: [],
+      regions: {},
+    });
+    expect(bootstrap).toHaveBeenCalledWith(8);
+  });
+
   describe('GET /regions/geo', () => {
     it('returns an empty FeatureCollection without a cache header when no countries given', async () => {
       const regionGeo = vi.fn();

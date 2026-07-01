@@ -61,47 +61,53 @@ export const createPlacesSlice = (set: SetState, get: GetState): PlacesSlice => 
   },
 
   deletePlace: async (tripId, placeId) => {
+    const prevPlaces = get().places
+    const prevAssignments = get().assignments
+    set(state => {
+      const updatedAssignments = { ...state.assignments }
+      let changed = false
+      for (const [dayId, items] of Object.entries(state.assignments)) {
+        if (items.some((a: Assignment) => a.place?.id === placeId)) {
+          updatedAssignments[dayId] = items.filter((a: Assignment) => a.place?.id !== placeId)
+          changed = true
+        }
+      }
+      return {
+        places: state.places.filter(p => p.id !== placeId),
+        ...(changed ? { assignments: updatedAssignments } : {}),
+      }
+    })
     try {
       await placeRepo.delete(tripId, placeId)
-      set(state => {
-        const updatedAssignments = { ...state.assignments }
-        let changed = false
-        for (const [dayId, items] of Object.entries(state.assignments)) {
-          if (items.some((a: Assignment) => a.place?.id === placeId)) {
-            updatedAssignments[dayId] = items.filter((a: Assignment) => a.place?.id !== placeId)
-            changed = true
-          }
-        }
-        return {
-          places: state.places.filter(p => p.id !== placeId),
-          ...(changed ? { assignments: updatedAssignments } : {}),
-        }
-      })
     } catch (err: unknown) {
+      set({ places: prevPlaces, assignments: prevAssignments })
       throw new Error(getApiErrorMessage(err, 'Error deleting place'))
     }
   },
 
   deletePlacesMany: async (tripId, placeIds) => {
     if (placeIds.length === 0) return
+    const prevPlaces = get().places
+    const prevAssignments = get().assignments
+    const idSet = new Set(placeIds)
+    set(state => {
+      const updatedAssignments = { ...state.assignments }
+      let changed = false
+      for (const [dayId, items] of Object.entries(state.assignments)) {
+        if (items.some((a: Assignment) => a.place?.id != null && idSet.has(a.place.id))) {
+          updatedAssignments[dayId] = items.filter((a: Assignment) => !idSet.has(a.place?.id!))
+          changed = true
+        }
+      }
+      return {
+        places: state.places.filter(p => !idSet.has(p.id)),
+        ...(changed ? { assignments: updatedAssignments } : {}),
+      }
+    })
     try {
       await placeRepo.deleteMany(tripId, placeIds)
-      const idSet = new Set(placeIds)
-      set(state => {
-        const updatedAssignments = { ...state.assignments }
-        let changed = false
-        for (const [dayId, items] of Object.entries(state.assignments)) {
-          if (items.some((a: Assignment) => a.place?.id != null && idSet.has(a.place.id))) {
-            updatedAssignments[dayId] = items.filter((a: Assignment) => !idSet.has(a.place?.id!))
-            changed = true
-          }
-        }
-        return {
-          places: state.places.filter(p => !idSet.has(p.id)),
-          ...(changed ? { assignments: updatedAssignments } : {}),
-        }
-      })
     } catch (err: unknown) {
+      set({ places: prevPlaces, assignments: prevAssignments })
       throw new Error(getApiErrorMessage(err, 'Error deleting places'))
     }
   },

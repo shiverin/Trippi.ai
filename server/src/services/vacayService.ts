@@ -82,6 +82,12 @@ const COLORS = [
   '#0d9488',
 ];
 
+function yearDateRange(year: number | string): [string, string] {
+  const normalized = Number(year);
+  const safeYear = Number.isInteger(normalized) && normalized > 0 ? normalized : new Date().getFullYear();
+  return [`${safeYear}-01-01`, `${safeYear}-12-31`];
+}
+
 // ---------------------------------------------------------------------------
 // Plan management
 // ---------------------------------------------------------------------------
@@ -822,6 +828,7 @@ export async function deleteYear(planId: number, year: number, socketId: string 
 // ---------------------------------------------------------------------------
 
 export async function getEntries(planId: number, year: string) {
+  const [start, end] = yearDateRange(year);
   const entries = await asyncDb
     .prepare(
       `
@@ -829,13 +836,13 @@ export async function getEntries(planId: number, year: string) {
     FROM vacay_entries e
     JOIN users u ON e.user_id = u.id
     LEFT JOIN vacay_user_colors c ON c.user_id = e.user_id AND c.plan_id = e.plan_id
-    WHERE e.plan_id = ? AND e.date LIKE ?
+    WHERE e.plan_id = ? AND e.date BETWEEN ? AND ?
   `,
     )
-    .all(planId, `${year}-%`);
+    .all(planId, start, end);
   const companyHolidays = await asyncDb
-    .prepare('SELECT * FROM vacay_company_holidays WHERE plan_id = ? AND date LIKE ?')
-    .all(planId, `${year}-%`);
+    .prepare('SELECT * FROM vacay_company_holidays WHERE plan_id = ? AND date BETWEEN ? AND ?')
+    .all(planId, start, end);
   return { entries, companyHolidays };
 }
 
@@ -889,48 +896,62 @@ export async function toggleCompanyHoliday(
 // ---------------------------------------------------------------------------
 
 export async function getStats(planId: number, year: number) {
-  const plan = await asyncDb.prepare('SELECT * FROM vacay_plans WHERE id = ?').get<VacayPlan>(planId);
+  const [start, end] = yearDateRange(year);
+  const [plan, users] = await Promise.all([
+    asyncDb.prepare('SELECT * FROM vacay_plans WHERE id = ?').get<VacayPlan>(planId),
+    getPlanUsers(planId),
+  ]);
   const carryOverEnabled = plan ? !!plan.carry_over_enabled : true;
-  const users = await getPlanUsers(planId);
+  if (users.length === 0) return [];
 
+  const userIds = users.map((u) => Number(u.id));
+  const placeholders = userIds.map(() => '?').join(',');
+  const [usedRows, configRows, colorRows, nextYearExists] = await Promise.all([
+    asyncDb
+      .prepare(
+        `
+        SELECT user_id, COUNT(*) as count
+        FROM vacay_entries
+        WHERE plan_id = ? AND date BETWEEN ? AND ? AND user_id IN (${placeholders})
+        GROUP BY user_id
+      `,
+      )
+      .all<{ user_id: number; count: number }>(planId, start, end, ...userIds),
+    asyncDb
+      .prepare(`SELECT * FROM vacay_user_years WHERE plan_id = ? AND year = ? AND user_id IN (${placeholders})`)
+      .all<VacayUserYear>(planId, year, ...userIds),
+    asyncDb
+      .prepare(`SELECT user_id, color FROM vacay_user_colors WHERE plan_id = ? AND user_id IN (${placeholders})`)
+      .all<{ user_id: number; color: string }>(planId, ...userIds),
+    asyncDb.prepare('SELECT id FROM vacay_years WHERE plan_id = ? AND year = ?').get(planId, year + 1),
+  ]);
+  const usedByUser = new Map(usedRows.map((row) => [Number(row.user_id), Number(row.count ?? 0)]));
+  const configByUser = new Map(configRows.map((row) => [Number(row.user_id), row]));
+  const colorByUser = new Map(colorRows.map((row) => [Number(row.user_id), row.color]));
+  const upsertCarry = asyncDb.prepare(
+    `
+    INSERT INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, ?)
+    ON CONFLICT(user_id, plan_id, year) DO UPDATE SET carried_over = ?
+  `,
+  );
   const stats = [];
   for (const u of users) {
-    const used =
-      (
-        await asyncDb
-          .prepare('SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
-          .get<{ count: number }>(u.id, planId, `${year}-%`)
-      )?.count ?? 0;
-    const config = await asyncDb
-      .prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?')
-      .get<VacayUserYear>(u.id, planId, year);
+    const used = usedByUser.get(Number(u.id)) ?? 0;
+    const config = configByUser.get(Number(u.id));
     const vacationDays = config ? config.vacation_days : 30;
     const carriedOver = carryOverEnabled ? (config ? config.carried_over : 0) : 0;
     const total = vacationDays + carriedOver;
     const remaining = total - used;
-    const colorRow = await asyncDb
-      .prepare('SELECT color FROM vacay_user_colors WHERE user_id = ? AND plan_id = ?')
-      .get<{ color: string }>(u.id, planId);
 
-    const nextYearExists = await asyncDb
-      .prepare('SELECT id FROM vacay_years WHERE plan_id = ? AND year = ?')
-      .get(planId, year + 1);
     if (nextYearExists && carryOverEnabled) {
       const carry = Math.max(0, remaining);
-      await asyncDb
-        .prepare(
-          `
-        INSERT INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, ?)
-        ON CONFLICT(user_id, plan_id, year) DO UPDATE SET carried_over = ?
-      `,
-        )
-        .run(u.id, planId, year + 1, carry, carry);
+      await upsertCarry.run(u.id, planId, year + 1, carry, carry);
     }
 
     stats.push({
       user_id: u.id,
       person_name: u.username,
-      person_color: colorRow?.color || '#6366f1',
+      person_color: colorByUser.get(Number(u.id)) || '#6366f1',
       year,
       vacation_days: vacationDays,
       carried_over: carriedOver,
@@ -966,39 +987,46 @@ export async function getPlanData(userId: number) {
   const plan = await getActivePlan(userId);
   const activePlanId = plan.id;
 
-  const users = [];
-  for (const u of await getPlanUsers(activePlanId)) {
-    const colorRow = await asyncDb
-      .prepare('SELECT color FROM vacay_user_colors WHERE user_id = ? AND plan_id = ?')
-      .get<{ color: string }>(u.id, activePlanId);
-    users.push({ ...u, color: colorRow?.color || '#6366f1' });
-  }
-
-  const pendingInvites = await asyncDb
-    .prepare(
-      `
+  const [planUsers, pendingInvites, incomingInvites, holidayCalendars] = await Promise.all([
+    getPlanUsers(activePlanId),
+    asyncDb
+      .prepare(
+        `
     SELECT m.id, m.user_id, u.username, u.email, m.created_at
     FROM vacay_plan_members m JOIN users u ON m.user_id = u.id
     WHERE m.plan_id = ? AND m.status = 'pending'
   `,
-    )
-    .all(activePlanId);
-
-  const incomingInvites = await asyncDb
-    .prepare(
-      `
+      )
+      .all(activePlanId),
+    asyncDb
+      .prepare(
+        `
     SELECT m.id, m.plan_id, u.username, u.email, m.created_at
     FROM vacay_plan_members m
     JOIN vacay_plans p ON m.plan_id = p.id
     JOIN users u ON p.owner_id = u.id
     WHERE m.user_id = ? AND m.status = 'pending'
   `,
-    )
-    .all(userId);
+      )
+      .all(userId),
+    asyncDb
+      .prepare('SELECT * FROM vacay_holiday_calendars WHERE plan_id = ? ORDER BY sort_order, id')
+      .all<VacayHolidayCalendar>(activePlanId),
+  ]);
 
-  const holidayCalendars = await asyncDb
-    .prepare('SELECT * FROM vacay_holiday_calendars WHERE plan_id = ? ORDER BY sort_order, id')
-    .all<VacayHolidayCalendar>(activePlanId);
+  const userIds = planUsers.map((u) => Number(u.id));
+  const colorRows =
+    userIds.length > 0
+      ? await asyncDb
+          .prepare(
+            `SELECT user_id, color FROM vacay_user_colors WHERE plan_id = ? AND user_id IN (${userIds
+              .map(() => '?')
+              .join(',')})`,
+          )
+          .all<{ user_id: number; color: string }>(activePlanId, ...userIds)
+      : [];
+  const colorByUser = new Map(colorRows.map((row) => [Number(row.user_id), row.color]));
+  const users = planUsers.map((u) => ({ ...u, color: colorByUser.get(Number(u.id)) || '#6366f1' }));
 
   return {
     plan: {
@@ -1014,6 +1042,24 @@ export async function getPlanData(userId: number) {
     incomingInvites,
     isOwner: plan.owner_id === userId,
     isFused: users.length > 1,
+  };
+}
+
+export async function getBootstrapData(userId: number, year: number) {
+  const planData = await getPlanData(userId);
+  const planId = Number(planData.plan.id);
+  const [years, entriesData, stats] = await Promise.all([
+    listYears(planId),
+    getEntries(planId, String(year)),
+    getStats(planId, year),
+  ]);
+  return {
+    ...planData,
+    years,
+    entries: entriesData.entries,
+    companyHolidays: entriesData.companyHolidays,
+    holidays: [],
+    stats,
   };
 }
 

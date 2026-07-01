@@ -46,6 +46,10 @@ interface VacayStatsResponse {
   stats: VacayStat[];
 }
 
+interface VacayBootstrapResponse extends VacayPlanResponse, VacayYearsResponse, VacayEntriesResponse, VacayStatsResponse {
+  holidays?: unknown[];
+}
+
 interface VacayHolidayRaw {
   date: string;
   name: string;
@@ -55,6 +59,7 @@ interface VacayHolidayRaw {
 }
 
 interface VacayApi {
+  bootstrap: (year: number) => Promise<VacayBootstrapResponse>;
   getPlan: () => Promise<VacayPlanResponse>;
   updatePlan: (data: Partial<VacayPlan>) => Promise<{ plan: VacayPlan }>;
   updateColor: (color: string, targetUserId?: number) => Promise<unknown>;
@@ -87,6 +92,7 @@ interface VacayApi {
 }
 
 const api: VacayApi = {
+  bootstrap: (year) => ax.get(`/addons/vacay/bootstrap/${year}`).then((r: AxiosResponse) => r.data),
   getPlan: () => ax.get('/addons/vacay/plan').then((r: AxiosResponse) => r.data),
   updatePlan: (data) => ax.put('/addons/vacay/plan', data).then((r: AxiosResponse) => r.data),
   updateColor: (color, targetUserId) =>
@@ -370,24 +376,46 @@ export const useVacayStore = create<VacayState>((set, get) => ({
   loadAll: async () => {
     set({ loading: true });
     try {
-      const [planData, yearsData] = await Promise.all([api.getPlan(), api.getYears()]);
-      const selectedYear =
-        yearsData.years.length > 0 ? yearsData.years[yearsData.years.length - 1] : get().selectedYear;
-      set({
-        plan: planData.plan,
-        users: planData.users,
-        pendingInvites: planData.pendingInvites,
-        incomingInvites: planData.incomingInvites,
-        isOwner: planData.isOwner,
-        isFused: planData.isFused,
-        years: yearsData.years,
-        selectedYear,
-      });
-      await Promise.all([
-        get().loadEntries(selectedYear),
-        get().loadStats(selectedYear),
-        get().loadHolidays(selectedYear),
-      ]);
+      const preferredYear = get().selectedYear || new Date().getFullYear();
+      try {
+        const bootstrapData = await api.bootstrap(preferredYear);
+        const selectedYear =
+          bootstrapData.years.length > 0 ? bootstrapData.years[bootstrapData.years.length - 1] : preferredYear;
+        const data = selectedYear === preferredYear ? bootstrapData : await api.bootstrap(selectedYear);
+        set({
+          plan: data.plan,
+          users: data.users,
+          pendingInvites: data.pendingInvites,
+          incomingInvites: data.incomingInvites,
+          isOwner: data.isOwner,
+          isFused: data.isFused,
+          years: data.years,
+          selectedYear,
+          entries: data.entries,
+          companyHolidays: data.companyHolidays,
+          stats: data.stats,
+        });
+        void get().loadHolidays(selectedYear).catch(() => {});
+      } catch {
+        const [planData, yearsData] = await Promise.all([api.getPlan(), api.getYears()]);
+        const selectedYear =
+          yearsData.years.length > 0 ? yearsData.years[yearsData.years.length - 1] : preferredYear;
+        set({
+          plan: planData.plan,
+          users: planData.users,
+          pendingInvites: planData.pendingInvites,
+          incomingInvites: planData.incomingInvites,
+          isOwner: planData.isOwner,
+          isFused: planData.isFused,
+          years: yearsData.years,
+          selectedYear,
+        });
+        await Promise.all([
+          get().loadEntries(selectedYear),
+          get().loadStats(selectedYear),
+          get().loadHolidays(selectedYear),
+        ]);
+      }
     } finally {
       set({ loading: false });
     }

@@ -188,6 +188,7 @@ const emptyAtlasResponse = {
 // ── Default MSW handlers for atlas endpoints ──────────────────────────────────
 function useDefaultAtlasHandlers() {
   server.use(
+    http.get('/api/addons/atlas/bootstrap', () => HttpResponse.error()),
     http.get('/api/addons/atlas/stats', () => HttpResponse.json(atlasStatsResponse)),
     http.get('/api/addons/atlas/bucket-list', () => HttpResponse.json({ items: [] })),
     http.get('/api/addons/atlas/regions', () => HttpResponse.json({ regions: {} })),
@@ -214,8 +215,8 @@ afterEach(() => {
 });
 
 describe('AtlasPage', () => {
-  describe('FE-PAGE-ATLAS-001: loading spinner shown on initial render', () => {
-    it('displays a spinner while atlas data is being fetched', async () => {
+  describe('FE-PAGE-ATLAS-001: eager shell shown on initial render', () => {
+    it('renders the atlas shell immediately while atlas data is being fetched', async () => {
       server.use(
         http.get('/api/addons/atlas/stats', async () => {
           await new Promise((r) => setTimeout(r, 200));
@@ -224,7 +225,8 @@ describe('AtlasPage', () => {
       );
 
       render(<AtlasPage />);
-      expect(document.querySelector('.animate-spin')).toBeInTheDocument();
+      expect(document.querySelector('.animate-spin')).not.toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/search a country/i)).toBeInTheDocument();
     });
   });
 
@@ -551,8 +553,8 @@ describe('AtlasPage', () => {
 
       render(<AtlasPage />);
 
-      // Loading spinner shows in dark mode too
-      expect(document.querySelector('.animate-spin')).toBeInTheDocument();
+      expect(document.querySelector('.animate-spin')).not.toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/search a country/i)).toBeInTheDocument();
 
       // Eventually loads
       await waitFor(() => {
@@ -1393,18 +1395,13 @@ describe('AtlasPage', () => {
   });
 
   describe('FE-PAGE-ATLAS-043: API error in Promise.all covers catch branch', () => {
-    it('when stats API fails, loading is set to false via catch handler', async () => {
+    it('when stats API fails, the eager shell stays visible', async () => {
       server.use(http.get('/api/addons/atlas/stats', () => HttpResponse.error()));
 
       render(<AtlasPage />);
 
-      // Spinner shows briefly while data loads
-      expect(document.querySelector('.animate-spin')).toBeInTheDocument();
-
-      // After error, setLoading(false) runs in catch → loading spinner disappears
-      await waitFor(() => {
-        expect(document.querySelector('.animate-spin')).not.toBeInTheDocument();
-      });
+      expect(document.querySelector('.animate-spin')).not.toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/search a country/i)).toBeInTheDocument();
     });
   });
 

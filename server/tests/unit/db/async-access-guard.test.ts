@@ -37,6 +37,7 @@ describe('async DB access guardrails', () => {
       'mcp/tools/budget.ts',
       'mcp/tools/decisions.ts',
       'mcp/tools/days.ts',
+      'mcp/tools/journey.ts',
       'mcp/tools/notifications.ts',
       'mcp/tools/packing.ts',
       'mcp/tools/places.ts',
@@ -54,6 +55,8 @@ describe('async DB access guardrails', () => {
       'nest/billing/stripe-client.ts',
       'nest/admin/admin.controller.ts',
       'nest/admin/admin.service.ts',
+      'nest/atlas/atlas.controller.ts',
+      'nest/atlas/atlas.service.ts',
       'nest/billing/stripe-webhook.controller.ts',
       'nest/billing/stripe-webhook.service.ts',
       'nest/notifications/notifications.controller.ts',
@@ -61,6 +64,8 @@ describe('async DB access guardrails', () => {
       'nest/oauth/oauth-api.controller.ts',
       'nest/oauth/oauth-public.controller.ts',
       'nest/oauth/oauth.service.ts',
+      'nest/places/places.controller.ts',
+      'nest/places/places.service.ts',
       'nest/settings/settings.controller.ts',
       'nest/settings/settings.service.ts',
       'nest/system-notices/system-notices.controller.ts',
@@ -80,12 +85,22 @@ describe('async DB access guardrails', () => {
       'nest/decisions/decisions.controller.ts',
       'nest/decisions/decisions.service.ts',
       'nest/health/health.service.ts',
+      'nest/journey/journey-addon.guard.ts',
+      'nest/journey/journey.controller.ts',
+      'nest/journey/journey-public.controller.ts',
+      'nest/journey/journey.service.ts',
       'nest/maps/maps.service.ts',
       'nest/platform/platform.routes.ts',
       'nest/tags/tags.controller.ts',
       'nest/tags/tags.service.ts',
       'nest/trips/trips.controller.ts',
       'nest/trips/trips.service.ts',
+      'nest/vacay/vacay.controller.ts',
+      'nest/vacay/vacay.service.ts',
+      'services/performanceIndexes.ts',
+      'services/allowedFileTypes.ts',
+      'services/journeyService.ts',
+      'services/journeyShareService.ts',
     ];
     const bookingCheckoutHandoffEntryPoints = [
       'nest/booking-intents/booking-intents.controller.ts',
@@ -98,6 +113,23 @@ describe('async DB access guardrails', () => {
     const offenders = convertedEntryPoints.filter((file) => {
       const source = readFileSync(src(file), 'utf8');
       return /from ['"][^'"]*db\/database['"]/.test(source);
+    });
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps Journey request paths from importing sync-backed helper services', () => {
+    const journeyEntryPoints = [
+      'nest/journey/journey.controller.ts',
+      'nest/journey/journey-public.controller.ts',
+      'nest/journey/journey.service.ts',
+      'services/journeyService.ts',
+      'services/journeyShareService.ts',
+      'mcp/tools/journey.ts',
+    ];
+    const offenders = journeyEntryPoints.filter((file) => {
+      const source = readFileSync(src(file), 'utf8');
+      return /from ['"][^'"]*services\/fileService['"]/.test(source);
     });
 
     expect(offenders).toEqual([]);

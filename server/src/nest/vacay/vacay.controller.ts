@@ -1,4 +1,5 @@
 import type { User } from '../../types';
+import { createPerfTrace } from '../../services/perfTrace';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VacayService } from './vacay.service';
@@ -33,6 +34,18 @@ export class VacayController {
   @Get('plan')
   async getPlan(@CurrentUser() user: User) {
     return this.vacay.getPlanData(user.id);
+  }
+
+  @Get('bootstrap/:year')
+  async bootstrap(@CurrentUser() user: User, @Param('year') yearParam: string) {
+    const year = parseInt(yearParam);
+    const safeYear = Number.isInteger(year) ? year : new Date().getFullYear();
+    const trace = createPerfTrace('vacay.bootstrap', { userId: user.id, year: safeYear });
+    try {
+      return await trace.measure('loadBootstrap', () => this.vacay.getBootstrapData(user.id, safeYear));
+    } finally {
+      trace.finish();
+    }
   }
 
   @Put('plan')

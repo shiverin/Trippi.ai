@@ -594,6 +594,17 @@ export async function updatePlaceAsync(
 // Delete place
 // ---------------------------------------------------------------------------
 
+const BULK_DELETE_CHUNK_SIZE = 500;
+
+function normalizedPlaceIdChunks(ids: number[]): number[][] {
+  const uniqueIds = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
+  const chunks: number[][] = [];
+  for (let i = 0; i < uniqueIds.length; i += BULK_DELETE_CHUNK_SIZE) {
+    chunks.push(uniqueIds.slice(i, i + BULK_DELETE_CHUNK_SIZE));
+  }
+  return chunks;
+}
+
 export function deletePlace(tripId: string, placeId: string): boolean {
   const place = db
     .prepare('SELECT google_place_id, image_url FROM places WHERE id = ? AND trip_id = ?')
@@ -615,22 +626,33 @@ export async function deletePlaceAsync(tripId: string, placeId: string): Promise
 
 export function deletePlacesMany(tripId: string, ids: number[]): number[] {
   if (ids.length === 0) return [];
-  const selectStmt = db.prepare('SELECT google_place_id, image_url FROM places WHERE id = ? AND trip_id = ?');
-  const deleteStmt = db.prepare('DELETE FROM places WHERE id = ?');
+  const chunks = normalizedPlaceIdChunks(ids);
+  if (chunks.length === 0) return [];
   const deleted: number[] = [];
   const reclaimable: { google_place_id: string | null; image_url: string | null }[] = [];
-  const run = db.transaction((list: number[]) => {
-    for (const id of list) {
-      const row = selectStmt.get(id, tripId) as
-        | { google_place_id: string | null; image_url: string | null }
-        | undefined;
-      if (!row) continue;
-      deleteStmt.run(id);
-      deleted.push(id);
-      reclaimable.push(row);
+  const run = db.transaction((chunkList: number[][]) => {
+    for (const chunk of chunkList) {
+      const placeholders = chunk.map(() => '?').join(',');
+      const rows = db
+        .prepare(
+          `
+          SELECT id, google_place_id, image_url
+          FROM places
+          WHERE trip_id = ? AND id IN (${placeholders})
+        `,
+        )
+        .all(tripId, ...chunk) as { id: number; google_place_id: string | null; image_url: string | null }[];
+      if (rows.length === 0) continue;
+      const existingIds = rows.map((row) => Number(row.id));
+      db.prepare(`DELETE FROM places WHERE trip_id = ? AND id IN (${existingIds.map(() => '?').join(',')})`).run(
+        tripId,
+        ...existingIds,
+      );
+      deleted.push(...existingIds);
+      reclaimable.push(...rows.map(({ google_place_id, image_url }) => ({ google_place_id, image_url })));
     }
   });
-  run(ids);
+  run(chunks);
   // Reclaim after the transaction commits so isReferenced() sees the final place set.
   for (const row of reclaimable) reclaimPhotoCache(row.google_place_id, row.image_url);
   return deleted;
@@ -638,17 +660,23 @@ export function deletePlacesMany(tripId: string, ids: number[]): number[] {
 
 export async function deletePlacesManyAsync(tripId: string, ids: number[]): Promise<number[]> {
   if (ids.length === 0) return [];
-  const selectStmt = asyncDb.prepare('SELECT id FROM places WHERE id = ? AND trip_id = ?');
-  const deleteStmt = asyncDb.prepare('DELETE FROM places WHERE id = ?');
+  const chunks = normalizedPlaceIdChunks(ids);
+  if (chunks.length === 0) return [];
   const deleted: number[] = [];
-  await asyncDb.transaction(async (list: number[]) => {
-    for (const id of list) {
-      const row = await selectStmt.get<{ id: number }>(id, tripId);
-      if (!row) continue;
-      await deleteStmt.run(id);
-      deleted.push(id);
+  await asyncDb.transaction(async (chunkList: number[][]) => {
+    for (const chunk of chunkList) {
+      const placeholders = chunk.map(() => '?').join(',');
+      const rows = await asyncDb
+        .prepare(`SELECT id FROM places WHERE trip_id = ? AND id IN (${placeholders})`)
+        .all<{ id: number }>(tripId, ...chunk);
+      if (rows.length === 0) continue;
+      const existingIds = rows.map((row) => Number(row.id));
+      await asyncDb
+        .prepare(`DELETE FROM places WHERE trip_id = ? AND id IN (${existingIds.map(() => '?').join(',')})`)
+        .run(tripId, ...existingIds);
+      deleted.push(...existingIds);
     }
-  })(ids);
+  })(chunks);
   return deleted;
 }
 

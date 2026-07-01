@@ -131,6 +131,10 @@ async function bootstrap(): Promise<void> {
   await prepareOracleBackedMode();
   const { ensureMediaStorageSchema } = await import('./services/mediaSchema');
   await ensureMediaStorageSchema();
+  const { ensurePerformanceIndexes } = await import('./services/performanceIndexes');
+  await ensurePerformanceIndexes().catch((err: unknown) => {
+    console.warn(`[DB] Performance index ensure failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   const { buildApp } = await import('./bootstrap');
   nestApp = await buildApp();
   server = http.createServer(nestApp.getHttpAdapter().getInstance());

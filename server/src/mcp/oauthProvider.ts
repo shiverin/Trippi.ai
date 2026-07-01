@@ -9,6 +9,7 @@ import {
   revokeTokenAsync as serviceRevokeTokenAsync,
   verifyPKCE,
   getUserByAccessTokenAsync,
+  getCanonicalMcpResource,
 } from '../services/oauthService';
 import { ALL_SCOPES } from './scopes';
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients';
@@ -148,10 +149,9 @@ export const trippiOAuthProvider: OAuthServerProvider = {
 
   // Redirects browser to the SPA consent page with OAuth params forwarded.
   async authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
-    const mcpResource = `${getMcpSafeUrl().replace(/\/+$/, '')}/mcp`;
-    const resource = params.resource ? params.resource.href.replace(/\/+$/, '') : mcpResource;
+    const resource = getCanonicalMcpResource(params.resource ?? null);
 
-    if (resource !== mcpResource) {
+    if (!resource) {
       const url = new URL(params.redirectUri);
       url.searchParams.set('error', 'invalid_target');
       url.searchParams.set('error_description', 'Requested resource must be the trippi.ai MCP endpoint');
@@ -168,7 +168,7 @@ export const trippiOAuthProvider: OAuthServerProvider = {
       code_challenge_method: 'S256',
     });
     if (params.state) qs.set('state', params.state);
-    if (params.resource) qs.set('resource', params.resource.href);
+    qs.set('resource', resource);
 
     const base = getMcpSafeUrl().replace(/\/+$/, '');
     res.redirect(302, `${base}/oauth/consent?${qs.toString()}`);
@@ -194,7 +194,7 @@ export const trippiOAuthProvider: OAuthServerProvider = {
 
     if (redirectUri && pending.redirectUri !== redirectUri) throw new Error('Authorization grant is invalid.');
 
-    const resourceStr = resource ? resource.href.replace(/\/+$/, '') : null;
+    const resourceStr = getCanonicalMcpResource(resource ?? null);
     if (pending.resource && resourceStr && pending.resource !== resourceStr)
       throw new Error('Authorization grant is invalid.');
 

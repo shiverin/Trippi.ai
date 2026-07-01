@@ -35,6 +35,35 @@ const AUTH_CODE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 const CODE_CHALLENGE_RE = /^[A-Za-z0-9_-]{43}$/;
 const CODE_VERIFIER_RE = /^[A-Za-z0-9\-._~]{43,128}$/;
 
+export function getCanonicalMcpResource(resource?: string | URL | null): string | null {
+  const base = getMcpSafeUrl().replace(/\/+$/, '');
+  const mcpResource = `${base}/mcp`;
+  if (!resource) return mcpResource;
+
+  const raw = (typeof resource === 'string' ? resource : resource.href).replace(/\/+$/, '');
+  if (raw === mcpResource) return mcpResource;
+
+  try {
+    const requested = new URL(raw);
+    const canonicalBase = new URL(base);
+    const sameOrigin = requested.origin === canonicalBase.origin;
+    if (!sameOrigin) return null;
+
+    const path = requested.pathname.replace(/\/+$/, '') || '/';
+    if (
+      path === '/' ||
+      path === '/.well-known/oauth-protected-resource' ||
+      path === '/.well-known/oauth-protected-resource/mcp'
+    ) {
+      return mcpResource;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // In-memory auth code store (short-lived, no need for DB persistence)
 // ---------------------------------------------------------------------------
@@ -1282,9 +1311,8 @@ export function validateAuthorizeRequest(params: AuthorizeParams, userId: number
   // bind the token to the MCP endpoint by default — previously this
   // left `audience = null`, and the audience-bind check on MCP requests
   // then treated a null audience as "valid for any resource".
-  const mcpResource = `${getMcpSafeUrl().replace(/\/+$/, '')}/mcp`;
-  const resource = params.resource ? params.resource.replace(/\/+$/, '') : mcpResource;
-  if (resource !== mcpResource) {
+  const resource = getCanonicalMcpResource(params.resource);
+  if (!resource) {
     return {
       valid: false,
       error: 'invalid_target',
@@ -1323,7 +1351,7 @@ export function validateAuthorizeRequest(params: AuthorizeParams, userId: number
     valid: true,
     client: { name: client.name, allowed_scopes: allowedScopes },
     scopes: grantedScopes,
-    resource: resource ?? mcpResource,
+    resource,
     consentRequired,
     scopeSelectable: client.created_via === 'dcr',
   };
@@ -1381,9 +1409,8 @@ export async function validateAuthorizeRequestAsync(
     };
   }
 
-  const mcpResource = `${getMcpSafeUrl().replace(/\/+$/, '')}/mcp`;
-  const resource = params.resource ? params.resource.replace(/\/+$/, '') : mcpResource;
-  if (resource !== mcpResource) {
+  const resource = getCanonicalMcpResource(params.resource);
+  if (!resource) {
     return {
       valid: false,
       error: 'invalid_target',
@@ -1418,7 +1445,7 @@ export async function validateAuthorizeRequestAsync(
     valid: true,
     client: { name: client.name, allowed_scopes: allowedScopes },
     scopes: grantedScopes,
-    resource: resource ?? mcpResource,
+    resource,
     consentRequired,
     scopeSelectable: client.created_via === 'dcr',
   };

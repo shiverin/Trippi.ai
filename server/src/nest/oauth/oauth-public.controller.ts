@@ -1,4 +1,5 @@
 import { writeAudit, getClientIp, logWarn } from '../../services/auditLog';
+import { getCanonicalMcpResource } from '../../services/oauthService';
 import { RateLimitService, rateLimitHash, rateLimitIpKey } from '../auth/rate-limit.service';
 import { OauthService } from './oauth.service';
 import { Controller, Get, Headers, HttpCode, Post, Req, Res } from '@nestjs/common';
@@ -73,7 +74,8 @@ export class OauthPublicController {
       if (!pending) return invalidGrant('code_invalid_or_expired', null);
       if (pending.clientId !== client_id) return invalidGrant('client_id_mismatch', pending.userId);
       if (pending.redirectUri !== redirect_uri) return invalidGrant('redirect_uri_mismatch', pending.userId);
-      if (pending.resource && resource && pending.resource !== resource.replace(/\/+$/, ''))
+      const resourceAudience = getCanonicalMcpResource(resource);
+      if (pending.resource && resource && pending.resource !== resourceAudience)
         return invalidGrant('resource_mismatch', pending.userId);
       if (!(await this.oauth.authenticateClient(client_id, client_secret))) {
         logWarn(`[OAuth] Invalid client credentials for client_id=${client_id} ip=${ip ?? '-'}`);
@@ -164,7 +166,14 @@ export class OauthPublicController {
       } else {
         grantedScopes = allowedScopes;
       }
-      const audience = resource ? resource.replace(/\/+$/, '') : `${this.oauth.mcpSafeUrl().replace(/\/+$/, '')}/mcp`;
+      const audience = getCanonicalMcpResource(resource);
+      if (!audience) {
+        res.status(400).json({
+          error: 'invalid_target',
+          error_description: 'Requested resource must be the trippi.ai MCP endpoint',
+        });
+        return;
+      }
       const tokens = await this.oauth.issueClientCredentialsToken(client_id, client.user_id, grantedScopes, audience);
       writeAudit({
         userId: client.user_id,

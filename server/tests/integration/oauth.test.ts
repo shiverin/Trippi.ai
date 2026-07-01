@@ -248,6 +248,66 @@ describe('DCR scope optional — ChatGPT compatibility (issue #959 bug 2)', () =
         expect(validate.body.consentRequired).toBe(true);
         expect(validate.body.scopeSelectable).toBe(true);
     });
+
+    it('OAUTH-959E — validates same-origin resource aliases as the MCP audience', async () => {
+        const { user } = createUser(testDb);
+        const redirectUri = 'https://chatgpt.example.com/cb';
+        const registered = await request(app)
+            .post('/oauth/register')
+            .set('Content-Type', 'application/json')
+            .send({ redirect_uris: [redirectUri], token_endpoint_auth_method: 'none', scope: 'trips:read' });
+        expect(registered.status).toBe(201);
+
+        for (const resource of [
+            'https://trippi.example.com',
+            'https://trippi.example.com/.well-known/oauth-protected-resource',
+            'https://trippi.example.com/.well-known/oauth-protected-resource/mcp',
+        ]) {
+            const { challenge } = makePkce();
+            const validate = await request(app)
+                .get('/api/oauth/authorize/validate')
+                .set('Cookie', authCookie(user.id))
+                .query({
+                    response_type: 'code',
+                    client_id: registered.body.client_id,
+                    redirect_uri: redirectUri,
+                    scope: 'trips:read',
+                    code_challenge: challenge,
+                    code_challenge_method: 'S256',
+                    resource,
+                });
+            expect(validate.status).toBe(200);
+            expect(validate.body.valid).toBe(true);
+            expect(validate.body.resource).toBe('https://trippi.example.com/mcp');
+        }
+    });
+
+    it('OAUTH-959F — rejects resource indicators from a different origin', async () => {
+        const { user } = createUser(testDb);
+        const redirectUri = 'https://chatgpt.example.com/cb';
+        const registered = await request(app)
+            .post('/oauth/register')
+            .set('Content-Type', 'application/json')
+            .send({ redirect_uris: [redirectUri], token_endpoint_auth_method: 'none', scope: 'trips:read' });
+        expect(registered.status).toBe(201);
+
+        const { challenge } = makePkce();
+        const validate = await request(app)
+            .get('/api/oauth/authorize/validate')
+            .set('Cookie', authCookie(user.id))
+            .query({
+                response_type: 'code',
+                client_id: registered.body.client_id,
+                redirect_uri: redirectUri,
+                scope: 'trips:read',
+                code_challenge: challenge,
+                code_challenge_method: 'S256',
+                resource: 'https://evil.example.com/mcp',
+            });
+        expect(validate.status).toBe(200);
+        expect(validate.body.valid).toBe(false);
+        expect(validate.body.error).toBe('invalid_target');
+    });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

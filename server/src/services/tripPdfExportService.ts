@@ -1,10 +1,10 @@
 import { listCategoriesAsync } from './categoryService';
+import { getMediaConfig, putMediaBuffer } from './mediaStorage';
 import { getMcpSafeUrl } from './notifications';
 import { createPerfTrace, type PerfTrace } from './perfTrace';
 import * as placePhotoCache from './placePhotoCache';
 import { listPlacesAsync } from './placeService';
 import { getTripSummary } from './tripService';
-import { getMediaConfig, putMediaBuffer } from './mediaStorage';
 import {
   buildTripPdfHtml,
   type TripPdfAccommodation,
@@ -120,7 +120,43 @@ function contentTypeForAsset(filePath: string): string {
   return 'application/octet-stream';
 }
 
-async function localAssetPathForUrlPath(pathname: string): Promise<string | null> {
+interface PdfAsset {
+  path?: string;
+  body?: Buffer;
+  contentType: string;
+}
+
+async function readStream(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream as AsyncIterable<Buffer | string>) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+async function cachedPhotoAsset(placeId: string): Promise<PdfAsset | null> {
+  const cached = await placePhotoCache.getAsync(placeId);
+  if (!cached) return null;
+
+  const object = await placePhotoCache.serveObject(placeId);
+  if (object) {
+    return {
+      body: await readStream(object.stream),
+      contentType: object.contentType || 'image/jpeg',
+    };
+  }
+
+  try {
+    const stat = await fs.stat(cached.filePath);
+    if (stat.isFile()) return { path: cached.filePath, contentType: contentTypeForAsset(cached.filePath) };
+  } catch {
+    // Cache metadata can race with backend cleanup; a missing image should not fail export.
+  }
+
+  return null;
+}
+
+async function localAssetForUrlPath(pathname: string): Promise<PdfAsset | null> {
   let decoded: string;
   try {
     decoded = decodeURIComponent(pathname);
@@ -130,8 +166,7 @@ async function localAssetPathForUrlPath(pathname: string): Promise<string | null
 
   const photoMatch = decoded.match(/^\/api\/maps\/place-photo\/(.+)\/bytes$/);
   if (photoMatch?.[1]) {
-    const cached = placePhotoCache.get(photoMatch[1]);
-    if (cached) return cached.filePath;
+    return cachedPhotoAsset(photoMatch[1]);
   }
 
   const candidates = decoded.startsWith('/brand/')
@@ -144,7 +179,7 @@ async function localAssetPathForUrlPath(pathname: string): Promise<string | null
     if (!candidate) continue;
     try {
       const stat = await fs.stat(candidate);
-      if (stat.isFile()) return candidate;
+      if (stat.isFile()) return { path: candidate, contentType: contentTypeForAsset(candidate) };
     } catch {
       // Try the next safe local candidate.
     }
@@ -178,10 +213,15 @@ async function installPdfNetworkGuards(page: Page, origin: string, stats: PdfNet
     }
 
     if (parsed.origin === origin) {
-      const assetPath = await localAssetPathForUrlPath(parsed.pathname);
-      if (assetPath) {
+      const asset = await localAssetForUrlPath(parsed.pathname);
+      if (asset?.path) {
         stats.localAssets++;
-        await route.fulfill({ path: assetPath, contentType: contentTypeForAsset(assetPath) });
+        await route.fulfill({ path: asset.path, contentType: asset.contentType });
+        return;
+      }
+      if (asset?.body) {
+        stats.localAssets++;
+        await route.fulfill({ body: asset.body, contentType: asset.contentType });
         return;
       }
     }
@@ -215,14 +255,11 @@ async function waitForPdfAssets(page: Page): Promise<void> {
 
 async function cachedPhotoDataUri(photoId: string | null): Promise<string | null> {
   if (!photoId) return null;
-  const cached = placePhotoCache.get(photoId);
-  if (!cached) return null;
-  try {
-    const bytes = await fs.readFile(cached.filePath);
-    return `data:image/jpeg;base64,${bytes.toString('base64')}`;
-  } catch {
-    return null;
-  }
+  const asset = await cachedPhotoAsset(photoId);
+  if (!asset) return null;
+  const bytes = asset.body ?? (asset.path ? await fs.readFile(asset.path).catch(() => null) : null);
+  if (!bytes) return null;
+  return `data:${asset.contentType || 'image/jpeg'};base64,${bytes.toString('base64')}`;
 }
 
 async function inlinePlaceImage(place: TripPdfPlace | null | undefined): Promise<TripPdfPlace | null | undefined> {

@@ -41,6 +41,7 @@ describe('async DB access guardrails', () => {
       'mcp/tools/packing.ts',
       'mcp/tools/places.ts',
       'mcp/tools/trips.ts',
+      'services/tripPdfExportService.ts',
       'nest/auth/auth-public.controller.ts',
       'nest/auth/auth.controller.ts',
       'nest/auth/auth.service.ts',
@@ -110,6 +111,13 @@ describe('async DB access guardrails', () => {
     });
 
     expect(offenders).toEqual([]);
+  });
+
+  it('keeps MCP PDF export off sync place-photo cache reads', () => {
+    const source = readFileSync(src('services/tripPdfExportService.ts'), 'utf8');
+
+    expect(source).not.toMatch(/\bplacePhotoCache\.get\(/);
+    expect(source).toContain('placePhotoCache.getAsync');
   });
 
   it('keeps billing subscription lookups off Oracle alias-star expansion', () => {

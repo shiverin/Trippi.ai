@@ -1,9 +1,11 @@
-import { BarChart3, Gift, Loader2, Lock, RefreshCw, ShieldCheck, Sparkles, Users } from 'lucide-react';
-import React, { useState } from 'react';
+import { BarChart3, Loader2, Sparkles, Users } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { referralsApi } from '../../api/client';
 import UpgradePlansModal from '../Billing/UpgradePlansModal';
 import { formatAccessDetail, formatPlanName } from '../Billing/accessCopy';
-import { formatLimit, useEntitlements } from '../../hooks/useEntitlements';
+import { useEntitlements } from '../../hooks/useEntitlements';
 import { useTranslation } from '../../i18n';
+import type { ReferralSummary } from '../../types';
 import ReferralDialog from '../Referrals/ReferralDialog';
 import { useToast } from '../shared/Toast';
 import Section from './Section';
@@ -14,10 +16,24 @@ export default function UsageTab(): React.ReactElement {
   const entitlementState = useEntitlements();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
+  const [referralSummary, setReferralSummary] = useState<ReferralSummary | null>(null);
 
-  const { access, usage, billing, entitlements } = entitlementState;
-  const lifetime = usage?.lifetimeTrips;
-  const referral = usage?.referralBonus;
+  const { access, billing } = entitlementState;
+
+  useEffect(() => {
+    let cancelled = false;
+    referralsApi
+      .me()
+      .then((summary) => {
+        if (!cancelled) setReferralSummary(summary);
+      })
+      .catch(() => {
+        if (!cancelled) setReferralSummary(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const startUpgrade = (planId?: string) => {
     entitlementState.startUpgrade(planId).catch((err) => {
@@ -89,44 +105,16 @@ export default function UsageTab(): React.ReactElement {
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <UsageMetric
+            <div className="grid gap-3 sm:grid-cols-2">
+              <UsageStat
                 icon={BarChart3}
-                label={t('settings.usage.lifetimeTrips')}
-                value={`${lifetime?.current ?? 0}/${formatLimit(lifetime?.limit, t('common.loading'))}`}
-                detail={t('settings.usage.lifetimeTripsHint')}
-                current={lifetime?.current ?? 0}
-                limit={lifetime?.limit}
+                label={t('settings.usage.daysRemaining')}
+                value={formatRemainingDays(access, t)}
               />
-              <UsageMetric
-                icon={Lock}
-                label={t('settings.usage.lockedTrips')}
-                value={String(lifetime?.locked ?? 0)}
-                detail={t('settings.usage.lockedTripsHint', { count: lifetime?.editableFreeTrips ?? 5 })}
-              />
-              <UsageMetric
+              <UsageStat
                 icon={Users}
-                label={t('settings.usage.tripMembers')}
-                value={formatLimit(usage?.groupSize.limit, t('common.loading'))}
-                detail={t('settings.usage.tripMembersHint')}
-              />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <UsageStat
-                icon={Gift}
-                label={t('settings.usage.referralActiveDays')}
-                value={String(referral?.activeDays ?? entitlements?.referralBonus?.daysRemaining ?? 0)}
-              />
-              <UsageStat
-                icon={RefreshCw}
-                label={t('settings.usage.referralPendingDays')}
-                value={String(referral?.pendingDays ?? entitlements?.referralBonus?.pendingDays ?? 0)}
-              />
-              <UsageStat
-                icon={ShieldCheck}
-                label={t('settings.usage.referralMaxDays')}
-                value={String(referral?.maxDays ?? entitlements?.referralBonus?.maxDays ?? 90)}
+                label={t('settings.usage.friendsReferred')}
+                value={String(referralSummary?.successful_referrals ?? 0)}
               />
             </div>
           </div>
@@ -146,39 +134,14 @@ export default function UsageTab(): React.ReactElement {
   );
 }
 
-function UsageMetric({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  current,
-  limit,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  detail: string;
-  current?: number;
-  limit?: number | null;
-}): React.ReactElement {
-  const pct = typeof current === 'number' && typeof limit === 'number' && limit > 0 ? Math.min(100, (current / limit) * 100) : null;
-  return (
-    <div className="rounded-xl border border-edge bg-surface-secondary p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-lg bg-surface-card text-content-secondary">
-          <Icon className="h-4 w-4" />
-        </span>
-        <span className="text-xl font-bold text-content">{value}</span>
-      </div>
-      <div className="text-sm font-semibold text-content">{label}</div>
-      <p className="mt-1 min-h-8 text-xs leading-5 text-content-muted">{detail}</p>
-      {pct !== null && (
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-card">
-          <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
-        </div>
-      )}
-    </div>
-  );
+function formatRemainingDays(access: ReturnType<typeof useEntitlements>['access'], t: (key: string, params?: Record<string, unknown>) => string): string {
+  if (!access || access.source === 'free') return '0';
+  if (access.source === 'admin') return 'Unlimited';
+  if (access.daysRemaining === 0) return t('settings.usage.lessThanDay');
+  if (typeof access.daysRemaining === 'number') {
+    return t(access.daysRemaining === 1 ? 'settings.usage.day' : 'settings.usage.days', { count: access.daysRemaining });
+  }
+  return t('settings.usage.activeSubscription');
 }
 
 function UsageStat({

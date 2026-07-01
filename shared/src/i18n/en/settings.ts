@@ -353,6 +353,8 @@ const settings: TranslationStrings = {
   'settings.usage.manageBilling': 'Manage billing',
   'settings.usage.referFriends': 'Refer friends',
   'settings.usage.portalUnavailable': 'Billing portal is not available yet.',
+  'settings.usage.daysRemaining': 'Days remaining',
+  'settings.usage.friendsReferred': 'Friends referred',
   'settings.usage.lifetimeTrips': 'Lifetime trips',
   'settings.usage.lifetimeTripsHint': 'Owned trips count toward this plan limit, including archived trips.',
   'settings.usage.lockedTrips': 'Read-only trips',

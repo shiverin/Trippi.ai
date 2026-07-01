@@ -240,9 +240,6 @@ export const faqItems: FaqItem[] = [
 
 export const footerLinks: LandingNavItem[] = [
   ...landingNavItems,
-  { label: 'AI Trip Planner', href: '/ai-trip-planner/' },
-  { label: 'Group Trip Planner', href: '/group-trip-planner/' },
-  { label: 'Itinerary Generator', href: '/travel-itinerary-generator/' },
   { label: 'Support', href: 'mailto:zhaoshizhen04@gmail.com' },
   { label: 'LinkedIn', href: 'https://www.linkedin.com/in/zhaoshizhen2004/' },
 ];

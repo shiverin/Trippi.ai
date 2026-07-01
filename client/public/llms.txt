@@ -9,9 +9,6 @@ Trippi helps travelers plan collaborative trips with AI-powered itineraries, liv
 ## Key Pages
 
 - Homepage: https://www.trippi.lol/
-- AI trip planner: https://www.trippi.lol/ai-trip-planner/
-- Group trip planner: https://www.trippi.lol/group-trip-planner/
-- Travel itinerary generator: https://www.trippi.lol/travel-itinerary-generator/
 - Sitemap: https://www.trippi.lol/sitemap.xml
 
 ## Target Searches

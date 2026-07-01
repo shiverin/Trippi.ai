@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useTranslation } from '../../i18n';
-import type { HolidaysMap, VacayEntry } from '../../types';
 
 const WEEKDAY_KEYS = [
   'vacay.mon',
@@ -12,24 +11,9 @@ const WEEKDAY_KEYS = [
   'vacay.sun',
 ] as const;
 
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
 interface VacayMonthCardProps {
   year: number;
   month: number;
-  holidays: HolidaysMap;
-  companyHolidaySet: Set<string>;
-  companyHolidaysEnabled?: boolean;
-  entryMap: Record<string, VacayEntry[]>;
-  onCellClick: (date: string) => void;
-  companyMode: boolean;
-  blockWeekends: boolean;
-  weekendDays?: number[];
   tripDates?: Set<string>;
   weekStart?: number;
 }
@@ -37,14 +21,6 @@ interface VacayMonthCardProps {
 export default function VacayMonthCard({
   year,
   month,
-  holidays,
-  companyHolidaySet,
-  companyHolidaysEnabled = true,
-  entryMap,
-  onCellClick,
-  companyMode,
-  blockWeekends,
-  weekendDays = [0, 6],
   tripDates,
   weekStart = 1,
 }: VacayMonthCardProps) {
@@ -78,7 +54,7 @@ export default function VacayMonthCard({
     const w = [];
     for (let i = 0; i < cells.length; i += 7) w.push(cells.slice(i, i + 7));
     return w;
-  }, [year, month]);
+  }, [year, month, weekStart]);
 
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -97,7 +73,7 @@ export default function VacayMonthCard({
         {weekdays.map((wd, i) => {
           // Map column index back to JS day (0=Sun..6=Sat) to check if it's a weekend column
           const jsDay = (i + weekStart) % 7;
-          const isWeekendCol = weekendDays.includes(jsDay);
+          const isWeekendCol = [0, 6].includes(jsDay);
           return (
             <div
               key={`${wd}-${i}`}
@@ -117,112 +93,32 @@ export default function VacayMonthCard({
 
               const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`;
               const dayOfWeek = new Date(year, month, day).getDay();
-              const weekend = weekendDays.includes(dayOfWeek);
-              const holiday = holidays[dateStr];
-              const isCompany = companyHolidaysEnabled && companyHolidaySet.has(dateStr);
-              const dayEntries = entryMap[dateStr] || [];
-              const isBlocked = (weekend && blockWeekends) || (isCompany && !companyMode);
+              const weekend = [0, 6].includes(dayOfWeek);
+              const isTripDay = tripDates?.has(dateStr) ?? false;
               const isToday = dateStr === todayStr;
 
               return (
                 <div
                   key={di}
-                  title={
-                    holiday ? (holiday.label ? `${holiday.label}: ${holiday.localName}` : holiday.localName) : undefined
-                  }
-                  className="relative flex cursor-pointer items-center justify-center transition-colors"
+                  title={isTripDay ? 'Trip day' : undefined}
+                  className="relative flex items-center justify-center"
                   style={{
                     height: 28,
                     background: weekend ? 'var(--bg-secondary)' : 'transparent',
                     borderTop: '1px solid var(--border-secondary)',
                     borderRight: '1px solid var(--border-secondary)',
-                    cursor: isBlocked ? 'default' : 'pointer',
-                  }}
-                  onClick={() => onCellClick(dateStr)}
-                  onMouseEnter={(e) => {
-                    if (!isBlocked) e.currentTarget.style.background = 'var(--bg-hover)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = weekend ? 'var(--bg-secondary)' : 'transparent';
+                    cursor: 'default',
                   }}
                 >
-                  {holiday && (
-                    <div
-                      className="absolute inset-0.5 rounded"
-                      style={{ background: hexToRgba(holiday.color, 0.12) }}
-                    />
-                  )}
-                  {isCompany && <div className="absolute inset-0.5 rounded bg-[rgba(245,158,11,0.15)]" />}
-
-                  {dayEntries.length === 1 && (
-                    <div
-                      className="absolute inset-0.5 rounded"
-                      style={{ backgroundColor: dayEntries[0].person_color, opacity: 0.4 }}
-                    />
-                  )}
-                  {dayEntries.length === 2 && (
-                    <div
-                      className="absolute inset-0.5 rounded"
-                      style={{
-                        background: `linear-gradient(135deg, ${dayEntries[0].person_color} 50%, ${dayEntries[1].person_color} 50%)`,
-                        opacity: 0.4,
-                      }}
-                    />
-                  )}
-                  {dayEntries.length === 3 && (
-                    <div className="absolute inset-0.5 overflow-hidden rounded" style={{ opacity: 0.4 }}>
-                      <div
-                        className="absolute left-0 top-0 h-full w-1/2"
-                        style={{ backgroundColor: dayEntries[0].person_color }}
-                      />
-                      <div
-                        className="absolute right-0 top-0 h-1/2 w-1/2"
-                        style={{ backgroundColor: dayEntries[1].person_color }}
-                      />
-                      <div
-                        className="absolute bottom-0 right-0 h-1/2 w-1/2"
-                        style={{ backgroundColor: dayEntries[2].person_color }}
-                      />
-                    </div>
-                  )}
-                  {dayEntries.length >= 4 && (
-                    <div className="absolute inset-0.5 overflow-hidden rounded" style={{ opacity: 0.4 }}>
-                      <div
-                        className="absolute left-0 top-0 h-1/2 w-1/2"
-                        style={{ backgroundColor: dayEntries[0].person_color }}
-                      />
-                      <div
-                        className="absolute right-0 top-0 h-1/2 w-1/2"
-                        style={{ backgroundColor: dayEntries[1].person_color }}
-                      />
-                      <div
-                        className="absolute bottom-0 left-0 h-1/2 w-1/2"
-                        style={{ backgroundColor: dayEntries[2].person_color }}
-                      />
-                      <div
-                        className="absolute bottom-0 right-0 h-1/2 w-1/2"
-                        style={{ backgroundColor: dayEntries[3].person_color }}
-                      />
-                    </div>
-                  )}
-
-                  {tripDates?.has(dateStr) && (
-                    <span className="absolute right-[3px] top-[3px] z-[2] h-[5px] w-[5px] rounded-full bg-[#3b82f6]" />
+                  {isTripDay && (
+                    <div className="absolute inset-0.5 rounded bg-[#3b82f6]" style={{ opacity: 0.82 }} />
                   )}
 
                   <span
                     className="relative z-[1] text-[11px]"
                     style={{
-                      fontWeight: dayEntries.length > 0 ? 700 : 500,
-                      color: isToday
-                        ? '#fff'
-                        : dayEntries.length > 0
-                          ? 'var(--text-primary)'
-                          : holiday
-                            ? holiday.color
-                            : weekend
-                              ? 'var(--text-faint)'
-                              : 'var(--text-primary)',
+                      fontWeight: isTripDay ? 700 : 500,
+                      color: isTripDay || isToday ? '#fff' : weekend ? 'var(--text-faint)' : 'var(--text-primary)',
                       ...(isToday
                         ? {
                             display: 'inline-flex',
@@ -231,7 +127,7 @@ export default function VacayMonthCard({
                             width: 18,
                             height: 18,
                             borderRadius: '50%',
-                            background: '#3b82f6',
+                            background: isTripDay ? 'rgba(15,23,42,0.35)' : '#3b82f6',
                           }
                         : {}),
                     }}

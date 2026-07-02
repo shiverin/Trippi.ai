@@ -122,17 +122,19 @@ export const mapsTransportRouteResultSchema = z.object({
 });
 export type MapsTransportRouteResult = z.infer<typeof mapsTransportRouteResultSchema>;
 
-export const mapsMapboxSessionResultSchema = z.object({
-  enabled: z.boolean(),
-  sessionId: z.string().optional(),
-  styleUrl: z.string().optional(),
-  fallbackProvider: z.literal('maplibre-gl'),
-  month: z.string(),
-  used: z.number(),
-  limit: z.number(),
-  remaining: z.number(),
-  reason: z
-    .enum(['not_configured', 'quota_exhausted', 'plan_required', 'invalid_style', 'proxy_unavailable'])
-    .optional(),
-}).strict();
+export const mapsMapboxSessionResultSchema = z
+  .object({
+    enabled: z.boolean(),
+    sessionId: z.string().optional(),
+    styleUrl: z.string().optional(),
+    fallbackProvider: z.literal('maplibre-gl'),
+    month: z.string(),
+    used: z.number(),
+    limit: z.number(),
+    remaining: z.number(),
+    reason: z
+      .enum(['not_configured', 'quota_exhausted', 'plan_required', 'invalid_style', 'proxy_unavailable'])
+      .optional(),
+  })
+  .strict();
 export type MapsMapboxSessionResult = z.infer<typeof mapsMapboxSessionResultSchema>;

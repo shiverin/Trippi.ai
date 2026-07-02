@@ -37,6 +37,19 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const TripPlannerPage = lazy(() => import('./pages/TripPlannerPage'));
 const VacayPage = lazy(() => import('./pages/VacayPage'));
 
+const MARKETING_LANDING_PATHS = new Set([
+  '/',
+  '/ai-trip-planner',
+  '/group-trip-planner',
+  '/travel-itinerary-generator',
+  '/trippi-travel',
+]);
+
+function isMarketingLandingPath(pathname: string): boolean {
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  return MARKETING_LANDING_PATHS.has(normalized);
+}
+
 interface ProtectedRouteProps {
   children: ReactNode;
   adminRequired?: boolean;
@@ -262,7 +275,7 @@ export default function App() {
     location.pathname.startsWith('/register') ||
     location.pathname.startsWith('/forgot-password') ||
     location.pathname.startsWith('/reset-password');
-  const isLandingPage = location.pathname === '/';
+  const isLandingPage = isMarketingLandingPath(location.pathname);
 
   return (
     <TranslationProvider>
@@ -271,6 +284,10 @@ export default function App() {
       {!isLandingPage && <OfflineBanner />}
       <Routes>
         <Route path="/" element={<RootRoute />} />
+        <Route path="/ai-trip-planner" element={<LandingPage />} />
+        <Route path="/group-trip-planner" element={<LandingPage />} />
+        <Route path="/travel-itinerary-generator" element={<LandingPage />} />
+        <Route path="/trippi-travel" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/shared/:token" element={<SharedTripPage />} />
         <Route path="/public/journey/:token" element={<JourneyPublicPage />} />

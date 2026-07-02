@@ -20,7 +20,6 @@ export default defineConfig({
           /^\/mcp/,
           /^\/oauth\//,
           /^\/.well-known\//,
-          /^\/(?:ai-trip-planner|group-trip-planner|travel-itinerary-generator|trippi-travel)(?:\/|$)/,
         ],
         runtimeCaching: [
           {

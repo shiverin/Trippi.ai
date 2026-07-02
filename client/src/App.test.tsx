@@ -203,7 +203,20 @@ describe('Public routes', () => {
     expect(screen.getByText('SharedTrip')).toBeInTheDocument();
   });
 
-  it('FE-COMP-APP-014: unknown routes redirect to / which renders the landing page', async () => {
+  it('FE-COMP-APP-014: marketing SEO routes render the real landing page', async () => {
+    seedAuth({ isAuthenticated: false });
+    renderApp('/trippi-travel/');
+    await waitFor(() => expect(screen.getByText('Landing')).toBeInTheDocument());
+  });
+
+  it('FE-COMP-APP-014B: marketing SEO routes do not redirect authenticated users to dashboard', async () => {
+    seedAuth({ isAuthenticated: true, user: buildUser() });
+    renderApp('/ai-trip-planner');
+    await waitFor(() => expect(screen.getByText('Landing')).toBeInTheDocument());
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('FE-COMP-APP-014C: unknown routes redirect to / which renders the landing page', async () => {
     seedAuth({ isAuthenticated: false });
     renderApp('/does-not-exist');
     await waitFor(() => expect(screen.getByText('Landing')).toBeInTheDocument());

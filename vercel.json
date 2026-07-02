@@ -13,21 +13,6 @@
       ],
       "destination": "https://www.trippi.lol/:path*",
       "permanent": true
-    },
-    {
-      "source": "/ai-trip-planner/:path*",
-      "destination": "/",
-      "permanent": false
-    },
-    {
-      "source": "/group-trip-planner/:path*",
-      "destination": "/",
-      "permanent": false
-    },
-    {
-      "source": "/travel-itinerary-generator/:path*",
-      "destination": "/",
-      "permanent": false
     }
   ],
   "headers": [

@@ -10,6 +10,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
+        cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2,ttf}'],
         navigateFallback: 'index.html',
@@ -19,7 +20,7 @@ export default defineConfig({
           /^\/mcp/,
           /^\/oauth\//,
           /^\/.well-known\//,
-          /^\/(?:ai-trip-planner|group-trip-planner|travel-itinerary-generator)(?:\/|$)/,
+          /^\/(?:ai-trip-planner|group-trip-planner|travel-itinerary-generator|trippi-travel)(?:\/|$)/,
         ],
         runtimeCaching: [
           {
@@ -108,9 +109,10 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'Trippi - AI Trip Planner',
-        short_name: 'Trippi',
-        description: 'AI trip planning for group itineraries, maps, budgets, reservations, files, and routes.',
+        name: 'Trippi.ai - AI Travel Planner',
+        short_name: 'Trippi.ai',
+        description:
+          'Plan smarter with Trippi.ai: AI-powered group travel planning for itineraries, maps, budgets, reservations, files, and routes.',
         theme_color: '#111827',
         background_color: '#0f172a',
         display: 'standalone',

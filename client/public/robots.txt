@@ -1,12 +1,10 @@
 User-agent: *
 Allow: /
 Disallow: /admin
-Disallow: /ai-trip-planner/
 Disallow: /atlas
 Disallow: /dashboard
 Disallow: /forgot-password
 Disallow: /friends
-Disallow: /group-trip-planner/
 Disallow: /journey
 Disallow: /login
 Disallow: /mcp-connect
@@ -17,7 +15,6 @@ Disallow: /reset-password
 Disallow: /settings
 Disallow: /shared/
 Disallow: /trips/
-Disallow: /travel-itinerary-generator/
 Disallow: /vacay
 
 Sitemap: https://www.trippi.lol/sitemap.xml

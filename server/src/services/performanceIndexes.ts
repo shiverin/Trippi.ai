@@ -108,7 +108,7 @@ async function createIndex(sql: string, name: string): Promise<void> {
     await asyncDb.exec(sql);
   } catch (err) {
     if (isIgnorableDdlError(err)) return;
-    throw new Error(`${name}: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`${name}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
 }
 

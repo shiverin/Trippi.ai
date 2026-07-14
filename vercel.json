@@ -92,43 +92,43 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://34.29.0.6.sslip.io/api/:path*"
+      "destination": "https://api.trippi.lol/api/:path*"
     },
     {
       "source": "/mcp",
-      "destination": "https://34.29.0.6.sslip.io/mcp"
+      "destination": "https://api.trippi.lol/mcp"
     },
     {
       "source": "/oauth/authorize",
-      "destination": "https://34.29.0.6.sslip.io/oauth/authorize"
+      "destination": "https://api.trippi.lol/oauth/authorize"
     },
     {
       "source": "/oauth/register",
-      "destination": "https://34.29.0.6.sslip.io/oauth/register"
+      "destination": "https://api.trippi.lol/oauth/register"
     },
     {
       "source": "/oauth/token",
-      "destination": "https://34.29.0.6.sslip.io/oauth/token"
+      "destination": "https://api.trippi.lol/oauth/token"
     },
     {
       "source": "/oauth/revoke",
-      "destination": "https://34.29.0.6.sslip.io/oauth/revoke"
+      "destination": "https://api.trippi.lol/oauth/revoke"
     },
     {
       "source": "/oauth/userinfo",
-      "destination": "https://34.29.0.6.sslip.io/oauth/userinfo"
+      "destination": "https://api.trippi.lol/oauth/userinfo"
     },
     {
       "source": "/.well-known/:path*",
-      "destination": "https://34.29.0.6.sslip.io/.well-known/:path*"
+      "destination": "https://api.trippi.lol/.well-known/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://34.29.0.6.sslip.io/uploads/:path*"
+      "destination": "https://api.trippi.lol/uploads/:path*"
     },
     {
       "source": "/ws",
-      "destination": "https://34.29.0.6.sslip.io/ws"
+      "destination": "https://api.trippi.lol/ws"
     },
     {
       "source": "/:path*",

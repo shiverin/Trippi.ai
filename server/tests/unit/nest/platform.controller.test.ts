@@ -19,6 +19,7 @@ const h = vi.hoisted(() => ({
 vi.mock('../../../src/middleware/auth', () => ({ verifyJwtAndLoadUser: h.verifyJwtAndLoadUser }));
 vi.mock('../../../src/db/asyncDatabase', () => ({ asyncDb: { prepare: h.dbPrepare } }));
 vi.mock('../../../src/mcp', () => ({ mcpHandler: h.mcpHandler }));
+vi.mock('../../../src/mcp/featureFlags', () => ({ isMcpAddonEnabledFast: h.isAddonEnabled }));
 vi.mock('../../../src/mcp/oauthProvider', () => ({ trippiOAuthProvider: {}, trippiClientsStore: {} }));
 vi.mock('../../../src/services/adminService', () => ({ isAddonEnabledAsync: h.isAddonEnabled }));
 vi.mock('../../../src/services/notifications', () => ({ getMcpSafeUrl: h.getMcpSafeUrl }));
@@ -281,9 +282,10 @@ describe('applyPlatformTransport', () => {
     const handler = calls.find((c) => c.path === '/.well-known/openid-configuration')!.handlers[0];
     const res = makeRes();
     handler({}, res);
-    const body = res.body as { issuer: string; userinfo_endpoint: string };
+    const body = res.body as { issuer: string; userinfo_endpoint: string; logo_uri: string };
     expect(body.issuer).toBe('https://trippi.example.test');
     expect(body.userinfo_endpoint).toBe('https://trippi.example.test/oauth/userinfo');
+    expect(body.logo_uri).toBe('https://trippi.example.test/brand/trippi-icon.png');
   });
 
   it('trims trailing slashes off the configured base URL', async () => {
@@ -311,9 +313,10 @@ describe('applyPlatformTransport', () => {
       h.isAddonEnabled.mockReturnValue(true);
       const res = makeRes();
       await handler()({}, res, vi.fn());
-      const body = res.body as { resource: string; authorization_servers: string[] };
+      const body = res.body as { resource: string; authorization_servers: string[]; logo_uri: string };
       expect(body.resource).toBe('https://trippi.example.test/mcp');
       expect(body.authorization_servers).toEqual(['https://trippi.example.test']);
+      expect(body.logo_uri).toBe('https://trippi.example.test/brand/trippi-icon.png');
     });
   });
 

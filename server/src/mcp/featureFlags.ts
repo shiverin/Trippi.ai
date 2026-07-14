@@ -22,6 +22,7 @@ export interface McpFeatureFlags {
 const configuredCacheTtlMs = Number(process.env.MCP_FEATURE_CACHE_TTL_MS ?? 5000);
 const CACHE_TTL_MS = Number.isFinite(configuredCacheTtlMs) ? configuredCacheTtlMs : 5000;
 let featureFlagsCache: { expiresAt: number; value: McpFeatureFlags } | null = null;
+let mcpEnabledCache: { expiresAt: number; value: boolean } | null = null;
 
 function cacheEnabled(): boolean {
   if (CACHE_TTL_MS <= 0) return false;
@@ -30,6 +31,7 @@ function cacheEnabled(): boolean {
 
 export function clearMcpFeatureFlagCache(): void {
   featureFlagsCache = null;
+  mcpEnabledCache = null;
 }
 
 export async function getMcpFeatureFlags(): Promise<McpFeatureFlags> {
@@ -61,5 +63,14 @@ export async function getMcpFeatureFlags(): Promise<McpFeatureFlags> {
 }
 
 export async function isMcpAddonEnabledFast(): Promise<boolean> {
-  return (await getMcpFeatureFlags()).mcp;
+  const now = Date.now();
+  if (cacheEnabled() && mcpEnabledCache && mcpEnabledCache.expiresAt > now) {
+    return mcpEnabledCache.value;
+  }
+
+  const value = await isAddonEnabledAsync(ADDON_IDS.MCP);
+  if (cacheEnabled()) {
+    mcpEnabledCache = { expiresAt: now + CACHE_TTL_MS, value };
+  }
+  return value;
 }

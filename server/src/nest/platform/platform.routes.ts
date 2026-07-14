@@ -35,6 +35,25 @@ import path from 'node:path';
 const UPLOADS_DIR = path.join(__dirname, '../../../uploads');
 export const PUBLIC_DIR = path.join(__dirname, '../../../public');
 
+function getMcpBrandMetadata(base: string): Record<string, unknown> {
+  return {
+    client_uri: base,
+    logo_uri: `${base}/brand/trippi-icon.png`,
+    icons: [
+      {
+        src: `${base}/brand/trippi-icon.png`,
+        sizes: ['512x512'],
+        mimeType: 'image/png',
+      },
+      {
+        src: `${base}/brand/trippi-icon-64.png`,
+        sizes: ['64x64'],
+        mimeType: 'image/png',
+      },
+    ],
+  };
+}
+
 function uploadContentType(key: string): string | null {
   const ext = path.extname(key).toLowerCase();
   if (ext === '.png') return 'image/png';
@@ -205,6 +224,7 @@ export function applyPlatformTransport(app: express.Application): void {
       token_endpoint: `${base}/oauth/token`,
       revocation_endpoint: `${base}/oauth/revoke`,
       registration_endpoint: `${base}/oauth/register`,
+      ...getMcpBrandMetadata(base),
       response_types_supported: ['code'],
       grant_types_supported: ['authorization_code', 'refresh_token', 'client_credentials'],
       code_challenge_methods_supported: ['S256'],
@@ -270,6 +290,8 @@ export function applyPlatformTransport(app: express.Application): void {
       bearer_methods_supported: ['header'],
       scopes_supported: ALL_SCOPES,
       resource_name: 'trippi.ai MCP',
+      resource_documentation: meta.issuer,
+      ...getMcpBrandMetadata(meta.issuer),
     });
   });
 

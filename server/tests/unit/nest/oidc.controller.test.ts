@@ -99,14 +99,14 @@ describe('OidcController /login', () => {
     const createState = vi.fn().mockReturnValue({ state: 'st', codeChallenge: 'cc' });
     const reqInvite = { query: { invite: 'tok123' }, headers: {} } as unknown as Request;
     await new OidcController(svc({ createState })).login(reqInvite, res);
-    expect(createState).toHaveBeenCalledWith('https://app/api/auth/oidc/callback', 'tok123');
+    expect(createState).toHaveBeenCalledWith('https://app/api/auth/oidc/callback', 'tok123', undefined);
   });
 
   it('trims a trailing slash off APP_URL when building the redirect uri', async () => {
     const res = makeRes();
     const createState = vi.fn().mockReturnValue({ state: 'st', codeChallenge: 'cc' });
     await new OidcController(svc({ getAppUrl: vi.fn().mockReturnValue('https://app///'), createState })).login(req, res);
-    expect(createState).toHaveBeenCalledWith('https://app/api/auth/oidc/callback', undefined);
+    expect(createState).toHaveBeenCalledWith('https://app/api/auth/oidc/callback', undefined, undefined);
   });
 
   it('500 when discovery throws', async () => {

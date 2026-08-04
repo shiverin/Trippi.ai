@@ -22,8 +22,11 @@ startConnectivityProbe();
 // Keep offline data (map tiles, file blobs, IndexedDB) exempt from eviction.
 requestPersistentStorage();
 
-registerSW({
+const updateServiceWorker = registerSW({
   immediate: true,
+  onNeedRefresh() {
+    updateServiceWorker(true).catch(() => {});
+  },
   onRegisteredSW(_swUrl, registration) {
     if (!registration) return;
     registration.update().catch(() => {});

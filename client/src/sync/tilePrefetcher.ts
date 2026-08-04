@@ -14,6 +14,7 @@
 
 import type { Place } from '../types'
 import { offlineDb, upsertSyncMeta } from '../db/offlineDb'
+import { DEFAULT_LEAFLET_TILE_URL } from '../components/Map/tileUrls'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -30,8 +31,7 @@ const AVG_TILE_KB = 15
  */
 export const MAX_TILES = Math.floor((180 * 1024) / AVG_TILE_KB) // = 12288
 
-const DEFAULT_TILE_URL =
-  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+const DEFAULT_TILE_URL = DEFAULT_LEAFLET_TILE_URL
 
 const SUBDOMAINS = ['a', 'b', 'c', 'd']
 let _subIdx = 0

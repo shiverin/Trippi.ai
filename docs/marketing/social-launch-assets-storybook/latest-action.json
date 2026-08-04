@@ -1,0 +1,14 @@
+{
+  "id": "review-renderer-materialized",
+  "action": "write_moodboard_widget_payload",
+  "label": "Materialized Creative Production image review",
+  "createdAt": "2026-07-01T03:41:46.606226Z",
+  "timestamp": "2026-07-01T03:41:46.606226Z",
+  "title": "Creative Production Review",
+  "summary": "Review, select, and hand off generated Creative Production images.",
+  "itemCount": 15,
+  "runDirectory": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook",
+  "streamPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook/data/stream.json",
+  "runStatePath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook/run-state.json",
+  "latestActionPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook/latest-action.json"
+}

@@ -60,6 +60,7 @@ coverage
 .npm
 .eslintcache
 .cache
+__pycache__/
 outputs/
 *.tsbuildinfo
 *.tgz
@@ -70,3 +71,6 @@ test-data
 .run
 .full-review
 setup.md
+
+# Local operator notes
+docs/local-cloud-billing-findings.md

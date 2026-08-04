@@ -32,6 +32,7 @@ import {
 import { prefetchTilesForTrip } from './tilePrefetcher'
 import { isAuthed } from './authGate'
 import { useSettingsStore } from '../store/settingsStore'
+import { normalizeLeafletTileUrl } from '../components/Map/tileUrls'
 import type { Trip, Day, Place, PackingItem, TodoItem, BudgetItem, Reservation, TripFile, Accommodation, TripMember } from '../types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -163,7 +164,7 @@ export const tripSyncManager = {
       categoriesApi.list().then(d => upsertCategories(d.categories)).catch(() => {})
 
       // Cache file blobs + map tiles in background (don't block syncAll)
-      const tileUrl = useSettingsStore.getState().settings.map_tile_url || undefined
+      const tileUrl = normalizeLeafletTileUrl(useSettingsStore.getState().settings.map_tile_url)
       for (const trip of toSync) {
         const files = await offlineDb.tripFiles.where('trip_id').equals(trip.id).toArray()
         cacheFilesForTrip(files).catch(console.error)

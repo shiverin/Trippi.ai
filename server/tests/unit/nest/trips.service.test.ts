@@ -26,6 +26,7 @@ vi.mock('../../../src/services/permissions', () => ({
 
 const { entitlement } = vi.hoisted(() => ({
   entitlement: {
+    annotateTripsWithEditLocks: vi.fn(async (trips) => trips),
     checkActiveTripCapacity: vi.fn(() => ({ allowed: true })),
     checkTripGroupCapacity: vi.fn(() => ({ allowed: true })),
     throwIfEntitlementDenied: vi.fn(),

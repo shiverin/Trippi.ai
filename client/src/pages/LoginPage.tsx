@@ -1,24 +1,16 @@
 import {
-  BookMarked,
-  CheckSquare,
   ChevronDown,
   Eye,
   EyeOff,
   Fingerprint,
-  FolderOpen,
   Globe,
   Home,
   KeyRound,
   Lock,
   Mail,
-  Map,
   Plane,
-  Route,
   Shield,
   User,
-  Users,
-  Wallet,
-  Zap,
 } from 'lucide-react';
 import React from 'react';
 import ToggleSwitch from '../components/Settings/ToggleSwitch';
@@ -441,224 +433,183 @@ export default function LoginPage(): React.ReactElement {
         )}
       </div>
 
-      {/* Left — branding */}
+      {/* Left — storybook branding */}
       <div
         style={{
           display: 'none',
           width: '55%',
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+          background: '#ebe4d8',
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: '60px 48px',
+          padding: '52px 46px',
           position: 'relative',
           overflow: 'hidden',
+          borderRight: '1px solid rgba(111,75,44,0.12)',
         }}
         className="lg-panel"
       >
         <style>{`@media(min-width:1024px){.lg-panel{display:flex!important}}`}</style>
 
-        {/* Stars */}
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-          {Array.from({ length: 40 }, (_, i) => (
-            <div
-              key={i}
-              className="login-star"
-              style={{
-                position: 'absolute',
-                width: Math.random() > 0.7 ? 2 : 1,
-                height: Math.random() > 0.7 ? 2 : 1,
-                borderRadius: '50%',
-                background: 'white',
-                opacity: 0.15 + Math.random() * 0.25,
-                top: `${Math.random() * 70}%`,
-                left: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 4}s`,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Animated glow orbs */}
         <div
-          className="login-orb1"
+          aria-hidden="true"
           style={{
             position: 'absolute',
-            width: 500,
-            height: 500,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)',
-            filter: 'blur(80px)',
+            inset: 0,
+            backgroundImage:
+              'radial-gradient(circle at 20% 18%, rgba(255,250,238,0.72) 0 1px, transparent 2px), radial-gradient(circle at 64% 28%, rgba(173,151,110,0.28) 0 1px, transparent 2px), radial-gradient(circle at 82% 68%, rgba(255,250,238,0.72) 0 1px, transparent 2px)',
+            backgroundSize: '68px 68px, 92px 92px, 120px 120px',
           }}
         />
+        <div aria-hidden="true" className="storybook-star storybook-star--one" />
+        <div aria-hidden="true" className="storybook-star storybook-star--two" />
+        <div aria-hidden="true" className="storybook-star storybook-star--three" />
+        <img
+          aria-hidden="true"
+          className="storybook-float storybook-float--balloon"
+          src="/brand/storybook/balloon.png"
+          alt=""
+        />
+        <img aria-hidden="true" className="storybook-float storybook-float--wand" src="/brand/storybook/wand.png" alt="" />
+        <img
+          aria-hidden="true"
+          className="storybook-float storybook-float--passport"
+          src="/brand/storybook/passport.png"
+          alt=""
+        />
+
         <div
-          className="login-orb2"
           style={{
-            position: 'absolute',
-            width: 350,
-            height: 350,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%)',
-            filter: 'blur(60px)',
+            position: 'relative',
+            zIndex: 1,
+            width: 'min(560px, 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
           }}
-        />
-
-        {/* Animated planes — realistic silhouettes at different sizes/speeds */}
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-          {/* Plane 1 — large, slow, foreground */}
-          <svg
-            className="login-plane1"
-            viewBox="0 0 480 120"
-            style={{ position: 'absolute', width: 48, opacity: 0.12 }}
+        >
+          <div
+            style={{
+              alignSelf: 'flex-start',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 34,
+              color: '#6f4b2c',
+            }}
           >
-            <g fill="white" transform="translate(240,60) rotate(-12)">
-              <ellipse cx="0" cy="0" rx="120" ry="12" />
-              <path d="M-20,-10 L-60,-55 L-40,-55 L0,-15 Z" />
-              <path d="M-20,10 L-60,55 L-40,55 L0,15 Z" />
-              <path d="M-100,-5 L-120,-30 L-108,-30 L-90,-8 Z" />
-              <path d="M-100,5 L-120,30 L-108,30 L-90,8 Z" />
-              <ellipse cx="60" cy="0" rx="18" ry="8" />
-            </g>
-          </svg>
-
-          {/* Plane 2 — small, faster, higher */}
-          <svg
-            className="login-plane2"
-            viewBox="0 0 480 120"
-            style={{ position: 'absolute', width: 24, opacity: 0.08 }}
-          >
-            <g fill="white" transform="translate(240,60) rotate(-12)">
-              <ellipse cx="0" cy="0" rx="120" ry="12" />
-              <path d="M-20,-10 L-60,-55 L-40,-55 L0,-15 Z" />
-              <path d="M-20,10 L-60,55 L-40,55 L0,15 Z" />
-              <ellipse cx="60" cy="0" rx="18" ry="8" />
-            </g>
-          </svg>
-
-          {/* Plane 3 — medium, mid-speed */}
-          <svg
-            className="login-plane3"
-            viewBox="0 0 480 120"
-            style={{ position: 'absolute', width: 32, opacity: 0.06 }}
-          >
-            <g fill="white" transform="translate(240,60) rotate(-5)">
-              <ellipse cx="0" cy="0" rx="120" ry="12" />
-              <path d="M-20,-10 L-60,-55 L-40,-55 L0,-15 Z" />
-              <path d="M-20,10 L-60,55 L-40,55 L0,15 Z" />
-              <path d="M-100,-5 L-120,-30 L-108,-30 L-90,-8 Z" />
-              <path d="M-100,5 L-120,30 L-108,30 L-90,8 Z" />
-              <ellipse cx="60" cy="0" rx="18" ry="8" />
-            </g>
-          </svg>
-
-          {/* Plane 4 — tiny, fast, high */}
-          <svg
-            className="login-plane4"
-            viewBox="0 0 480 120"
-            style={{ position: 'absolute', width: 16, opacity: 0.07 }}
-          >
-            <g fill="white" transform="translate(240,60) rotate(-10)">
-              <ellipse cx="0" cy="0" rx="120" ry="12" />
-              <path d="M-20,-10 L-60,-55 L-40,-55 L0,-15 Z" />
-              <path d="M-20,10 L-60,55 L-40,55 L0,15 Z" />
-              <ellipse cx="60" cy="0" rx="18" ry="8" />
-            </g>
-          </svg>
-
-          {/* Plane 5 — medium, right to left, lower */}
-          <svg
-            className="login-plane5"
-            viewBox="0 0 480 120"
-            style={{ position: 'absolute', width: 28, opacity: 0.05 }}
-          >
-            <g fill="white" transform="translate(240,60) rotate(8) scale(-1,1)">
-              <ellipse cx="0" cy="0" rx="120" ry="12" />
-              <path d="M-20,-10 L-60,-55 L-40,-55 L0,-15 Z" />
-              <path d="M-20,10 L-60,55 L-40,55 L0,15 Z" />
-              <path d="M-100,-5 L-120,-30 L-108,-30 L-90,-8 Z" />
-              <path d="M-100,5 L-120,30 L-108,30 L-90,8 Z" />
-              <ellipse cx="60" cy="0" rx="18" ry="8" />
-            </g>
-          </svg>
-
-          {/* Plane 6 — tiny distant */}
-          <svg
-            className="login-plane6"
-            viewBox="0 0 480 120"
-            style={{ position: 'absolute', width: 12, opacity: 0.04 }}
-          >
-            <g fill="white" transform="translate(240,60) rotate(-15)">
-              <ellipse cx="0" cy="0" rx="120" ry="12" />
-              <path d="M-20,-10 L-60,-55 L-40,-55 L0,-15 Z" />
-              <path d="M-20,10 L-60,55 L-40,55 L0,15 Z" />
-              <ellipse cx="60" cy="0" rx="18" ry="8" />
-            </g>
-          </svg>
-        </div>
-
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 560, textAlign: 'center' }}>
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 48 }}>
             <img
-              src="/brand/trippi-wordmark-light.png"
+              src="/brand/trippi-wordmark.png"
               alt="trippi.ai"
               className="brand-wordmark"
-              style={{ height: 64 }}
+              style={{ height: 42, filter: 'sepia(0.25) saturate(0.85)' }}
+            />
+          </div>
+
+          <div
+            style={{
+              position: 'relative',
+              width: 'min(440px, 72vh)',
+              aspectRatio: '1',
+              borderRadius: '50%',
+              background:
+                'radial-gradient(circle at 50% 45%, rgba(255,250,238,0.96), rgba(246,234,214,0.9) 62%, rgba(231,218,196,0.78) 100%)',
+              border: '2px solid rgba(111,75,44,0.34)',
+              boxShadow: '0 22px 70px rgba(111,75,44,0.16)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 34,
+            }}
+          >
+            <img
+              src="/brand/storybook/suitcase.png"
+              alt=""
+              aria-hidden="true"
+              className="storybook-hero-sticker"
+              style={{
+                width: '78%',
+                maxWidth: 390,
+                transform: 'rotate(-2deg)',
+                filter: 'drop-shadow(0 16px 20px rgba(111,75,44,0.18))',
+              }}
+            />
+            <img
+              src="/brand/storybook/train.png"
+              alt=""
+              aria-hidden="true"
+              className="storybook-train-sticker"
+              style={{
+                position: 'absolute',
+                width: '34%',
+                right: '-5%',
+                bottom: '7%',
+                transform: 'rotate(5deg)',
+                filter: 'drop-shadow(0 12px 16px rgba(111,75,44,0.18))',
+              }}
+            />
+            <img
+              src="/brand/storybook/map.png"
+              alt=""
+              aria-hidden="true"
+              className="storybook-map-sticker"
+              style={{
+                position: 'absolute',
+                width: '29%',
+                left: '-2%',
+                bottom: '17%',
+                transform: 'rotate(-9deg)',
+                filter: 'drop-shadow(0 10px 14px rgba(111,75,44,0.16))',
+              }}
             />
           </div>
 
           <h2
             style={{
               margin: '0 0 12px',
-              fontSize: 36,
-              fontWeight: 700,
-              color: 'white',
-              lineHeight: 1.15,
-              letterSpacing: '-0.02em',
-              fontFamily: "'MuseoModerno', sans-serif",
+              fontSize: 'clamp(34px, 4.7vw, 58px)',
+              fontWeight: 800,
+              color: '#4e3321',
+              lineHeight: 1,
+              fontFamily: "'MuseoModerno', var(--font-system)",
               textTransform: 'lowercase',
+              textWrap: 'balance',
             }}
           >
             {t('login.tagline')}
           </h2>
-          <p style={{ margin: '0 0 44px', fontSize: 15, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
+          <p style={{ margin: '0 0 22px', maxWidth: 420, fontSize: 16, color: '#7b6853', lineHeight: 1.7 }}>
             {t('login.description')}
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 10,
+              width: '100%',
+              maxWidth: 500,
+            }}
+          >
             {[
-              { Icon: Map, label: t('login.features.maps'), desc: t('login.features.mapsDesc') },
-              { Icon: Zap, label: t('login.features.realtime'), desc: t('login.features.realtimeDesc') },
-              { Icon: Wallet, label: t('login.features.budget'), desc: t('login.features.budgetDesc') },
-              { Icon: Users, label: t('login.features.collab'), desc: t('login.features.collabDesc') },
-              { Icon: CheckSquare, label: t('login.features.packing'), desc: t('login.features.packingDesc') },
-              { Icon: BookMarked, label: t('login.features.bookings'), desc: t('login.features.bookingsDesc') },
-              { Icon: FolderOpen, label: t('login.features.files'), desc: t('login.features.filesDesc') },
-              { Icon: Route, label: t('login.features.routes'), desc: t('login.features.routesDesc') },
-            ].map(({ Icon, label, desc }) => (
+              { label: 'Plan smarter', value: 'first draft' },
+              { label: 'Less confusion', value: 'shared vibe' },
+              { label: 'More fun', value: 'one tiny Troppa' },
+            ].map(({ label, value }) => (
               <div
                 key={label}
                 style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  borderRadius: 14,
+                  border: '1px solid rgba(111,75,44,0.18)',
+                  borderRadius: 18,
                   padding: '14px 12px',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  background: 'rgba(255,250,238,0.72)',
+                  boxShadow: '0 8px 28px rgba(111,75,44,0.07)',
                   textAlign: 'left',
-                  transition:
-                    'background 200ms cubic-bezier(0.23,1,0.32,1), border-color 200ms cubic-bezier(0.23,1,0.32,1)',
-                }}
-                onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-                }}
-                onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
                 }}
               >
-                <Icon size={17} style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 7 }} />
-                <div style={{ fontSize: 12.5, color: 'white', fontWeight: 600, marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', lineHeight: 1.4 }}>{desc}</div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#4e3321', marginBottom: 4 }}>{label}</div>
+                <div style={{ fontSize: 11.5, color: '#8a7560', lineHeight: 1.35 }}>{value}</div>
               </div>
             ))}
           </div>
@@ -1440,6 +1391,71 @@ export default function LoginPage(): React.ReactElement {
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
+        .storybook-star {
+          position: absolute;
+          width: 18px;
+          height: 18px;
+          background: #f3c45c;
+          clip-path: polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%);
+          opacity: 0.72;
+          filter: drop-shadow(0 2px 2px rgba(111,75,44,0.12));
+          animation: storybookTwinkle 4.8s ease-in-out infinite;
+        }
+        .storybook-star--one { left: 11%; top: 18%; transform: rotate(-8deg); }
+        .storybook-star--two { right: 17%; top: 24%; width: 14px; height: 14px; animation-delay: 1.1s; }
+        .storybook-star--three { left: 18%; bottom: 19%; width: 22px; height: 22px; animation-delay: 2.2s; }
+        .storybook-float {
+          position: absolute;
+          z-index: 0;
+          pointer-events: none;
+          filter: drop-shadow(0 12px 18px rgba(111,75,44,0.13));
+          animation: storybookFloat 8s ease-in-out infinite;
+        }
+        .storybook-float--balloon {
+          width: min(17vw, 150px);
+          top: 9%;
+          right: 9%;
+          transform: rotate(9deg);
+        }
+        .storybook-float--wand {
+          width: min(13vw, 112px);
+          left: 7%;
+          bottom: 11%;
+          transform: rotate(-10deg);
+          animation-delay: 1.6s;
+        }
+        .storybook-float--passport {
+          width: min(12vw, 104px);
+          right: 13%;
+          bottom: 17%;
+          transform: rotate(8deg);
+          opacity: 0.84;
+          animation-delay: 2.7s;
+        }
+        .storybook-hero-sticker { animation: storybookHeroBob 6.5s ease-in-out infinite; }
+        .storybook-train-sticker { animation: storybookHeroBob 7.4s ease-in-out infinite 0.9s; }
+        .storybook-map-sticker { animation: storybookHeroBob 8.2s ease-in-out infinite 1.4s; }
+        @keyframes storybookTwinkle {
+          0%, 100% { opacity: 0.42; transform: translateY(0) rotate(-8deg) scale(0.94); }
+          50% { opacity: 0.9; transform: translateY(-5px) rotate(4deg) scale(1.06); }
+        }
+        @keyframes storybookFloat {
+          0%, 100% { translate: 0 0; }
+          50% { translate: 0 -12px; }
+        }
+        @keyframes storybookHeroBob {
+          0%, 100% { translate: 0 0; }
+          50% { translate: 0 -7px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .storybook-star,
+          .storybook-float,
+          .storybook-hero-sticker,
+          .storybook-train-sticker,
+          .storybook-map-sticker {
+            animation: none !important;
+          }
+        }
         @keyframes orbFloat1 {
           0%, 100% { top: 15%; left: 30%; }
           25% { top: 25%; left: 55%; }

@@ -313,6 +313,13 @@ function createTables(db: Database.Database): void {
       value TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS mapbox_usage_monthly (
+      month TEXT PRIMARY KEY,
+      map_loads INTEGER NOT NULL DEFAULT 0,
+      disabled_at TEXT,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS agent_jobs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type TEXT NOT NULL,

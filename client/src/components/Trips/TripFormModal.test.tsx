@@ -227,11 +227,11 @@ describe('TripFormModal', () => {
     render(<TripFormModal {...defaultProps} trip={null} />);
     // Wait for member section to load
     await screen.findByText('Travel buddies');
-    // Click the CustomSelect trigger (placeholder "Add member")
-    const selectTrigger = screen.getByText('Add member').closest('button')!;
-    await user.click(selectTrigger);
-    // alice option appears in portal (document.body)
-    const aliceOption = await screen.findByRole('button', { name: 'alice' });
+    const memberSearch = screen.getByPlaceholderText('Add member');
+    await user.click(memberSearch);
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    await user.type(memberSearch, 'ali');
+    const aliceOption = await screen.findByRole('option', { name: 'alice' });
     await user.click(aliceOption);
     // alice chip should now be in the member chip list
     expect(screen.getByText('alice')).toBeInTheDocument();
@@ -244,9 +244,9 @@ describe('TripFormModal', () => {
     render(<TripFormModal {...defaultProps} trip={null} />);
     await screen.findByText('Travel buddies');
     // Select alice
-    const selectTrigger = screen.getByText('Add member').closest('button')!;
-    await user.click(selectTrigger);
-    const aliceOption = await screen.findByRole('button', { name: 'alice' });
+    const memberSearch = screen.getByPlaceholderText('Add member');
+    await user.type(memberSearch, 'ali');
+    const aliceOption = await screen.findByRole('option', { name: 'alice' });
     await user.click(aliceOption);
     // alice chip is present
     const aliceChip = screen.getByText('alice');
@@ -255,6 +255,36 @@ describe('TripFormModal', () => {
     await user.click(aliceChip.closest('span')!);
     // alice chip should be gone
     await waitFor(() => expect(screen.queryByText('alice')).not.toBeInTheDocument());
+  });
+
+  it('FE-COMP-TRIPFORM-025B: member search shows at most five closest results', async () => {
+    const user = userEvent.setup();
+    seedStore(useAuthStore, { user: buildUser({ id: 1, username: 'me' }), isAuthenticated: true });
+    server.use(
+      http.get('/api/auth/users', () =>
+        HttpResponse.json({
+          users: [
+            { id: 100, username: 'alex' },
+            { id: 101, username: 'albert' },
+            { id: 102, username: 'alma' },
+            { id: 103, username: 'arlo' },
+            { id: 104, username: 'avery' },
+            { id: 105, username: 'austin' },
+          ],
+        })
+      )
+    );
+    render(<TripFormModal {...defaultProps} trip={null} />);
+    await screen.findByText('Travel buddies');
+    const memberSearch = screen.getByPlaceholderText('Add member');
+
+    await user.click(memberSearch);
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    await user.type(memberSearch, 'a');
+
+    await screen.findByRole('listbox');
+    expect(screen.getAllByRole('option')).toHaveLength(5);
+    expect(screen.queryByRole('option', { name: 'austin' })).not.toBeInTheDocument();
   });
 
   it('FE-COMP-TRIPFORM-026: group size entitlement lock hides the member selector while creating', async () => {

@@ -215,12 +215,11 @@ function isOwner(tripId: number | string, userId: number): boolean {
 }
 
 if (!isOracleAsync) {
-  try {
-    const { backfillFlightEndpoints } = require('../services/airportService');
-    backfillFlightEndpoints();
-  } catch (err) {
-    console.error('[DB] Flight endpoint backfill failed:', err);
-  }
+  void import('../services/airportService')
+    .then(({ backfillFlightEndpoints }) => backfillFlightEndpoints())
+    .catch((err) => {
+      console.error('[DB] Flight endpoint backfill failed:', err);
+    });
 }
 
 export { db, closeDb, reinitialize, getPlaceWithTags, canAccessTrip, isOwner };

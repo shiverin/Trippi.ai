@@ -1,0 +1,211 @@
+
+yes please
+
+10:36
+
+Worked for 8m 17s
+The safe consolidation is partly complete:
+
+applypilot-core contained no application data or custom services.
+It is now stopped.
+Its ephemeral public IPv4 has been released.
+Its disk remains untouched for now.
+Trippi remains healthy and online.
+Trippi now has free external IPv6.
+Forced-IPv6 Cloudflare Tunnel tests passed completely.
+The remaining cutover requires Cloudflare authentication. I left the Cloudflare sign-in page open in Chrome. Please sign in or create the free account, then tell me “Cloudflare ready.”
+
+After that I’ll create the stable tunnel, verify Trippi through it, remove and release trippi-prod-ip, and then safely remove the empty ApplyPilot VM/disk.
+
+
+Edited trippi-cloudflared.service
++1
+-1
+10:45
+what abt trippi ip4, u said it wld break> is thr a wya tchn ot pv6?
+
+10:45
+Yes—Trippi can be changed to IPv6, and I’ve already added IPv6 successfully.
+
+What would break is removing IPv4 before replacing the hostname:
+
+Current backend hostname: 34.29.0.6.sslip.io
+That hostname is derived directly from Trippi’s IPv4 address.
+Trippi itself and the IPv6 Cloudflare connection already work.
+IPv4 is temporarily retained only so the current production URL keeps working.
+The safe cutover is:
+
+Sign in to the Cloudflare page I left open.
+Create a permanent tunnel over Trippi’s free IPv6.
+Assign a stable hostname such as api.trippi.lol.
+Update the frontend/backend configuration from 34.29.0.6.sslip.io to that hostname.
+Test login, API, uploads, and HTTPS.
+Detach and explicitly release 34.29.0.6.
+Cloudflare will provide both IPv4 and IPv6 access to visitors at its edge, while connecting to Trippi over IPv6. Thus, users on IPv4-only networks can still use the application, but your VM no longer needs a paid IPv4 address.
+
+Please sign into Cloudflare and reply “Cloudflare ready.”
+
+10:45
+done
+
+10:46
+
+Worked for 20m 38s
+so u knwo hat trippi is from porkbuns, and i linked it to vercl , so vercel is passing it to backend. i htink/
+
+how long more u need, im rushing for time
+
+About 10–15 minutes more, mainly waiting for DNS propagation.
+
+Current status:
+
+Cloudflare IPv6 tunnel is healthy.
+Vercel’s backend proxy location is identified.
+Porkbun nameserver change was submitted.
+Existing IPv4 remains active, so Trippi will not break during propagation.
+I’ll only remove the paid IPv4 after both the website and API pass live checks.
+
+11:07
+so do the live chcks bro lol wha tu waitng for me
+
+11:08
+Working for 3m 40s
+Yep — doing them now. I’m checking authoritative DNS, the Cloudflare tunnel endpoint, Vercel’s frontend proxy, and the backend health route. If all pass consistently, I’ll proceed with the IPv4 removal.
+
+
+Ran commands
+DNS has now switched to Cloudflare and www.trippi.lol passes with HTTP 200. The remaining check exposed a real issue: Cloudflare has not yet issued/activated TLS for api.trippi.lol, so I’m fixing that before touching the IPv4.
+
+
+Chrome
+Used Chrome integration, ran a command, searched the web
+The live checks found two blockers, so I’m correctly holding the IPv4:
+
+Cloudflare’s free certificate is still Pending Validation; its backup certificate is issued.
+The backend itself is timing out through both Vercel and the new tunnel, so this is not merely DNS.
+I’m checking the VM/container health now and will restart only the failing Trippi service if necessary, preserving the database and the new ApplyPilot container.
+
+
+Running gcloud compute ssh trippi-prod-01 --project=project-3ad3d06e-bcb7-4ecf-a7e --zone=us-central1-a --tunnel-through-iap --command='uptime; free -h; df -h /; sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"; systemctl is-active cloudflared; curl -sS -o /dev/null -w "local=%{http_code} time=%{time_total}\n" --max-time 20 http://127.0.0.1/api/health || true'
+Running gcloud compute ssh trippi-prod-01 --project=project-3ad3d06e-bcb7-4ecf-a7e --zone=us-central1-a --tunnel-through-iap --command='uptime; free -h; df -h /; sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"; systemctl is-active cloudflared; curl -sS -o /dev/null -w "local=%{http_code} time=%{time_total}\n" --max-time 20 http://127.0.0.1/api/health || true'
+
+
+
+
+
+Plan
+
+SIGNAL Production and Mobile-Readiness Plan
+
+Outputs
+
+Computer Use
+Picture in Picture
+
+Show
+
+Sources
+
+README.md
+
+SIGNAL_Conversation_Package.zip
+
+VPC pricing
+
+View all
+SIGNAL Production and Mobile-Readiness Plan
+Summary
+Preserve the current FastAPI modular monolith as SIGNAL’s authoritative transaction engine. The framework is production-capable; the repository needs operational hardening, reproducible builds, an Oracle production adapter, and stronger client-facing contracts.
+Deliver a mobile-first installable PWA now. Prepare a generated TypeScript SDK, token-based native authentication, shared design tokens, deep links, and notification contracts for a later Expo/React Native application.
+Host:
+www.<domain>: Next.js 16.2.10 marketing site on Vercel.
+app.<domain> and api.<domain>: FastAPI product/API on Google Cloud Run.
+Database: Oracle Autonomous Transaction Processing.
+Background work: Cloud Tasks and a private Cloud Run worker.
+Keep points, prediction commitment, consensus capture, settlement, scoring, notifications, and ledgers inside the FastAPI transaction boundary.
+Repository and Architecture
+Consolidate the project into a monorepo:
+apps/backend: FastAPI, Jinja PWA, services, migrations, workers, and OpenAPI.
+apps/marketing: faithful Next.js/React recreation of the approved landing experience.
+packages/contracts: generated TypeScript client and shared API types.
+packages/design-tokens: colors, typography, spacing, receipt geometry, and motion tokens usable by web and future React Native.
+infra/gcp: Terraform for Cloud Run, Artifact Registry, Cloud Tasks, Scheduler, Storage, Secret Manager, IAM, budgets, and monitoring.
+Pin Python, Node 24, TypeScript 7.0.2, Next.js 16.2.10, and React 19.2.7 with lockfiles and automated dependency updates.
+Build the FastAPI container from an official Python image, run one application process per Cloud Run container, and scale through container replicas, following FastAPI’s current container guidance. FastAPI container deployment
+Introduce provider interfaces for evidence sources, email, object storage, analytics, notifications, and future push delivery. External integrations must never bypass domain services or write directly to ledgers.
+Generate a branded, immutable receipt image after resolution and store it in Google Cloud Storage for social sharing and future mobile share sheets.
+Production Backend and Oracle Port
+Make Oracle Autonomous Database the production reference using SQLAlchemy and python-oracledb thin mode. Support encrypted walletless TLS where enabled, with wallet/mTLS available as a configuration fallback. Oracle Python connection guidance
+Port schema behavior deliberately:
+Oracle identity/sequence handling, UTC timestamps, CLOB/JSON serialization, indexes, and naming limits.
+SELECT … FOR UPDATE for point wallets, entry ordering, settlement, invite usage, and collectible unlocks.
+PL/SQL triggers enforcing immutable calls, point movements, collectible receipts, and resolution audit history.
+Oracle-specific Alembic upgrade/downgrade tests against a dedicated non-production CI schema.
+Configure conservative pools initially: five connections per instance, two overflow connections, two maximum Cloud Run instances, and connection pre-ping/recycling. Adjust only from observed database-session and latency data.
+Use Google Secret Manager for Oracle credentials, TLS material, session secrets, email keys, and provider tokens. Cloud Run secret management
+Add a transactional outbox. Domain transactions write outbox events; an idempotent worker converts them into emails, notifications, receipt images, analytics events, and external webhooks through Cloud Tasks. Cloud Tasks with Cloud Run
+Complete production account lifecycle: invite codes, email verification, password reset, session/device revocation, administrator TOTP MFA, data export, account deletion/pseudonymization, and audit trails.
+Add structured JSON logs, OpenTelemetry traces, release identifiers, latency/error dashboards, queue-depth alarms, resolution-SLA alarms, budget alerts, backup verification, and restore runbooks.
+Mobile-First Product and Social Core
+Preserve the approved campaign aesthetic while rebuilding layouts from a 320px-first responsive baseline:
+Safe-area support for notches and home indicators.
+Minimum 44px touch targets, mobile bottom navigation, thumb-reachable primary actions, keyboard-safe forms, and reduced-motion behavior.
+No horizontal overflow at 320, 360, 390, 412, or 430px.
+Responsive tablet layouts at 768 and 1024px without stretched phone cards.
+Make the web app installable:
+Complete manifest, adaptive icons, splash assets, install guidance, offline shell, and update notification.
+Cache only versioned public assets and public marketing content.
+Never cache authenticated HTML, private API responses, open-call consensus, or pending writes.
+Queue no prediction, stake, unlock, or moderation write offline; failed writes must return an explicit retry state.
+Add the previously planned social core: chronological following feed, scout discovery, comments, reactions, shareable receipts, invite mechanics, and in-app notifications. No DMs or groups in this milestone.
+Stream notification badges through reconnecting Server-Sent Events, with cursor-based recovery and polling fallback. Open-call events must not expose side, confidence, stake, or consensus before the viewer commits.
+Add mobile-ready authentication now:
+Web continues using HttpOnly opaque-session cookies and CSRF.
+Native clients use short-lived opaque access tokens plus rotating, hashed refresh tokens bound to a device session.
+Future mobile clients store refresh tokens in the platform Keychain/Keystore; no JWT authorization state or database credentials reside on-device.
+Prepare the next mobile milestone around Expo SDK 57, React Native 0.86, Expo Router, EAS development/preview/production profiles, universal/app links, SecureStore, and push-token registration. Expo’s current tooling supports Android/iOS build, internal distribution, automated versioning, and store submission. Expo EAS Build
+Public Interfaces and Compatibility
+Standardize every /api/v1 response around:
+ProblemDetail errors with stable machine codes.
+CursorPage<T> using (created_at, id) cursors.
+UTC ISO-8601 timestamps.
+Request IDs and idempotency keys on consequential writes.
+Add:
+/api/v1/auth/login, /refresh, /logout, /devices, and device revocation.
+/api/v1/feed, /scouts/suggestions, /notifications, and /notifications/stream.
+/api/v1/receipts/{call_id} and receipt reactions.
+/api/v1/invites for authorized invite management.
+/api/v1/push-subscriptions as a dormant future-mobile contract.
+Generate the TypeScript SDK from the checked-in OpenAPI artifact. CI fails on undocumented breaking changes, stale generated clients, or removal of a V1 field without a published deprecation.
+Use signed, idempotent webhook envelopes for future evidence providers and B2B integrations.
+Keep the Vercel marketing application anonymous and read-only except for waitlist submission. It may call only explicitly public API endpoints with an exact-origin CORS policy.
+Verification and Delivery
+Require make bootstrap, make dev, and make check to work from a clean checkout without silently skipped tools.
+Test matrix:
+Python 3.13/3.14, Node 24, TypeScript 7.
+SQLite unit tests plus real Oracle integration, migrations, triggers, locking, and concurrency tests.
+Property tests for point conservation, duplicate settlement, idempotency, and score/collection invariants.
+OpenAPI compatibility and generated-SDK compilation.
+Cloud Run container, migration job, worker, health/readiness, and graceful-shutdown tests.
+End-to-end flow: invited signup → verify email → follow scout → feed → commit call → receive resolution notification → share/react to receipt → unlock collectible → revoke device.
+Browser/device QA:
+Chromium, Firefox, desktop Safari, iOS Safari, and Android Chrome.
+Mobile widths, tablets, desktop, portrait/landscape, touch, keyboard, screen reader, text zoom, slow network, offline return, and reduced motion.
+Visual comparison against the approved desktop, mobile, Locker, and leaderboard references.
+Performance acceptance:
+No ledger inconsistency under 100 concurrent alpha users.
+p95 under 300ms for cached/public reads and under 700ms for transactional writes, excluding cross-cloud network failure.
+Lighthouse performance/accessibility scores of at least 90 on the principal public and authenticated mobile routes.
+CI/CD:
+Pull requests run tests, browser QA, dependency/secret scans, SBOM generation, and container scanning.
+GitHub Actions authenticates to Google through workload identity rather than stored service-account keys.
+Production releases run expand-only migrations as a separate Cloud Run job, deploy with zero traffic, smoke-test, shift 10% traffic, then complete rollout.
+Rollback reverts application traffic; destructive schema changes require a later contract migration.
+Document operational ownership, alerts, backup/restore rehearsal, incident response, data-provider outages, moderation escalation, and scoring/economy change procedures.
+Assumptions and Cost Controls
+“Oracle DB” is assumed to mean Oracle Autonomous Transaction Processing with no existing SIGNAL production data. Existing data would require a separate migration plan.
+Vercel is assumed to host marketing only; the authenticated PWA remains on Cloud Run to avoid an unnecessary product rewrite.
+Cloud Run includes a usage-based free allowance and scales to zero, making it suitable for the alpha, but cross-cloud database networking and static egress can still cost money. Cloud Run pricing
+Oracle Always Free is appropriate for development/private alpha but has storage and session restrictions; production monitoring must trigger a capacity upgrade before those limits become user-facing. Oracle Always Free resources
+Vercel Hobby is limited to personal, non-commercial use. A real SIGNAL startup deployment must use Vercel Pro or remove Vercel from the production architecture. Vercel pricing and plan terms
+The next milestone creates the Expo mobile application; this milestone provides the production API, authentication, tokens, deep links, notification contracts, and shared design system it will consume.

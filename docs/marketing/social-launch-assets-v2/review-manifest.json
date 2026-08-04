@@ -1,0 +1,119 @@
+[
+  {
+    "id": "profile-avatar",
+    "title": "Profile avatar",
+    "category": "profile",
+    "src": "profile-avatar.png",
+    "href": "profile-avatar.png",
+    "output": "profile-avatar.png",
+    "index": 1
+  },
+  {
+    "id": "reel-01-plan-smarter",
+    "title": "Reel cover: Plan smarter",
+    "category": "reels",
+    "src": "reel-01-plan-smarter.png",
+    "href": "reel-01-plan-smarter.png",
+    "output": "reel-01-plan-smarter.png",
+    "index": 2
+  },
+  {
+    "id": "reel-02-group-chat-chaos",
+    "title": "Reel cover: Group chat chaos",
+    "category": "reels",
+    "src": "reel-02-group-chat-chaos.png",
+    "href": "reel-02-group-chat-chaos.png",
+    "output": "reel-02-group-chat-chaos.png",
+    "index": 3
+  },
+  {
+    "id": "reel-03-comment-city",
+    "title": "Reel cover: Comment a city",
+    "category": "reels",
+    "src": "reel-03-comment-city.png",
+    "href": "reel-03-comment-city.png",
+    "output": "reel-03-comment-city.png",
+    "index": 4
+  },
+  {
+    "id": "reel-04-trip-energy",
+    "title": "Reel cover: Trip energy",
+    "category": "reels",
+    "src": "reel-04-trip-energy.png",
+    "href": "reel-04-trip-energy.png",
+    "output": "reel-04-trip-energy.png",
+    "index": 5
+  },
+  {
+    "id": "ig-01-your-trippi",
+    "title": "IG square: Your Trippi",
+    "category": "instagram",
+    "src": "ig-01-your-trippi.png",
+    "href": "ig-01-your-trippi.png",
+    "output": "ig-01-your-trippi.png",
+    "index": 6
+  },
+  {
+    "id": "ig-02-less-confusion",
+    "title": "IG square: Less confusion",
+    "category": "instagram",
+    "src": "ig-02-less-confusion.png",
+    "href": "ig-02-less-confusion.png",
+    "output": "ig-02-less-confusion.png",
+    "index": 7
+  },
+  {
+    "id": "ig-03-waitlist",
+    "title": "IG square: Waitlist",
+    "category": "instagram",
+    "src": "ig-03-waitlist.png",
+    "href": "ig-03-waitlist.png",
+    "output": "ig-03-waitlist.png",
+    "index": 8
+  },
+  {
+    "id": "feed-01-plan-smarter",
+    "title": "Feed portrait: Plan smarter",
+    "category": "feed",
+    "src": "feed-01-plan-smarter.png",
+    "href": "feed-01-plan-smarter.png",
+    "output": "feed-01-plan-smarter.png",
+    "index": 9
+  },
+  {
+    "id": "carousel-01-chaos",
+    "title": "Carousel: Planning a trip should not feel li",
+    "category": "carousel",
+    "src": "carousel-01-chaos.png",
+    "href": "carousel-01-chaos.png",
+    "output": "carousel-01-chaos.png",
+    "index": 10
+  },
+  {
+    "id": "carousel-02-drop-details",
+    "title": "Carousel: Drop the city, dates, budget, and ",
+    "category": "carousel",
+    "src": "carousel-02-drop-details.png",
+    "href": "carousel-02-drop-details.png",
+    "output": "carousel-02-drop-details.png",
+    "index": 11
+  },
+  {
+    "id": "carousel-03-draft",
+    "title": "Carousel: Trippi turns the chaos into a firs",
+    "category": "carousel",
+    "src": "carousel-03-draft.png",
+    "href": "carousel-03-draft.png",
+    "output": "carousel-03-draft.png",
+    "index": 12
+  },
+  {
+    "id": "carousel-04-troppa",
+    "title": "Carousel: your Trippi, our Troppa.",
+    "category": "carousel",
+    "src": "carousel-04-troppa.png",
+    "href": "carousel-04-troppa.png",
+    "output": "carousel-04-troppa.png",
+    "index": 13
+  }
+]

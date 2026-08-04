@@ -3597,12 +3597,16 @@ function runMigrations(db: Database.Database): void {
       `);
     },
     () => {
-      // Admin-owned plan overrides are separate from Stripe subscription facts.
-      try {
-        db.exec('ALTER TABLE users ADD COLUMN billing_plan_override TEXT');
-      } catch (err: any) {
-        if (!err.message?.includes('duplicate column name')) throw err;
-      }
+      // Backend-owned Mapbox safety meter. Runtime code also ensures this table
+      // for direct async Oracle installs before it meters the first map load.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS mapbox_usage_monthly (
+          month TEXT PRIMARY KEY,
+          map_loads INTEGER NOT NULL DEFAULT 0,
+          disabled_at TEXT,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
     },
     () => {
       // Admin-owned plan overrides are separate from Stripe subscription facts.

@@ -44,6 +44,7 @@ import {
   resolvePoolAssignmentId,
   visibleBookingRouteIds,
 } from './tripPlannerModel';
+import { normalizeLeafletTileUrl } from '../../components/Map/tileUrls';
 
 const TRANSPORT_TYPES = BOOKING_ROUTE_TRANSPORT_TYPES;
 
@@ -1294,7 +1295,7 @@ export function useTripPlanner() {
     return places.filter((p) => hasValidPlaceCoordinates(p) && dayRelevantPlaceIds.has(p.id));
   }, [selectedDayId, places, dayRelevantPlaceIds]);
 
-  const mapTileUrl = settings.map_tile_url || 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const mapTileUrl = normalizeLeafletTileUrl(settings.map_tile_url);
   const defaultCenter = [settings.default_lat || 48.8566, settings.default_lng || 2.3522];
   const defaultZoom = settings.default_zoom || 10;
 

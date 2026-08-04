@@ -1,5 +1,5 @@
 import type { TripCreateRequest } from '@trippi/shared';
-import { Bell, Calendar, Camera, UserPlus, X } from 'lucide-react';
+import { Bell, Calendar, Camera, ChevronDown, UserPlus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { authApi, tripsApi } from '../../api/client';
 import { formatLimit, isLimitReached, useEntitlements } from '../../hooks/useEntitlements';
@@ -10,7 +10,6 @@ import type { Trip } from '../../types';
 import { normalizeImageFile } from '../../utils/convertHeic';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { CustomDatePicker } from '../shared/CustomDateTimePicker';
-import CustomSelect from '../shared/CustomSelect';
 import Modal from '../shared/Modal';
 import { LockedState } from '../shared/PremiumGate';
 import { useToast } from '../shared/Toast';
@@ -25,9 +24,32 @@ interface TripFormModalProps {
   onCoverUpdate?: (tripId: number, coverUrl: string | null) => void;
 }
 
+function usernameSearchScore(username: string, query: string): number {
+  const name = username.toLowerCase();
+  const q = query.trim().toLowerCase();
+  if (!q) return Number.POSITIVE_INFINITY;
+  if (name.startsWith(q)) return name.length - q.length;
+
+  const index = name.indexOf(q);
+  if (index >= 0) return 100 + index + name.length - q.length;
+
+  let qi = 0;
+  let gaps = 0;
+  for (const char of name) {
+    if (char === q[qi]) {
+      qi += 1;
+      if (qi === q.length) return 200 + gaps + name.length - q.length;
+    } else if (qi > 0) {
+      gaps += 1;
+    }
+  }
+  return Number.POSITIVE_INFINITY;
+}
+
 export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUpdate }: TripFormModalProps) {
   const isEditing = !!trip;
   const fileRef = useRef(null);
+  const memberSearchRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
   const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
@@ -55,7 +77,9 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
   const [allUsers, setAllUsers] = useState<{ id: number; username: string }[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
   const [existingMembers, setExistingMembers] = useState<{ id: number; username: string }[]>([]);
-  const [memberSelectValue, setMemberSelectValue] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberSearchOpen, setMemberSearchOpen] = useState(false);
+  const [memberSearchOpenUp, setMemberSearchOpenUp] = useState(false);
 
   useEffect(() => {
     if (trip) {
@@ -84,6 +108,9 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
     }
     setPendingCoverFile(null);
     setSelectedMembers([]);
+    setMemberSearch('');
+    setMemberSearchOpen(false);
+    setMemberSearchOpenUp(false);
     setError('');
     if (isOpen) {
       authApi
@@ -112,6 +139,17 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
       setFormData((prev) => ({ ...prev, reminder_days: tripRemindersEnabled ? 3 : 0 }));
     }
   }, [tripRemindersEnabled]);
+
+  useEffect(() => {
+    if (!memberSearchOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (!memberSearchRef.current?.contains(e.target as Node)) {
+        setMemberSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [memberSearchOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -268,6 +306,40 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
     entitlementState.startUpgrade().catch((err) => {
       toast.info(err instanceof Error ? err.message : 'Upgrade checkout is not available yet.');
     });
+  };
+
+  const availableMemberResults = allUsers
+    .filter(
+      (u) => u.id !== currentUser?.id && !selectedMembers.includes(u.id) && !existingMembers.some((m) => m.id === u.id)
+    )
+    .map((user) => ({ user, score: usernameSearchScore(user.username, memberSearch) }))
+    .filter(({ score }) => Number.isFinite(score))
+    .sort((a, b) => a.score - b.score || a.user.username.localeCompare(b.user.username))
+    .slice(0, 5)
+    .map(({ user }) => user);
+
+  const addMemberFromSearch = async (user: { id: number; username: string }) => {
+    if (groupLocked) return;
+    if (isEditing && trip?.id) {
+      try {
+        await tripsApi.addMember(trip.id, user.username);
+        setExistingMembers((prev) => [...prev, { id: user.id, username: user.username }]);
+        toast.success(t('trips.memberAdded', { username: user.username }));
+      } catch {
+        toast.error(t('trips.memberAddError'));
+        return;
+      }
+    } else {
+      setSelectedMembers((prev) => (prev.includes(user.id) ? prev : [...prev, user.id]));
+    }
+    setMemberSearch('');
+    setMemberSearchOpen(false);
+  };
+
+  const openMemberSearch = () => {
+    const rect = memberSearchRef.current?.getBoundingClientRect();
+    setMemberSearchOpenUp(!!rect && window.innerHeight - rect.bottom < 220 && rect.top > 180);
+    setMemberSearchOpen(true);
   };
 
   const inputCls =
@@ -645,40 +717,53 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
                 onUpgrade={startUpgrade}
               />
             ) : (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <CustomSelect
-                  value={memberSelectValue}
-                  onChange={async (value) => {
-                    if (!value) return;
-                    if (groupLocked) return;
-                    if (isEditing && trip?.id) {
-                      const user = allUsers.find((u) => u.id === Number(value));
-                      if (user) {
-                        try {
-                          await tripsApi.addMember(trip.id, user.username);
-                          setExistingMembers((prev) => [...prev, { id: user.id, username: user.username }]);
-                          toast.success(t('trips.memberAdded', { username: user.username }));
-                        } catch {
-                          toast.error(t('trips.memberAddError'));
-                        }
+              <div ref={memberSearchRef} className="relative max-w-[265px]">
+                <div className="flex items-center gap-2 rounded-[10px] border border-slate-200 bg-white px-3 py-2 text-sm transition-colors focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100">
+                  <input
+                    type="search"
+                    value={memberSearch}
+                    onFocus={openMemberSearch}
+                    onChange={(e) => {
+                      setMemberSearch(e.target.value);
+                      openMemberSearch();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setMemberSearchOpen(false);
+                      if (e.key === 'Enter' && availableMemberResults[0]) {
+                        e.preventDefault();
+                        addMemberFromSearch(availableMemberResults[0]);
                       }
-                    } else {
-                      setSelectedMembers((prev) => (prev.includes(Number(value)) ? prev : [...prev, Number(value)]));
-                    }
-                    setMemberSelectValue('');
-                  }}
-                  placeholder={t('dashboard.addMember')}
-                  options={allUsers
-                    .filter(
-                      (u) =>
-                        u.id !== currentUser?.id &&
-                        !selectedMembers.includes(u.id) &&
-                        !existingMembers.some((m) => m.id === u.id)
-                    )
-                    .map((u) => ({ value: u.id, label: u.username }))}
-                  searchable
-                  size="sm"
-                />
+                    }}
+                    placeholder={t('dashboard.addMember')}
+                    className="min-w-0 flex-1 bg-transparent font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                  />
+                  <ChevronDown
+                    size={14}
+                    className={`shrink-0 text-slate-400 transition-transform ${memberSearchOpen ? 'rotate-180' : ''}`}
+                  />
+                </div>
+                {memberSearchOpen && memberSearch.trim() && availableMemberResults.length > 0 && (
+                  <div
+                    role="listbox"
+                    className={`absolute left-0 z-50 max-h-56 w-full overflow-hidden rounded-[10px] border border-slate-200 bg-white p-1 shadow-lg ${
+                      memberSearchOpenUp ? 'bottom-full mb-1' : 'top-full mt-1'
+                    }`}
+                  >
+                    {availableMemberResults.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        role="option"
+                        aria-selected="false"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => addMemberFromSearch(user)}
+                        className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                      >
+                        {user.username}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

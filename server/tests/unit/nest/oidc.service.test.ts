@@ -80,13 +80,13 @@ describe('OidcService', () => {
     const st = { state: 'st', codeChallenge: 'cc' };
     oidc.createState.mockReturnValue(st);
     expect(s.createState('https://app/cb', 'inv')).toBe(st);
-    expect(oidc.createState).toHaveBeenCalledWith('https://app/cb', 'inv');
+    expect(oidc.createState).toHaveBeenCalledWith('https://app/cb', 'inv', undefined);
   });
 
   it('createState works without an invite token', () => {
     oidc.createState.mockReturnValue({ state: 'st', codeChallenge: 'cc' });
     s.createState('https://app/cb');
-    expect(oidc.createState).toHaveBeenCalledWith('https://app/cb', undefined);
+    expect(oidc.createState).toHaveBeenCalledWith('https://app/cb', undefined, undefined);
   });
 
   it('consumeState forwards the state', () => {

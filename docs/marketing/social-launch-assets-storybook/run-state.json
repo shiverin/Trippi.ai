@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "runDirectory": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook",
+  "streamPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook/data/stream.json",
+  "runStatePath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook/run-state.json",
+  "latestActionPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook/latest-action.json",
+  "paths": {
+    "streamPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook/data/stream.json",
+    "runStatePath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook/run-state.json",
+    "latestActionPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-storybook/latest-action.json"
+  },
+  "itemCount": 15,
+  "items": [
+    {
+      "id": "profile-avatar",
+      "title": "Profile avatar",
+      "caption": "profile",
+      "tone": "profile",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/profile-avatar.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/profile-avatar.jpg",
+      "sourceImageUrl": "/generated/profile-avatar.png"
+    },
+    {
+      "id": "reel-01-launching-soon",
+      "title": "Reel cover: Launching soon",
+      "caption": "reels",
+      "tone": "reels",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/reel-01-launching-soon.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/reel-01-launching-soon.jpg",
+      "sourceImageUrl": "/generated/reel-01-launching-soon.png"
+    },
+    {
+      "id": "reel-02-group-chat",
+      "title": "Reel cover: Group chat",
+      "caption": "reels",
+      "tone": "reels",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/reel-02-group-chat.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/reel-02-group-chat.jpg",
+      "sourceImageUrl": "/generated/reel-02-group-chat.png"
+    },
+    {
+      "id": "reel-03-comment-city",
+      "title": "Reel cover: Comment a city",
+      "caption": "reels",
+      "tone": "reels",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/reel-03-comment-city.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/reel-03-comment-city.jpg",
+      "sourceImageUrl": "/generated/reel-03-comment-city.png"
+    },
+    {
+      "id": "reel-04-trip-energy",
+      "title": "Reel cover: Trip energy",
+      "caption": "reels",
+      "tone": "reels",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/reel-04-trip-energy.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/reel-04-trip-energy.jpg",
+      "sourceImageUrl": "/generated/reel-04-trip-energy.png"
+    },
+    {
+      "id": "ig-01-your-trippi",
+      "title": "IG square: your Trippi,",
+      "caption": "instagram",
+      "tone": "instagram",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/ig-01-your-trippi.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/ig-01-your-trippi.jpg",
+      "sourceImageUrl": "/generated/ig-01-your-trippi.png"
+    },
+    {
+      "id": "ig-02-plan-smarter",
+      "title": "IG square: Plan smarter.",
+      "caption": "instagram",
+      "tone": "instagram",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/ig-02-plan-smarter.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/ig-02-plan-smarter.jpg",
+      "sourceImageUrl": "/generated/ig-02-plan-smarter.png"
+    },
+    {
+      "id": "ig-03-launch-soon",
+      "title": "IG square: Launching soon",
+      "caption": "instagram",
+      "tone": "instagram",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/ig-03-launch-soon.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/ig-03-launch-soon.jpg",
+      "sourceImageUrl": "/generated/ig-03-launch-soon.png"
+    },
+    {
+      "id": "story-01-countdown",
+      "title": "Story: soft launching soon",
+      "caption": "stories",
+      "tone": "stories",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/story-01-countdown.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/story-01-countdown.jpg",
+      "sourceImageUrl": "/generated/story-01-countdown.png"
+    },
+    {
+      "id": "story-02-question",
+      "title": "Story: Where should Troppa go?",
+      "caption": "stories",
+      "tone": "stories",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/story-02-question.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/story-02-question.jpg",
+      "sourceImageUrl": "/generated/story-02-question.png"
+    },
+    {
+      "id": "carousel-01",
+      "title": "Carousel 1: Trip planning should feel li",
+      "caption": "carousel",
+      "tone": "carousel",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/carousel-01.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/carousel-01.jpg",
+      "sourceImageUrl": "/generated/carousel-01.png"
+    },
+    {
+      "id": "carousel-02",
+      "title": "Carousel 2: Drop the city, dates, budget",
+      "caption": "carousel",
+      "tone": "carousel",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/carousel-02.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/carousel-02.jpg",
+      "sourceImageUrl": "/generated/carousel-02.png"
+    },
+    {
+      "id": "carousel-03",
+      "title": "Carousel 3: Trippi turns it into a first",
+      "caption": "carousel",
+      "tone": "carousel",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/carousel-03.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/carousel-03.jpg",
+      "sourceImageUrl": "/generated/carousel-03.png"
+    },
+    {
+      "id": "carousel-04",
+      "title": "Carousel 4: your Trippi, our Troppa.",
+      "caption": "carousel",
+      "tone": "carousel",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/carousel-04.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/carousel-04.jpg",
+      "sourceImageUrl": "/generated/carousel-04.png"
+    },
+    {
+      "id": "social-banner",
+      "title": "Social banner",
+      "caption": "banner",
+      "tone": "banner",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/social-banner.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/social-banner.jpg",
+      "sourceImageUrl": "/generated/social-banner.png"
+    }
+  ],
+  "visibleItemIds": [
+    "profile-avatar",
+    "reel-01-launching-soon",
+    "reel-02-group-chat",
+    "reel-03-comment-city",
+    "reel-04-trip-energy",
+    "ig-01-your-trippi",
+    "ig-02-plan-smarter",
+    "ig-03-launch-soon",
+    "story-01-countdown",
+    "story-02-question",
+    "carousel-01",
+    "carousel-02",
+    "carousel-03",
+    "carousel-04",
+    "social-banner"
+  ],
+  "hiddenImageIds": [],
+  "selectedImageIds": [],
+  "currentImageId": "profile-avatar",
+  "updatedAt": "2026-07-01T03:41:46.606226Z"
+}

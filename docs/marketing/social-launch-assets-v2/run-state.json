@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "runDirectory": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-v2",
+  "streamPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-v2/data/stream.json",
+  "runStatePath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-v2/run-state.json",
+  "latestActionPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-v2/latest-action.json",
+  "paths": {
+    "streamPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-v2/data/stream.json",
+    "runStatePath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-v2/run-state.json",
+    "latestActionPath": "/Users/shizhen/Documents/Trippi.ai/docs/marketing/social-launch-assets-v2/latest-action.json"
+  },
+  "itemCount": 13,
+  "items": [
+    {
+      "id": "profile-avatar",
+      "title": "Profile avatar",
+      "caption": "profile",
+      "tone": "profile",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/profile-avatar.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/profile-avatar.jpg",
+      "sourceImageUrl": "/generated/profile-avatar.png"
+    },
+    {
+      "id": "reel-01-plan-smarter",
+      "title": "Reel cover: Plan smarter",
+      "caption": "reels",
+      "tone": "reels",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/reel-01-plan-smarter.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/reel-01-plan-smarter.jpg",
+      "sourceImageUrl": "/generated/reel-01-plan-smarter.png"
+    },
+    {
+      "id": "reel-02-group-chat-chaos",
+      "title": "Reel cover: Group chat chaos",
+      "caption": "reels",
+      "tone": "reels",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/reel-02-group-chat-chaos.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/reel-02-group-chat-chaos.jpg",
+      "sourceImageUrl": "/generated/reel-02-group-chat-chaos.png"
+    },
+    {
+      "id": "reel-03-comment-city",
+      "title": "Reel cover: Comment a city",
+      "caption": "reels",
+      "tone": "reels",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/reel-03-comment-city.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/reel-03-comment-city.jpg",
+      "sourceImageUrl": "/generated/reel-03-comment-city.png"
+    },
+    {
+      "id": "reel-04-trip-energy",
+      "title": "Reel cover: Trip energy",
+      "caption": "reels",
+      "tone": "reels",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/reel-04-trip-energy.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/reel-04-trip-energy.jpg",
+      "sourceImageUrl": "/generated/reel-04-trip-energy.png"
+    },
+    {
+      "id": "ig-01-your-trippi",
+      "title": "IG square: Your Trippi",
+      "caption": "instagram",
+      "tone": "instagram",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/ig-01-your-trippi.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/ig-01-your-trippi.jpg",
+      "sourceImageUrl": "/generated/ig-01-your-trippi.png"
+    },
+    {
+      "id": "ig-02-less-confusion",
+      "title": "IG square: Less confusion",
+      "caption": "instagram",
+      "tone": "instagram",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/ig-02-less-confusion.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/ig-02-less-confusion.jpg",
+      "sourceImageUrl": "/generated/ig-02-less-confusion.png"
+    },
+    {
+      "id": "ig-03-waitlist",
+      "title": "IG square: Waitlist",
+      "caption": "instagram",
+      "tone": "instagram",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/ig-03-waitlist.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/ig-03-waitlist.jpg",
+      "sourceImageUrl": "/generated/ig-03-waitlist.png"
+    },
+    {
+      "id": "feed-01-plan-smarter",
+      "title": "Feed portrait: Plan smarter",
+      "caption": "feed",
+      "tone": "feed",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/feed-01-plan-smarter.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/feed-01-plan-smarter.jpg",
+      "sourceImageUrl": "/generated/feed-01-plan-smarter.png"
+    },
+    {
+      "id": "carousel-01-chaos",
+      "title": "Carousel: Planning a trip should not feel li",
+      "caption": "carousel",
+      "tone": "carousel",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/carousel-01-chaos.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/carousel-01-chaos.jpg",
+      "sourceImageUrl": "/generated/carousel-01-chaos.png"
+    },
+    {
+      "id": "carousel-02-drop-details",
+      "title": "Carousel: Drop the city, dates, budget, and ",
+      "caption": "carousel",
+      "tone": "carousel",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/carousel-02-drop-details.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/carousel-02-drop-details.jpg",
+      "sourceImageUrl": "/generated/carousel-02-drop-details.png"
+    },
+    {
+      "id": "carousel-03-draft",
+      "title": "Carousel: Trippi turns the chaos into a firs",
+      "caption": "carousel",
+      "tone": "carousel",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/carousel-03-draft.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/carousel-03-draft.jpg",
+      "sourceImageUrl": "/generated/carousel-03-draft.png"
+    },
+    {
+      "id": "carousel-04-troppa",
+      "title": "Carousel: your Trippi, our Troppa.",
+      "caption": "carousel",
+      "tone": "carousel",
+      "prompt": "",
+      "imageUrl": "/generated/mcp-thumbs/carousel-04-troppa.jpg",
+      "previewImageUrl": "/generated/mcp-thumbs/carousel-04-troppa.jpg",
+      "sourceImageUrl": "/generated/carousel-04-troppa.png"
+    }
+  ],
+  "visibleItemIds": [
+    "profile-avatar",
+    "reel-01-plan-smarter",
+    "reel-02-group-chat-chaos",
+    "reel-03-comment-city",
+    "reel-04-trip-energy",
+    "ig-01-your-trippi",
+    "ig-02-less-confusion",
+    "ig-03-waitlist",
+    "feed-01-plan-smarter",
+    "carousel-01-chaos",
+    "carousel-02-drop-details",
+    "carousel-03-draft",
+    "carousel-04-troppa"
+  ],
+  "hiddenImageIds": [],
+  "selectedImageIds": [],
+  "currentImageId": "profile-avatar",
+  "updatedAt": "2026-07-01T03:16:53.954655Z"
+}

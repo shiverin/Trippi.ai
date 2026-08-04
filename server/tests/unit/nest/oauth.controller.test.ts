@@ -3,6 +3,7 @@ import { OauthApiController } from '../../../src/nest/oauth/oauth-api.controller
 import { OauthPublicController } from '../../../src/nest/oauth/oauth-public.controller';
 import type { OauthService } from '../../../src/nest/oauth/oauth.service';
 import { getClientIp } from '../../../src/services/auditLog';
+import { getCanonicalMcpResource } from '../../../src/services/oauthService';
 import type { User } from '../../../src/types';
 import { HttpException } from '@nestjs/common';
 
@@ -353,6 +354,7 @@ describe('OauthPublicController /token', () => {
 
   it('client_credentials: derives the audience from an explicit resource', async () => {
     const res = makeRes();
+    const audience = getCanonicalMcpResource()!;
     const issueClientCredentialsToken = vi.fn().mockReturnValue({ access_token: 'cc_at' });
     await new OauthPublicController(
       osvc({
@@ -363,11 +365,10 @@ describe('OauthPublicController /token', () => {
       }),
       rl(),
     ).token(
-      reqWith({ grant_type: 'client_credentials', client_id: 'c', client_secret: 's', resource: 'https://aud/' }),
+      reqWith({ grant_type: 'client_credentials', client_id: 'c', client_secret: 's', resource: `${audience}/` }),
       res,
     );
-    // trailing slashes are trimmed, not the mcpSafeUrl fallback
-    expect(issueClientCredentialsToken).toHaveBeenCalledWith('c', 1, ['a'], 'https://aud');
+    expect(issueClientCredentialsToken).toHaveBeenCalledWith('c', 1, ['a'], audience);
   });
 
   it('logs a dash for a missing ip on the authorization_code client-auth failure', async () => {

@@ -1,0 +1,14 @@
+{
+  "id": "review-renderer-materialized",
+  "action": "write_moodboard_widget_payload",
+  "label": "Materialized Creative Production image review",
+  "createdAt": "2026-06-30T14:12:01.377149Z",
+  "timestamp": "2026-06-30T14:12:01.377149Z",
+  "title": "Digital Product Core Ad Review",
+  "summary": "Review, select, and hand off generated Creative Production images.",
+  "itemCount": 12,
+  "runDirectory": "/Users/shizhen/Documents/Trippi.ai/outputs/imagegen/trippi-ai-digital-product-ads",
+  "streamPath": "/Users/shizhen/Documents/Trippi.ai/outputs/imagegen/trippi-ai-digital-product-ads/data/stream.json",
+  "runStatePath": "/Users/shizhen/Documents/Trippi.ai/outputs/imagegen/trippi-ai-digital-product-ads/run-state.json",
+  "latestActionPath": "/Users/shizhen/Documents/Trippi.ai/outputs/imagegen/trippi-ai-digital-product-ads/latest-action.json"
+}

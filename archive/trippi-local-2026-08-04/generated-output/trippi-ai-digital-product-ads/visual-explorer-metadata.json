@@ -1,0 +1,46 @@
+{
+  "scale": "family",
+  "pack": "digital-product-core-ad-prompts",
+  "packTitle": "Digital Product Core Ad Prompts",
+  "subjectKind": "digital-product",
+  "families": 12,
+  "routes": 0,
+  "items": 12,
+  "summary": "Twelve screen-first image-ad routes for apps, SaaS tools, AI products, developer products, collaboration tools, marketplaces, commerce products, and other software products where the UI is the product proof.",
+  "whenToUse": "Use when the product is a digital interface and the ad needs to keep the app screen large, inspectable, product-specific, and central to the composition.",
+  "requiredInputs": [
+    "product name",
+    "product category",
+    "core UI surface to show",
+    "primary product mechanic",
+    "device policy",
+    "approved UI reference or conceptual UI caveat",
+    "allowed readable text",
+    "forbidden data and claims",
+    "exact exterior headline and CTA, or NONE",
+    "brand palette and atmosphere",
+    "audience or use moment",
+    "avoid list"
+  ],
+  "riskGates": [
+    "generic phone or laptop ad",
+    "generic dashboard",
+    "tiny unreadable UI",
+    "invented product states",
+    "fake analytics",
+    "fake product data",
+    "fake metrics or percentages",
+    "real customer names or private data",
+    "unsupported claims",
+    "partner logos or app-store badges",
+    "exterior copy that was not supplied"
+  ],
+  "review": {
+    "preset": "image-wall",
+    "showCaptions": false,
+    "title": "Digital Product Core Ad Review",
+    "contactSheetOutput": "contact-sheet.png",
+    "contactSheetColumns": 4,
+    "contactSheetThumb": 250
+  }
+}

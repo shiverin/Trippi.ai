@@ -15,6 +15,11 @@ attachments before the repository backup was pushed.
   captured from a Codex attachment.
 - `codex-attachments/login-design-reference.html`: saved login-page design
   reference.
+- `local-notes/cloud-billing-findings.md`: local infrastructure and billing
+  findings that were previously excluded from Git.
+- `local-notes/private-setup-guide.md`: local setup and deployment guide.
+- `generated-output/trippi-ai-digital-product-ads/`: Trippi ad-exploration
+  prompts, manifests, review board, and run metadata.
 
 ## Canonical Repository Material Included In This Backup
 
@@ -39,5 +44,6 @@ again into this archive:
 - Duplicate Git worktree checkouts whose committed content already belongs to
   this repository.
 - Unrelated Codex attachments for other products and projects.
-- `docs/local-cloud-billing-findings.md`, which the owner explicitly requested
-  remain local and ignored by Git.
+- Secret-bearing `.env` files and local runtime/user data. These are not safe to
+  publish in the repository; production data remains in Oracle Autonomous
+  Database.
